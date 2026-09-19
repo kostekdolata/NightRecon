@@ -5,10 +5,11 @@ import argparse
 from nightrecon import __version__
 from nightrecon.config import NightReconConfig
 from nightrecon.logging import NightReconLogger
+from nightrecon.resolver import resolve_target
 from nightrecon.scope import Scope
 from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
-from nightrecon.targets import parse_target
+from nightrecon.targets import TargetType, parse_target
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -113,6 +114,21 @@ def main() -> None:
                 f"Target '{target.value}' is outside the authorized scope."
             )
 
+        resolved_addresses: tuple[str, ...] = ()
+
+        if target.target_type != TargetType.CIDR:
+            try:
+                resolution = resolve_target(target)
+                resolved_addresses = resolution.addresses
+            except ValueError as exc:
+                logger.write(
+                    "resolution.failed",
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    reason=str(exc),
+                )
+                parser.error(str(exc))
+
         session = ScanSession.create(
             target=target,
             scope_rules=tuple(args.scope),
@@ -130,17 +146,26 @@ def main() -> None:
             status=session.status,
             connect_timeout=config.connect_timeout,
             max_workers=config.max_workers,
+            resolved_addresses=list(resolved_addresses),
         )
 
         print(f"NightRecon scan target: {target.value}")
         print(f"Target type: {target.target_type.value}")
         print("Scope authorization: approved")
+
+        if resolved_addresses:
+            print("Resolved addresses:")
+            for address in resolved_addresses:
+                print(f"  - {address}")
+        else:
+            print("Resolved addresses: not applicable")
+
         print(f"Session ID: {session.session_id}")
         print(f"Session status: {session.status}")
         print(f"Connection timeout: {config.connect_timeout}")
         print(f"Max workers: {config.max_workers}")
         print(f"Result file: {output_path}")
-        print("No network activity performed.")
+        print("No port scanning performed.")
 
 
 if __name__ == "__main__":
