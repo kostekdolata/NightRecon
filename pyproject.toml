@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nightrecon"
+version = "0.1.0"
+description = "A modular penetration testing and reconnaissance platform for authorized security assessments."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "NightRecon Project" }
+]
+keywords = [
+    "security",
+    "pentesting",
+    "reconnaissance",
+    "cybersecurity"
+]
+
+[project.scripts]
+nightrecon = "nightrecon.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["nightrecon*"]
