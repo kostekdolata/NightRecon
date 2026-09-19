@@ -3,6 +3,8 @@
 import argparse
 
 from nightrecon import __version__
+from nightrecon.config import NightReconConfig
+from nightrecon.logging import NightReconLogger
 from nightrecon.scope import Scope
 from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
@@ -49,6 +51,32 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    scan_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=2.0,
+        help="Connection timeout in seconds. Default: 2.0",
+    )
+
+    scan_parser.add_argument(
+        "--workers",
+        type=int,
+        default=50,
+        help="Maximum concurrent workers. Default: 50",
+    )
+
+    scan_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    scan_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
+    )
+
     return parser
 
 
@@ -60,10 +88,27 @@ def main() -> None:
         try:
             target = parse_target(args.target)
             scope = Scope.from_values(args.scope)
+
+            config = NightReconConfig(
+                connect_timeout=args.timeout,
+                max_workers=args.workers,
+                results_dir=args.results_dir,
+                logs_dir=args.logs_dir,
+            )
         except ValueError as exc:
             parser.error(str(exc))
 
+        logger = NightReconLogger(config.logs_dir)
+
         if not scope.is_authorized(target):
+            logger.write(
+                "scan.rejected",
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason="outside_authorized_scope",
+            )
+
             parser.error(
                 f"Target '{target.value}' is outside the authorized scope."
             )
@@ -73,14 +118,27 @@ def main() -> None:
             scope_rules=tuple(args.scope),
         )
 
-        store = ResultStore()
+        store = ResultStore(config.results_dir)
         output_path = store.save_session(session)
+
+        logger.write(
+            "scan.created",
+            session_id=session.session_id,
+            target=target.value,
+            target_type=target.target_type.value,
+            scope=args.scope,
+            status=session.status,
+            connect_timeout=config.connect_timeout,
+            max_workers=config.max_workers,
+        )
 
         print(f"NightRecon scan target: {target.value}")
         print(f"Target type: {target.target_type.value}")
         print("Scope authorization: approved")
         print(f"Session ID: {session.session_id}")
         print(f"Session status: {session.status}")
+        print(f"Connection timeout: {config.connect_timeout}")
+        print(f"Max workers: {config.max_workers}")
         print(f"Result file: {output_path}")
         print("No network activity performed.")
 
