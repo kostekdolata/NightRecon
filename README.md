@@ -6,7 +6,7 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.5.0**
+**v0.5.1**
 
 NightRecon now includes scope-enforced concurrent TCP scanning, service identification, bounded passive banner detection, structured scan reports, target resolution, audit logging, and runtime configuration.
 
@@ -21,6 +21,7 @@ NightRecon now includes scope-enforced concurrent TCP scanning, service identifi
 - Bounded passive banner detection on confirmed open ports
 - Graceful banner timeout handling
 - Structured service-detection results
+- CLI display of detected services and observed banners
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
 - Per-port result storage
@@ -93,4 +94,5 @@ Future scanning components should not operate directly on arbitrary input. Targe
 ## License
 
 NightRecon is licensed under the MIT License.
+
 

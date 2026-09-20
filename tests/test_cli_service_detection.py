@@ -33,7 +33,7 @@ class CliServiceDetectionTests(unittest.TestCase):
             address="127.0.0.1",
             port=80,
             service="http",
-            banner="",
+            banner="Server: NightRecon-Test",
         )
 
         stdout = io.StringIO()
@@ -90,6 +90,15 @@ class CliServiceDetectionTests(unittest.TestCase):
         self.assertEqual(len(report.services), 1)
         self.assertEqual(report.services[0].port, 80)
         self.assertEqual(report.services[0].service, "http")
+
+        self.assertIn(
+            "SERVICE 127.0.0.1:80 http",
+            stdout.getvalue(),
+        )
+        self.assertIn(
+            "Banner: Server: NightRecon-Test",
+            stdout.getvalue(),
+        )
 
 
 if __name__ == "__main__":

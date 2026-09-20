@@ -228,6 +228,15 @@ def main() -> None:
         for result in open_ports:
             print(f"  OPEN {result.address}:{result.port}")
 
+        for service in report.services:
+            print(
+                f"  SERVICE {service.address}:{service.port} "
+                f"{service.service}"
+            )
+
+            if service.banner:
+                print(f"    Banner: {service.banner}")
+
         print(f"Session ID: {report.session_id}")
         print(f"Session status: {report.status}")
         print(f"Connection timeout: {config.connect_timeout}")
