@@ -9,6 +9,7 @@ from nightrecon.ports import parse_ports
 from nightrecon.report import TcpScanReport
 from nightrecon.resolver import resolve_target
 from nightrecon.scope import Scope
+from nightrecon.service_detection import detect_service
 from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import TargetType, parse_target
@@ -168,11 +169,26 @@ def main() -> None:
 
             all_results.extend(results)
 
+        all_services = []
+
+        for result in all_results:
+            if not result.is_open:
+                continue
+
+            service = detect_service(
+                address=result.address,
+                port=result.port,
+                timeout=config.connect_timeout,
+            )
+
+            all_services.append(service)
+
         report = TcpScanReport.create(
             session=session,
             resolved_addresses=resolution.addresses,
             ports_requested=ports,
             results=tuple(all_results),
+            services=tuple(all_services),
         )
 
         store = ResultStore(config.results_dir)

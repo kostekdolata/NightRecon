@@ -3,6 +3,7 @@
 import unittest
 
 from nightrecon.report import TcpScanReport
+from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
 from nightrecon.targets import parse_target
 from nightrecon.tcp_scanner import TcpPortResult
@@ -32,11 +33,21 @@ class TcpScanReportTests(unittest.TestCase):
             ),
         )
 
+        services = (
+            ServiceDetectionResult(
+                address="127.0.0.1",
+                port=80,
+                service="http",
+                banner="",
+            ),
+        )
+
         return TcpScanReport.create(
             session=session,
             resolved_addresses=("127.0.0.1",),
             ports_requested=(80, 443),
             results=results,
+            services=services,
         )
 
     def test_report_is_completed(self):
@@ -65,6 +76,14 @@ class TcpScanReportTests(unittest.TestCase):
         self.assertEqual(len(report.open_ports), 1)
         self.assertEqual(report.open_ports[0].port, 80)
 
+    def test_report_contains_service_results(self):
+        report = self.create_report()
+
+        self.assertEqual(len(report.services), 1)
+        self.assertEqual(report.services[0].port, 80)
+        self.assertEqual(report.services[0].service, "http")
+        self.assertEqual(report.services[0].banner, "")
+
     def test_report_converts_to_dictionary(self):
         report = self.create_report()
 
@@ -79,9 +98,17 @@ class TcpScanReportTests(unittest.TestCase):
             data["ports_requested"],
             (80, 443),
         )
+
         self.assertEqual(len(data["results"]), 2)
         self.assertEqual(data["results"][0]["port"], 80)
         self.assertTrue(data["results"][0]["is_open"])
+
+        self.assertEqual(len(data["services"]), 1)
+        self.assertEqual(data["services"][0]["port"], 80)
+        self.assertEqual(
+            data["services"][0]["service"],
+            "http",
+        )
 
 
 if __name__ == "__main__":

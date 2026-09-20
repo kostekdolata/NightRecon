@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
 from nightrecon.tcp_scanner import TcpPortResult
 
@@ -21,6 +22,7 @@ class TcpScanReport:
     resolved_addresses: tuple[str, ...]
     ports_requested: tuple[int, ...]
     results: tuple[TcpPortResult, ...]
+    services: tuple[ServiceDetectionResult, ...] = ()
 
     @classmethod
     def create(
@@ -29,6 +31,7 @@ class TcpScanReport:
         resolved_addresses: tuple[str, ...],
         ports_requested: tuple[int, ...],
         results: tuple[TcpPortResult, ...],
+        services: tuple[ServiceDetectionResult, ...] = (),
     ) -> "TcpScanReport":
         return cls(
             session_id=session.session_id,
@@ -40,6 +43,7 @@ class TcpScanReport:
             resolved_addresses=resolved_addresses,
             ports_requested=ports_requested,
             results=results,
+            services=services,
         )
 
     @property
@@ -56,6 +60,11 @@ class TcpScanReport:
         data["results"] = [
             asdict(result)
             for result in self.results
+        ]
+
+        data["services"] = [
+            asdict(service)
+            for service in self.services
         ]
 
         return data
