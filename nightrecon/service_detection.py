@@ -44,6 +44,29 @@ def identify_service(port: int) -> str:
         raise ValueError("Port must be between 1 and 65535.")
 
     return COMMON_TCP_SERVICES.get(port, "unknown")
+def identify_service_from_banner(banner: str) -> str:
+    """Identify a service from an observed passive banner."""
+
+    normalized = banner.strip().lower()
+
+    if normalized.startswith("ssh-"):
+        return "ssh"
+
+    if normalized.startswith("220 ") and (
+        "ftp" in normalized
+        or "proftpd" in normalized
+        or "filezilla" in normalized
+    ):
+        return "ftp"
+
+    if normalized.startswith("220 ") and (
+        "smtp" in normalized
+        or "esmtp" in normalized
+        or "postfix" in normalized
+    ):
+        return "smtp"
+
+    return "unknown"
 
 
 def detect_service(
@@ -105,13 +128,21 @@ def detect_service(
             errors="replace",
         ).strip()
 
+        banner_service = identify_service_from_banner(banner)
+
+        service = (
+            banner_service
+            if banner_service != "unknown"
+            else identify_service(port)
+)
+
         return ServiceDetectionResult(
             address=address,
             port=port,
-            service=identify_service(port),
+            service=service,
             banner=banner,
             error_code=0,
-        )
+)
 
     finally:
         sock.close()

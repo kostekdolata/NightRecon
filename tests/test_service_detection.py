@@ -107,6 +107,24 @@ class ServiceDetectionTests(unittest.TestCase):
         self.assertEqual(result.banner, "")
         fake_socket.close.assert_called_once()
 
+    def test_banner_fingerprint_overrides_unknown_port(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.return_value = b"SSH-2.0-OpenSSH_9.6\r\n"
+
+        with patch(
+        "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            result = detect_service(
+            address="127.0.0.1",
+            port=2222,
+            timeout=1.0,
+        )
+
+        self.assertEqual(result.port, 2222)
+        self.assertEqual(result.service, "ssh")
+        self.assertEqual(result.banner, "SSH-2.0-OpenSSH_9.6")
+
 
 if __name__ == "__main__":
     unittest.main()
