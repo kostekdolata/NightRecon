@@ -16,13 +16,14 @@ class CliTests(unittest.TestCase):
         stderr = io.StringIO()
 
         with patch.object(sys, "argv", ["nightrecon", *args]):
-            with contextlib.redirect_stdout(stdout):
-                with contextlib.redirect_stderr(stderr):
-                    try:
-                        main()
-                        exit_code = 0
-                    except SystemExit as exc:
-                        exit_code = exc.code
+            with patch("nightrecon.cli.scan_tcp_ports", return_value=()):
+                with contextlib.redirect_stdout(stdout):
+                    with contextlib.redirect_stderr(stderr):
+                        try:
+                            main()
+                            exit_code = 0
+                        except SystemExit as exc:
+                            exit_code = exc.code
 
         return exit_code, stdout.getvalue(), stderr.getvalue()
 
@@ -91,11 +92,11 @@ class CliTests(unittest.TestCase):
         self.assertEqual(stdout, "")
         self.assertIn("outside the authorized scope", stderr)
 
-    def test_authorized_scan_saves_session(self):
+    def test_authorized_scan_saves_report(self):
         with patch("nightrecon.cli.NightReconLogger"):
             with patch("nightrecon.cli.ResultStore") as store_class:
                 store = store_class.return_value
-                store.save_session.return_value = Path("results/test.json")
+                store.save_report.return_value = Path("results/test.json")
 
                 code, stdout, stderr = self.run_cli(
                     "scan",
@@ -108,16 +109,16 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(stderr, "")
                 self.assertIn("Result file: results\\test.json", stdout)
 
-                store.save_session.assert_called_once()
+                store.save_report.assert_called_once()
 
-                session = store.save_session.call_args.args[0]
+                report = store.save_report.call_args.args[0]
 
-                self.assertEqual(session.target, "127.0.0.1")
-                self.assertEqual(session.target_type, "ipv4")
-                self.assertEqual(session.scope, ("127.0.0.1",))
-                self.assertEqual(session.status, "created")
+                self.assertEqual(report.target, "127.0.0.1")
+                self.assertEqual(report.target_type, "ipv4")
+                self.assertEqual(report.scope, ("127.0.0.1",))
+                self.assertEqual(report.status, "completed")
 
-    def test_rejected_scan_does_not_save_session(self):
+    def test_rejected_scan_does_not_save_report(self):
         with patch("nightrecon.cli.NightReconLogger"):
             with patch("nightrecon.cli.ResultStore") as store_class:
                 code, stdout, stderr = self.run_cli(
@@ -133,9 +134,9 @@ class CliTests(unittest.TestCase):
 
                 store_class.assert_not_called()
 
-    def test_authorized_scan_writes_created_audit_event(self):
+    def test_authorized_scan_writes_completed_audit_event(self):
         with patch("nightrecon.cli.ResultStore") as store_class:
-            store_class.return_value.save_session.return_value = Path(
+            store_class.return_value.save_report.return_value = Path(
                 "results/test.json"
             )
 
@@ -156,11 +157,11 @@ class CliTests(unittest.TestCase):
 
                 args, kwargs = logger.write.call_args
 
-                self.assertEqual(args[0], "scan.created")
+                self.assertEqual(args[0], "scan.completed")
                 self.assertEqual(kwargs["target"], "127.0.0.1")
                 self.assertEqual(kwargs["target_type"], "ipv4")
                 self.assertEqual(kwargs["scope"], ["127.0.0.1"])
-                self.assertEqual(kwargs["status"], "created")
+                self.assertEqual(kwargs["status"], "completed")
                 self.assertIn("session_id", kwargs)
 
     def test_rejected_scan_writes_rejected_audit_event(self):
@@ -188,7 +189,7 @@ class CliTests(unittest.TestCase):
 
     def test_custom_runtime_configuration_is_applied(self):
         with patch("nightrecon.cli.ResultStore") as store_class:
-            store_class.return_value.save_session.return_value = Path(
+            store_class.return_value.save_report.return_value = Path(
                 "custom-results/test.json"
             )
 
@@ -235,3 +236,7 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+

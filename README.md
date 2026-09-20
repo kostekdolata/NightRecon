@@ -6,11 +6,20 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.3.0**
+**v0.4.0**
 
-NightRecon now includes scope-enforced target resolution and structured runtime configuration. Port scanning is not yet implemented.
+NightRecon now includes scope-enforced concurrent TCP connect scanning, structured scan reports, target resolution, audit logging, and runtime configuration.
 
 ## Features
+
+- TCP connect scanning for authorized single-host targets
+- Port lists and port ranges
+- Concurrent scanning with configurable worker limits
+- IPv4 and IPv6 TCP scanning
+- Open-port detection
+- Structured completed scan reports
+- Per-port result storage
+- CIDR active scanning blocked until explicitly implemented
 
 - Structured JSON Lines audit logging
 - Runtime timeout and worker configuration

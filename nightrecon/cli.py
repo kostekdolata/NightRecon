@@ -5,11 +5,14 @@ import argparse
 from nightrecon import __version__
 from nightrecon.config import NightReconConfig
 from nightrecon.logging import NightReconLogger
+from nightrecon.ports import parse_ports
+from nightrecon.report import TcpScanReport
 from nightrecon.resolver import resolve_target
 from nightrecon.scope import Scope
 from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import TargetType, parse_target
+from nightrecon.tcp_scanner import scan_tcp_ports
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,12 +37,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     scan_parser = subparsers.add_parser(
         "scan",
-        help="Create a scan session for an authorized target.",
+        help="Scan an authorized target.",
     )
 
     scan_parser.add_argument(
         "target",
-        help="Authorized target hostname, IP address, or CIDR range.",
+        help="Authorized target hostname or IP address.",
     )
 
     scan_parser.add_argument(
@@ -49,6 +52,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Authorized scope rule. May be supplied multiple times. "
             "Example: --scope 192.168.1.0/24"
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--ports",
+        default="80,443",
+        help=(
+            "TCP ports to scan. Supports lists and ranges. "
+            "Default: 80,443"
         ),
     )
 
@@ -89,6 +101,7 @@ def main() -> None:
         try:
             target = parse_target(args.target)
             scope = Scope.from_values(args.scope)
+            ports = parse_ports(args.ports)
 
             config = NightReconConfig(
                 connect_timeout=args.timeout,
@@ -114,58 +127,96 @@ def main() -> None:
                 f"Target '{target.value}' is outside the authorized scope."
             )
 
-        resolved_addresses: tuple[str, ...] = ()
+        if target.target_type == TargetType.CIDR:
+            logger.write(
+                "scan.rejected",
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason="cidr_active_scan_not_supported",
+            )
 
-        if target.target_type != TargetType.CIDR:
-            try:
-                resolution = resolve_target(target)
-                resolved_addresses = resolution.addresses
-            except ValueError as exc:
-                logger.write(
-                    "resolution.failed",
-                    target=target.value,
-                    target_type=target.target_type.value,
-                    reason=str(exc),
-                )
-                parser.error(str(exc))
+            parser.error(
+                "Active TCP scanning of CIDR targets is not supported yet."
+            )
+
+        try:
+            resolution = resolve_target(target)
+        except ValueError as exc:
+            logger.write(
+                "resolution.failed",
+                target=target.value,
+                target_type=target.target_type.value,
+                reason=str(exc),
+            )
+            parser.error(str(exc))
 
         session = ScanSession.create(
             target=target,
             scope_rules=tuple(args.scope),
         )
 
-        store = ResultStore(config.results_dir)
-        output_path = store.save_session(session)
+        all_results = []
 
-        logger.write(
-            "scan.created",
-            session_id=session.session_id,
-            target=target.value,
-            target_type=target.target_type.value,
-            scope=args.scope,
-            status=session.status,
-            connect_timeout=config.connect_timeout,
-            max_workers=config.max_workers,
-            resolved_addresses=list(resolved_addresses),
+        for address in resolution.addresses:
+            results = scan_tcp_ports(
+                address=address,
+                ports=ports,
+                timeout=config.connect_timeout,
+                max_workers=config.max_workers,
+            )
+
+            all_results.extend(results)
+
+        report = TcpScanReport.create(
+            session=session,
+            resolved_addresses=resolution.addresses,
+            ports_requested=ports,
+            results=tuple(all_results),
         )
 
-        print(f"NightRecon scan target: {target.value}")
-        print(f"Target type: {target.target_type.value}")
+        store = ResultStore(config.results_dir)
+        output_path = store.save_report(report)
+
+        open_ports = report.open_ports
+
+        logger.write(
+            "scan.completed",
+            session_id=report.session_id,
+            target=report.target,
+            target_type=report.target_type,
+            scope=args.scope,
+            ports=list(report.ports_requested),
+            resolved_addresses=list(report.resolved_addresses),
+            open_ports=[
+                {
+                    "address": result.address,
+                    "port": result.port,
+                }
+                for result in open_ports
+            ],
+            status=report.status,
+        )
+
+        print(f"NightRecon scan target: {report.target}")
+        print(f"Target type: {report.target_type}")
         print("Scope authorization: approved")
 
-        if resolved_addresses:
-            print("Resolved addresses:")
-            for address in resolved_addresses:
-                print(f"  - {address}")
-        else:
-            print("Resolved addresses: not applicable")
+        print("Resolved addresses:")
+        for address in report.resolved_addresses:
+            print(f"  - {address}")
 
-        print(f"Session ID: {session.session_id}")
-        print(f"Session status: {session.status}")
+        print(f"Ports requested: {len(report.ports_requested)}")
+        print(f"Open ports: {len(open_ports)}")
+
+        for result in open_ports:
+            print(f"  OPEN {result.address}:{result.port}")
+
+        print(f"Session ID: {report.session_id}")
+        print(f"Session status: {report.status}")
         print(f"Connection timeout: {config.connect_timeout}")
         print(f"Max workers: {config.max_workers}")
         print(f"Result file: {output_path}")
-        print("No port scanning performed.")
 
 
 if __name__ == "__main__":
