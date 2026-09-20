@@ -97,7 +97,25 @@ def scan_tcp_ports(
         }
 
         for future in as_completed(futures):
-            results.append(future.result())
+            port = futures[future]
+
+            try:
+                results.append(future.result())
+            except OSError as exc:
+                error_code = (
+                    exc.errno
+                    if isinstance(exc.errno, int)
+                    else -1
+                )
+
+                results.append(
+                    TcpPortResult(
+                        address=address,
+                        port=port,
+                        is_open=False,
+                        error_code=error_code,
+                    )
+                )
 
     return tuple(
         sorted(

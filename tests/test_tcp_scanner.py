@@ -133,6 +133,40 @@ class TcpScannerTests(unittest.TestCase):
         self.assertFalse(results[0].is_open)
         self.assertTrue(results[1].is_open)
 
+    def test_socket_error_does_not_abort_multi_port_scan(self):
+        def fake_scan(address, port, timeout):
+            if port == 80:
+                raise OSError(10051, "Network is unreachable")
+
+            return TcpPortResult(
+                address=address,
+                port=port,
+                is_open=True,
+                error_code=0,
+            )
+
+        with patch(
+            "nightrecon.tcp_scanner.scan_tcp_port",
+            side_effect=fake_scan,
+        ):
+            results = scan_tcp_ports(
+                "127.0.0.1",
+                (80, 443),
+                2.0,
+                max_workers=2,
+            )
+
+        self.assertEqual(
+            tuple(result.port for result in results),
+            (80, 443),
+        )
+
+        self.assertFalse(results[0].is_open)
+        self.assertEqual(results[0].error_code, 10051)
+
+        self.assertTrue(results[1].is_open)
+        self.assertEqual(results[1].error_code, 0)
+
     def test_invalid_ip_is_rejected(self):
         with self.assertRaises(ValueError):
             scan_tcp_port(

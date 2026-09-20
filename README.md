@@ -6,7 +6,7 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.4.0**
+**v0.4.1**
 
 NightRecon now includes scope-enforced concurrent TCP connect scanning, structured scan reports, target resolution, audit logging, and runtime configuration.
 
