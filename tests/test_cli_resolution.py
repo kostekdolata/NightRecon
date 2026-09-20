@@ -16,14 +16,15 @@ class CliResolutionTests(unittest.TestCase):
         stdout = io.StringIO()
         stderr = io.StringIO()
 
-        with patch.object(sys, "argv", ["nightrecon", *args]):
-            with contextlib.redirect_stdout(stdout):
-                with contextlib.redirect_stderr(stderr):
-                    try:
-                        main()
-                        exit_code = 0
-                    except SystemExit as exc:
-                        exit_code = exc.code
+        with patch("nightrecon.cli.scan_tcp_ports", return_value=()):
+            with patch.object(sys, "argv", ["nightrecon", *args]):
+                with contextlib.redirect_stdout(stdout):
+                    with contextlib.redirect_stderr(stderr):
+                        try:
+                            main()
+                            exit_code = 0
+                        except SystemExit as exc:
+                            exit_code = exc.code
 
         return exit_code, stdout.getvalue(), stderr.getvalue()
 
@@ -38,7 +39,7 @@ class CliResolutionTests(unittest.TestCase):
             return_value=resolution,
         ) as resolver:
             with patch("nightrecon.cli.ResultStore") as store_class:
-                store_class.return_value.save_session.return_value = Path(
+                store_class.return_value.save_report.return_value = Path(
                     "results/test.json"
                 )
 
