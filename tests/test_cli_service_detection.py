@@ -35,6 +35,8 @@ class CliServiceDetectionTests(unittest.TestCase):
                 port=80,
                 service="http",
                 banner="Server: NightRecon-Test",
+                http_status="HTTP/1.1 200 OK",
+                http_server="nginx/1.24.0",
             ),
         )
 
@@ -100,6 +102,14 @@ class CliServiceDetectionTests(unittest.TestCase):
         )
         self.assertIn(
             "Banner: Server: NightRecon-Test",
+            stdout.getvalue(),
+        )
+        self.assertIn(
+            "HTTP Status: HTTP/1.1 200 OK",
+            stdout.getvalue(),
+    )
+        self.assertIn(
+            "Server: nginx/1.24.0",
             stdout.getvalue(),
         )
 

@@ -12,6 +12,59 @@ from nightrecon.service_detection import (
 
 
 class ServiceDetectionTests(unittest.TestCase):
+
+    def test_https_service_does_not_use_plain_http_probe(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+     ):
+            with patch(
+                "nightrecon.service_detection.probe_http_service"
+            ) as http_probe:
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(result.service, "https")
+        self.assertEqual(result.http_status, "")
+        self.assertEqual(result.http_server, "")
+
+        http_probe.assert_not_called()
+    def test_http_detection_includes_http_metadata(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_http_service"
+            ) as http_probe:
+                http_probe.return_value.status_line = "HTTP/1.1 200 OK"
+                http_probe.return_value.server = "nginx/1.24.0"
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=80,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(result.service, "http")
+        self.assertEqual(result.http_status, "HTTP/1.1 200 OK")
+        self.assertEqual(result.http_server, "nginx/1.24.0")
+
+        http_probe.assert_called_once_with(
+            address="127.0.0.1",
+            port=80,
+            timeout=1.0,
+        )
+
     def test_service_detection_result_stores_observation(self):
         result = ServiceDetectionResult(
             address="127.0.0.1",
@@ -92,19 +145,34 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.service_detection.socket.socket",
+             "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
-            result = detect_service(
-                address="127.0.0.1",
-                port=80,
-                timeout=1.0,
-            )
+            with patch(
+                "nightrecon.service_detection.probe_http_service"
+        ) as http_probe:
+                http_probe.return_value.status_line = ""
+                http_probe.return_value.server = ""
 
-        self.assertEqual(result.address, "127.0.0.1")
-        self.assertEqual(result.port, 80)
-        self.assertEqual(result.service, "http")
-        self.assertEqual(result.banner, "")
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=80,
+                    timeout=1.0,
+                )
+
+            self.assertEqual(result.address, "127.0.0.1")
+            self.assertEqual(result.port, 80)
+            self.assertEqual(result.service, "http")
+            self.assertEqual(result.banner, "")
+            self.assertEqual(result.http_status, "")
+            self.assertEqual(result.http_server, "")
+
+        http_probe.assert_called_once_with(
+            address="127.0.0.1",
+            port=80,
+            timeout=1.0
+        )
+
         fake_socket.close.assert_called_once()
 
     def test_banner_fingerprint_overrides_unknown_port(self):
@@ -112,14 +180,14 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.return_value = b"SSH-2.0-OpenSSH_9.6\r\n"
 
         with patch(
-        "nightrecon.service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             result = detect_service(
-            address="127.0.0.1",
-            port=2222,
-            timeout=1.0,
-        )
+                address="127.0.0.1",
+                port=2222,
+                timeout=1.0,
+            )
 
         self.assertEqual(result.port, 2222)
         self.assertEqual(result.service, "ssh")

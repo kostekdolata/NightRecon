@@ -3,6 +3,8 @@
 import argparse
 
 from nightrecon import __version__
+from nightrecon import report
+from nightrecon import config
 from nightrecon.config import NightReconConfig
 from nightrecon.logging import NightReconLogger
 from nightrecon.ports import parse_ports
@@ -237,12 +239,18 @@ def main() -> None:
 
         for service in report.services:
             print(
-                f"  SERVICE {service.address}:{service.port} "
+             f"  SERVICE {service.address}:{service.port} "
                 f"{service.service}"
             )
 
             if service.banner:
                 print(f"    Banner: {service.banner}")
+
+            if service.http_status:
+                print(f"    HTTP Status: {service.http_status}")
+
+            if service.http_server:
+                print(f"    Server: {service.http_server}")
 
         print(f"Session ID: {report.session_id}")
         print(f"Session status: {report.status}")
@@ -250,6 +258,5 @@ def main() -> None:
         print(f"Max workers: {config.max_workers}")
         print(f"Result file: {output_path}")
 
-
-if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        main()

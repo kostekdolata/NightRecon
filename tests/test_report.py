@@ -2,6 +2,7 @@
 
 import unittest
 
+from nightrecon import report
 from nightrecon.report import TcpScanReport
 from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
@@ -10,6 +11,7 @@ from nightrecon.tcp_scanner import TcpPortResult
 
 
 class TcpScanReportTests(unittest.TestCase):
+
     def create_report(self):
         target = parse_target("127.0.0.1")
 
@@ -39,6 +41,8 @@ class TcpScanReportTests(unittest.TestCase):
                 port=80,
                 service="http",
                 banner="",
+                http_status="HTTP/1.1 200 OK",
+                http_server="nginx/1.24.0",
             ),
         )
 
@@ -48,6 +52,22 @@ class TcpScanReportTests(unittest.TestCase):
             ports_requested=(80, 443),
             results=results,
             services=services,
+        )
+
+
+
+    def test_report_dictionary_contains_http_metadata(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertEqual(
+            data["services"][0]["http_status"],
+            "HTTP/1.1 200 OK",
+        )
+        self.assertEqual(
+            data["services"][0]["http_server"],
+            "nginx/1.24.0",
         )
 
     def test_report_is_completed(self):

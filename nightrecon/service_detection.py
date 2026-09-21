@@ -36,6 +36,16 @@ class ServiceDetectionResult:
     service: str
     banner: str
     error_code: int = 0
+    http_status: str = ""
+    http_server: str = ""
+
+
+@dataclass(frozen=True)
+class HttpResponseMetadata:
+    """Parsed metadata from a bounded HTTP response."""
+
+    status_line: str
+    server: str
 
 
 def identify_service(port: int) -> str:
@@ -70,6 +80,91 @@ def identify_service_from_banner(banner: str) -> str:
         return "smtp"
 
     return "unknown"
+
+
+def parse_http_response(response: bytes) -> HttpResponseMetadata:
+    """Parse basic metadata from a bounded HTTP response."""
+
+    text = response.decode(
+        "iso-8859-1",
+        errors="replace",
+    )
+
+    header_block = text.split("\r\n\r\n", 1)[0]
+    lines = header_block.split("\r\n")
+
+    status_line = lines[0].strip() if lines else ""
+    server = ""
+
+    for line in lines[1:]:
+        name, separator, value = line.partition(":")
+
+        if separator and name.strip().lower() == "server":
+            server = value.strip()
+            break
+
+    return HttpResponseMetadata(
+        status_line=status_line,
+        server=server,
+    )
+
+
+def probe_http_service(
+    address: str,
+    port: int,
+    timeout: float,
+) -> HttpResponseMetadata:
+    """Send a bounded HTTP HEAD request and parse response metadata."""
+
+    ip = ipaddress.ip_address(address)
+
+    if port < 1 or port > 65535:
+        raise ValueError("Port must be between 1 and 65535.")
+
+    if timeout <= 0:
+        raise ValueError("Timeout must be greater than 0.")
+
+    family = (
+        socket.AF_INET6
+        if isinstance(ip, ipaddress.IPv6Address)
+        else socket.AF_INET
+    )
+
+    sock = socket.socket(
+        family,
+        socket.SOCK_STREAM,
+    )
+
+    try:
+        sock.settimeout(timeout)
+
+        try:
+            if family == socket.AF_INET6:
+                sock.connect((address, port, 0, 0))
+            else:
+                sock.connect((address, port))
+
+            request = (
+                b"HEAD / HTTP/1.1\r\n"
+                + f"Host: {address}\r\n".encode("ascii")
+                + b"Connection: close\r\n"
+                + b"\r\n"
+            )
+
+            sock.sendall(request)
+
+            try:
+                response = sock.recv(4096)
+            except socket.timeout:
+                response = b""
+
+        except OSError:
+            response = b""
+
+        return parse_http_response(response)
+
+    finally:
+        sock.close()
 
 
 def detect_service(
@@ -139,12 +234,27 @@ def detect_service(
             else identify_service(port)
         )
 
+        http_status = ""
+        http_server = ""
+
+        if service in ("http", "http-alt"):
+            http_metadata = probe_http_service(
+                address=address,
+                port=port,
+                timeout=timeout,
+            )
+
+            http_status = http_metadata.status_line
+            http_server = http_metadata.server
+
         return ServiceDetectionResult(
             address=address,
             port=port,
             service=service,
             banner=banner,
             error_code=0,
+            http_status=http_status,
+            http_server=http_server,
         )
 
     finally:
