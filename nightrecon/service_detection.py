@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 import ipaddress
 import socket
@@ -44,6 +45,8 @@ def identify_service(port: int) -> str:
         raise ValueError("Port must be between 1 and 65535.")
 
     return COMMON_TCP_SERVICES.get(port, "unknown")
+
+
 def identify_service_from_banner(banner: str) -> str:
     """Identify a service from an observed passive banner."""
 
@@ -134,7 +137,7 @@ def detect_service(
             banner_service
             if banner_service != "unknown"
             else identify_service(port)
-)
+        )
 
         return ServiceDetectionResult(
             address=address,
@@ -142,7 +145,47 @@ def detect_service(
             service=service,
             banner=banner,
             error_code=0,
-)
+        )
 
     finally:
         sock.close()
+
+
+def detect_services(
+    address: str,
+    ports: tuple[int, ...],
+    timeout: float,
+    max_workers: int = 50,
+) -> tuple[ServiceDetectionResult, ...]:
+    """Detect services concurrently across multiple open TCP ports."""
+
+    if not ports:
+        raise ValueError("At least one TCP port is required.")
+
+    if max_workers < 1:
+        raise ValueError("max_workers must be at least 1.")
+
+    results: list[ServiceDetectionResult] = []
+
+    with ThreadPoolExecutor(
+        max_workers=min(max_workers, len(ports)),
+    ) as executor:
+        futures = {
+            executor.submit(
+                detect_service,
+                address,
+                port,
+                timeout,
+            ): port
+            for port in ports
+        }
+
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    return tuple(
+        sorted(
+            results,
+            key=lambda result: result.port,
+        )
+    )

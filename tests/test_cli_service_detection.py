@@ -29,11 +29,13 @@ class CliServiceDetectionTests(unittest.TestCase):
             ),
         )
 
-        service_result = ServiceDetectionResult(
-            address="127.0.0.1",
-            port=80,
-            service="http",
-            banner="Server: NightRecon-Test",
+        service_results = (
+            ServiceDetectionResult(
+                address="127.0.0.1",
+                port=80,
+                service="http",
+                banner="Server: NightRecon-Test",
+            ),
         )
 
         stdout = io.StringIO()
@@ -57,8 +59,8 @@ class CliServiceDetectionTests(unittest.TestCase):
                 return_value=scan_results,
             ):
                 with patch(
-                    "nightrecon.cli.detect_service",
-                    return_value=service_result,
+                    "nightrecon.cli.detect_services",
+                    return_value=service_results,
                 ) as detector:
                     with patch(
                         "nightrecon.cli.ResultStore"
@@ -81,8 +83,9 @@ class CliServiceDetectionTests(unittest.TestCase):
 
         detector.assert_called_once_with(
             address="127.0.0.1",
-            port=80,
+            ports=(80,),
             timeout=2.0,
+            max_workers=50,
         )
 
         report = store_class.return_value.save_report.call_args.args[0]
