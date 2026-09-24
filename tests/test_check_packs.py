@@ -3,7 +3,10 @@
 import json
 import unittest
 
-from nightrecon.assessment_engine import AssessmentContext
+from nightrecon.assessment_engine import (
+    AssessmentContext,
+    AssessmentEngine,
+)
 from nightrecon.check_packs import (
     CheckPack,
     DeclarativeAssessmentCheck,
@@ -70,6 +73,14 @@ class CheckPackTests(unittest.TestCase):
             pack.checks[0],
             DeclarativeAssessmentCheck,
         )
+        self.assertEqual(
+            pack.checks[0].metadata.source,
+            "check-pack:nightrecon.test.web",
+        )
+        self.assertEqual(
+            pack.checks[0].metadata.source_version,
+            "1.0.0",
+        )
 
         service = ServiceDetectionResult(
             address="127.0.0.1",
@@ -105,6 +116,20 @@ class CheckPackTests(unittest.TestCase):
                 "software.product=nginx",
                 "software.version=1.24.0",
             ),
+        )
+
+        execution = AssessmentEngine().run(
+            checks=pack.checks,
+            context=context,
+        )[0]
+
+        self.assertEqual(
+            execution.check_source,
+            "check-pack:nightrecon.test.web",
+        )
+        self.assertEqual(
+            execution.check_source_version,
+            "1.0.0",
         )
 
     def test_all_conditions_must_match(self):
