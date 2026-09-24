@@ -6,6 +6,7 @@ from nightrecon import report
 from nightrecon.report import TcpScanReport
 from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
+from nightrecon.software_identity import SoftwareIdentity
 from nightrecon.targets import parse_target
 from nightrecon.tcp_scanner import TcpPortResult
 
@@ -60,6 +61,12 @@ class TcpScanReportTests(unittest.TestCase):
                     "x-frame-options",
                     "referrer-policy",
                     "permissions-policy",
+                ),
+                software_identity=SoftwareIdentity(
+                    product="nginx",
+                    version="1.24.0",
+                    source="http-server",
+                    evidence="nginx/1.24.0",
                 ),
             ),
         )
@@ -197,6 +204,15 @@ class TcpScanReportTests(unittest.TestCase):
                 "referrer-policy",
                 "permissions-policy",
             ),
+        )
+        self.assertEqual(
+            data["services"][0]["software_identity"],
+            {
+                "product": "nginx",
+                "version": "1.24.0",
+                "source": "http-server",
+                "evidence": "nginx/1.24.0",
+            },
         )
 
     def test_report_is_completed(self):
