@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.17.0**
+**v0.18.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery and network inventory, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
+NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
 
 ## Features
 
@@ -115,6 +115,15 @@ NightRecon now includes scope-enforced concurrent TCP scanning, authorized bound
 - Structured discovery reports with responsive/unresponsive/named-host summaries
 - Network inventory metadata including normalized CIDR, address family, prefix length, total address capacity, and first/last addresses
 - Dedicated discovery audit events and JSON result persistence
+- Persistent schema-versioned asset inventory keyed by IP address
+- Explicit `--update-inventory` support for both discovery and single-host scan workflows
+- Asset evidence tracks first seen, last seen, last checked, hostnames, discovery methods, observed services, software versions, TLS certificate fingerprints, and contributing session IDs
+- Unresponsive discovery observations update the latest check state without erasing prior positive `last_seen` evidence
+- Scan reconciliation detects new assets, hostname additions, opened ports, closed ports, service identity changes, software changes, and host responsiveness transitions
+- Atomic `assets.json` persistence with fail-closed schema and corruption validation
+- Append-only `changes.jsonl` asset-change journal with source session, source type, timestamp, port, and before/after evidence
+- Offline `nightrecon assets list` current-inventory inspection
+- Offline `nightrecon assets history` with address and recent-count filters
 
 - Structured JSON Lines audit logging
 - Runtime timeout and worker configuration
@@ -149,6 +158,22 @@ Discover responsive hosts in an explicitly authorized CIDR:
 Add reverse-DNS enrichment for responsive hosts:
 
 `nightrecon discover 192.0.2.0/24 --scope 192.0.2.0/24 --ports 22,80,443,445 --reverse-dns`
+
+Persist discovered assets and changes:
+
+`nightrecon discover 192.0.2.0/24 --scope 192.0.2.0/24 --reverse-dns --update-inventory --inventory-dir inventory`
+
+Merge a single-host scan into the same inventory:
+
+`nightrecon scan 192.0.2.10 --scope 192.0.2.0/24 --ports 22,80,443 --update-inventory --inventory-dir inventory`
+
+Inspect current assets offline:
+
+`nightrecon assets list --inventory-dir inventory`
+
+Inspect recent asset changes offline:
+
+`nightrecon assets history --inventory-dir inventory --address 192.0.2.10 --limit 20`
 
 Enable vulnerability intelligence explicitly:
 
@@ -247,6 +272,8 @@ Future scanning components should not operate directly on arbitrary input. Targe
 
 CIDR discovery is intentionally separated from ordinary port scanning. The entire requested CIDR must be contained by an explicit scope rule, and NightRecon enforces the configured host ceiling before submitting any active discovery probe. Reverse-DNS enrichment runs only after reachability evidence is collected and never changes host responsiveness classification.
 
+Persistent asset state remains evidence-based. A later discovery timeout or filtered response does not delete an asset or rewrite its prior `last_seen`; it records only the latest check outcome. Explicit scan results can close previously observed ports only when those ports were actually requested in the new scan.
+
 Vulnerability intelligence is evidence enrichment, not exploitation. An NVD/CPE match does not prove that a detected service is exploitable in its deployed context. CVSS values are reported as severity metadata and should not be treated as a complete risk assessment.
 
 NightRecon preserves the provider match basis and exact identifier used to obtain each vulnerability record. Summary counts and maximum observed CVSS are descriptive evidence only; they are not a NightRecon risk score.
@@ -270,7 +297,6 @@ Managed feed state adds replay protection and immutable local version storage. I
 - secrets, sensitive-data, and exposed-credential discovery
 - SBOM, VEX, package, and software-supply-chain intelligence
 - compliance and configuration-audit packs
-- asset inventory, historical comparison, and regression detection
 - HTML, PDF, SARIF, CSV, and machine-to-machine export formats
 - scheduled and distributed scan workers with APIs and webhooks
 - sandboxed, approval-gated exploit validation for explicitly authorized environments
