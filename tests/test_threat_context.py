@@ -6,7 +6,9 @@ from nightrecon.threat_context import (
     EpssRecord,
     KevRecord,
     ThreatContextResult,
+    ThreatContextSummary,
     enrich_threat_context,
+    summarize_threat_context,
 )
 from nightrecon.vulnerability_intelligence import (
     ServiceVulnerabilityResult,
@@ -224,6 +226,56 @@ class ThreatContextTests(unittest.TestCase):
         self.assertEqual(
             epss.calls,
             [("CVE-2026-1234",)],
+        )
+
+    def test_threat_context_summary_is_descriptive(self):
+        results = (
+            ThreatContextResult(
+                vulnerability_id="CVE-2026-1000",
+                known_exploited=True,
+                epss_probability=0.42,
+                epss_percentile=0.97,
+                epss_date="2026-09-24",
+            ),
+            ThreatContextResult(
+                vulnerability_id="CVE-2026-1001",
+                known_exploited=False,
+                epss_probability=0.12,
+                epss_percentile=0.65,
+                epss_date="2026-09-24",
+                errors=("cisa-kev: unavailable",),
+            ),
+            ThreatContextResult(
+                vulnerability_id="CVE-2026-1002",
+                errors=("cisa-kev: unavailable",),
+            ),
+        )
+
+        summary = summarize_threat_context(results)
+
+        self.assertEqual(
+            summary,
+            ThreatContextSummary(
+                cves_enriched=3,
+                known_exploited_count=1,
+                epss_available_count=2,
+                provider_error_count=1,
+                max_epss_probability=0.42,
+                max_epss_percentile=0.97,
+            ),
+        )
+
+    def test_empty_threat_context_summary_is_zeroed(self):
+        self.assertEqual(
+            summarize_threat_context(()),
+            ThreatContextSummary(
+                cves_enriched=0,
+                known_exploited_count=0,
+                epss_available_count=0,
+                provider_error_count=0,
+                max_epss_probability=None,
+                max_epss_percentile=None,
+            ),
         )
 
     def test_epss_values_must_be_probabilities(self):
