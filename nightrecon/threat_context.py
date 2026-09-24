@@ -56,6 +56,66 @@ class ThreatContextResult:
     errors: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class ThreatContextSummary:
+    """Descriptive summary of external threat-context evidence."""
+
+    cves_enriched: int
+    known_exploited_count: int
+    epss_available_count: int
+    provider_error_count: int
+    max_epss_probability: float | None = None
+    max_epss_percentile: float | None = None
+
+
+def summarize_threat_context(
+    results: tuple[ThreatContextResult, ...],
+) -> ThreatContextSummary:
+    """Return descriptive counts for threat-context evidence."""
+
+    probabilities = [
+        result.epss_probability
+        for result in results
+        if result.epss_probability is not None
+    ]
+    percentiles = [
+        result.epss_percentile
+        for result in results
+        if result.epss_percentile is not None
+    ]
+    unique_errors = {
+        error
+        for result in results
+        for error in result.errors
+        if error
+    }
+
+    return ThreatContextSummary(
+        cves_enriched=len(results),
+        known_exploited_count=sum(
+            1
+            for result in results
+            if result.known_exploited
+        ),
+        epss_available_count=sum(
+            1
+            for result in results
+            if result.epss_probability is not None
+        ),
+        provider_error_count=len(unique_errors),
+        max_epss_probability=(
+            max(probabilities)
+            if probabilities
+            else None
+        ),
+        max_epss_percentile=(
+            max(percentiles)
+            if percentiles
+            else None
+        ),
+    )
+
+
 class KevProvider(Protocol):
     """Provider contract for known-exploited vulnerability data."""
 
