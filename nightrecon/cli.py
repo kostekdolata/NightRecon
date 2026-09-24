@@ -1,12 +1,14 @@
 """Command-line interface for NightRecon."""
 
 import argparse
+import os
 
 from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
 from nightrecon.config import NightReconConfig
 from nightrecon.logging import NightReconLogger
+from nightrecon.nvd_provider import NvdVulnerabilityProvider
 from nightrecon.ports import parse_ports
 from nightrecon.report import TcpScanReport
 from nightrecon.resolver import resolve_target
@@ -16,6 +18,9 @@ from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import TargetType, parse_target
 from nightrecon.tcp_scanner import scan_tcp_ports
+from nightrecon.vulnerability_intelligence import (
+    enrich_service_vulnerabilities,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -91,6 +96,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--logs-dir",
         default="logs",
         help="Directory for audit logs. Default: logs",
+    )
+
+    scan_parser.add_argument(
+        "--vuln-lookup",
+        action="store_true",
+        help=(
+            "Query supported vulnerability intelligence providers for "
+            "explicitly observed software identities. Disabled by default."
+        ),
     )
 
     return parser
@@ -201,12 +215,26 @@ def main() -> None:
 
             all_services.extend(services)
 
+        all_vulnerabilities = ()
+
+        if args.vuln_lookup:
+            provider = NvdVulnerabilityProvider(
+                api_key=os.environ.get(
+                    "NIGHTRECON_NVD_API_KEY"
+                ),
+            )
+            all_vulnerabilities = enrich_service_vulnerabilities(
+                provider=provider,
+                services=tuple(all_services),
+            )
+
         report = TcpScanReport.create(
             session=session,
             resolved_addresses=resolution.addresses,
             ports_requested=ports,
             results=tuple(all_results),
             services=tuple(all_services),
+            vulnerabilities=all_vulnerabilities,
         )
 
         store = ResultStore(config.results_dir)
