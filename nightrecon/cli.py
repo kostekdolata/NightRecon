@@ -124,6 +124,23 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    checks_list_parser.add_argument(
+        "--installed-check-packs",
+        action="store_true",
+        help=(
+            "Load all active locally installed signed check packs."
+        ),
+    )
+
+    checks_list_parser.add_argument(
+        "--check-store-dir",
+        default=".nightrecon",
+        help=(
+            "Local NightRecon state directory for installed packs. "
+            "Default: .nightrecon"
+        ),
+    )
+
     checks_feed_parser = checks_subparsers.add_parser(
         "feed",
         help="Inspect a signed declarative check feed.",
@@ -344,6 +361,24 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    scan_parser.add_argument(
+        "--installed-check-packs",
+        action="store_true",
+        help=(
+            "Load all active locally installed signed check packs. "
+            "Requires --assessment and --check-pack-key."
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--check-store-dir",
+        default=".nightrecon",
+        help=(
+            "Local NightRecon state directory for installed packs. "
+            "Default: .nightrecon"
+        ),
+    )
+
     return parser
 
 
@@ -364,6 +399,38 @@ def _load_requested_check_pack_checks(
             trusted_keys=trusted_keys,
         )
         checks.extend(pack.checks)
+
+    return tuple(checks)
+
+
+def _load_installed_check_pack_checks(
+    store_dir: str,
+    key_specs: tuple[str, ...],
+) -> tuple[object, ...]:
+    """Load and reverify all active locally installed check packs."""
+
+    trusted_keys = parse_trusted_key_specs(
+        key_specs
+    )
+
+    if not trusted_keys:
+        raise ValueError(
+            "--installed-check-packs requires --check-pack-key."
+        )
+
+    store = CheckPackStore(
+        store_dir
+    )
+    checks: list[object] = []
+
+    for pack_id in store.list_pack_ids():
+        pack = store.load_active(
+            pack_id,
+            trusted_keys=trusted_keys,
+        )
+        checks.extend(
+            pack.checks
+        )
 
     return tuple(checks)
 
@@ -569,11 +636,22 @@ def main() -> None:
                 tuple(args.check_pack_paths or ()),
                 tuple(args.check_pack_keys or ()),
             )
+            installed_checks = (
+                _load_installed_check_pack_checks(
+                    args.check_store_dir,
+                    tuple(args.check_pack_keys or ()),
+                )
+                if args.installed_check_packs
+                else ()
+            )
         except ValueError as exc:
             parser.error(str(exc))
 
         catalog = load_check_catalog(
-            additional_checks=pack_checks
+            additional_checks=(
+                pack_checks
+                + installed_checks
+            )
         )
         registry = CheckRegistry()
         plugin_errors = list(catalog.errors)
@@ -645,6 +723,22 @@ def main() -> None:
         ):
             parser.error(
                 "--check-pack/--check-pack-key require --assessment."
+            )
+
+        if (
+            args.installed_check_packs
+            and not args.assessment
+        ):
+            parser.error(
+                "--installed-check-packs requires --assessment."
+            )
+
+        if (
+            args.installed_check_packs
+            and not args.check_pack_keys
+        ):
+            parser.error(
+                "--installed-check-packs requires --check-pack-key."
             )
 
         if args.threat_context and not args.vuln_lookup:
@@ -761,11 +855,22 @@ def main() -> None:
                     tuple(args.check_pack_paths or ()),
                     tuple(args.check_pack_keys or ()),
                 )
+                installed_checks = (
+                    _load_installed_check_pack_checks(
+                        args.check_store_dir,
+                        tuple(args.check_pack_keys or ()),
+                    )
+                    if args.installed_check_packs
+                    else ()
+                )
             except ValueError as exc:
                 parser.error(str(exc))
 
             catalog = load_check_catalog(
-                additional_checks=pack_checks
+                additional_checks=(
+                    pack_checks
+                    + installed_checks
+                )
             )
             assessment_catalog_errors = catalog.errors
             registry = CheckRegistry()
