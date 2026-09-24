@@ -381,6 +381,17 @@ class TcpScanReportTests(unittest.TestCase):
             data["threat_context"][0]["epss_probability"],
             0.42,
         )
+        self.assertEqual(
+            data["threat_context_summary"],
+            {
+                "cves_enriched": 1,
+                "known_exploited_count": 1,
+                "epss_available_count": 1,
+                "provider_error_count": 0,
+                "max_epss_probability": 0.42,
+                "max_epss_percentile": 0.97,
+            },
+        )
 
     def test_report_marks_vulnerability_intelligence_disabled_by_default(self):
         report = self.create_report()
