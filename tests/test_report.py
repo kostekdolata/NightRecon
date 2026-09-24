@@ -240,6 +240,10 @@ class TcpScanReportTests(unittest.TestCase):
             summary="Example vulnerability.",
             severity="HIGH",
             cvss_score=7.5,
+            match_basis="exact-cpe-query",
+            matched_identifier=(
+                "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*"
+            ),
         )
 
         report = TcpScanReport.create(
@@ -297,6 +301,18 @@ class TcpScanReportTests(unittest.TestCase):
                 "vulnerability_id"
             ],
             "CVE-2026-1234",
+        )
+        self.assertEqual(
+            data["vulnerabilities"][0]["lookup"]["findings"][0][
+                "match_basis"
+            ],
+            "exact-cpe-query",
+        )
+        self.assertEqual(
+            data["vulnerabilities"][0]["lookup"]["findings"][0][
+                "matched_identifier"
+            ],
+            "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
         )
         self.assertTrue(
             data["vulnerability_intelligence_enabled"]
