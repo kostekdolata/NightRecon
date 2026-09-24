@@ -348,6 +348,32 @@ class CliCheckFeedTests(unittest.TestCase):
             },
         )
 
+    def test_checks_feed_rollback_requires_pack_key(self):
+        stderr = io.StringIO()
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "nightrecon",
+                "checks",
+                "feed",
+                "--rollback-pack",
+                "nightrecon.web.baseline",
+                "--store-dir",
+                "pack-store",
+            ],
+        ):
+            with contextlib.redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as exc:
+                    main()
+
+        self.assertEqual(exc.exception.code, 2)
+        self.assertIn(
+            "--rollback-pack requires --pack-key",
+            stderr.getvalue(),
+        )
+
     def test_checks_feed_install_requires_pack_key(self):
         stderr = io.StringIO()
 
