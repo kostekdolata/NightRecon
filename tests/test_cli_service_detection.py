@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from nightrecon.cli import main
 from nightrecon.service_detection import ServiceDetectionResult
+from nightrecon.software_identity import SoftwareIdentity
 from nightrecon.tcp_scanner import TcpPortResult
 
 
@@ -57,6 +58,12 @@ class CliServiceDetectionTests(unittest.TestCase):
                     "x-frame-options",
                     "referrer-policy",
                     "permissions-policy",
+                ),
+                software_identity=SoftwareIdentity(
+                    product="nginx",
+                    version="1.24.0",
+                    source="http-server",
+                    evidence="nginx/1.24.0",
                 ),
             ),
         )
@@ -152,6 +159,10 @@ class CliServiceDetectionTests(unittest.TestCase):
         )
         self.assertIn(
             "Server: nginx/1.24.0",
+            output,
+        )
+        self.assertIn(
+            "Software: nginx 1.24.0",
             output,
         )
         self.assertIn(
