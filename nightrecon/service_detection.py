@@ -299,6 +299,8 @@ def detect_service(
             tls_certificate_sha256 = tls_metadata.certificate_sha256
             http_status = tls_metadata.http_status
             http_server = tls_metadata.http_server
+            http_headers = tls_metadata.http_headers
+
         return ServiceDetectionResult(
             address=address,
             port=port,
