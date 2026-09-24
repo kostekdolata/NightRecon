@@ -14,6 +14,7 @@ from nightrecon.assessment_engine import (
     summarize_assessments,
 )
 from nightrecon.check_catalog import load_check_catalog
+from nightrecon.check_feed import fetch_signed_check_feed
 from nightrecon.check_pack_signing import (
     load_signed_check_pack_file,
     parse_trusted_key_specs,
@@ -114,6 +115,28 @@ def build_parser() -> argparse.ArgumentParser:
         dest="check_pack_keys",
         help=(
             "Trust an Ed25519 check-pack signer using "
+            "KEY_ID=BASE64_PUBLIC_KEY. May be repeated."
+        ),
+    )
+
+    checks_feed_parser = checks_subparsers.add_parser(
+        "feed",
+        help="Inspect a signed declarative check feed.",
+    )
+
+    checks_feed_parser.add_argument(
+        "--url",
+        required=True,
+        help="HTTPS URL of the signed check-feed manifest.",
+    )
+
+    checks_feed_parser.add_argument(
+        "--feed-key",
+        action="append",
+        dest="feed_keys",
+        required=True,
+        help=(
+            "Trust an Ed25519 feed signer using "
             "KEY_ID=BASE64_PUBLIC_KEY. May be repeated."
         ),
     )
@@ -295,6 +318,37 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "checks":
+        if args.checks_command == "feed":
+            try:
+                trusted_feed_keys = parse_trusted_key_specs(
+                    tuple(args.feed_keys or ())
+                )
+                feed = fetch_signed_check_feed(
+                    args.url,
+                    trusted_keys=trusted_feed_keys,
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
+
+            print(
+                f"Feed: {feed.feed_id} "
+                f"generated_at={feed.generated_at or '-'}"
+            )
+
+            if not feed.packs:
+                print("No check packs advertised.")
+
+            for entry in feed.packs:
+                print(
+                    f"{entry.pack_id} "
+                    f"version={entry.version} "
+                    f"signer={entry.signer_key_id} "
+                    f"sha256={entry.sha256} "
+                    f"url={entry.url}"
+                )
+
+            return
+
         if args.checks_command != "list":
             parser.error(
                 "The checks command requires a subcommand."
