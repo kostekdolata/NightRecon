@@ -48,6 +48,16 @@ class AssetChange:
 
 
 @dataclass(frozen=True)
+class AssetChangeEvent:
+    """Persisted change event produced by one NightRecon observation."""
+
+    observed_at: str
+    session_id: str
+    source_type: str
+    change: AssetChange
+
+
+@dataclass(frozen=True)
 class AssetInventory:
     """Current persistent NightRecon asset state."""
 
