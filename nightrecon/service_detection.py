@@ -40,6 +40,7 @@ class ServiceDetectionResult:
     error_code: int = 0
     http_status: str = ""
     http_server: str = ""
+    http_headers: tuple[tuple[str, str], ...] = ()
     tls_version: str = ""
     tls_cipher: str = ""
     tls_certificate_subject: str = ""
@@ -259,6 +260,7 @@ def detect_service(
 
         http_status = ""
         http_server = ""
+        http_headers: tuple[tuple[str, str], ...] = ()
         tls_version = ""
         tls_cipher = ""
         tls_certificate_subject = ""
@@ -277,6 +279,7 @@ def detect_service(
 
             http_status = http_metadata.status_line
             http_server = http_metadata.server
+            http_headers = http_metadata.headers
 
         if service == "https":
             tls_metadata = probe_tls_service(
@@ -304,6 +307,7 @@ def detect_service(
             error_code=0,
             http_status=http_status,
             http_server=http_server,
+            http_headers=http_headers,
             tls_version=tls_version,
             tls_cipher=tls_cipher,
             tls_certificate_subject=tls_certificate_subject,
