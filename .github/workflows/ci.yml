@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-      - v0.10.0-dev
+      - "v*-dev"
   pull_request:
     branches:
       - master

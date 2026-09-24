@@ -1,12 +1,14 @@
 """Command-line interface for NightRecon."""
 
 import argparse
+import os
 
 from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
 from nightrecon.config import NightReconConfig
 from nightrecon.logging import NightReconLogger
+from nightrecon.nvd_provider import NvdVulnerabilityProvider
 from nightrecon.ports import parse_ports
 from nightrecon.report import TcpScanReport
 from nightrecon.resolver import resolve_target
@@ -16,6 +18,9 @@ from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import TargetType, parse_target
 from nightrecon.tcp_scanner import scan_tcp_ports
+from nightrecon.vulnerability_intelligence import (
+    enrich_service_vulnerabilities,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -91,6 +96,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--logs-dir",
         default="logs",
         help="Directory for audit logs. Default: logs",
+    )
+
+    scan_parser.add_argument(
+        "--vuln-lookup",
+        action="store_true",
+        help=(
+            "Query supported vulnerability intelligence providers for "
+            "explicitly observed software identities. Disabled by default."
+        ),
     )
 
     return parser
@@ -201,12 +215,26 @@ def main() -> None:
 
             all_services.extend(services)
 
+        all_vulnerabilities = ()
+
+        if args.vuln_lookup:
+            provider = NvdVulnerabilityProvider(
+                api_key=os.environ.get(
+                    "NIGHTRECON_NVD_API_KEY"
+                ),
+            )
+            all_vulnerabilities = enrich_service_vulnerabilities(
+                provider=provider,
+                services=tuple(all_services),
+            )
+
         report = TcpScanReport.create(
             session=session,
             resolved_addresses=resolution.addresses,
             ports_requested=ports,
             results=tuple(all_results),
             services=tuple(all_services),
+            vulnerabilities=all_vulnerabilities,
         )
 
         store = ResultStore(config.results_dir)
@@ -261,6 +289,13 @@ def main() -> None:
             if service.http_server:
                 print(f"    Server: {service.http_server}")
 
+            if service.software_identity is not None:
+                print(
+                    "    Software: "
+                    f"{service.software_identity.product} "
+                    f"{service.software_identity.version}"
+                )
+
             if service.security_headers_present:
                 print(
                     "    Security Headers Present: "
@@ -313,6 +348,42 @@ def main() -> None:
                     f"{service.tls_certificate_sha256}"
                 )
 
+
+        for vulnerability in report.vulnerabilities:
+            lookup = vulnerability.lookup
+
+            if lookup.error:
+                print(
+                    f"  VULN INTEL {vulnerability.address}:"
+                    f"{vulnerability.port} {vulnerability.service} "
+                    f"provider={lookup.provider} "
+                    f"error={lookup.error}"
+                )
+                continue
+
+            print(
+                f"  VULN INTEL {vulnerability.address}:"
+                f"{vulnerability.port} {vulnerability.service} "
+                f"provider={lookup.provider} "
+                f"matches={len(lookup.findings)}"
+            )
+
+            for finding in lookup.findings:
+                details = [
+                    f"    {finding.vulnerability_id}",
+                ]
+
+                if finding.severity:
+                    details.append(
+                        f"severity={finding.severity}"
+                    )
+
+                if finding.cvss_score is not None:
+                    details.append(
+                        f"cvss={finding.cvss_score}"
+                    )
+
+                print(" ".join(details))
 
         print(f"Session ID: {report.session_id}")
         print(f"Session status: {report.status}")

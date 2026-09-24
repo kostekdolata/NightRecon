@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.10.0**
+**v0.11.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured scan reports, target resolution, audit logging, and runtime configuration.
+NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence, structured scan reports, target resolution, audit logging, and runtime configuration.
 
 ## Features
 
@@ -43,6 +43,15 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - HTTPS status-line, Server-header, and bounded response-header extraction
 - TLS and HTTPS metadata displayed in the CLI and persisted in scan reports
 - TLS, certificate, and HTTPS probe failures handled without aborting the scan
+- Structured software identity from explicit HTTP Server metadata and OpenSSH banners
+- Deterministic CPE 2.3 mapping for supported nginx, Apache HTTP Server, and OpenSSH identities
+- Provider-neutral vulnerability intelligence models with fail-soft provider errors
+- Opt-in NVD CVE 2.0 lookup using exact deterministic CPE identities
+- NVD pagination, deduplication, CVSS severity/score, summary, and reference extraction
+- Optional NVD API key via `NIGHTRECON_NVD_API_KEY`
+- Vulnerability lookup disabled by default and enabled with `--vuln-lookup`
+- Service-bound vulnerability intelligence persisted in structured scan reports
+- CLI vulnerability-intelligence match counts and CVE metadata without claiming exploitability
 - CLI display of detected services and observed banners
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
@@ -75,6 +84,14 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 
 nightrecon scan 127.0.0.1 --scope 127.0.0.1
 
+Enable vulnerability intelligence explicitly:
+
+`nightrecon scan 127.0.0.1 --scope 127.0.0.1 --vuln-lookup`
+
+Optionally set an NVD API key in the environment before the scan:
+
+`NIGHTRECON_NVD_API_KEY=<your-key>`
+
 A target outside the explicitly supplied scope is rejected:
 
 nightrecon scan 192.168.2.25 --scope 192.168.1.0/24
@@ -100,6 +117,8 @@ NightRecon is designed around explicit authorization and scope enforcement.
 
 Future scanning components should not operate directly on arbitrary input. Targets must first pass through NightRecon's validation and scope authorization layers.
 
+Vulnerability intelligence is evidence enrichment, not exploitation. An NVD/CPE match does not prove that a detected service is exploitable in its deployed context. CVSS values are reported as severity metadata and should not be treated as a complete risk assessment.
+
 ## Roadmap
 
 - structured logging
@@ -107,7 +126,6 @@ Future scanning components should not operate directly on arbitrary input. Targe
 - host discovery
 - TCP port scanning
 - service identification
-- vulnerability intelligence
 - reporting
 
 ## License

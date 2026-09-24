@@ -6,8 +6,14 @@ from nightrecon import report
 from nightrecon.report import TcpScanReport
 from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
+from nightrecon.software_identity import SoftwareIdentity
 from nightrecon.targets import parse_target
 from nightrecon.tcp_scanner import TcpPortResult
+from nightrecon.vulnerability_intelligence import (
+    ServiceVulnerabilityResult,
+    VulnerabilityFinding,
+    VulnerabilityLookupResult,
+)
 
 
 class TcpScanReportTests(unittest.TestCase):
@@ -60,6 +66,12 @@ class TcpScanReportTests(unittest.TestCase):
                     "x-frame-options",
                     "referrer-policy",
                     "permissions-policy",
+                ),
+                software_identity=SoftwareIdentity(
+                    product="nginx",
+                    version="1.24.0",
+                    source="http-server",
+                    evidence="nginx/1.24.0",
                 ),
             ),
         )
@@ -197,6 +209,93 @@ class TcpScanReportTests(unittest.TestCase):
                 "referrer-policy",
                 "permissions-policy",
             ),
+        )
+        self.assertEqual(
+            data["services"][0]["software_identity"],
+            {
+                "product": "nginx",
+                "version": "1.24.0",
+                "source": "http-server",
+                "evidence": "nginx/1.24.0",
+            },
+        )
+
+    def test_report_dictionary_contains_vulnerability_intelligence(self):
+        target = parse_target("127.0.0.1")
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=("127.0.0.1",),
+        )
+
+        software = SoftwareIdentity(
+            product="nginx",
+            version="1.24.0",
+            source="http-server",
+            evidence="nginx/1.24.0",
+        )
+        finding = VulnerabilityFinding(
+            vulnerability_id="CVE-2026-1234",
+            source="nvd",
+            summary="Example vulnerability.",
+            severity="HIGH",
+            cvss_score=7.5,
+        )
+
+        report = TcpScanReport.create(
+            session=session,
+            resolved_addresses=("127.0.0.1",),
+            ports_requested=(80,),
+            results=(
+                TcpPortResult(
+                    address="127.0.0.1",
+                    port=80,
+                    is_open=True,
+                    error_code=0,
+                ),
+            ),
+            services=(
+                ServiceDetectionResult(
+                    address="127.0.0.1",
+                    port=80,
+                    service="http",
+                    banner="",
+                    software_identity=software,
+                ),
+            ),
+            vulnerabilities=(
+                ServiceVulnerabilityResult(
+                    address="127.0.0.1",
+                    port=80,
+                    service="http",
+                    lookup=VulnerabilityLookupResult(
+                        provider="nvd",
+                        software_identity=software,
+                        findings=(finding,),
+                    ),
+                ),
+            ),
+        )
+
+        data = report.to_dict()
+
+        self.assertEqual(
+            data["vulnerabilities"][0]["address"],
+            "127.0.0.1",
+        )
+        self.assertEqual(
+            data["vulnerabilities"][0]["port"],
+            80,
+        )
+        self.assertEqual(
+            data["vulnerabilities"][0]["lookup"]["provider"],
+            "nvd",
+        )
+        self.assertEqual(
+            data["vulnerabilities"][0]["lookup"]["findings"][0][
+                "vulnerability_id"
+            ],
+            "CVE-2026-1234",
         )
 
     def test_report_is_completed(self):

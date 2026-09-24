@@ -8,6 +8,11 @@ import ipaddress
 import socket
 
 from nightrecon.security_headers import analyze_security_headers
+from nightrecon.software_identity import (
+    SoftwareIdentity,
+    parse_http_server_identity,
+    parse_ssh_banner_identity,
+)
 from nightrecon.tls_detection import probe_tls_service
 
 
@@ -44,6 +49,7 @@ class ServiceDetectionResult:
     http_headers: tuple[tuple[str, str], ...] = ()
     security_headers_present: tuple[str, ...] = ()
     security_headers_missing: tuple[str, ...] = ()
+    software_identity: SoftwareIdentity | None = None
     tls_version: str = ""
     tls_cipher: str = ""
     tls_certificate_subject: str = ""
@@ -266,6 +272,7 @@ def detect_service(
         http_headers: tuple[tuple[str, str], ...] = ()
         security_headers_present: tuple[str, ...] = ()
         security_headers_missing: tuple[str, ...] = ()
+        software_identity: SoftwareIdentity | None = None
         tls_version = ""
         tls_cipher = ""
         tls_certificate_subject = ""
@@ -306,6 +313,15 @@ def detect_service(
             http_server = tls_metadata.http_server
             http_headers = tls_metadata.http_headers
 
+        if http_server:
+            software_identity = parse_http_server_identity(
+                http_server
+            )
+        elif service == "ssh" and banner:
+            software_identity = parse_ssh_banner_identity(
+                banner
+            )
+
         if http_status:
             header_analysis = analyze_security_headers(
                 dict(http_headers),
@@ -328,6 +344,7 @@ def detect_service(
             http_headers=http_headers,
             security_headers_present=security_headers_present,
             security_headers_missing=security_headers_missing,
+            software_identity=software_identity,
             tls_version=tls_version,
             tls_cipher=tls_cipher,
             tls_certificate_subject=tls_certificate_subject,

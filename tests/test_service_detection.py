@@ -10,6 +10,7 @@ from nightrecon.service_detection import (
     identify_service,
     parse_http_response,
 )
+from nightrecon.software_identity import SoftwareIdentity
 
 
 class ServiceDetectionTests(unittest.TestCase):
@@ -126,6 +127,53 @@ class ServiceDetectionTests(unittest.TestCase):
         self.assertEqual(
             result.http_server,
             "nginx",
+        )
+
+    def test_https_detection_includes_structured_software_identity(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = ""
+                tls_probe.return_value.certificate_issuer = ""
+                tls_probe.return_value.certificate_not_before = ""
+                tls_probe.return_value.certificate_not_after = ""
+                tls_probe.return_value.certificate_sans = ()
+                tls_probe.return_value.certificate_sha256 = ""
+                tls_probe.return_value.http_status = (
+                    "HTTP/1.1 200 OK"
+                )
+                tls_probe.return_value.http_server = (
+                    "Apache/2.4.58 (Unix)"
+                )
+                tls_probe.return_value.http_headers = (
+                    ("server", "Apache/2.4.58 (Unix)"),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.software_identity,
+            SoftwareIdentity(
+                product="Apache",
+                version="2.4.58",
+                source="http-server",
+                evidence="Apache/2.4.58 (Unix)",
+            ),
         )
 
     def test_https_detection_includes_certificate_sha256(self):
@@ -615,6 +663,39 @@ class ServiceDetectionTests(unittest.TestCase):
             timeout=1.0,
         )
 
+    def test_http_detection_includes_structured_software_identity(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_http_service"
+            ) as http_probe:
+                http_probe.return_value.status_line = "HTTP/1.1 200 OK"
+                http_probe.return_value.server = "nginx/1.24.0"
+                http_probe.return_value.headers = (
+                    ("server", "nginx/1.24.0"),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=80,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.software_identity,
+            SoftwareIdentity(
+                product="nginx",
+                version="1.24.0",
+                source="http-server",
+                evidence="nginx/1.24.0",
+            ),
+        )
+
     def test_service_detection_result_stores_observation(self):
         result = ServiceDetectionResult(
             address="127.0.0.1",
@@ -654,6 +735,15 @@ class ServiceDetectionTests(unittest.TestCase):
         self.assertEqual(result.port, 22)
         self.assertEqual(result.service, "ssh")
         self.assertEqual(result.banner, "SSH-2.0-OpenSSH_9.6")
+        self.assertEqual(
+            result.software_identity,
+            SoftwareIdentity(
+                product="OpenSSH",
+                version="9.6",
+                source="banner",
+                evidence="SSH-2.0-OpenSSH_9.6",
+            ),
+        )
 
         socket_factory.assert_called_once_with(
             socket.AF_INET,
