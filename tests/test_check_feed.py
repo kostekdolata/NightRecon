@@ -223,6 +223,44 @@ class CheckFeedTests(unittest.TestCase):
             self.pack_document,
         )
 
+    def test_fetch_pack_artifact_preserves_signed_document(self):
+        feed = load_signed_check_feed(
+            json.dumps(
+                self._feed_document()
+            ),
+            trusted_keys={
+                "feed-key": self.feed_public_key,
+            },
+        )
+
+        with patch(
+            "nightrecon.check_feed.urlopen",
+            return_value=io.BytesIO(
+                self.pack_bytes
+            ),
+        ):
+            artifact = fetch_check_pack_artifact(
+                feed.packs[0],
+                trusted_pack_keys={
+                    "pack-key": self.pack_public_key,
+                },
+            )
+
+        self.assertEqual(
+            artifact.pack.pack_id,
+            "nightrecon.web.baseline",
+        )
+        self.assertEqual(
+            artifact.signed_text,
+            self.pack_bytes.decode("utf-8"),
+        )
+        self.assertEqual(
+            artifact.sha256,
+            hashlib.sha256(
+                self.pack_bytes
+            ).hexdigest(),
+        )
+
     def test_fetch_pack_rejects_hash_mismatch(self):
         feed = load_signed_check_feed(
             json.dumps(
