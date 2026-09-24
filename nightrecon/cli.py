@@ -20,7 +20,10 @@ from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import TargetType, parse_target
 from nightrecon.tcp_scanner import scan_tcp_ports
-from nightrecon.threat_context import enrich_threat_context
+from nightrecon.threat_context import (
+    enrich_threat_context,
+    summarize_threat_context,
+)
 from nightrecon.vulnerability_intelligence import (
     enrich_service_vulnerabilities,
     summarize_vulnerabilities,
@@ -465,6 +468,34 @@ def main() -> None:
                 print(
                     "    Threat Context Error: "
                     f"{error}"
+                )
+
+        if report.threat_context_enabled:
+            threat_summary = summarize_threat_context(
+                report.threat_context
+            )
+
+            print(
+                "Threat Context Summary: "
+                f"cves={threat_summary.cves_enriched} "
+                "known_exploited="
+                f"{threat_summary.known_exploited_count} "
+                "epss_available="
+                f"{threat_summary.epss_available_count} "
+                "provider_errors="
+                f"{threat_summary.provider_error_count}"
+            )
+
+            if (
+                threat_summary.max_epss_probability
+                is not None
+            ):
+                print(
+                    "Max EPSS: "
+                    "probability="
+                    f"{threat_summary.max_epss_probability} "
+                    "percentile="
+                    f"{threat_summary.max_epss_percentile}"
                 )
 
         if report.vulnerability_intelligence_enabled:
