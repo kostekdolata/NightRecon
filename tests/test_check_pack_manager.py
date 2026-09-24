@@ -10,7 +10,9 @@ from nightrecon.check_feed import (
 )
 from nightrecon.check_pack_manager import (
     CheckPackSyncResult,
+    CheckPackUpdatePlan,
     install_pack_from_feed,
+    plan_verified_check_feed,
     sync_check_feed,
 )
 from nightrecon.check_pack_store import (
@@ -309,6 +311,154 @@ class CheckPackManagerTests(unittest.TestCase):
         self.assertEqual(results[0].status, "failed")
         self.assertIn("immutable", results[0].error)
         fetch_pack.assert_not_called()
+
+    def test_update_plan_reports_install_update_activation_and_unchanged(self):
+        feed = CheckPackFeed(
+            schema_version=1,
+            feed_id="nightrecon.official",
+            generated_at="2026-09-24T23:00:00Z",
+            packs=(
+                CheckFeedPackEntry(
+                    pack_id="nightrecon.new",
+                    version="1.0.0",
+                    url="https://updates.example.test/new.json",
+                    sha256="1" * 64,
+                    signer_key_id="pack-key",
+                ),
+                CheckFeedPackEntry(
+                    pack_id="nightrecon.update",
+                    version="2.0.0",
+                    url="https://updates.example.test/update.json",
+                    sha256="2" * 64,
+                    signer_key_id="pack-key",
+                ),
+                CheckFeedPackEntry(
+                    pack_id="nightrecon.cached",
+                    version="2.0.0",
+                    url="https://updates.example.test/cached.json",
+                    sha256="3" * 64,
+                    signer_key_id="pack-key",
+                ),
+                CheckFeedPackEntry(
+                    pack_id="nightrecon.same",
+                    version="1.0.0",
+                    url="https://updates.example.test/same.json",
+                    sha256="4" * 64,
+                    signer_key_id="pack-key",
+                ),
+            ),
+        )
+        store = MagicMock()
+
+        def active_version(pack_id):
+            return {
+                "nightrecon.new": None,
+                "nightrecon.update": "1.0.0",
+                "nightrecon.cached": "1.0.0",
+                "nightrecon.same": "1.0.0",
+            }[pack_id]
+
+        def list_versions(pack_id):
+            records = {
+                "nightrecon.new": (),
+                "nightrecon.update": (),
+                "nightrecon.cached": (
+                    InstalledCheckPackRecord(
+                        pack_id="nightrecon.cached",
+                        version="2.0.0",
+                        signer_key_id="pack-key",
+                        sha256="3" * 64,
+                        path="/tmp/cached.json",
+                    ),
+                ),
+                "nightrecon.same": (
+                    InstalledCheckPackRecord(
+                        pack_id="nightrecon.same",
+                        version="1.0.0",
+                        signer_key_id="pack-key",
+                        sha256="4" * 64,
+                        path="/tmp/same.json",
+                    ),
+                ),
+            }
+            return records[pack_id]
+
+        store.active_version.side_effect = active_version
+        store.list_versions.side_effect = list_versions
+
+        result = plan_verified_check_feed(
+            feed=feed,
+            store=store,
+        )
+
+        self.assertEqual(
+            result,
+            (
+                CheckPackUpdatePlan(
+                    pack_id="nightrecon.new",
+                    advertised_version="1.0.0",
+                    active_version=None,
+                    status="install-available",
+                    download_required=True,
+                ),
+                CheckPackUpdatePlan(
+                    pack_id="nightrecon.update",
+                    advertised_version="2.0.0",
+                    active_version="1.0.0",
+                    status="change-available",
+                    download_required=True,
+                ),
+                CheckPackUpdatePlan(
+                    pack_id="nightrecon.cached",
+                    advertised_version="2.0.0",
+                    active_version="1.0.0",
+                    status="activation-available",
+                    download_required=False,
+                ),
+                CheckPackUpdatePlan(
+                    pack_id="nightrecon.same",
+                    advertised_version="1.0.0",
+                    active_version="1.0.0",
+                    status="unchanged",
+                    download_required=False,
+                ),
+            ),
+        )
+
+    def test_update_plan_detects_immutable_version_conflict(self):
+        store = MagicMock()
+        store.active_version.return_value = "1.0.0"
+        store.list_versions.return_value = (
+            InstalledCheckPackRecord(
+                pack_id="nightrecon.web.baseline",
+                version="1.0.0",
+                signer_key_id="pack-key",
+                sha256="b" * 64,
+                path="/tmp/web.json",
+            ),
+        )
+
+        result = plan_verified_check_feed(
+            feed=self.feed,
+            store=store,
+        )
+
+        self.assertEqual(
+            result,
+            (
+                CheckPackUpdatePlan(
+                    pack_id="nightrecon.web.baseline",
+                    advertised_version="1.0.0",
+                    active_version="1.0.0",
+                    status="conflict",
+                    download_required=False,
+                    error=(
+                        "Feed attempts to mutate an immutable "
+                        "installed check-pack version."
+                    ),
+                ),
+            ),
+        )
 
     def test_missing_pack_id_fails_before_download(self):
         store = MagicMock()
