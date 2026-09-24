@@ -328,6 +328,44 @@ class ServiceDetectionTests(unittest.TestCase):
             server_hostname=None,
         )
 
+    def test_http_detection_includes_response_headers(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_http_service"
+            ) as http_probe:
+                http_probe.return_value.status_line = "HTTP/1.1 200 OK"
+                http_probe.return_value.server = "nginx"
+                http_probe.return_value.headers = (
+                    ("server", "nginx"),
+                    (
+                        "content-security-policy",
+                        "default-src 'self'",
+                    ),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=80,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.http_headers,
+            (
+                ("server", "nginx"),
+                (
+                    "content-security-policy",
+                    "default-src 'self'",
+                ),
+            ),
+        )
+
     def test_http_detection_includes_http_metadata(self):
         fake_socket = MagicMock()
         fake_socket.recv.side_effect = socket.timeout()
