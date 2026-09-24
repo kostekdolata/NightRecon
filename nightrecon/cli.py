@@ -385,6 +385,17 @@ def main() -> None:
                         f"cvss={finding.cvss_score}"
                     )
 
+                if finding.match_basis:
+                    details.append(
+                        f"basis={finding.match_basis}"
+                    )
+
+                if finding.matched_identifier:
+                    details.append(
+                        "identifier="
+                        f"{finding.matched_identifier}"
+                    )
+
                 print(" ".join(details))
 
         if report.vulnerability_intelligence_enabled:
