@@ -578,6 +578,10 @@ def main() -> None:
                     store = CheckPackStore(
                         args.store_dir
                     )
+                    store.accept_feed(
+                        feed,
+                        source_url=args.url,
+                    )
                     installed = install_pack_from_verified_feed(
                         feed=feed,
                         pack_id=args.install_pack,
@@ -601,6 +605,10 @@ def main() -> None:
                     )
                     store = CheckPackStore(
                         args.store_dir
+                    )
+                    store.accept_feed(
+                        feed,
+                        source_url=args.url,
                     )
                     sync_results = sync_verified_check_feed(
                         feed=feed,
