@@ -8,6 +8,7 @@ from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
 from nightrecon.asset_inventory import (
+    AssetChangeEvent,
     apply_discovery_report,
     apply_scan_report,
 )
@@ -101,6 +102,31 @@ def build_parser() -> argparse.ArgumentParser:
             "Persistent NightRecon asset inventory directory. "
             "Default: inventory"
         ),
+    )
+
+    assets_history_parser = assets_subparsers.add_parser(
+        "history",
+        help="Inspect persisted asset changes without network activity.",
+    )
+
+    assets_history_parser.add_argument(
+        "--inventory-dir",
+        default="inventory",
+        help=(
+            "Persistent NightRecon asset inventory directory. "
+            "Default: inventory"
+        ),
+    )
+
+    assets_history_parser.add_argument(
+        "--address",
+        help="Filter history by exact asset IP address.",
+    )
+
+    assets_history_parser.add_argument(
+        "--limit",
+        type=int,
+        help="Return only the most recent N matching changes.",
     )
 
     checks_parser = subparsers.add_parser(
@@ -592,6 +618,44 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "assets":
+        if args.assets_command == "history":
+            try:
+                history = AssetInventoryStore(
+                    args.inventory_dir
+                ).load_change_history(
+                    address=args.address,
+                    limit=args.limit,
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
+
+            print(f"Asset changes: {len(history)}")
+
+            for event in history:
+                change = event.change
+                line = (
+                    f"ASSET CHANGE {change.address} "
+                    f"{change.change_type}"
+                )
+
+                if change.port is not None:
+                    line += f" port={change.port}"
+
+                if change.before:
+                    line += f" before={change.before}"
+
+                if change.after:
+                    line += f" after={change.after}"
+
+                line += (
+                    f" source={event.source_type}"
+                    f" session={event.session_id}"
+                    f" observed_at={event.observed_at}"
+                )
+                print(line)
+
+            return
+
         if args.assets_command != "list":
             parser.error(
                 "The assets command requires a subcommand."
@@ -1035,6 +1099,17 @@ def main() -> None:
                 inventory_path = inventory_store.save(
                     inventory_update.inventory
                 )
+                inventory_store.append_change_events(
+                    tuple(
+                        AssetChangeEvent(
+                            observed_at=discovery_report.created_at,
+                            session_id=discovery_report.session_id,
+                            source_type="discovery",
+                            change=change,
+                        )
+                        for change in inventory_update.changes
+                    )
+                )
             except ValueError as exc:
                 parser.error(str(exc))
 
@@ -1397,6 +1472,17 @@ def main() -> None:
                 )
                 inventory_path = inventory_store.save(
                     inventory_update.inventory
+                )
+                inventory_store.append_change_events(
+                    tuple(
+                        AssetChangeEvent(
+                            observed_at=report.created_at,
+                            session_id=report.session_id,
+                            source_type="scan",
+                            change=change,
+                        )
+                        for change in inventory_update.changes
+                    )
                 )
             except ValueError as exc:
                 parser.error(str(exc))
