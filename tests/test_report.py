@@ -240,6 +240,10 @@ class TcpScanReportTests(unittest.TestCase):
             summary="Example vulnerability.",
             severity="HIGH",
             cvss_score=7.5,
+            match_basis="exact-cpe-query",
+            matched_identifier=(
+                "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*"
+            ),
         )
 
         report = TcpScanReport.create(
@@ -263,6 +267,7 @@ class TcpScanReportTests(unittest.TestCase):
                     software_identity=software,
                 ),
             ),
+            vulnerability_intelligence_enabled=True,
             vulnerabilities=(
                 ServiceVulnerabilityResult(
                     address="127.0.0.1",
@@ -296,6 +301,49 @@ class TcpScanReportTests(unittest.TestCase):
                 "vulnerability_id"
             ],
             "CVE-2026-1234",
+        )
+        self.assertEqual(
+            data["vulnerabilities"][0]["lookup"]["findings"][0][
+                "match_basis"
+            ],
+            "exact-cpe-query",
+        )
+        self.assertEqual(
+            data["vulnerabilities"][0]["lookup"]["findings"][0][
+                "matched_identifier"
+            ],
+            "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+        )
+        self.assertTrue(
+            data["vulnerability_intelligence_enabled"]
+        )
+        self.assertEqual(
+            data["vulnerability_summary"],
+            {
+                "services_queried": 1,
+                "successful_lookups": 1,
+                "failed_lookups": 0,
+                "total_findings": 1,
+                "critical_count": 0,
+                "high_count": 1,
+                "medium_count": 0,
+                "low_count": 0,
+                "none_count": 0,
+                "unknown_count": 0,
+                "max_cvss_score": 7.5,
+            },
+        )
+
+    def test_report_marks_vulnerability_intelligence_disabled_by_default(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertFalse(
+            data["vulnerability_intelligence_enabled"]
+        )
+        self.assertIsNone(
+            data["vulnerability_summary"]
         )
 
     def test_report_is_completed(self):

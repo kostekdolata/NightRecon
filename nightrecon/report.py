@@ -9,6 +9,7 @@ from nightrecon.session import ScanSession
 from nightrecon.tcp_scanner import TcpPortResult
 from nightrecon.vulnerability_intelligence import (
     ServiceVulnerabilityResult,
+    summarize_vulnerabilities,
 )
 
 
@@ -26,6 +27,7 @@ class TcpScanReport:
     ports_requested: tuple[int, ...]
     results: tuple[TcpPortResult, ...]
     services: tuple[ServiceDetectionResult, ...] = ()
+    vulnerability_intelligence_enabled: bool = False
     vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = ()
 
     @classmethod
@@ -36,6 +38,7 @@ class TcpScanReport:
         ports_requested: tuple[int, ...],
         results: tuple[TcpPortResult, ...],
         services: tuple[ServiceDetectionResult, ...] = (),
+        vulnerability_intelligence_enabled: bool = False,
         vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = (),
     ) -> "TcpScanReport":
         return cls(
@@ -49,6 +52,9 @@ class TcpScanReport:
             ports_requested=ports_requested,
             results=results,
             services=services,
+            vulnerability_intelligence_enabled=(
+                vulnerability_intelligence_enabled
+            ),
             vulnerabilities=vulnerabilities,
         )
 
@@ -72,5 +78,15 @@ class TcpScanReport:
             asdict(service)
             for service in self.services
         ]
+
+        data["vulnerability_summary"] = (
+            asdict(
+                summarize_vulnerabilities(
+                    self.vulnerabilities
+                )
+            )
+            if self.vulnerability_intelligence_enabled
+            else None
+        )
 
         return data

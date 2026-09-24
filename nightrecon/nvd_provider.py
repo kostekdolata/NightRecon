@@ -65,7 +65,10 @@ class NvdVulnerabilityProvider:
                 vulnerabilities = []
 
             for item in vulnerabilities:
-                finding = _parse_vulnerability(item)
+                finding = _parse_vulnerability(
+                    item,
+                    matched_identifier=cpe_name,
+                )
 
                 if (
                     finding is not None
@@ -131,6 +134,7 @@ class NvdVulnerabilityProvider:
 
 def _parse_vulnerability(
     item: object,
+    matched_identifier: str = "",
 ) -> VulnerabilityFinding | None:
     if not isinstance(item, dict):
         return None
@@ -164,6 +168,12 @@ def _parse_vulnerability(
         summary=summary,
         severity=severity,
         cvss_score=cvss_score,
+        match_basis=(
+            "exact-cpe-query"
+            if matched_identifier
+            else ""
+        ),
+        matched_identifier=matched_identifier,
         references=references,
     )
 
