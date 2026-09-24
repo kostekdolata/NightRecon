@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives.serialization import (
 
 from nightrecon.check_feed import (
     fetch_check_pack,
+    fetch_check_pack_artifact,
     fetch_signed_check_pack_text,
     load_signed_check_feed,
 )
