@@ -17,6 +17,7 @@ from nightrecon.check_catalog import load_check_catalog
 from nightrecon.check_feed import fetch_signed_check_feed
 from nightrecon.check_pack_manager import (
     install_pack_from_verified_feed,
+    plan_verified_check_feed,
     sync_verified_check_feed,
 )
 from nightrecon.check_pack_store import CheckPackStore
@@ -194,6 +195,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Synchronize all advertised packs into the local verified "
             "pack store."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--plan",
+        action="store_true",
+        help=(
+            "Compare the verified feed with local installed-pack state "
+            "without downloading or activating packs."
         ),
     )
 
@@ -446,6 +456,7 @@ def main() -> None:
                 for value in (
                     args.install_pack,
                     args.sync,
+                    args.plan,
                     args.list_installed,
                     args.rollback_pack,
                 )
@@ -453,7 +464,7 @@ def main() -> None:
 
             if selected_actions > 1:
                 parser.error(
-                    "Choose only one of --install-pack, --sync, "
+                    "Choose only one of --install-pack, --sync, --plan, "
                     "--list-installed, or --rollback-pack."
                 )
 
@@ -569,6 +580,37 @@ def main() -> None:
                     f"sha256={entry.sha256} "
                     f"url={entry.url}"
                 )
+
+            if args.plan:
+                try:
+                    store = CheckPackStore(
+                        args.store_dir
+                    )
+                    store.validate_feed(
+                        feed,
+                        source_url=args.url,
+                    )
+                    plans = plan_verified_check_feed(
+                        feed=feed,
+                        store=store,
+                    )
+                except ValueError as exc:
+                    parser.error(str(exc))
+
+                for plan in plans:
+                    line = (
+                        f"PLAN {plan.pack_id} "
+                        f"status={plan.status} "
+                        f"advertised={plan.advertised_version} "
+                        f"active={plan.active_version or '-'} "
+                        "download_required="
+                        f"{'yes' if plan.download_required else 'no'}"
+                    )
+
+                    if plan.error:
+                        line += f" error={plan.error}"
+
+                    print(line)
 
             if args.install_pack:
                 try:
