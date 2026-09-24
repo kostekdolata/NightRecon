@@ -10,7 +10,7 @@ from nightrecon.assessment_engine import (
     AssessmentCheckMetadata,
     CheckIntrusiveness,
 )
-from nightrecon.check_plugins import CheckDiscoveryResult
+from nightrecon.check_catalog import CheckCatalogResult
 from nightrecon.cli import main
 
 
@@ -40,7 +40,7 @@ class _Check:
 
 class CliCheckCatalogTests(unittest.TestCase):
     def test_checks_list_displays_installed_check_metadata(self):
-        discovery = CheckDiscoveryResult(
+        discovery = CheckCatalogResult(
             checks=(
                 _Check(
                     "web.headers",
@@ -61,7 +61,7 @@ class CliCheckCatalogTests(unittest.TestCase):
             ["nightrecon", "checks", "list"],
         ):
             with patch(
-                "nightrecon.cli.discover_installed_checks",
+                "nightrecon.cli.load_check_catalog",
                 return_value=discovery,
             ):
                 with contextlib.redirect_stdout(stdout):
@@ -78,7 +78,7 @@ class CliCheckCatalogTests(unittest.TestCase):
         self.assertIn("services=http,https", output)
 
     def test_checks_list_filters_by_family(self):
-        discovery = CheckDiscoveryResult(
+        discovery = CheckCatalogResult(
             checks=(
                 _Check(
                     "web.headers",
@@ -107,7 +107,7 @@ class CliCheckCatalogTests(unittest.TestCase):
             ],
         ):
             with patch(
-                "nightrecon.cli.discover_installed_checks",
+                "nightrecon.cli.load_check_catalog",
                 return_value=discovery,
             ):
                 with contextlib.redirect_stdout(stdout):
@@ -119,7 +119,7 @@ class CliCheckCatalogTests(unittest.TestCase):
         self.assertNotIn("tls.certificate", output)
 
     def test_checks_list_reports_plugin_errors_without_failing(self):
-        discovery = CheckDiscoveryResult(
+        discovery = CheckCatalogResult(
             checks=(),
             errors=("broken: import failed",),
         )
@@ -133,7 +133,7 @@ class CliCheckCatalogTests(unittest.TestCase):
             ["nightrecon", "checks", "list"],
         ):
             with patch(
-                "nightrecon.cli.discover_installed_checks",
+                "nightrecon.cli.load_check_catalog",
                 return_value=discovery,
             ):
                 with contextlib.redirect_stdout(stdout):
