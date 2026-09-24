@@ -349,6 +349,42 @@ def main() -> None:
                 )
 
 
+        for vulnerability in report.vulnerabilities:
+            lookup = vulnerability.lookup
+
+            if lookup.error:
+                print(
+                    f"  VULN INTEL {vulnerability.address}:"
+                    f"{vulnerability.port} {vulnerability.service} "
+                    f"provider={lookup.provider} "
+                    f"error={lookup.error}"
+                )
+                continue
+
+            print(
+                f"  VULN INTEL {vulnerability.address}:"
+                f"{vulnerability.port} {vulnerability.service} "
+                f"provider={lookup.provider} "
+                f"matches={len(lookup.findings)}"
+            )
+
+            for finding in lookup.findings:
+                details = [
+                    f"    {finding.vulnerability_id}",
+                ]
+
+                if finding.severity:
+                    details.append(
+                        f"severity={finding.severity}"
+                    )
+
+                if finding.cvss_score is not None:
+                    details.append(
+                        f"cvss={finding.cvss_score}"
+                    )
+
+                print(" ".join(details))
+
         print(f"Session ID: {report.session_id}")
         print(f"Session status: {report.status}")
         print(f"Connection timeout: {config.connect_timeout}")
