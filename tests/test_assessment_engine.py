@@ -27,6 +27,8 @@ class _Check:
         intrusiveness=CheckIntrusiveness.SAFE_ACTIVE,
         supported_services=(),
         tags=(),
+        requires_authentication=False,
+        required_capabilities=(),
         findings=(),
         error=None,
     ):
@@ -38,6 +40,8 @@ class _Check:
             intrusiveness=intrusiveness,
             supported_services=supported_services,
             tags=tags,
+            requires_authentication=requires_authentication,
+            required_capabilities=required_capabilities,
         )
         self._findings = findings
         self._error = error
@@ -194,6 +198,80 @@ class AssessmentEngineTests(unittest.TestCase):
             "service_not_supported",
         )
         self.assertEqual(check.calls, [])
+
+    def test_authentication_requirement_skips_unauthenticated_context(self):
+        check = _Check(
+            check_id="host.authenticated",
+            requires_authentication=True,
+        )
+        engine = AssessmentEngine()
+
+        results = engine.run(
+            checks=(check,),
+            context=AssessmentContext(
+                target="example.test",
+                address="127.0.0.1",
+                port=22,
+                service="ssh",
+                authorized=True,
+                authenticated=False,
+            ),
+        )
+
+        self.assertEqual(results[0].status, "skipped")
+        self.assertEqual(
+            results[0].reason,
+            "authentication_required",
+        )
+        self.assertEqual(check.calls, [])
+
+    def test_required_capability_skips_when_unavailable(self):
+        check = _Check(
+            check_id="cloud.aws",
+            required_capabilities=("aws-api",),
+        )
+        engine = AssessmentEngine()
+
+        results = engine.run(
+            checks=(check,),
+            context=AssessmentContext(
+                target="example.test",
+                address="127.0.0.1",
+                port=443,
+                service="https",
+                authorized=True,
+                capabilities=("http",),
+            ),
+        )
+
+        self.assertEqual(results[0].status, "skipped")
+        self.assertEqual(
+            results[0].reason,
+            "required_capability_unavailable",
+        )
+        self.assertEqual(check.calls, [])
+
+    def test_required_capability_runs_when_available(self):
+        check = _Check(
+            check_id="cloud.aws",
+            required_capabilities=("aws-api",),
+        )
+        engine = AssessmentEngine()
+
+        results = engine.run(
+            checks=(check,),
+            context=AssessmentContext(
+                target="example.test",
+                address="127.0.0.1",
+                port=443,
+                service="https",
+                authorized=True,
+                capabilities=("http", "aws-api"),
+            ),
+        )
+
+        self.assertEqual(results[0].status, "completed")
+        self.assertEqual(len(check.calls), 1)
 
     def test_check_errors_are_fail_soft(self):
         check = _Check(
