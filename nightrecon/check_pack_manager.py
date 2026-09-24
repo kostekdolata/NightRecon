@@ -35,13 +35,31 @@ def sync_check_feed(
     store: CheckPackStore,
     timeout: float = 10.0,
 ) -> tuple[CheckPackSyncResult, ...]:
-    """Synchronize all packs advertised by one verified signed feed."""
+    """Fetch, verify, and synchronize all packs in one signed feed."""
 
     feed = fetch_signed_check_feed(
         feed_url,
         trusted_keys=feed_trusted_keys,
         timeout=timeout,
     )
+
+    return sync_verified_check_feed(
+        feed=feed,
+        pack_trusted_keys=pack_trusted_keys,
+        store=store,
+        timeout=timeout,
+    )
+
+
+def sync_verified_check_feed(
+    *,
+    feed: CheckPackFeed,
+    pack_trusted_keys: dict[str, bytes],
+    store: CheckPackStore,
+    timeout: float = 10.0,
+) -> tuple[CheckPackSyncResult, ...]:
+    """Synchronize all packs from an already verified feed manifest."""
+
     results: list[CheckPackSyncResult] = []
 
     for entry in feed.packs:
