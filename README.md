@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.13.0**
+**v0.14.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, structured scan reports, target resolution, audit logging, and runtime configuration.
+NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in and third-party plugins, structured scan reports, target resolution, audit logging, and runtime configuration.
 
 ## Features
 
@@ -66,6 +66,20 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - KEV and EPSS provider failures handled fail-soft without aborting scans
 - Threat-context results deduplicated by CVE across multiple affected services
 - Threat-context reports and CLI summaries include CVEs enriched, KEV count, EPSS coverage, maximum EPSS probability/percentile, and distinct provider-error count
+- Extensible assessment-check engine with structured metadata, findings, execution results, and service-bound context
+- Explicit check intrusiveness levels: passive, safe-active, intrusive, and destructive
+- Safe default assessment ceiling of safe-active
+- Ordinary scan CLI can enable only passive, safe-active, or intrusive checks; destructive checks are structurally excluded from the standard scan path
+- Authorization is revalidated at the assessment-engine boundary before any check runs
+- Check prerequisites for authentication and runtime capabilities with deterministic skip reasons
+- Deterministic check registry and filtering by exact check ID, family, or tag
+- Installed third-party check discovery through the `nightrecon.checks` Python entry-point group
+- Plugin factories may provide a single check or multiple checks; broken plugins fail soft and are reported without hiding healthy checks
+- Built-in passive check pack for observed missing HTTP security headers and legacy TLS protocol evidence
+- `nightrecon checks list` catalog with ID/family/tag filtering and declared intrusiveness/service visibility
+- Explicit `--assessment` scan mode with `--check`, `--check-family`, `--check-tag`, and `--max-check-intrusiveness`
+- Service-bound assessment findings persisted in structured scan reports
+- Assessment summaries include services assessed, checks completed/skipped/errored, and finding totals
 - CLI display of detected services and observed banners
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
@@ -106,6 +120,22 @@ Add external exploitation context to the resulting CVE findings:
 
 `nightrecon scan 127.0.0.1 --scope 127.0.0.1 --vuln-lookup --threat-context`
 
+Inspect available built-in and installed assessment checks:
+
+`nightrecon checks list`
+
+List only web-family checks:
+
+`nightrecon checks list --family web`
+
+Run the safe-by-default assessment engine after service detection:
+
+`nightrecon scan 127.0.0.1 --scope 127.0.0.1 --assessment`
+
+Run only passive web checks:
+
+`nightrecon scan 127.0.0.1 --scope 127.0.0.1 --assessment --check-family web --max-check-intrusiveness passive`
+
 Optionally set an NVD API key in the environment before the scan:
 
 `NIGHTRECON_NVD_API_KEY=<your-key>`
@@ -129,6 +159,18 @@ Run the test suite:
 
 python tests\run_tests.py
 
+### Assessment Check Plugins
+
+Third-party Python packages can register NightRecon checks through the `nightrecon.checks` entry-point group. For example:
+
+```toml
+[project.entry-points."nightrecon.checks"]
+acme_checks = "acme_nightrecon:checks"
+```
+
+The loaded object may be one check, a tuple/list of checks, or a factory returning either form. Each check exposes `metadata` using `AssessmentCheckMetadata` and a `run(context)` method returning structured `AssessmentFinding` objects. NightRecon validates check IDs, applies service/authentication/capability prerequisites, enforces the configured intrusiveness ceiling, and isolates plugin exceptions into structured execution errors.
+
+
 ## Security Model
 
 NightRecon is designed around explicit authorization and scope enforcement.
@@ -141,13 +183,25 @@ NightRecon preserves the provider match basis and exact identifier used to obtai
 
 Threat context is kept separate from CVE matching: CISA KEV indicates known exploitation evidence, while FIRST EPSS reports a probability/percentile signal. Neither is treated as proof that a particular NightRecon target is exploitable.
 
+Assessment checks are gated by explicit scope authorization and declared intrusiveness. Passive and safe-active checks are the default ceiling. The ordinary scan CLI intentionally does not expose destructive checks; higher-impact validation belongs behind a separate approval-gated workflow rather than an ordinary scan flag.
+
 ## Roadmap
 
-- structured logging
-- configuration management
-- host discovery
-- TCP port scanning
-- service identification
+- host discovery and network topology mapping
+- deeper service and operating-system fingerprinting
+- declarative check-pack format and signed/updateable check feeds
+- web crawling, content discovery, and DAST assessment
+- authenticated SSH, SMB, WinRM, database, and network-device assessment
+- Active Directory and identity-security assessment
+- cloud posture assessment for AWS, Azure, and GCP
+- container, image, Kubernetes, and infrastructure-as-code assessment
+- secrets, sensitive-data, and exposed-credential discovery
+- SBOM, VEX, package, and software-supply-chain intelligence
+- compliance and configuration-audit packs
+- asset inventory, historical comparison, and regression detection
+- HTML, PDF, SARIF, CSV, and machine-to-machine export formats
+- scheduled and distributed scan workers with APIs and webhooks
+- sandboxed, approval-gated exploit validation for explicitly authorized environments
 
 ## License
 
