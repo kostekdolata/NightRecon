@@ -42,6 +42,10 @@ def sync_check_feed(
         trusted_keys=feed_trusted_keys,
         timeout=timeout,
     )
+    store.accept_feed(
+        feed,
+        source_url=feed_url,
+    )
 
     return sync_verified_check_feed(
         feed=feed,
@@ -173,6 +177,10 @@ def install_pack_from_feed(
         feed_url,
         trusted_keys=feed_trusted_keys,
         timeout=timeout,
+    )
+    store.accept_feed(
+        feed,
+        source_url=feed_url,
     )
 
     return install_pack_from_verified_feed(
