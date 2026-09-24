@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.11.0**
+**v0.12.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence, structured scan reports, target resolution, audit logging, and runtime configuration.
+NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, structured scan reports, target resolution, audit logging, and runtime configuration.
 
 ## Features
 
@@ -52,6 +52,12 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - Vulnerability lookup disabled by default and enabled with `--vuln-lookup`
 - Service-bound vulnerability intelligence persisted in structured scan reports
 - CLI vulnerability-intelligence match counts and CVE metadata without claiming exploitability
+- Exact vulnerability match evidence persisted as provider match basis plus matched identifier
+- NVD findings record the exact deterministic CPE used for each lookup
+- Reports explicitly distinguish vulnerability lookup disabled from enabled-with-zero-matches
+- Descriptive vulnerability summaries include services queried, provider successes/failures, total matches, severity counts, and maximum observed CVSS
+- CLI CVE output includes provider match evidence when available
+- CLI vulnerability summaries remain descriptive and do not generate exploitability or risk verdicts
 - CLI display of detected services and observed banners
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
@@ -119,6 +125,8 @@ Future scanning components should not operate directly on arbitrary input. Targe
 
 Vulnerability intelligence is evidence enrichment, not exploitation. An NVD/CPE match does not prove that a detected service is exploitable in its deployed context. CVSS values are reported as severity metadata and should not be treated as a complete risk assessment.
 
+NightRecon v0.12.0 preserves the provider match basis and exact identifier used to obtain each vulnerability record. Summary counts and maximum observed CVSS are descriptive evidence only; they are not a NightRecon risk score.
+
 ## Roadmap
 
 - structured logging
@@ -126,7 +134,6 @@ Vulnerability intelligence is evidence enrichment, not exploitation. An NVD/CPE 
 - host discovery
 - TCP port scanning
 - service identification
-- reporting
 
 ## License
 
