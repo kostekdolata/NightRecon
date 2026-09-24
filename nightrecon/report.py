@@ -7,7 +7,10 @@ from dataclasses import asdict, dataclass
 from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
 from nightrecon.tcp_scanner import TcpPortResult
-from nightrecon.threat_context import ThreatContextResult
+from nightrecon.threat_context import (
+    ThreatContextResult,
+    summarize_threat_context,
+)
 from nightrecon.vulnerability_intelligence import (
     ServiceVulnerabilityResult,
     summarize_vulnerabilities,
@@ -93,6 +96,16 @@ class TcpScanReport:
                 )
             )
             if self.vulnerability_intelligence_enabled
+            else None
+        )
+
+        data["threat_context_summary"] = (
+            asdict(
+                summarize_threat_context(
+                    self.threat_context
+                )
+            )
+            if self.threat_context_enabled
             else None
         )
 
