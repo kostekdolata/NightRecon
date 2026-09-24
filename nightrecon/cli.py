@@ -183,12 +183,21 @@ def main() -> None:
             if not open_ports:
                 continue
 
-            services = detect_services(
-                address=address,
-                ports=open_ports,
-                timeout=config.connect_timeout,
-                max_workers=config.max_workers,
+            if target.target_type == TargetType.HOSTNAME:
+                services = detect_services(
+                    address=address,
+                    ports=open_ports,
+                    timeout=config.connect_timeout,
+                    max_workers=config.max_workers,
+                    server_hostname=target.value,
             )
+            else:
+                services = detect_services(
+                    address=address,
+                    ports=open_ports,
+                    timeout=config.connect_timeout,
+                    max_workers=config.max_workers,
+        )
 
             all_services.extend(services)
 
@@ -251,6 +260,47 @@ def main() -> None:
 
             if service.http_server:
                 print(f"    Server: {service.http_server}")
+
+            if service.tls_version:
+                print(f"    TLS Version: {service.tls_version}")
+
+            if service.tls_cipher:
+                print(f"    TLS Cipher: {service.tls_cipher}")
+
+            if service.tls_certificate_subject:
+                print(
+                    "    Certificate Subject: "
+                    f"{service.tls_certificate_subject}"
+                )
+
+            if service.tls_certificate_issuer:
+                print(
+                    "    Certificate Issuer: "
+                    f"{service.tls_certificate_issuer}"
+                )
+
+            if service.tls_certificate_not_before:
+                print(
+                    "    Certificate Valid From: "
+                    f"{service.tls_certificate_not_before}"
+                )
+
+            if service.tls_certificate_not_after:
+                print(
+                    "    Certificate Valid Until: "
+                    f"{service.tls_certificate_not_after}"
+                )
+            if service.tls_certificate_sans:
+                print(
+                    "    Certificate SANs: "
+                    f"{', '.join(service.tls_certificate_sans)}"
+                )
+            if service.tls_certificate_sha256:
+                print(
+                    "    Certificate SHA-256: "
+                    f"{service.tls_certificate_sha256}"
+                )
+
 
         print(f"Session ID: {report.session_id}")
         print(f"Session status: {report.status}")

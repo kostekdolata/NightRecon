@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.8.0**
+**v0.9.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP service intelligence, structured scan reports, target resolution, audit logging, and runtime configuration.
+NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, structured scan reports, target resolution, audit logging, and runtime configuration.
 
 ## Features
 
@@ -28,7 +28,16 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - Bounded HTTP HEAD probing for confirmed HTTP services
 - HTTP status-line and Server-header extraction
 - HTTP metadata displayed in the CLI and persisted in scan reports
-- Plaintext HTTP probing excluded from HTTPS services pending TLS support
+- Bounded HTTPS HEAD probing through established TLS connections
+- TLS version and cipher detection
+- TLS Server Name Indication (SNI) support for hostname targets
+- X.509 certificate subject and issuer extraction
+- X.509 certificate validity-date extraction
+- X.509 DNS Subject Alternative Name extraction
+- X.509 SHA-256 certificate fingerprinting
+- HTTPS status-line and Server-header extraction
+- TLS and HTTPS metadata displayed in the CLI and persisted in scan reports
+- TLS, certificate, and HTTPS probe failures handled without aborting the scan
 - CLI display of detected services and observed banners
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
@@ -78,7 +87,7 @@ python -m pip install -e .
 
 Run the test suite:
 
-python -m unittest discover -s tests -v
+python tests\run_tests.py
 
 ## Security Model
 
@@ -93,8 +102,6 @@ Future scanning components should not operate directly on arbitrary input. Targe
 - host discovery
 - TCP port scanning
 - service identification
-- HTTPS reconnaissance
-- TLS inspection
 - security-header analysis
 - vulnerability intelligence
 - reporting

@@ -4,13 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nightrecon"
-version = "0.8.0"
+version = "0.9.0"
 description = "A modular penetration testing and reconnaissance platform for authorized security assessments."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [
     { name = "NightRecon Project" }
+]
+dependencies = [
+    "cryptography>=50.0.1,<51",
 ]
 keywords = [
     "security",

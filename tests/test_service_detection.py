@@ -12,6 +12,254 @@ from nightrecon.service_detection import (
 
 
 class ServiceDetectionTests(unittest.TestCase):
+    def test_https_detection_includes_https_http_metadata(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = ""
+                tls_probe.return_value.certificate_issuer = ""
+                tls_probe.return_value.certificate_not_before = ""
+                tls_probe.return_value.certificate_not_after = ""
+                tls_probe.return_value.certificate_sans = ()
+                tls_probe.return_value.certificate_sha256 = ""
+                tls_probe.return_value.http_status = (
+                    "HTTP/1.1 200 OK"
+                )
+                tls_probe.return_value.http_server = "nginx"
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.http_status,
+            "HTTP/1.1 200 OK",
+        )
+        self.assertEqual(
+            result.http_server,
+            "nginx",
+        )
+
+    def test_https_detection_includes_certificate_sha256(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = ""
+                tls_probe.return_value.certificate_issuer = ""
+                tls_probe.return_value.certificate_not_before = ""
+                tls_probe.return_value.certificate_not_after = ""
+                tls_probe.return_value.certificate_sans = ()
+                tls_probe.return_value.certificate_sha256 = (
+                    "00112233445566778899aabbccddeeff"
+                    "00112233445566778899aabbccddeeff"
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.tls_certificate_sha256,
+            (
+                "00112233445566778899aabbccddeeff"
+                "00112233445566778899aabbccddeeff"
+            ),
+        )
+
+    def test_https_detection_includes_certificate_sans(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = (
+                    "CN=example.test"
+                )
+                tls_probe.return_value.certificate_issuer = (
+                    "O=NightRecon Test CA"
+                )
+                tls_probe.return_value.certificate_not_before = ""
+                tls_probe.return_value.certificate_not_after = ""
+                tls_probe.return_value.certificate_sans = (
+                    "example.test",
+                    "www.example.test",
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.tls_certificate_sans,
+            (
+                "example.test",
+                "www.example.test",
+            ),
+        )
+
+    def test_https_detection_includes_certificate_validity_dates(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = (
+                    "CN=example.test"
+                )
+                tls_probe.return_value.certificate_issuer = (
+                    "O=NightRecon Test CA"
+                )
+                tls_probe.return_value.certificate_not_before = (
+                    "2026-01-01T00:00:00+00:00"
+                )
+                tls_probe.return_value.certificate_not_after = (
+                    "2027-01-01T00:00:00+00:00"
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.tls_certificate_not_before,
+            "2026-01-01T00:00:00+00:00",
+        )
+        self.assertEqual(
+            result.tls_certificate_not_after,
+            "2027-01-01T00:00:00+00:00",
+        )
+
+    def test_https_detection_forwards_server_hostname_for_sni(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = ""
+                tls_probe.return_value.certificate_issuer = ""
+
+                detect_service(
+                    address="192.0.2.10",
+                    port=443,
+                    timeout=1.0,
+                    server_hostname="example.test",
+                )
+
+        tls_probe.assert_called_once_with(
+            address="192.0.2.10",
+            port=443,
+            timeout=1.0,
+            server_hostname="example.test",
+        )
+
+    def test_https_detection_includes_tls_metadata(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = (
+                    "commonName=example.test"
+                )
+                tls_probe.return_value.certificate_issuer = (
+                    "organizationName=NightRecon Test CA"
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(result.service, "https")
+        self.assertEqual(result.tls_version, "TLSv1.3")
+        self.assertEqual(
+            result.tls_cipher,
+            "TLS_AES_256_GCM_SHA384",
+        )
+
+        self.assertEqual(
+            result.tls_certificate_subject,
+            "commonName=example.test",
+        )
+        self.assertEqual(
+            result.tls_certificate_issuer,
+            "organizationName=NightRecon Test CA",
+        )
+
+        tls_probe.assert_called_once_with(
+                address="127.0.0.1",
+                port=443,
+                timeout=1.0,
+                server_hostname=None,
+        )
+
 
     def test_https_service_does_not_use_plain_http_probe(self):
         fake_socket = MagicMock()
@@ -20,21 +268,41 @@ class ServiceDetectionTests(unittest.TestCase):
         with patch(
             "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
-     ):
+        ):
             with patch(
                 "nightrecon.service_detection.probe_http_service"
             ) as http_probe:
-                result = detect_service(
-                    address="127.0.0.1",
-                    port=443,
-                    timeout=1.0,
-                )
+                with patch(
+                    "nightrecon.service_detection.probe_tls_service"
+                ) as tls_probe:
+                    tls_probe.return_value.tls_version = "TLSv1.3"
+                    tls_probe.return_value.cipher = (
+                        "TLS_AES_256_GCM_SHA384"
+                    )
+                    tls_probe.return_value.certificate_subject = ""
+                    tls_probe.return_value.certificate_issuer = ""
+                    tls_probe.return_value.http_status = ""
+                    tls_probe.return_value.http_server = ""
+
+                    result = detect_service(
+                        address="127.0.0.1",
+                        port=443,
+                        timeout=1.0,
+                    )
 
         self.assertEqual(result.service, "https")
         self.assertEqual(result.http_status, "")
         self.assertEqual(result.http_server, "")
 
         http_probe.assert_not_called()
+
+        tls_probe.assert_called_once_with(
+            address="127.0.0.1",
+            port=443,
+            timeout=1.0,
+            server_hostname=None,
+        )
+
     def test_http_detection_includes_http_metadata(self):
         fake_socket = MagicMock()
         fake_socket.recv.side_effect = socket.timeout()

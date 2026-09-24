@@ -56,6 +56,90 @@ class TcpScanReportTests(unittest.TestCase):
 
 
 
+    def test_report_dictionary_contains_tls_metadata(self):
+        target = parse_target("127.0.0.1")
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=("127.0.0.1",),
+        )
+
+        report = TcpScanReport.create(
+            session=session,
+            resolved_addresses=("127.0.0.1",),
+            ports_requested=(443,),
+            results=(
+                TcpPortResult(
+                    address="127.0.0.1",
+                    port=443,
+                    is_open=True,
+                    error_code=0,
+                ),
+            ),
+            services=(
+                ServiceDetectionResult(
+                    address="127.0.0.1",
+                    port=443,
+                    service="https",
+                    banner="",
+                    tls_version="TLSv1.3",
+                    tls_cipher="TLS_AES_256_GCM_SHA384",
+                    tls_certificate_subject=(
+                        "commonName=example.test"
+                    ),
+                    tls_certificate_issuer=(
+                        "organizationName=NightRecon Test CA"
+                    ),
+                    tls_certificate_not_before="2026-01-01T00:00:00+00:00",
+                    tls_certificate_not_after="2027-01-01T00:00:00+00:00",
+                    tls_certificate_sans=(
+                        "example.test",
+                        "www.example.test",
+                    ),
+                    tls_certificate_sha256=(
+                        "00112233445566778899aabbccddeeff"
+                        "00112233445566778899aabbccddeeff"
+                    ),
+                ),
+            ),
+        )
+
+        data = report.to_dict()
+        service = data["services"][0]
+
+        self.assertEqual(service["tls_version"], "TLSv1.3")
+        self.assertEqual(
+            service["tls_cipher"],
+            "TLS_AES_256_GCM_SHA384",
+        )
+        self.assertEqual(
+            service["tls_certificate_subject"],
+            "commonName=example.test",
+        )
+        self.assertEqual(
+            service["tls_certificate_issuer"],
+            "organizationName=NightRecon Test CA",
+        )
+        self.assertEqual(
+            service["tls_certificate_not_before"],
+            "2026-01-01T00:00:00+00:00",
+        )
+        self.assertEqual(
+            service["tls_certificate_not_after"],
+            "2027-01-01T00:00:00+00:00",
+        )
+        self.assertEqual(
+            service["tls_certificate_sans"],
+            ("example.test", "www.example.test"),
+        )
+        self.assertEqual(
+            service["tls_certificate_sha256"],
+        (
+            "00112233445566778899aabbccddeeff"
+            "00112233445566778899aabbccddeeff"
+        ),
+    )
+
     def test_report_dictionary_contains_http_metadata(self):
         report = self.create_report()
 

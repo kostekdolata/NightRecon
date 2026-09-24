@@ -11,6 +11,36 @@ from nightrecon.service_detection import (
 
 class ServiceBatchDetectionTests(unittest.TestCase):
 
+    def test_batch_detection_forwards_server_hostname(self):
+        with patch(
+            "nightrecon.service_detection.detect_service"
+        ) as detector:
+            detector.side_effect = (
+                ServiceDetectionResult(
+                    address="192.0.2.10",
+                    port=443,
+                    service="https",
+                    banner="",
+                ),
+            )
+
+            results = detect_services(
+                address="192.0.2.10",
+                ports=(443,),
+                timeout=1.0,
+                max_workers=1,
+                server_hostname="example.test",
+            )
+
+        self.assertEqual(len(results), 1)
+
+        detector.assert_called_once_with(
+            "192.0.2.10",
+            443,
+            1.0,
+            "example.test",
+        )
+
     def test_invalid_worker_count_is_rejected(self):
         with self.assertRaises(ValueError):
             detect_services(
@@ -30,7 +60,12 @@ class ServiceBatchDetectionTests(unittest.TestCase):
         )
 
     def test_multiple_services_are_detected_and_sorted(self):
-        def fake_detect(address, port, timeout):
+        def fake_detect(
+            address,
+            port,
+            timeout,
+            server_hostname=None,
+        ) -> ServiceDetectionResult:
             return ServiceDetectionResult(
                 address=address,
                 port=port,

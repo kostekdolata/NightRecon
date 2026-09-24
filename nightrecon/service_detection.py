@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import ipaddress
 import socket
 
+from nightrecon.tls_detection import probe_tls_service
+
 
 COMMON_TCP_SERVICES = {
     21: "ftp",
@@ -38,6 +40,14 @@ class ServiceDetectionResult:
     error_code: int = 0
     http_status: str = ""
     http_server: str = ""
+    tls_version: str = ""
+    tls_cipher: str = ""
+    tls_certificate_subject: str = ""
+    tls_certificate_issuer: str = ""
+    tls_certificate_not_before: str = ""
+    tls_certificate_not_after: str = ""
+    tls_certificate_sans: tuple[str, ...] = ()
+    tls_certificate_sha256: str = ""
 
 
 @dataclass(frozen=True)
@@ -171,8 +181,9 @@ def detect_service(
     address: str,
     port: int,
     timeout: float,
+    server_hostname: str | None = None,
 ) -> ServiceDetectionResult:
-    """Connect to an open TCP port and read a bounded passive banner."""
+    """Connect to an open TCP port and collect bounded service metadata."""
 
     ip = ipaddress.ip_address(address)
 
@@ -236,6 +247,14 @@ def detect_service(
 
         http_status = ""
         http_server = ""
+        tls_version = ""
+        tls_cipher = ""
+        tls_certificate_subject = ""
+        tls_certificate_issuer = ""
+        tls_certificate_not_before: str = ""
+        tls_certificate_not_after: str = ""
+        tls_certificate_sans: tuple[str, ...] = ()
+        tls_certificate_sha256: str = ""
 
         if service in ("http", "http-alt"):
             http_metadata = probe_http_service(
@@ -247,6 +266,24 @@ def detect_service(
             http_status = http_metadata.status_line
             http_server = http_metadata.server
 
+        if service == "https":
+            tls_metadata = probe_tls_service(
+                address=address,
+                port=port,
+                timeout=timeout,
+                server_hostname=server_hostname,
+            )
+
+            tls_version = tls_metadata.tls_version
+            tls_cipher = tls_metadata.cipher
+            tls_certificate_subject = tls_metadata.certificate_subject
+            tls_certificate_issuer = tls_metadata.certificate_issuer
+            tls_certificate_not_before = tls_metadata.certificate_not_before
+            tls_certificate_not_after = tls_metadata.certificate_not_after
+            tls_certificate_sans = tls_metadata.certificate_sans
+            tls_certificate_sha256 = tls_metadata.certificate_sha256
+            http_status = tls_metadata.http_status
+            http_server = tls_metadata.http_server
         return ServiceDetectionResult(
             address=address,
             port=port,
@@ -255,6 +292,14 @@ def detect_service(
             error_code=0,
             http_status=http_status,
             http_server=http_server,
+            tls_version=tls_version,
+            tls_cipher=tls_cipher,
+            tls_certificate_subject=tls_certificate_subject,
+            tls_certificate_issuer=tls_certificate_issuer,
+            tls_certificate_not_before=tls_certificate_not_before,
+            tls_certificate_not_after=tls_certificate_not_after,
+            tls_certificate_sans=tls_certificate_sans,
+            tls_certificate_sha256=tls_certificate_sha256,
         )
 
     finally:
@@ -266,6 +311,7 @@ def detect_services(
     ports: tuple[int, ...],
     timeout: float,
     max_workers: int = 50,
+    server_hostname: str | None = None,
 ) -> tuple[ServiceDetectionResult, ...]:
     """Detect services concurrently across multiple open TCP ports."""
 
@@ -286,6 +332,7 @@ def detect_services(
                 address,
                 port,
                 timeout,
+                server_hostname,
             ): port
             for port in ports
         }
