@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from nightrecon.host_discovery import (
     HostDiscoveryResult,
     discover_hosts,
+    enrich_reverse_dns,
     probe_host,
 )
 
@@ -163,6 +164,81 @@ class HostDiscoveryTests(unittest.TestCase):
                 cidr="192.0.2.0/30",
                 ports=(443,),
                 max_hosts=0,
+            )
+
+    def test_reverse_dns_enriches_only_responsive_hosts(self):
+        results = (
+            HostDiscoveryResult(
+                address="192.0.2.1",
+                responsive=True,
+                method="tcp-connect",
+                port=443,
+                observation="tcp-open",
+                error_code=0,
+            ),
+            HostDiscoveryResult(
+                address="192.0.2.2",
+                responsive=False,
+                method="tcp-connect",
+                port=None,
+                observation="no-response",
+            ),
+        )
+
+        with patch(
+            "nightrecon.host_discovery.socket.gethostbyaddr",
+            return_value=(
+                "host1.example.test",
+                [],
+                ["192.0.2.1"],
+            ),
+        ) as lookup:
+            enriched = enrich_reverse_dns(
+                results,
+                max_workers=4,
+            )
+
+        self.assertEqual(
+            enriched[0].hostname,
+            "host1.example.test",
+        )
+        self.assertEqual(
+            enriched[1].hostname,
+            "",
+        )
+        lookup.assert_called_once_with(
+            "192.0.2.1"
+        )
+
+    def test_reverse_dns_failure_is_fail_soft(self):
+        result = HostDiscoveryResult(
+            address="192.0.2.1",
+            responsive=True,
+            method="tcp-connect",
+            port=443,
+            observation="tcp-open",
+            error_code=0,
+        )
+
+        with patch(
+            "nightrecon.host_discovery.socket.gethostbyaddr",
+            side_effect=socket.herror(),
+        ):
+            enriched = enrich_reverse_dns(
+                (result,),
+                max_workers=2,
+            )
+
+        self.assertEqual(
+            enriched,
+            (result,),
+        )
+
+    def test_reverse_dns_worker_limit_is_validated(self):
+        with self.assertRaises(ValueError):
+            enrich_reverse_dns(
+                (),
+                max_workers=0,
             )
 
     def test_ipv6_uses_ipv6_socket_family(self):
