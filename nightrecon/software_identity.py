@@ -41,3 +41,38 @@ def parse_http_server_identity(
         source="http-server",
         evidence=evidence,
     )
+
+
+def parse_ssh_banner_identity(
+    banner: str,
+) -> SoftwareIdentity | None:
+    """Extract an explicit OpenSSH product/version from an SSH banner."""
+
+    evidence = banner.strip()
+
+    if not evidence.startswith("SSH-"):
+        return None
+
+    parts = evidence.split("-", 2)
+
+    if len(parts) != 3:
+        return None
+
+    software_token = parts[2].split()[0]
+
+    prefix = "OpenSSH_"
+
+    if not software_token.startswith(prefix):
+        return None
+
+    version = software_token[len(prefix):].strip()
+
+    if not version:
+        return None
+
+    return SoftwareIdentity(
+        product="OpenSSH",
+        version=version,
+        source="banner",
+        evidence=evidence,
+    )
