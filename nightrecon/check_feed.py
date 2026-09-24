@@ -63,15 +63,6 @@ class VerifiedCheckPackArtifact:
     sha256: str
 
 
-@dataclass(frozen=True)
-class VerifiedCheckPackArtifact:
-    """Verified signed check-pack document retained for local caching."""
-
-    pack: CheckPack
-    signed_text: str
-    sha256: str
-
-
 def load_signed_check_feed(
     text: str,
     *,
