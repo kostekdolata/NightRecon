@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import ipaddress
 
 from nightrecon.host_discovery import HostDiscoveryResult
 from nightrecon.session import ScanSession
@@ -61,6 +62,27 @@ class HostDiscoveryReport:
         tested_count = len(
             self.results
         )
+
+        network = ipaddress.ip_network(
+            self.target,
+            strict=False,
+        )
+        data["network"] = {
+            "normalized_cidr": str(network),
+            "address_family": (
+                "ipv4"
+                if network.version == 4
+                else "ipv6"
+            ),
+            "prefix_length": network.prefixlen,
+            "total_addresses": network.num_addresses,
+            "first_address": str(
+                network.network_address
+            ),
+            "last_address": str(
+                network[-1]
+            ),
+        }
 
         data["results"] = [
             asdict(result)
