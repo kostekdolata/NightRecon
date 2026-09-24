@@ -2,10 +2,13 @@
 
 import argparse
 import os
+import sys
 
 from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
+from nightrecon.assessment_engine import CheckRegistry
+from nightrecon.check_plugins import discover_installed_checks
 from nightrecon.config import NightReconConfig
 from nightrecon.cisa_kev_provider import CisaKevProvider
 from nightrecon.epss_provider import FirstEpssProvider
@@ -48,6 +51,42 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(
         dest="command",
         title="commands",
+    )
+
+    checks_parser = subparsers.add_parser(
+        "checks",
+        help="Inspect installed assessment checks.",
+    )
+
+    checks_subparsers = checks_parser.add_subparsers(
+        dest="checks_command",
+        title="check commands",
+    )
+
+    checks_list_parser = checks_subparsers.add_parser(
+        "list",
+        help="List installed assessment checks.",
+    )
+
+    checks_list_parser.add_argument(
+        "--check",
+        action="append",
+        dest="check_ids",
+        help="Filter by exact check ID. May be repeated.",
+    )
+
+    checks_list_parser.add_argument(
+        "--family",
+        action="append",
+        dest="check_families",
+        help="Filter by check family. May be repeated.",
+    )
+
+    checks_list_parser.add_argument(
+        "--tag",
+        action="append",
+        dest="check_tags",
+        help="Filter by check tag. May be repeated.",
     )
 
     scan_parser = subparsers.add_parser(
@@ -129,6 +168,61 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "checks":
+        if args.checks_command != "list":
+            parser.error(
+                "The checks command requires a subcommand."
+            )
+
+        discovery = discover_installed_checks()
+        registry = CheckRegistry()
+        plugin_errors = list(discovery.errors)
+
+        for check in discovery.checks:
+            try:
+                registry.register(check)
+            except ValueError as exc:
+                plugin_errors.append(str(exc))
+
+        selected = registry.select(
+            check_ids=tuple(args.check_ids or ()),
+            families=tuple(args.check_families or ()),
+            tags=tuple(args.check_tags or ()),
+        )
+
+        if not selected:
+            print("No assessment checks matched.")
+
+        for check in selected:
+            metadata = check.metadata
+            tags = (
+                ",".join(metadata.tags)
+                if metadata.tags
+                else "-"
+            )
+            services = (
+                ",".join(metadata.supported_services)
+                if metadata.supported_services
+                else "*"
+            )
+
+            print(
+                f"{metadata.check_id} "
+                f"family={metadata.family} "
+                "intrusiveness="
+                f"{metadata.intrusiveness.value} "
+                f"tags={tags} "
+                f"services={services}"
+            )
+
+        for error in plugin_errors:
+            print(
+                f"Plugin error: {error}",
+                file=sys.stderr,
+            )
+
+        return
 
     if args.command == "scan":
         if args.threat_context and not args.vuln_lookup:
