@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 
 from nightrecon.asset_inventory import (
+    AssetChange,
+    AssetChangeEvent,
     AssetInventory,
     AssetRecord,
     AssetServiceRecord,
@@ -22,6 +24,7 @@ class AssetInventoryStore:
     ) -> None:
         self.root = Path(root)
         self.path = self.root / "assets.json"
+        self.history_path = self.root / "changes.jsonl"
 
     def load(self) -> AssetInventory:
         """Load inventory state, returning empty state when none exists."""
@@ -44,6 +47,86 @@ class AssetInventoryStore:
             ) from exc
 
         return _parse_inventory(data)
+
+    def append_change_events(
+        self,
+        events: tuple[AssetChangeEvent, ...],
+    ) -> Path | None:
+        """Append validated change events to the inventory journal."""
+
+        if not events:
+            return None
+
+        self.root.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        with self.history_path.open(
+            "a",
+            encoding="utf-8",
+        ) as file:
+            for event in events:
+                file.write(
+                    json.dumps(
+                        asdict(event),
+                        sort_keys=True,
+                    )
+                )
+                file.write("\n")
+
+        return self.history_path
+
+    def load_change_history(
+        self,
+        *,
+        address: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[AssetChangeEvent, ...]:
+        """Load persisted inventory changes, optionally filtered."""
+
+        if limit is not None and limit < 1:
+            raise ValueError(
+                "history limit must be at least 1."
+            )
+
+        if not self.history_path.exists():
+            return ()
+
+        events: list[AssetChangeEvent] = []
+
+        try:
+            with self.history_path.open(
+                "r",
+                encoding="utf-8",
+            ) as file:
+                for line in file:
+                    if not line.strip():
+                        continue
+
+                    data = json.loads(line)
+                    event = _parse_change_event(
+                        data
+                    )
+
+                    if (
+                        address is None
+                        or event.change.address == address
+                    ):
+                        events.append(event)
+        except (
+            json.JSONDecodeError,
+            OSError,
+            ValueError,
+        ) as exc:
+            raise ValueError(
+                "Invalid asset change history."
+            ) from exc
+
+        if limit is not None:
+            events = events[-limit:]
+
+        return tuple(events)
 
     def save(
         self,
@@ -71,6 +154,85 @@ class AssetInventoryStore:
 
         temporary.replace(self.path)
         return self.path
+
+
+def _parse_change_event(
+    data: object,
+) -> AssetChangeEvent:
+    if not isinstance(data, dict):
+        raise ValueError(
+            "Invalid asset change history."
+        )
+
+    change = data.get("change")
+
+    if not isinstance(change, dict):
+        raise ValueError(
+            "Invalid asset change history."
+        )
+
+    port = change.get("port")
+
+    if (
+        port is not None
+        and (
+            isinstance(port, bool)
+            or not isinstance(port, int)
+            or not 1 <= port <= 65535
+        )
+    ):
+        raise ValueError(
+            "Invalid asset change history."
+        )
+
+    return AssetChangeEvent(
+        observed_at=_history_text(
+            data,
+            "observed_at",
+        ),
+        session_id=_history_text(
+            data,
+            "session_id",
+        ),
+        source_type=_history_text(
+            data,
+            "source_type",
+        ),
+        change=AssetChange(
+            address=_history_text(
+                change,
+                "address",
+            ),
+            change_type=_history_text(
+                change,
+                "change_type",
+            ),
+            port=port,
+            before=_optional_text(
+                change.get("before")
+            ),
+            after=_optional_text(
+                change.get("after")
+            ),
+        ),
+    )
+
+
+def _history_text(
+    data: dict,
+    key: str,
+) -> str:
+    value = data.get(key)
+
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+    ):
+        raise ValueError(
+            "Invalid asset change history."
+        )
+
+    return value
 
 
 def _parse_inventory(
