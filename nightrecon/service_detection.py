@@ -308,7 +308,11 @@ def detect_service(
 
         if http_status:
             header_analysis = analyze_security_headers(
-                dict(http_headers)
+                dict(http_headers),
+                require_hsts=(
+                    service == "https"
+                    and server_hostname is not None
+                ),
             )
             security_headers_present = header_analysis.present
             security_headers_missing = header_analysis.missing
