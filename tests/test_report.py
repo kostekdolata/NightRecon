@@ -43,6 +43,24 @@ class TcpScanReportTests(unittest.TestCase):
                 banner="",
                 http_status="HTTP/1.1 200 OK",
                 http_server="nginx/1.24.0",
+                http_headers=(
+                    ("server", "nginx/1.24.0"),
+                    (
+                        "content-security-policy",
+                        "default-src 'self'",
+                    ),
+                    ("x-content-type-options", "nosniff"),
+                ),
+                security_headers_present=(
+                    "content-security-policy",
+                    "x-content-type-options",
+                ),
+                security_headers_missing=(
+                    "strict-transport-security",
+                    "x-frame-options",
+                    "referrer-policy",
+                    "permissions-policy",
+                ),
             ),
         )
 
@@ -152,6 +170,33 @@ class TcpScanReportTests(unittest.TestCase):
         self.assertEqual(
             data["services"][0]["http_server"],
             "nginx/1.24.0",
+        )
+        self.assertEqual(
+            data["services"][0]["http_headers"],
+            (
+                ("server", "nginx/1.24.0"),
+                (
+                    "content-security-policy",
+                    "default-src 'self'",
+                ),
+                ("x-content-type-options", "nosniff"),
+            ),
+        )
+        self.assertEqual(
+            data["services"][0]["security_headers_present"],
+            (
+                "content-security-policy",
+                "x-content-type-options",
+            ),
+        )
+        self.assertEqual(
+            data["services"][0]["security_headers_missing"],
+            (
+                "strict-transport-security",
+                "x-frame-options",
+                "referrer-policy",
+                "permissions-policy",
+            ),
         )
 
     def test_report_is_completed(self):

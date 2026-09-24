@@ -48,6 +48,16 @@ class CliServiceDetectionTests(unittest.TestCase):
                 ),
                 http_status="HTTP/1.1 200 OK",
                 http_server="nginx/1.24.0",
+                security_headers_present=(
+                    "content-security-policy",
+                    "strict-transport-security",
+                    "x-content-type-options",
+                ),
+                security_headers_missing=(
+                    "x-frame-options",
+                    "referrer-policy",
+                    "permissions-policy",
+                ),
             ),
         )
 
@@ -142,6 +152,20 @@ class CliServiceDetectionTests(unittest.TestCase):
         )
         self.assertIn(
             "Server: nginx/1.24.0",
+            output,
+        )
+        self.assertIn(
+            "Security Headers Present: "
+            "content-security-policy, "
+            "strict-transport-security, "
+            "x-content-type-options",
+            output,
+        )
+        self.assertIn(
+            "Security Headers Missing: "
+            "x-frame-options, "
+            "referrer-policy, "
+            "permissions-policy",
             output,
         )
 

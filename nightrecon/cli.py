@@ -261,6 +261,18 @@ def main() -> None:
             if service.http_server:
                 print(f"    Server: {service.http_server}")
 
+            if service.security_headers_present:
+                print(
+                    "    Security Headers Present: "
+                    f"{', '.join(service.security_headers_present)}"
+                )
+
+            if service.security_headers_missing:
+                print(
+                    "    Security Headers Missing: "
+                    f"{', '.join(service.security_headers_missing)}"
+                )
+
             if service.tls_version:
                 print(f"    TLS Version: {service.tls_version}")
 

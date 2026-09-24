@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import ipaddress
 import socket
 
+from nightrecon.security_headers import analyze_security_headers
 from nightrecon.tls_detection import probe_tls_service
 
 
@@ -40,6 +41,9 @@ class ServiceDetectionResult:
     error_code: int = 0
     http_status: str = ""
     http_server: str = ""
+    http_headers: tuple[tuple[str, str], ...] = ()
+    security_headers_present: tuple[str, ...] = ()
+    security_headers_missing: tuple[str, ...] = ()
     tls_version: str = ""
     tls_cipher: str = ""
     tls_certificate_subject: str = ""
@@ -56,6 +60,7 @@ class HttpResponseMetadata:
 
     status_line: str
     server: str
+    headers: tuple[tuple[str, str], ...] = ()
 
 
 def identify_service(port: int) -> str:
@@ -105,17 +110,28 @@ def parse_http_response(response: bytes) -> HttpResponseMetadata:
 
     status_line = lines[0].strip() if lines else ""
     server = ""
+    headers: list[tuple[str, str]] = []
 
     for line in lines[1:]:
         name, separator, value = line.partition(":")
 
-        if separator and name.strip().lower() == "server":
-            server = value.strip()
-            break
+        if not separator:
+            continue
+
+        header_name = name.strip().lower()
+        header_value = value.strip()
+
+        headers.append(
+            (header_name, header_value)
+        )
+
+        if header_name == "server":
+            server = header_value
 
     return HttpResponseMetadata(
         status_line=status_line,
         server=server,
+        headers=tuple(headers),
     )
 
 
@@ -247,6 +263,9 @@ def detect_service(
 
         http_status = ""
         http_server = ""
+        http_headers: tuple[tuple[str, str], ...] = ()
+        security_headers_present: tuple[str, ...] = ()
+        security_headers_missing: tuple[str, ...] = ()
         tls_version = ""
         tls_cipher = ""
         tls_certificate_subject = ""
@@ -265,6 +284,7 @@ def detect_service(
 
             http_status = http_metadata.status_line
             http_server = http_metadata.server
+            http_headers = http_metadata.headers
 
         if service == "https":
             tls_metadata = probe_tls_service(
@@ -284,6 +304,19 @@ def detect_service(
             tls_certificate_sha256 = tls_metadata.certificate_sha256
             http_status = tls_metadata.http_status
             http_server = tls_metadata.http_server
+            http_headers = tls_metadata.http_headers
+
+        if http_status:
+            header_analysis = analyze_security_headers(
+                dict(http_headers),
+                require_hsts=(
+                    service == "https"
+                    and server_hostname is not None
+                ),
+            )
+            security_headers_present = header_analysis.present
+            security_headers_missing = header_analysis.missing
+
         return ServiceDetectionResult(
             address=address,
             port=port,
@@ -292,6 +325,9 @@ def detect_service(
             error_code=0,
             http_status=http_status,
             http_server=http_server,
+            http_headers=http_headers,
+            security_headers_present=security_headers_present,
+            security_headers_missing=security_headers_missing,
             tls_version=tls_version,
             tls_cipher=tls_cipher,
             tls_certificate_subject=tls_certificate_subject,

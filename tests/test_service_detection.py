@@ -8,10 +8,85 @@ from nightrecon.service_detection import (
     ServiceDetectionResult,
     detect_service,
     identify_service,
+    parse_http_response,
 )
 
 
 class ServiceDetectionTests(unittest.TestCase):
+
+    def test_http_response_parser_captures_response_headers(self):
+        response = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Server: nginx\r\n"
+            b"Content-Security-Policy: default-src 'self'\r\n"
+            b"X-Content-Type-Options: nosniff\r\n"
+            b"\r\n"
+        )
+    
+        metadata = parse_http_response(response)
+    
+        self.assertEqual(
+            metadata.headers,
+            (
+                ("server", "nginx"),
+               (
+                     "content-security-policy",
+                    "default-src 'self'",
+                ),
+                ("x-content-type-options", "nosniff"),
+            ),
+        )
+
+    def test_https_detection_includes_response_headers(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = ""
+                tls_probe.return_value.certificate_issuer = ""
+                tls_probe.return_value.certificate_not_before = ""
+                tls_probe.return_value.certificate_not_after = ""
+                tls_probe.return_value.certificate_sans = ()
+                tls_probe.return_value.certificate_sha256 = ""
+                tls_probe.return_value.http_status = (
+                    "HTTP/1.1 200 OK"
+                )
+                tls_probe.return_value.http_server = "nginx"
+                tls_probe.return_value.http_headers = (
+                    ("server", "nginx"),
+                    (
+                        "content-security-policy",
+                        "default-src 'self'",
+                    ),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.http_headers,
+            (
+                ("server", "nginx"),
+                (
+                    "content-security-policy",
+                    "default-src 'self'",
+                ),
+            ),
+        )
+
     def test_https_detection_includes_https_http_metadata(self):
         fake_socket = MagicMock()
         fake_socket.recv.side_effect = socket.timeout()
@@ -301,6 +376,213 @@ class ServiceDetectionTests(unittest.TestCase):
             port=443,
             timeout=1.0,
             server_hostname=None,
+        )
+
+    def test_https_detection_analyzes_security_headers(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = ""
+                tls_probe.return_value.certificate_issuer = ""
+                tls_probe.return_value.certificate_not_before = ""
+                tls_probe.return_value.certificate_not_after = ""
+                tls_probe.return_value.certificate_sans = ()
+                tls_probe.return_value.certificate_sha256 = ""
+                tls_probe.return_value.http_status = (
+                    "HTTP/1.1 200 OK"
+                )
+                tls_probe.return_value.http_server = "nginx"
+                tls_probe.return_value.http_headers = (
+                    (
+                        "content-security-policy",
+                        "default-src 'self'",
+                    ),
+                    (
+                        "strict-transport-security",
+                        "max-age=31536000",
+                    ),
+                    ("x-content-type-options", "nosniff"),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                    server_hostname="example.test",
+                )
+
+        self.assertEqual(
+            result.security_headers_present,
+            (
+                "content-security-policy",
+                "strict-transport-security",
+                "x-content-type-options",
+            ),
+        )
+        self.assertEqual(
+            result.security_headers_missing,
+            (
+                "x-frame-options",
+                "referrer-policy",
+                "permissions-policy",
+            ),
+        )
+
+    def test_https_ip_scan_does_not_require_hsts(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = ""
+                tls_probe.return_value.certificate_issuer = ""
+                tls_probe.return_value.certificate_not_before = ""
+                tls_probe.return_value.certificate_not_after = ""
+                tls_probe.return_value.certificate_sans = ()
+                tls_probe.return_value.certificate_sha256 = ""
+                tls_probe.return_value.http_status = (
+                    "HTTP/1.1 200 OK"
+                )
+                tls_probe.return_value.http_server = "nginx"
+                tls_probe.return_value.http_headers = (
+                    ("x-content-type-options", "nosniff"),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertNotIn(
+            "strict-transport-security",
+            result.security_headers_missing,
+        )
+
+    def test_failed_http_probe_does_not_report_missing_headers(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_http_service"
+            ) as http_probe:
+                http_probe.return_value.status_line = ""
+                http_probe.return_value.server = ""
+                http_probe.return_value.headers = ()
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=80,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(result.security_headers_present, ())
+        self.assertEqual(result.security_headers_missing, ())
+
+    def test_http_detection_analyzes_security_headers(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_http_service"
+            ) as http_probe:
+                http_probe.return_value.status_line = "HTTP/1.1 200 OK"
+                http_probe.return_value.server = "nginx"
+                http_probe.return_value.headers = (
+                    (
+                        "content-security-policy",
+                        "default-src 'self'",
+                    ),
+                    ("x-content-type-options", "nosniff"),
+                    ("x-frame-options", "DENY"),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=80,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.security_headers_present,
+            (
+                "content-security-policy",
+                "x-content-type-options",
+                "x-frame-options",
+            ),
+        )
+        self.assertEqual(
+            result.security_headers_missing,
+            (
+                "referrer-policy",
+                "permissions-policy",
+            ),
+        )
+
+    def test_http_detection_includes_response_headers(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_http_service"
+            ) as http_probe:
+                http_probe.return_value.status_line = "HTTP/1.1 200 OK"
+                http_probe.return_value.server = "nginx"
+                http_probe.return_value.headers = (
+                    ("server", "nginx"),
+                    (
+                        "content-security-policy",
+                        "default-src 'self'",
+                    ),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=80,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.http_headers,
+            (
+                ("server", "nginx"),
+                (
+                    "content-security-policy",
+                    "default-src 'self'",
+                ),
+            ),
         )
 
     def test_http_detection_includes_http_metadata(self):

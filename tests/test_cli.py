@@ -107,7 +107,11 @@ class CliTests(unittest.TestCase):
 
                 self.assertEqual(code, 0)
                 self.assertEqual(stderr, "")
-                self.assertIn("Result file: results\\test.json", stdout)
+                expected_path = str(Path("results/test.json"))
+                self.assertIn(
+                    f"Result file: {expected_path}",
+                    stdout,
+                )
 
                 store.save_report.assert_called_once()
 
