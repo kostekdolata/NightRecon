@@ -39,13 +39,13 @@ class CheckFeedStateStore:
     ) -> None:
         self.root = Path(root)
 
-    def accept(
+    def validate(
         self,
         feed: CheckPackFeed,
         *,
         source_url: str,
     ) -> AcceptedCheckFeedState:
-        """Accept a verified feed only if it does not replay older state."""
+        """Validate a verified feed generation without persisting it."""
 
         _validate_feed_id(
             feed.feed_id
@@ -86,12 +86,32 @@ class CheckFeedStateStore:
             ):
                 return existing
 
-        record = AcceptedCheckFeedState(
+        return AcceptedCheckFeedState(
             feed_id=feed.feed_id,
             generated_at=feed.generated_at,
             manifest_sha256=digest,
             source_url=source_url,
         )
+
+    def accept(
+        self,
+        feed: CheckPackFeed,
+        *,
+        source_url: str,
+    ) -> AcceptedCheckFeedState:
+        """Accept a verified feed only if it does not replay older state."""
+
+        record = self.validate(
+            feed,
+            source_url=source_url,
+        )
+        existing = self.get(
+            feed.feed_id
+        )
+
+        if existing == record:
+            return existing
+
         self._write(
             record
         )
