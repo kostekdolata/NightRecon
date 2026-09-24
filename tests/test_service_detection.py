@@ -37,6 +37,56 @@ class ServiceDetectionTests(unittest.TestCase):
             ),
         )
 
+    def test_https_detection_includes_response_headers(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = ""
+                tls_probe.return_value.certificate_issuer = ""
+                tls_probe.return_value.certificate_not_before = ""
+                tls_probe.return_value.certificate_not_after = ""
+                tls_probe.return_value.certificate_sans = ()
+                tls_probe.return_value.certificate_sha256 = ""
+                tls_probe.return_value.http_status = (
+                    "HTTP/1.1 200 OK"
+                )
+                tls_probe.return_value.http_server = "nginx"
+                tls_probe.return_value.http_headers = (
+                    ("server", "nginx"),
+                    (
+                        "content-security-policy",
+                        "default-src 'self'",
+                    ),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.http_headers,
+            (
+                ("server", "nginx"),
+                (
+                    "content-security-policy",
+                    "default-src 'self'",
+                ),
+            ),
+        )
+
     def test_https_detection_includes_https_http_metadata(self):
         fake_socket = MagicMock()
         fake_socket.recv.side_effect = socket.timeout()
