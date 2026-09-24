@@ -11,6 +11,7 @@ from nightrecon.security_headers import analyze_security_headers
 from nightrecon.software_identity import (
     SoftwareIdentity,
     parse_http_server_identity,
+    parse_ssh_banner_identity,
 )
 from nightrecon.tls_detection import probe_tls_service
 
@@ -315,6 +316,10 @@ def detect_service(
         if http_server:
             software_identity = parse_http_server_identity(
                 http_server
+            )
+        elif service == "ssh" and banner:
+            software_identity = parse_ssh_banner_identity(
+                banner
             )
 
         if http_status:
