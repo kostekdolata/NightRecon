@@ -213,6 +213,87 @@ class CheckPackStoreTests(unittest.TestCase):
             ),
         )
 
+    def test_store_lists_installed_pack_ids(self):
+        store = CheckPackStore(self.root)
+
+        store.install_signed_pack(
+            self.signed_pack(
+                version="1.0.0",
+                pack_id="nightrecon.web.baseline",
+            ),
+            trusted_keys=self.trusted,
+        )
+        store.install_signed_pack(
+            self.signed_pack(
+                version="1.0.0",
+                pack_id="nightrecon.tls.baseline",
+            ),
+            trusted_keys=self.trusted,
+        )
+
+        self.assertEqual(
+            store.list_pack_ids(),
+            (
+                "nightrecon.tls.baseline",
+                "nightrecon.web.baseline",
+            ),
+        )
+
+    def test_verified_rollback_rejects_tampered_previous_version(self):
+        store = CheckPackStore(self.root)
+
+        first = store.install_signed_pack(
+            self.signed_pack(version="1.0.0"),
+            trusted_keys=self.trusted,
+        )
+        store.install_signed_pack(
+            self.signed_pack(version="1.1.0"),
+            trusted_keys=self.trusted,
+        )
+
+        Path(first.path).write_text(
+            "{}",
+            encoding="utf-8",
+        )
+
+        with self.assertRaises(ValueError):
+            store.rollback_verified(
+                "nightrecon.web.baseline",
+                trusted_keys=self.trusted,
+            )
+
+        self.assertEqual(
+            store.active_version(
+                "nightrecon.web.baseline"
+            ),
+            "1.1.0",
+        )
+
+    def test_verified_rollback_restores_valid_previous_version(self):
+        store = CheckPackStore(self.root)
+
+        store.install_signed_pack(
+            self.signed_pack(version="1.0.0"),
+            trusted_keys=self.trusted,
+        )
+        store.install_signed_pack(
+            self.signed_pack(version="1.1.0"),
+            trusted_keys=self.trusted,
+        )
+
+        restored = store.rollback_verified(
+            "nightrecon.web.baseline",
+            trusted_keys=self.trusted,
+        )
+
+        self.assertEqual(restored, "1.0.0")
+        self.assertEqual(
+            store.active_version(
+                "nightrecon.web.baseline"
+            ),
+            "1.0.0",
+        )
+
     def test_rollback_without_previous_active_version_fails(self):
         store = CheckPackStore(self.root)
         store.install_signed_pack(
