@@ -27,6 +27,114 @@ class CheckPackSyncResult:
     error: str = ""
 
 
+@dataclass(frozen=True)
+class CheckPackUpdatePlan:
+    """Non-mutating lifecycle plan for one feed-advertised pack."""
+
+    pack_id: str
+    advertised_version: str
+    active_version: str | None
+    status: str
+    download_required: bool
+    error: str = ""
+
+
+def plan_verified_check_feed(
+    *,
+    feed: CheckPackFeed,
+    store: CheckPackStore,
+) -> tuple[CheckPackUpdatePlan, ...]:
+    """Compare a verified feed to local state without mutating or downloading."""
+
+    plans: list[CheckPackUpdatePlan] = []
+
+    for entry in feed.packs:
+        active = store.active_version(
+            entry.pack_id
+        )
+        installed = {
+            record.version: record
+            for record in store.list_versions(
+                entry.pack_id
+            )
+        }
+        advertised = installed.get(
+            entry.version
+        )
+
+        if advertised is not None and advertised.sha256 != entry.sha256:
+            plans.append(
+                CheckPackUpdatePlan(
+                    pack_id=entry.pack_id,
+                    advertised_version=entry.version,
+                    active_version=active,
+                    status="conflict",
+                    download_required=False,
+                    error=(
+                        "Feed attempts to mutate an immutable "
+                        "installed check-pack version."
+                    ),
+                )
+            )
+            continue
+
+        if active == entry.version:
+            if advertised is None:
+                plans.append(
+                    CheckPackUpdatePlan(
+                        pack_id=entry.pack_id,
+                        advertised_version=entry.version,
+                        active_version=active,
+                        status="invalid-local-state",
+                        download_required=False,
+                        error=(
+                            "Active immutable check-pack metadata "
+                            "is missing."
+                        ),
+                    )
+                )
+                continue
+
+            plans.append(
+                CheckPackUpdatePlan(
+                    pack_id=entry.pack_id,
+                    advertised_version=entry.version,
+                    active_version=active,
+                    status="unchanged",
+                    download_required=False,
+                )
+            )
+            continue
+
+        if advertised is not None:
+            plans.append(
+                CheckPackUpdatePlan(
+                    pack_id=entry.pack_id,
+                    advertised_version=entry.version,
+                    active_version=active,
+                    status="activation-available",
+                    download_required=False,
+                )
+            )
+            continue
+
+        plans.append(
+            CheckPackUpdatePlan(
+                pack_id=entry.pack_id,
+                advertised_version=entry.version,
+                active_version=active,
+                status=(
+                    "install-available"
+                    if active is None
+                    else "change-available"
+                ),
+                download_required=True,
+            )
+        )
+
+    return tuple(plans)
+
+
 def sync_check_feed(
     *,
     feed_url: str,
