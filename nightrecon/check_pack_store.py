@@ -279,6 +279,68 @@ class CheckPackStore:
 
         return pack
 
+    def rollback_verified(
+        self,
+        pack_id: str,
+        *,
+        trusted_keys: dict[str, bytes],
+    ) -> str:
+        """Verify the previous signed version before reactivating it."""
+
+        _validate_storage_component(
+            pack_id,
+            label="check-pack ID",
+        )
+        state = self._read_state(
+            pack_id
+        )
+        history = _state_history(
+            state
+        )
+
+        if not history:
+            raise ValueError(
+                "No previous active version is available."
+            )
+
+        previous = history[-1]
+        path = self._version_path(
+            pack_id,
+            previous,
+        )
+
+        try:
+            text = path.read_text(
+                encoding="utf-8"
+            )
+        except OSError as exc:
+            raise ValueError(
+                "Previous active check-pack version is missing."
+            ) from exc
+
+        pack = load_signed_check_pack(
+            text,
+            trusted_keys=trusted_keys,
+        )
+
+        if (
+            pack.pack_id != pack_id
+            or pack.version != previous
+        ):
+            raise ValueError(
+                "Previous check-pack metadata does not match storage state."
+            )
+
+        history.pop()
+
+        self._write_state(
+            pack_id,
+            active_version=previous,
+            history=history,
+        )
+
+        return previous
+
     def rollback(
         self,
         pack_id: str,
