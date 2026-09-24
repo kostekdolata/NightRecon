@@ -11,7 +11,10 @@ from nightrecon.check_feed import (
     CheckFeedPackEntry,
     CheckPackFeed,
 )
-from nightrecon.check_pack_manager import CheckPackSyncResult
+from nightrecon.check_pack_manager import (
+    CheckPackSyncResult,
+    CheckPackUpdatePlan,
+)
 from nightrecon.check_pack_store import InstalledCheckPackRecord
 from nightrecon.cli import main
 
@@ -178,6 +181,76 @@ class CliCheckFeedTests(unittest.TestCase):
                 "pack-key": self.pack_key_bytes,
             },
             store=store,
+        )
+
+    def test_checks_feed_can_plan_updates_without_mutation(self):
+        feed = CheckPackFeed(
+            schema_version=1,
+            feed_id="nightrecon.official",
+            generated_at="2026-09-24T23:00:00Z",
+            packs=(self._feed_entry(),),
+        )
+        plans = (
+            CheckPackUpdatePlan(
+                pack_id="nightrecon.web.baseline",
+                advertised_version="1.1.0",
+                active_version="1.0.0",
+                status="change-available",
+                download_required=True,
+            ),
+        )
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "nightrecon",
+                "checks",
+                "feed",
+                "--url",
+                "https://updates.example.test/feed.json",
+                "--feed-key",
+                self.key_spec,
+                "--plan",
+                "--store-dir",
+                "pack-store",
+            ],
+        ):
+            with patch(
+                "nightrecon.cli.fetch_signed_check_feed",
+                return_value=feed,
+            ):
+                with patch(
+                    "nightrecon.cli.CheckPackStore"
+                ) as store_class:
+                    store = store_class.return_value
+
+                    with patch(
+                        "nightrecon.cli.plan_verified_check_feed",
+                        return_value=plans,
+                    ) as plan:
+                        with contextlib.redirect_stdout(stdout):
+                            with contextlib.redirect_stderr(stderr):
+                                main()
+
+        self.assertEqual(stderr.getvalue(), "")
+        store.validate_feed.assert_called_once_with(
+            feed,
+            source_url="https://updates.example.test/feed.json",
+        )
+        store.accept_feed.assert_not_called()
+        plan.assert_called_once_with(
+            feed=feed,
+            store=store,
+        )
+        self.assertIn(
+            "PLAN nightrecon.web.baseline "
+            "status=change-available "
+            "advertised=1.1.0 active=1.0.0 "
+            "download_required=yes",
+            stdout.getvalue(),
         )
 
     def test_checks_feed_can_sync_all_advertised_packs(self):
