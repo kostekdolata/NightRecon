@@ -86,6 +86,16 @@ class NvdVulnerabilityProviderTests(unittest.TestCase):
         self.assertEqual(finding.severity, "HIGH")
         self.assertEqual(finding.cvss_score, 7.5)
         self.assertEqual(
+            finding.match_basis,
+            "exact-cpe-query",
+        )
+        self.assertEqual(
+            finding.matched_identifier,
+            (
+                "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*"
+            ),
+        )
+        self.assertEqual(
             finding.references,
             (
                 "https://example.test/CVE-2026-1234",
