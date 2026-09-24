@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from nightrecon.discovery_report import HostDiscoveryReport
+from nightrecon.host_discovery import HostDiscoveryResult
 from nightrecon.report import TcpScanReport
 from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
@@ -140,6 +142,47 @@ class ResultStoreTests(unittest.TestCase):
             self.assertEqual(
                 data["resolved_addresses"],
                 ["127.0.0.1"],
+            )
+
+    def test_discovery_report_is_saved(self):
+        target = parse_target("192.0.2.0/30")
+        session = ScanSession.create(
+            target=target,
+            scope_rules=("192.0.2.0/24",),
+        )
+
+        report = HostDiscoveryReport.create(
+            session=session,
+            ports_requested=(443,),
+            max_hosts=8,
+            results=(
+                HostDiscoveryResult(
+                    address="192.0.2.1",
+                    responsive=True,
+                    method="tcp-connect",
+                    port=443,
+                    observation="tcp-open",
+                    error_code=0,
+                ),
+            ),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = ResultStore(temp_dir)
+
+            output_path = store.save_discovery_report(report)
+
+            with output_path.open("r", encoding="utf-8") as file:
+                data = json.load(file)
+
+            self.assertEqual(data["target"], "192.0.2.0/30")
+            self.assertEqual(
+                data["summary"]["responsive_hosts"],
+                1,
+            )
+            self.assertEqual(
+                data["results"][0]["address"],
+                "192.0.2.1",
             )
 
     def test_saved_report_contains_tcp_results(self):

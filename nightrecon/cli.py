@@ -27,7 +27,12 @@ from nightrecon.check_pack_signing import (
 )
 from nightrecon.config import NightReconConfig
 from nightrecon.cisa_kev_provider import CisaKevProvider
+from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.epss_provider import FirstEpssProvider
+from nightrecon.host_discovery import (
+    discover_hosts,
+    enrich_reverse_dns,
+)
 from nightrecon.logging import NightReconLogger
 from nightrecon.nvd_provider import NvdVulnerabilityProvider
 from nightrecon.ports import parse_ports
@@ -221,6 +226,80 @@ def build_parser() -> argparse.ArgumentParser:
             "Reverify and reactivate the previous cached version of one "
             "installed check pack without network access."
         ),
+    )
+
+    discover_parser = subparsers.add_parser(
+        "discover",
+        help="Discover responsive hosts in an authorized CIDR.",
+    )
+
+    discover_parser.add_argument(
+        "target",
+        help="Authorized CIDR target.",
+    )
+
+    discover_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help=(
+            "Authorized scope rule. May be supplied multiple times. "
+            "The discovery CIDR must be fully contained in scope."
+        ),
+    )
+
+    discover_parser.add_argument(
+        "--ports",
+        default="22,80,443,445",
+        help=(
+            "TCP ports used only for host reachability evidence. "
+            "Default: 22,80,443,445"
+        ),
+    )
+
+    discover_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=1.0,
+        help="Per-port connection timeout in seconds. Default: 1.0",
+    )
+
+    discover_parser.add_argument(
+        "--workers",
+        type=int,
+        default=100,
+        help="Maximum concurrent host probes. Default: 100",
+    )
+
+    discover_parser.add_argument(
+        "--max-hosts",
+        type=int,
+        default=1024,
+        help=(
+            "Hard maximum number of host addresses permitted in one "
+            "discovery run. Default: 1024"
+        ),
+    )
+
+    discover_parser.add_argument(
+        "--reverse-dns",
+        action="store_true",
+        help=(
+            "Attempt fail-soft reverse-DNS enrichment for responsive "
+            "hosts after TCP discovery."
+        ),
+    )
+
+    discover_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    discover_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
     )
 
     scan_parser = subparsers.add_parser(
@@ -749,6 +828,169 @@ def main() -> None:
                 file=sys.stderr,
             )
 
+        return
+
+    if args.command == "discover":
+        try:
+            target = parse_target(args.target)
+            scope = Scope.from_values(args.scope)
+            ports = parse_ports(args.ports)
+
+            config = NightReconConfig(
+                connect_timeout=args.timeout,
+                max_workers=args.workers,
+                results_dir=args.results_dir,
+                logs_dir=args.logs_dir,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+
+        logger = NightReconLogger(
+            config.logs_dir
+        )
+
+        if not scope.is_authorized(target):
+            logger.write(
+                "discovery.rejected",
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason="outside_authorized_scope",
+            )
+            parser.error(
+                f"Target '{target.value}' is outside the authorized scope."
+            )
+
+        if target.target_type != TargetType.CIDR:
+            logger.write(
+                "discovery.rejected",
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason="cidr_required",
+            )
+            parser.error(
+                "discover requires a CIDR target."
+            )
+
+        try:
+            discovery_results = discover_hosts(
+                cidr=target.value,
+                ports=ports,
+                timeout=config.connect_timeout,
+                max_workers=config.max_workers,
+                max_hosts=args.max_hosts,
+            )
+
+            if args.reverse_dns:
+                discovery_results = enrich_reverse_dns(
+                    discovery_results,
+                    max_workers=config.max_workers,
+                )
+        except ValueError as exc:
+            logger.write(
+                "discovery.failed",
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason=str(exc),
+            )
+            parser.error(str(exc))
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=tuple(args.scope),
+        )
+        discovery_report = HostDiscoveryReport.create(
+            session=session,
+            ports_requested=ports,
+            max_hosts=args.max_hosts,
+            results=discovery_results,
+        )
+        store = ResultStore(
+            config.results_dir
+        )
+        output_path = store.save_discovery_report(
+            discovery_report
+        )
+
+        logger.write(
+            "discovery.completed",
+            session_id=discovery_report.session_id,
+            target=discovery_report.target,
+            target_type=discovery_report.target_type,
+            scope=args.scope,
+            ports=list(
+                discovery_report.ports_requested
+            ),
+            hosts_tested=len(
+                discovery_report.results
+            ),
+            responsive_hosts=[
+                result.address
+                for result in discovery_report.responsive_hosts
+            ],
+            status=discovery_report.status,
+        )
+
+        print(
+            "NightRecon discovery target: "
+            f"{discovery_report.target}"
+        )
+        print(
+            f"Target type: {discovery_report.target_type}"
+        )
+        print("Scope authorization: approved")
+        print(
+            "Discovery ports: "
+            f"{','.join(str(port) for port in discovery_report.ports_requested)}"
+        )
+        print(
+            f"Hosts tested: {len(discovery_report.results)}"
+        )
+        print(
+            "Responsive hosts: "
+            f"{len(discovery_report.responsive_hosts)}"
+        )
+
+        for result in discovery_report.responsive_hosts:
+            port_text = (
+                str(result.port)
+                if result.port is not None
+                else "-"
+            )
+            line = (
+                f"  RESPONSIVE {result.address} "
+                f"method={result.method} "
+                f"observation={result.observation} "
+                f"port={port_text}"
+            )
+
+            if result.hostname:
+                line += (
+                    f" hostname={result.hostname}"
+                )
+
+            print(line)
+
+        print(
+            f"Session ID: {discovery_report.session_id}"
+        )
+        print(
+            f"Session status: {discovery_report.status}"
+        )
+        print(
+            f"Connection timeout: {config.connect_timeout}"
+        )
+        print(
+            f"Max workers: {config.max_workers}"
+        )
+        print(
+            f"Max hosts: {args.max_hosts}"
+        )
+        print(
+            f"Result file: {output_path}"
+        )
         return
 
     if args.command == "scan":
