@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives.serialization import (
 from nightrecon.check_pack_signing import (
     canonicalize_pack_payload,
     load_signed_check_pack,
+    parse_trusted_key_specs,
 )
 
 
@@ -91,6 +92,38 @@ class SignedCheckPackTests(unittest.TestCase):
                 trusted_keys={
                     "test-key": self.public_key_bytes,
                 },
+            )
+
+    def test_trusted_key_specs_parse_base64_public_keys(self):
+        encoded = base64.b64encode(
+            self.public_key_bytes
+        ).decode("ascii")
+
+        result = parse_trusted_key_specs(
+            (f"test-key={encoded}",)
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "test-key": self.public_key_bytes,
+            },
+        )
+
+    def test_duplicate_trusted_key_id_is_rejected(self):
+        encoded = base64.b64encode(
+            self.public_key_bytes
+        ).decode("ascii")
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Duplicate trusted check-pack key",
+        ):
+            parse_trusted_key_specs(
+                (
+                    f"test-key={encoded}",
+                    f"test-key={encoded}",
+                )
             )
 
     def test_invalid_signature_encoding_is_rejected(self):
