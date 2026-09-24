@@ -174,23 +174,6 @@ def build_parser() -> argparse.ArgumentParser:
     checks_feed_parser.add_argument(
         "--sync",
         action="store_true",
-        help="Synchronize all advertised packs into the local verified store.",
-    )
-
-    checks_feed_parser.add_argument(
-        "--list-installed",
-        action="store_true",
-        help="List locally installed signed check-pack versions offline.",
-    )
-
-    checks_feed_parser.add_argument(
-        "--rollback-pack",
-        help="Rollback one installed pack to its previous verified version.",
-    )
-
-    checks_feed_parser.add_argument(
-        "--sync",
-        action="store_true",
         help=(
             "Synchronize all advertised packs into the local verified "
             "pack store."
