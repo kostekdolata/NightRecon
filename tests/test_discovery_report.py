@@ -51,6 +51,7 @@ class HostDiscoveryReportTests(unittest.TestCase):
                 "hosts_tested": 2,
                 "responsive_hosts": 1,
                 "unresponsive_hosts": 1,
+                "named_hosts": 0,
             },
         )
         self.assertEqual(
