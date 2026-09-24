@@ -11,6 +11,7 @@ from nightrecon.check_feed import (
     CheckFeedPackEntry,
     CheckPackFeed,
 )
+from nightrecon.check_pack_manager import CheckPackSyncResult
 from nightrecon.check_pack_store import InstalledCheckPackRecord
 from nightrecon.cli import main
 
@@ -30,6 +31,15 @@ class CliCheckFeedTests(unittest.TestCase):
             + base64.b64encode(
                 self.pack_key_bytes
             ).decode("ascii")
+        )
+
+    def _feed_entry(self):
+        return CheckFeedPackEntry(
+            pack_id="nightrecon.web.baseline",
+            version="1.1.0",
+            url="https://updates.example.test/web.json",
+            sha256="b" * 64,
+            signer_key_id="pack-key",
         )
 
     def test_checks_feed_displays_verified_feed_entries(self):
@@ -168,6 +178,169 @@ class CliCheckFeedTests(unittest.TestCase):
                 "pack-key": self.pack_key_bytes,
             },
             store=store,
+        )
+
+    def test_checks_feed_can_sync_all_advertised_packs(self):
+        feed = CheckPackFeed(
+            schema_version=1,
+            feed_id="nightrecon.official",
+            generated_at="2026-09-24T22:30:00Z",
+            packs=(self._feed_entry(),),
+        )
+        results = (
+            CheckPackSyncResult(
+                pack_id="nightrecon.web.baseline",
+                advertised_version="1.1.0",
+                previous_version="1.0.0",
+                active_version="1.1.0",
+                status="updated",
+            ),
+        )
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "nightrecon",
+                "checks",
+                "feed",
+                "--url",
+                "https://updates.example.test/feed.json",
+                "--feed-key",
+                self.key_spec,
+                "--sync",
+                "--pack-key",
+                self.pack_key_spec,
+                "--store-dir",
+                "pack-store",
+            ],
+        ):
+            with patch(
+                "nightrecon.cli.fetch_signed_check_feed",
+                return_value=feed,
+            ):
+                with patch(
+                    "nightrecon.cli.CheckPackStore"
+                ) as store_class:
+                    store = store_class.return_value
+
+                    with patch(
+                        "nightrecon.cli.sync_verified_check_feed",
+                        return_value=results,
+                    ) as sync:
+                        with contextlib.redirect_stdout(stdout):
+                            with contextlib.redirect_stderr(stderr):
+                                main()
+
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn(
+            "SYNC nightrecon.web.baseline status=updated "
+            "advertised=1.1.0 previous=1.0.0 active=1.1.0",
+            stdout.getvalue(),
+        )
+        sync.assert_called_once_with(
+            feed=feed,
+            pack_trusted_keys={
+                "pack-key": self.pack_key_bytes,
+            },
+            store=store,
+        )
+
+    def test_checks_feed_lists_installed_packs_offline(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "nightrecon",
+                "checks",
+                "feed",
+                "--list-installed",
+                "--store-dir",
+                "pack-store",
+            ],
+        ):
+            with patch(
+                "nightrecon.cli.CheckPackStore"
+            ) as store_class:
+                store = store_class.return_value
+                store.list_pack_ids.return_value = (
+                    "nightrecon.web.baseline",
+                )
+                store.active_version.return_value = "1.1.0"
+                store.list_versions.return_value = (
+                    InstalledCheckPackRecord(
+                        pack_id="nightrecon.web.baseline",
+                        version="1.0.0",
+                        signer_key_id="pack-key",
+                        sha256="a" * 64,
+                        path="/tmp/1.0.0.json",
+                    ),
+                    InstalledCheckPackRecord(
+                        pack_id="nightrecon.web.baseline",
+                        version="1.1.0",
+                        signer_key_id="pack-key",
+                        sha256="b" * 64,
+                        path="/tmp/1.1.0.json",
+                    ),
+                )
+
+                with contextlib.redirect_stdout(stdout):
+                    with contextlib.redirect_stderr(stderr):
+                        main()
+
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn(
+            "Installed Pack: nightrecon.web.baseline active=1.1.0",
+            stdout.getvalue(),
+        )
+        self.assertIn(
+            "version=1.0.0",
+            stdout.getvalue(),
+        )
+        self.assertIn(
+            "version=1.1.0",
+            stdout.getvalue(),
+        )
+
+    def test_checks_feed_rolls_back_pack_offline(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "nightrecon",
+                "checks",
+                "feed",
+                "--rollback-pack",
+                "nightrecon.web.baseline",
+                "--store-dir",
+                "pack-store",
+            ],
+        ):
+            with patch(
+                "nightrecon.cli.CheckPackStore"
+            ) as store_class:
+                store = store_class.return_value
+                store.rollback.return_value = "1.0.0"
+
+                with contextlib.redirect_stdout(stdout):
+                    with contextlib.redirect_stderr(stderr):
+                        main()
+
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn(
+            "Rolled back: nightrecon.web.baseline active=1.0.0",
+            stdout.getvalue(),
+        )
+        store.rollback.assert_called_once_with(
+            "nightrecon.web.baseline"
         )
 
     def test_checks_feed_install_requires_pack_key(self):
