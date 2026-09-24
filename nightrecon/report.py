@@ -7,6 +7,9 @@ from dataclasses import asdict, dataclass
 from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
 from nightrecon.tcp_scanner import TcpPortResult
+from nightrecon.vulnerability_intelligence import (
+    ServiceVulnerabilityResult,
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,7 @@ class TcpScanReport:
     ports_requested: tuple[int, ...]
     results: tuple[TcpPortResult, ...]
     services: tuple[ServiceDetectionResult, ...] = ()
+    vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = ()
 
     @classmethod
     def create(
@@ -32,6 +36,7 @@ class TcpScanReport:
         ports_requested: tuple[int, ...],
         results: tuple[TcpPortResult, ...],
         services: tuple[ServiceDetectionResult, ...] = (),
+        vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = (),
     ) -> "TcpScanReport":
         return cls(
             session_id=session.session_id,
@@ -44,6 +49,7 @@ class TcpScanReport:
             ports_requested=ports_requested,
             results=results,
             services=services,
+            vulnerabilities=vulnerabilities,
         )
 
     @property
