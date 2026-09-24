@@ -124,6 +124,83 @@ class CliHostDiscoveryTests(unittest.TestCase):
             output,
         )
 
+    def test_discover_can_add_reverse_dns_names(self):
+        raw_results = (
+            HostDiscoveryResult(
+                address="192.0.2.2",
+                responsive=True,
+                method="tcp-connect",
+                port=443,
+                observation="tcp-open",
+                error_code=0,
+            ),
+        )
+        enriched_results = (
+            HostDiscoveryResult(
+                address="192.0.2.2",
+                responsive=True,
+                method="tcp-connect",
+                port=443,
+                observation="tcp-open",
+                error_code=0,
+                hostname="host2.example.test",
+            ),
+        )
+        stdout = io.StringIO()
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "nightrecon",
+                "discover",
+                "192.0.2.0/30",
+                "--scope",
+                "192.0.2.0/24",
+                "--reverse-dns",
+                "--workers",
+                "8",
+            ],
+        ):
+            with patch(
+                "nightrecon.cli.discover_hosts",
+                return_value=raw_results,
+            ):
+                with patch(
+                    "nightrecon.cli.enrich_reverse_dns",
+                    return_value=enriched_results,
+                ) as enrich:
+                    with patch(
+                        "nightrecon.cli.ResultStore"
+                    ) as store_class:
+                        store_class.return_value.save_discovery_report.return_value = (
+                            Path("results/discovery.json")
+                        )
+
+                        with patch(
+                            "nightrecon.cli.NightReconLogger"
+                        ):
+                            with contextlib.redirect_stdout(stdout):
+                                main()
+
+        enrich.assert_called_once_with(
+            raw_results,
+            max_workers=8,
+        )
+        report = (
+            store_class.return_value
+            .save_discovery_report
+            .call_args.args[0]
+        )
+        self.assertEqual(
+            report.results[0].hostname,
+            "host2.example.test",
+        )
+        self.assertIn(
+            "hostname=host2.example.test",
+            stdout.getvalue(),
+        )
+
     def test_discover_rejects_out_of_scope_cidr_before_probing(self):
         stderr = io.StringIO()
 
