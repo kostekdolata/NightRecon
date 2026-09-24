@@ -858,7 +858,7 @@ def main() -> None:
                 reason="cidr_required",
             )
             parser.error(
-                "The discover command requires a CIDR target."
+                "discover requires a CIDR target."
             )
 
         try:
