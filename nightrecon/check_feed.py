@@ -166,13 +166,13 @@ def fetch_signed_check_feed(
     )
 
 
-def fetch_check_pack(
+def fetch_signed_check_pack_text(
     entry: CheckFeedPackEntry,
     *,
     trusted_pack_keys: dict[str, bytes],
     timeout: float = 10.0,
-) -> CheckPack:
-    """Fetch and verify one signed check pack advertised by a feed."""
+) -> str:
+    """Fetch, verify, and return one signed check-pack envelope."""
 
     if entry.signer_key_id not in trusted_pack_keys:
         raise ValueError(
@@ -242,7 +242,27 @@ def fetch_check_pack(
             "Check-pack version does not match feed entry."
         )
 
-    return pack
+    return text
+
+
+def fetch_check_pack(
+    entry: CheckFeedPackEntry,
+    *,
+    trusted_pack_keys: dict[str, bytes],
+    timeout: float = 10.0,
+) -> CheckPack:
+    """Fetch and verify one signed check pack advertised by a feed."""
+
+    text = fetch_signed_check_pack_text(
+        entry,
+        trusted_pack_keys=trusted_pack_keys,
+        timeout=timeout,
+    )
+
+    return load_signed_check_pack(
+        text,
+        trusted_keys=trusted_pack_keys,
+    )
 
 
 def _load_feed_payload(
