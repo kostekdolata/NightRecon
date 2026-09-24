@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from nightrecon.check_feed import (
+    CheckPackFeed,
     fetch_check_pack_artifact,
     fetch_signed_check_feed,
 )
@@ -28,6 +29,25 @@ def install_pack_from_feed(
         trusted_keys=feed_trusted_keys,
         timeout=timeout,
     )
+
+    return install_pack_from_verified_feed(
+        feed=feed,
+        pack_id=pack_id,
+        pack_trusted_keys=pack_trusted_keys,
+        store=store,
+        timeout=timeout,
+    )
+
+
+def install_pack_from_verified_feed(
+    *,
+    feed: CheckPackFeed,
+    pack_id: str,
+    pack_trusted_keys: dict[str, bytes],
+    store: CheckPackStore,
+    timeout: float = 10.0,
+) -> InstalledCheckPackRecord:
+    """Install one named pack from an already verified feed manifest."""
 
     entry = next(
         (
