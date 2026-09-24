@@ -187,7 +187,11 @@ def load_check_pack_payload(
         )
 
     checks = tuple(
-        _parse_check(item)
+        _parse_check(
+            item,
+            pack_id=pack_id,
+            pack_version=version,
+        )
         for item in raw_checks
     )
 
@@ -212,6 +216,9 @@ def load_check_pack_payload(
 
 def _parse_check(
     item: object,
+    *,
+    pack_id: str,
+    pack_version: str,
 ) -> DeclarativeAssessmentCheck:
     if not isinstance(item, dict):
         raise ValueError(
@@ -340,6 +347,8 @@ def _parse_check(
                 item.get("version")
             )
             or "1",
+            source=f"check-pack:{pack_id}",
+            source_version=pack_version,
         ),
         conditions=conditions,
         finding=finding,
