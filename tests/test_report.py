@@ -3,6 +3,11 @@
 import unittest
 
 from nightrecon import report
+from nightrecon.assessment_engine import (
+    AssessmentExecutionResult,
+    AssessmentFinding,
+    ServiceAssessmentResult,
+)
 from nightrecon.report import TcpScanReport
 from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
@@ -334,6 +339,84 @@ class TcpScanReportTests(unittest.TestCase):
                 "max_cvss_score": 7.5,
             },
         )
+
+    def test_report_dictionary_contains_assessment_results(self):
+        target = parse_target("127.0.0.1")
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=("127.0.0.1",),
+        )
+
+        report = TcpScanReport.create(
+            session=session,
+            resolved_addresses=("127.0.0.1",),
+            ports_requested=(80,),
+            results=(),
+            services=(),
+            assessment_enabled=True,
+            assessment_catalog_errors=(
+                "plugin.warning: unavailable",
+            ),
+            assessments=(
+                ServiceAssessmentResult(
+                    address="127.0.0.1",
+                    port=80,
+                    service="http",
+                    executions=(
+                        AssessmentExecutionResult(
+                            check_id="web.example",
+                            status="completed",
+                            findings=(
+                                AssessmentFinding(
+                                    check_id="web.example",
+                                    title="Example finding",
+                                    summary="Example summary.",
+                                    evidence=("example=true",),
+                                ),
+                            ),
+                        ),
+                        AssessmentExecutionResult(
+                            check_id="web.skipped",
+                            status="skipped",
+                            reason="service_not_supported",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        data = report.to_dict()
+
+        self.assertTrue(data["assessment_enabled"])
+        self.assertEqual(
+            data["assessment_catalog_errors"],
+            ("plugin.warning: unavailable",),
+        )
+        self.assertEqual(
+            data["assessments"][0]["executions"][0]["findings"][0][
+                "check_id"
+            ],
+            "web.example",
+        )
+        self.assertEqual(
+            data["assessment_summary"],
+            {
+                "services_assessed": 1,
+                "checks_completed": 1,
+                "checks_skipped": 1,
+                "checks_errored": 0,
+                "findings": 1,
+            },
+        )
+
+    def test_report_marks_assessment_disabled_by_default(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertFalse(data["assessment_enabled"])
+        self.assertIsNone(data["assessment_summary"])
 
     def test_report_dictionary_contains_threat_context(self):
         target = parse_target("127.0.0.1")
