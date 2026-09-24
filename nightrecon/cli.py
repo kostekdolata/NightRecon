@@ -261,6 +261,13 @@ def main() -> None:
             if service.http_server:
                 print(f"    Server: {service.http_server}")
 
+            if service.software_identity is not None:
+                print(
+                    "    Software: "
+                    f"{service.software_identity.product} "
+                    f"{service.software_identity.version}"
+                )
+
             if service.security_headers_present:
                 print(
                     "    Security Headers Present: "
