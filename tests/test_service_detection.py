@@ -8,10 +8,35 @@ from nightrecon.service_detection import (
     ServiceDetectionResult,
     detect_service,
     identify_service,
+    parse_http_response,
 )
 
 
 class ServiceDetectionTests(unittest.TestCase):
+
+    def test_http_response_parser_captures_response_headers(self):
+        response = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Server: nginx\r\n"
+            b"Content-Security-Policy: default-src 'self'\r\n"
+            b"X-Content-Type-Options: nosniff\r\n"
+            b"\r\n"
+        )
+    
+        metadata = parse_http_response(response)
+    
+        self.assertEqual(
+            metadata.headers,
+            (
+                ("server", "nginx"),
+               (
+                     "content-security-policy",
+                    "default-src 'self'",
+                ),
+                ("x-content-type-options", "nosniff"),
+            ),
+        )
+
     def test_https_detection_includes_https_http_metadata(self):
         fake_socket = MagicMock()
         fake_socket.recv.side_effect = socket.timeout()
