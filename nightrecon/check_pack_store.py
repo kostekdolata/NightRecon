@@ -133,6 +133,26 @@ class CheckPackStore:
             path=str(destination),
         )
 
+    def list_pack_ids(self) -> tuple[str, ...]:
+        """Return installed check-pack IDs in deterministic order."""
+
+        packs_root = self.root / "packs"
+
+        if not packs_root.exists():
+            return ()
+
+        return tuple(
+            sorted(
+                path.name
+                for path in packs_root.iterdir()
+                if (
+                    path.is_dir()
+                    and _SAFE_ID.fullmatch(path.name)
+                    is not None
+                )
+            )
+        )
+
     def active_version(
         self,
         pack_id: str,
