@@ -723,6 +723,14 @@ def main() -> None:
             )
 
         if (
+            args.installed_check_packs
+            and not args.assessment
+        ):
+            parser.error(
+                "--installed-check-packs requires --assessment."
+            )
+
+        if (
             (
                 args.check_pack_paths
                 or args.check_pack_keys
@@ -731,14 +739,6 @@ def main() -> None:
         ):
             parser.error(
                 "--check-pack/--check-pack-key require --assessment."
-            )
-
-        if (
-            args.installed_check_packs
-            and not args.assessment
-        ):
-            parser.error(
-                "--installed-check-packs requires --assessment."
             )
 
         if (
