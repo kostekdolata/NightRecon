@@ -62,6 +62,21 @@ class CheckPackStore:
             source_url=source_url,
         )
 
+    def validate_feed(
+        self,
+        feed: CheckPackFeed,
+        *,
+        source_url: str,
+    ) -> AcceptedCheckFeedState:
+        """Validate feed replay state without persisting it."""
+
+        return CheckFeedStateStore(
+            self.root
+        ).validate(
+            feed,
+            source_url=source_url,
+        )
+
     def install_signed_pack(
         self,
         text: str,
