@@ -62,6 +62,57 @@ class TlsDetectionTests(unittest.TestCase):
             "nginx",
         )
 
+    def test_tls_probe_captures_https_response_headers(self):
+        raw_socket = MagicMock()
+        tls_socket = MagicMock()
+
+        tls_socket.version.return_value = "TLSv1.3"
+        tls_socket.cipher.return_value = (
+            "TLS_AES_256_GCM_SHA384",
+            "TLSv1.3",
+            256,
+        )
+        tls_socket.getpeercert.return_value = b""
+        tls_socket.recv.return_value = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Server: nginx\r\n"
+            b"Content-Security-Policy: default-src 'self'\r\n"
+            b"X-Content-Type-Options: nosniff\r\n"
+            b"\r\n"
+        )
+
+        context = MagicMock()
+        context.wrap_socket.return_value.__enter__.return_value = (
+            tls_socket
+        )
+
+        with patch(
+            "nightrecon.tls_detection.socket.create_connection",
+            return_value=raw_socket,
+        ):
+            with patch(
+                "nightrecon.tls_detection.ssl.create_default_context",
+                return_value=context,
+            ):
+                result = probe_tls_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                    server_hostname="example.test",
+                )
+
+        self.assertEqual(
+            result.http_headers,
+            (
+                ("server", "nginx"),
+                (
+                    "content-security-policy",
+                    "default-src 'self'",
+                ),
+                ("x-content-type-options", "nosniff"),
+            ),
+        )
+
     def test_tls_probe_captures_certificate_sha256_fingerprint(self):
         raw_socket = MagicMock()
         tls_socket = MagicMock()
