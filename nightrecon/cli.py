@@ -7,8 +7,13 @@ import sys
 from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
-from nightrecon.assessment_engine import CheckRegistry
-from nightrecon.check_plugins import discover_installed_checks
+from nightrecon.assessment_engine import (
+    CheckIntrusiveness,
+    CheckRegistry,
+    assess_services,
+    summarize_assessments,
+)
+from nightrecon.check_catalog import load_check_catalog
 from nightrecon.config import NightReconConfig
 from nightrecon.cisa_kev_provider import CisaKevProvider
 from nightrecon.epss_provider import FirstEpssProvider
@@ -162,6 +167,60 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    scan_parser.add_argument(
+        "--assessment",
+        action="store_true",
+        help=(
+            "Run the assessment-check engine against detected services. "
+            "Disabled by default."
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--check",
+        action="append",
+        dest="assessment_check_ids",
+        help=(
+            "Run only an exact assessment check ID. May be repeated. "
+            "Requires --assessment."
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--check-family",
+        action="append",
+        dest="assessment_check_families",
+        help=(
+            "Run only assessment checks in a family. May be repeated. "
+            "Requires --assessment."
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--check-tag",
+        action="append",
+        dest="assessment_check_tags",
+        help=(
+            "Run assessment checks matching a tag. May be repeated. "
+            "Requires --assessment."
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--max-check-intrusiveness",
+        choices=(
+            "passive",
+            "safe-active",
+            "intrusive",
+        ),
+        default="safe-active",
+        help=(
+            "Maximum assessment-check intrusiveness. "
+            "Destructive checks are not available from this scan command. "
+            "Default: safe-active"
+        ),
+    )
+
     return parser
 
 
@@ -175,11 +234,11 @@ def main() -> None:
                 "The checks command requires a subcommand."
             )
 
-        discovery = discover_installed_checks()
+        catalog = load_check_catalog()
         registry = CheckRegistry()
-        plugin_errors = list(discovery.errors)
+        plugin_errors = list(catalog.errors)
 
-        for check in discovery.checks:
+        for check in catalog.checks:
             try:
                 registry.register(check)
             except ValueError as exc:
@@ -225,6 +284,18 @@ def main() -> None:
         return
 
     if args.command == "scan":
+        if (
+            (
+                args.assessment_check_ids
+                or args.assessment_check_families
+                or args.assessment_check_tags
+            )
+            and not args.assessment
+        ):
+            parser.error(
+                "--check/--check-family/--check-tag require --assessment."
+            )
+
         if args.threat_context and not args.vuln_lookup:
             parser.error(
                 "--threat-context requires --vuln-lookup."
@@ -330,6 +401,39 @@ def main() -> None:
 
             all_services.extend(services)
 
+        all_assessments = ()
+        assessment_catalog_errors = ()
+
+        if args.assessment:
+            catalog = load_check_catalog()
+            assessment_catalog_errors = catalog.errors
+            registry = CheckRegistry()
+
+            for check in catalog.checks:
+                registry.register(check)
+
+            selected_checks = registry.select(
+                check_ids=tuple(
+                    args.assessment_check_ids or ()
+                ),
+                families=tuple(
+                    args.assessment_check_families or ()
+                ),
+                tags=tuple(
+                    args.assessment_check_tags or ()
+                ),
+            )
+
+            all_assessments = assess_services(
+                target=target.value,
+                services=tuple(all_services),
+                checks=selected_checks,
+                max_intrusiveness=CheckIntrusiveness(
+                    args.max_check_intrusiveness
+                ),
+                authorized=True,
+            )
+
         all_vulnerabilities = ()
 
         if args.vuln_lookup:
@@ -358,6 +462,9 @@ def main() -> None:
             ports_requested=ports,
             results=tuple(all_results),
             services=tuple(all_services),
+            assessment_enabled=args.assessment,
+            assessment_catalog_errors=assessment_catalog_errors,
+            assessments=all_assessments,
             vulnerability_intelligence_enabled=args.vuln_lookup,
             vulnerabilities=all_vulnerabilities,
             threat_context_enabled=args.threat_context,
@@ -475,6 +582,83 @@ def main() -> None:
                     f"{service.tls_certificate_sha256}"
                 )
 
+
+        for service_assessment in report.assessments:
+            print(
+                "  ASSESSMENT "
+                f"{service_assessment.address}:"
+                f"{service_assessment.port} "
+                f"{service_assessment.service}"
+            )
+
+            for execution in service_assessment.executions:
+                print(
+                    "    CHECK "
+                    f"{execution.check_id} "
+                    f"status={execution.status}"
+                )
+
+                if execution.reason:
+                    print(
+                        "      Reason: "
+                        f"{execution.reason}"
+                    )
+
+                if execution.error:
+                    print(
+                        "      Error: "
+                        f"{execution.error}"
+                    )
+
+                for finding in execution.findings:
+                    severity = (
+                        finding.severity
+                        or "unspecified"
+                    )
+                    print(
+                        "      FINDING "
+                        f"{finding.check_id} "
+                        f"severity={severity}"
+                    )
+                    print(
+                        "        Title: "
+                        f"{finding.title}"
+                    )
+                    print(
+                        "        Summary: "
+                        f"{finding.summary}"
+                    )
+
+                    for evidence in finding.evidence:
+                        print(
+                            "        Evidence: "
+                            f"{evidence}"
+                        )
+
+                    if finding.remediation:
+                        print(
+                            "        Remediation: "
+                            f"{finding.remediation}"
+                        )
+
+        if report.assessment_enabled:
+            assessment_summary = summarize_assessments(
+                report.assessments
+            )
+            print(
+                "Assessment Summary: "
+                f"services={assessment_summary.services_assessed} "
+                f"completed={assessment_summary.checks_completed} "
+                f"skipped={assessment_summary.checks_skipped} "
+                f"errors={assessment_summary.checks_errored} "
+                f"findings={assessment_summary.findings}"
+            )
+
+            for error in report.assessment_catalog_errors:
+                print(
+                    "Assessment Catalog Error: "
+                    f"{error}"
+                )
 
         for vulnerability in report.vulnerabilities:
             lookup = vulnerability.lookup
