@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from nightrecon.assessment_engine import (
+    ServiceAssessmentResult,
+    summarize_assessments,
+)
 from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
 from nightrecon.tcp_scanner import TcpPortResult
@@ -31,6 +35,9 @@ class TcpScanReport:
     ports_requested: tuple[int, ...]
     results: tuple[TcpPortResult, ...]
     services: tuple[ServiceDetectionResult, ...] = ()
+    assessment_enabled: bool = False
+    assessment_catalog_errors: tuple[str, ...] = ()
+    assessments: tuple[ServiceAssessmentResult, ...] = ()
     vulnerability_intelligence_enabled: bool = False
     vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = ()
     threat_context_enabled: bool = False
@@ -44,6 +51,9 @@ class TcpScanReport:
         ports_requested: tuple[int, ...],
         results: tuple[TcpPortResult, ...],
         services: tuple[ServiceDetectionResult, ...] = (),
+        assessment_enabled: bool = False,
+        assessment_catalog_errors: tuple[str, ...] = (),
+        assessments: tuple[ServiceAssessmentResult, ...] = (),
         vulnerability_intelligence_enabled: bool = False,
         vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = (),
         threat_context_enabled: bool = False,
@@ -60,6 +70,9 @@ class TcpScanReport:
             ports_requested=ports_requested,
             results=results,
             services=services,
+            assessment_enabled=assessment_enabled,
+            assessment_catalog_errors=assessment_catalog_errors,
+            assessments=assessments,
             vulnerability_intelligence_enabled=(
                 vulnerability_intelligence_enabled
             ),
@@ -88,6 +101,16 @@ class TcpScanReport:
             asdict(service)
             for service in self.services
         ]
+
+        data["assessment_summary"] = (
+            asdict(
+                summarize_assessments(
+                    self.assessments
+                )
+            )
+            if self.assessment_enabled
+            else None
+        )
 
         data["vulnerability_summary"] = (
             asdict(
