@@ -223,6 +223,33 @@ class CliAssessmentTests(unittest.TestCase):
             output,
         )
 
+    def test_destructive_intrusiveness_is_not_available_from_scan_cli(self):
+        stderr = io.StringIO()
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "nightrecon",
+                "scan",
+                "127.0.0.1",
+                "--scope",
+                "127.0.0.1",
+                "--assessment",
+                "--max-check-intrusiveness",
+                "destructive",
+            ],
+        ):
+            with contextlib.redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as exc:
+                    main()
+
+        self.assertEqual(exc.exception.code, 2)
+        self.assertIn(
+            "invalid choice: 'destructive'",
+            stderr.getvalue(),
+        )
+
     def test_check_filter_requires_assessment(self):
         stderr = io.StringIO()
 
