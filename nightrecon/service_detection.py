@@ -56,6 +56,7 @@ class HttpResponseMetadata:
 
     status_line: str
     server: str
+    headers: tuple[tuple[str, str], ...] = ()
 
 
 def identify_service(port: int) -> str:
@@ -105,17 +106,28 @@ def parse_http_response(response: bytes) -> HttpResponseMetadata:
 
     status_line = lines[0].strip() if lines else ""
     server = ""
+    headers: list[tuple[str, str]] = []
 
     for line in lines[1:]:
         name, separator, value = line.partition(":")
 
-        if separator and name.strip().lower() == "server":
-            server = value.strip()
-            break
+        if not separator:
+            continue
+
+        header_name = name.strip().lower()
+        header_value = value.strip()
+
+        headers.append(
+            (header_name, header_value)
+        )
+
+        if header_name == "server":
+            server = header_value
 
     return HttpResponseMetadata(
         status_line=status_line,
         server=server,
+        headers=tuple(headers),
     )
 
 
