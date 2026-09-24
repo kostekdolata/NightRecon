@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.15.0**
+**v0.16.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, signed check-feed verification, structured scan reports, target resolution, audit logging, and runtime configuration.
+NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
 
 ## Features
 
@@ -90,6 +90,16 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - Signed check-feed manifests with Ed25519 verification
 - HTTPS-only feed-advertised pack URLs, bounded downloads, SHA-256 pinning, and signer-key pinning
 - `nightrecon checks feed` command for verified feed inspection
+- Managed signed check-pack store with immutable cached versions and atomic activation state
+- Verified feed install and full-feed synchronization into the local check-pack store
+- Offline installed-pack inventory with active-version visibility
+- Verified rollback to previously cached signed versions
+- Active installed packs can be reverified and loaded into assessment catalogs and scans
+- Signed-feed replay protection using persisted generation timestamps and signed-manifest digests
+- Same-generation signed payload mutation is rejected
+- Feed-advertised mutation of an immutable installed pack version is rejected
+- Non-mutating `--plan` update inspection classifies install/change/cache-activation/unchanged/conflict states without downloads or activation
+- Dry-run update planning performs replay validation without advancing persisted feed state
 - CLI display of detected services and observed banners
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
@@ -141,6 +151,22 @@ List only web-family checks:
 Inspect a verified signed check feed:
 
 `nightrecon checks feed --url https://updates.example.test/feed.json --feed-key official=<base64-ed25519-public-key>`
+
+Preview feed changes without downloading or activating packs:
+
+`nightrecon checks feed --url https://updates.example.test/feed.json --feed-key official=<base64-ed25519-public-key> --plan`
+
+Synchronize all verified feed packs into the local store:
+
+`nightrecon checks feed --url https://updates.example.test/feed.json --feed-key official=<base64-ed25519-public-key> --sync --pack-key official=<base64-ed25519-public-key>`
+
+Inspect installed cached versions offline:
+
+`nightrecon checks feed --list-installed`
+
+Run an assessment using all active installed signed packs:
+
+`nightrecon scan 127.0.0.1 --scope 127.0.0.1 --assessment --installed-check-packs --check-pack-key official=<base64-ed25519-public-key>`
 
 Load a signed declarative check pack into an assessment:
 
@@ -211,11 +237,12 @@ Assessment checks are gated by explicit scope authorization and declared intrusi
 
 Declarative check packs are intentionally non-executable data. NightRecon does not trust a remote feed or downloaded pack merely because it came over HTTPS: feed signatures, pack hashes, signer IDs, and pack signatures are independently validated before a pack is accepted.
 
+Managed feed state adds replay protection and immutable local version storage. Installed packs are reverified before activation, rollback, and assessment use. Dry-run planning validates signed feed freshness without persisting the newer generation or downloading artifacts.
+
 ## Roadmap
 
 - host discovery and network topology mapping
 - deeper service and operating-system fingerprinting
-- check-feed installation, local cache, rollback, and automatic update management
 - web crawling, content discovery, and DAST assessment
 - authenticated SSH, SMB, WinRM, database, and network-device assessment
 - Active Directory and identity-security assessment
