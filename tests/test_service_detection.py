@@ -10,6 +10,7 @@ from nightrecon.service_detection import (
     identify_service,
     parse_http_response,
 )
+from nightrecon.software_identity import SoftwareIdentity
 
 
 class ServiceDetectionTests(unittest.TestCase):
@@ -613,6 +614,39 @@ class ServiceDetectionTests(unittest.TestCase):
             address="127.0.0.1",
             port=80,
             timeout=1.0,
+        )
+
+    def test_http_detection_includes_structured_software_identity(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_http_service"
+            ) as http_probe:
+                http_probe.return_value.status_line = "HTTP/1.1 200 OK"
+                http_probe.return_value.server = "nginx/1.24.0"
+                http_probe.return_value.headers = (
+                    ("server", "nginx/1.24.0"),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=80,
+                    timeout=1.0,
+                )
+
+        self.assertEqual(
+            result.software_identity,
+            SoftwareIdentity(
+                product="nginx",
+                version="1.24.0",
+                source="http-server",
+                evidence="nginx/1.24.0",
+            ),
         )
 
     def test_service_detection_result_stores_observation(self):
