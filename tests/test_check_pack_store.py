@@ -187,6 +187,32 @@ class CheckPackStoreTests(unittest.TestCase):
                 trusted_keys=self.trusted,
             )
 
+    def test_list_pack_ids_returns_installed_packs_sorted(self):
+        store = CheckPackStore(self.root)
+
+        store.install_signed_pack(
+            self.signed_pack(
+                version="1.0.0",
+                pack_id="nightrecon.web.baseline",
+            ),
+            trusted_keys=self.trusted,
+        )
+        store.install_signed_pack(
+            self.signed_pack(
+                version="1.0.0",
+                pack_id="nightrecon.tls.baseline",
+            ),
+            trusted_keys=self.trusted,
+        )
+
+        self.assertEqual(
+            store.list_pack_ids(),
+            (
+                "nightrecon.tls.baseline",
+                "nightrecon.web.baseline",
+            ),
+        )
+
     def test_rollback_without_previous_active_version_fails(self):
         store = CheckPackStore(self.root)
         store.install_signed_pack(
