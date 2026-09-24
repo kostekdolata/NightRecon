@@ -54,6 +54,15 @@ class CheckPackFeed:
     packs: tuple[CheckFeedPackEntry, ...] = ()
 
 
+@dataclass(frozen=True)
+class VerifiedCheckPackArtifact:
+    """Verified signed check-pack artifact preserved for local storage."""
+
+    pack: CheckPack
+    signed_text: str
+    sha256: str
+
+
 def load_signed_check_feed(
     text: str,
     *,
@@ -166,13 +175,13 @@ def fetch_signed_check_feed(
     )
 
 
-def fetch_check_pack(
+def fetch_check_pack_artifact(
     entry: CheckFeedPackEntry,
     *,
     trusted_pack_keys: dict[str, bytes],
     timeout: float = 10.0,
-) -> CheckPack:
-    """Fetch and verify one signed check pack advertised by a feed."""
+) -> VerifiedCheckPackArtifact:
+    """Fetch, verify, and preserve one signed check-pack artifact."""
 
     if entry.signer_key_id not in trusted_pack_keys:
         raise ValueError(
@@ -242,7 +251,41 @@ def fetch_check_pack(
             "Check-pack version does not match feed entry."
         )
 
-    return pack
+    return VerifiedCheckPackArtifact(
+        pack=pack,
+        signed_text=text,
+        sha256=observed_sha256,
+    )
+
+
+def fetch_signed_check_pack_text(
+    entry: CheckFeedPackEntry,
+    *,
+    trusted_pack_keys: dict[str, bytes],
+    timeout: float = 10.0,
+) -> str:
+    """Fetch, verify, and return one signed check-pack envelope."""
+
+    return fetch_check_pack_artifact(
+        entry,
+        trusted_pack_keys=trusted_pack_keys,
+        timeout=timeout,
+    ).signed_text
+
+
+def fetch_check_pack(
+    entry: CheckFeedPackEntry,
+    *,
+    trusted_pack_keys: dict[str, bytes],
+    timeout: float = 10.0,
+) -> CheckPack:
+    """Fetch and verify one signed check pack advertised by a feed."""
+
+    return fetch_check_pack_artifact(
+        entry,
+        trusted_pack_keys=trusted_pack_keys,
+        timeout=timeout,
+    ).pack
 
 
 def _load_feed_payload(

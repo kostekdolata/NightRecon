@@ -15,6 +15,12 @@ from nightrecon.assessment_engine import (
 )
 from nightrecon.check_catalog import load_check_catalog
 from nightrecon.check_feed import fetch_signed_check_feed
+from nightrecon.check_pack_manager import (
+    install_pack_from_verified_feed,
+    plan_verified_check_feed,
+    sync_verified_check_feed,
+)
+from nightrecon.check_pack_store import CheckPackStore
 from nightrecon.check_pack_signing import (
     load_signed_check_pack_file,
     parse_trusted_key_specs,
@@ -119,6 +125,23 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    checks_list_parser.add_argument(
+        "--installed-check-packs",
+        action="store_true",
+        help=(
+            "Load all active locally installed signed check packs."
+        ),
+    )
+
+    checks_list_parser.add_argument(
+        "--check-store-dir",
+        default=".nightrecon",
+        help=(
+            "Local NightRecon state directory for installed packs. "
+            "Default: .nightrecon"
+        ),
+    )
+
     checks_feed_parser = checks_subparsers.add_parser(
         "feed",
         help="Inspect a signed declarative check feed.",
@@ -126,7 +149,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     checks_feed_parser.add_argument(
         "--url",
-        required=True,
         help="HTTPS URL of the signed check-feed manifest.",
     )
 
@@ -134,10 +156,70 @@ def build_parser() -> argparse.ArgumentParser:
         "--feed-key",
         action="append",
         dest="feed_keys",
-        required=True,
         help=(
             "Trust an Ed25519 feed signer using "
             "KEY_ID=BASE64_PUBLIC_KEY. May be repeated."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--install-pack",
+        help=(
+            "Install one advertised signed check pack into the local "
+            "verified pack store."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--pack-key",
+        action="append",
+        dest="feed_pack_keys",
+        help=(
+            "Trust a check-pack signer using "
+            "KEY_ID=BASE64_PUBLIC_KEY. May be repeated."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--store-dir",
+        default=".nightrecon",
+        help=(
+            "Local NightRecon state directory for installed packs. "
+            "Default: .nightrecon"
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--sync",
+        action="store_true",
+        help=(
+            "Synchronize all advertised packs into the local verified "
+            "pack store."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--plan",
+        action="store_true",
+        help=(
+            "Compare the verified feed with local installed-pack state "
+            "without downloading or activating packs."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--list-installed",
+        action="store_true",
+        help=(
+            "List locally installed check packs without network access."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--rollback-pack",
+        help=(
+            "Reverify and reactivate the previous cached version of one "
+            "installed check pack without network access."
         ),
     )
 
@@ -289,6 +371,24 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    scan_parser.add_argument(
+        "--installed-check-packs",
+        action="store_true",
+        help=(
+            "Load all active locally installed signed check packs. "
+            "Requires --assessment and --check-pack-key."
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--check-store-dir",
+        default=".nightrecon",
+        help=(
+            "Local NightRecon state directory for installed packs. "
+            "Default: .nightrecon"
+        ),
+    )
+
     return parser
 
 
@@ -313,12 +413,146 @@ def _load_requested_check_pack_checks(
     return tuple(checks)
 
 
+def _load_installed_check_pack_checks(
+    store_dir: str,
+    key_specs: tuple[str, ...],
+) -> tuple[object, ...]:
+    """Load and reverify all active locally installed check packs."""
+
+    trusted_keys = parse_trusted_key_specs(
+        key_specs
+    )
+
+    if not trusted_keys:
+        raise ValueError(
+            "--installed-check-packs requires --check-pack-key."
+        )
+
+    store = CheckPackStore(
+        store_dir
+    )
+    checks: list[object] = []
+
+    for pack_id in store.list_pack_ids():
+        pack = store.load_active(
+            pack_id,
+            trusted_keys=trusted_keys,
+        )
+        checks.extend(
+            pack.checks
+        )
+
+    return tuple(checks)
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
     if args.command == "checks":
         if args.checks_command == "feed":
+            selected_actions = sum(
+                bool(value)
+                for value in (
+                    args.install_pack,
+                    args.sync,
+                    args.plan,
+                    args.list_installed,
+                    args.rollback_pack,
+                )
+            )
+
+            if selected_actions > 1:
+                parser.error(
+                    "Choose only one of --install-pack, --sync, --plan, "
+                    "--list-installed, or --rollback-pack."
+                )
+
+            if args.list_installed:
+                store = CheckPackStore(
+                    args.store_dir
+                )
+                pack_ids = store.list_pack_ids()
+
+                if not pack_ids:
+                    print("No installed check packs.")
+
+                for pack_id in pack_ids:
+                    active = store.active_version(
+                        pack_id
+                    )
+                    print(
+                        f"Installed Pack: {pack_id} "
+                        f"active={active or '-'}"
+                    )
+
+                    for record in store.list_versions(
+                        pack_id
+                    ):
+                        marker = (
+                            "yes"
+                            if record.version == active
+                            else "no"
+                        )
+                        print(
+                            f"  version={record.version} "
+                            f"active={marker} "
+                            f"signer={record.signer_key_id or '-'} "
+                            f"sha256={record.sha256 or '-'}"
+                        )
+
+                return
+
+            if args.rollback_pack:
+                if not args.feed_pack_keys:
+                    parser.error(
+                        "--rollback-pack requires --pack-key."
+                    )
+
+                try:
+                    trusted_pack_keys = parse_trusted_key_specs(
+                        tuple(args.feed_pack_keys or ())
+                    )
+                    store = CheckPackStore(
+                        args.store_dir
+                    )
+                    restored = store.rollback_verified(
+                        args.rollback_pack,
+                        trusted_keys=trusted_pack_keys,
+                    )
+                except ValueError as exc:
+                    parser.error(str(exc))
+
+                print(
+                    f"Rolled back: {args.rollback_pack} "
+                    f"active={restored}"
+                )
+                return
+
+            if not args.url:
+                parser.error(
+                    "--url is required unless using "
+                    "--list-installed or --rollback-pack."
+                )
+
+            if not args.feed_keys:
+                parser.error(
+                    "--feed-key is required for feed operations."
+                )
+
+            if (
+                (args.install_pack or args.sync)
+                and not args.feed_pack_keys
+            ):
+                option = (
+                    "--install-pack"
+                    if args.install_pack
+                    else "--sync"
+                )
+                parser.error(
+                    f"{option} requires --pack-key."
+                )
+
             try:
                 trusted_feed_keys = parse_trusted_key_specs(
                     tuple(args.feed_keys or ())
@@ -347,6 +581,99 @@ def main() -> None:
                     f"url={entry.url}"
                 )
 
+            if args.plan:
+                try:
+                    store = CheckPackStore(
+                        args.store_dir
+                    )
+                    store.validate_feed(
+                        feed,
+                        source_url=args.url,
+                    )
+                    plans = plan_verified_check_feed(
+                        feed=feed,
+                        store=store,
+                    )
+                except ValueError as exc:
+                    parser.error(str(exc))
+
+                for plan in plans:
+                    line = (
+                        f"PLAN {plan.pack_id} "
+                        f"status={plan.status} "
+                        f"advertised={plan.advertised_version} "
+                        f"active={plan.active_version or '-'} "
+                        "download_required="
+                        f"{'yes' if plan.download_required else 'no'}"
+                    )
+
+                    if plan.error:
+                        line += f" error={plan.error}"
+
+                    print(line)
+
+            if args.install_pack:
+                try:
+                    trusted_pack_keys = parse_trusted_key_specs(
+                        tuple(args.feed_pack_keys or ())
+                    )
+                    store = CheckPackStore(
+                        args.store_dir
+                    )
+                    store.accept_feed(
+                        feed,
+                        source_url=args.url,
+                    )
+                    installed = install_pack_from_verified_feed(
+                        feed=feed,
+                        pack_id=args.install_pack,
+                        pack_trusted_keys=trusted_pack_keys,
+                        store=store,
+                    )
+                except ValueError as exc:
+                    parser.error(str(exc))
+
+                print(
+                    f"Installed: {installed.pack_id} "
+                    f"version={installed.version} "
+                    f"signer={installed.signer_key_id} "
+                    f"sha256={installed.sha256}"
+                )
+
+            if args.sync:
+                try:
+                    trusted_pack_keys = parse_trusted_key_specs(
+                        tuple(args.feed_pack_keys or ())
+                    )
+                    store = CheckPackStore(
+                        args.store_dir
+                    )
+                    store.accept_feed(
+                        feed,
+                        source_url=args.url,
+                    )
+                    sync_results = sync_verified_check_feed(
+                        feed=feed,
+                        pack_trusted_keys=trusted_pack_keys,
+                        store=store,
+                    )
+                except ValueError as exc:
+                    parser.error(str(exc))
+
+                for result in sync_results:
+                    line = (
+                        f"SYNC {result.pack_id} "
+                        f"status={result.status} "
+                        f"advertised={result.advertised_version} "
+                        f"previous={result.previous_version or '-'} "
+                        f"active={result.active_version or '-'}"
+                    )
+
+                    if result.error:
+                        line += f" error={result.error}"
+
+                    print(line)
+
             return
 
         if args.checks_command != "list":
@@ -359,11 +686,22 @@ def main() -> None:
                 tuple(args.check_pack_paths or ()),
                 tuple(args.check_pack_keys or ()),
             )
+            installed_checks = (
+                _load_installed_check_pack_checks(
+                    args.check_store_dir,
+                    tuple(args.check_pack_keys or ()),
+                )
+                if args.installed_check_packs
+                else ()
+            )
         except ValueError as exc:
             parser.error(str(exc))
 
         catalog = load_check_catalog(
-            additional_checks=pack_checks
+            additional_checks=(
+                pack_checks
+                + installed_checks
+            )
         )
         registry = CheckRegistry()
         plugin_errors = list(catalog.errors)
@@ -427,6 +765,14 @@ def main() -> None:
             )
 
         if (
+            args.installed_check_packs
+            and not args.assessment
+        ):
+            parser.error(
+                "--installed-check-packs requires --assessment."
+            )
+
+        if (
             (
                 args.check_pack_paths
                 or args.check_pack_keys
@@ -435,6 +781,14 @@ def main() -> None:
         ):
             parser.error(
                 "--check-pack/--check-pack-key require --assessment."
+            )
+
+        if (
+            args.installed_check_packs
+            and not args.check_pack_keys
+        ):
+            parser.error(
+                "--installed-check-packs requires --check-pack-key."
             )
 
         if args.threat_context and not args.vuln_lookup:
@@ -551,11 +905,22 @@ def main() -> None:
                     tuple(args.check_pack_paths or ()),
                     tuple(args.check_pack_keys or ()),
                 )
+                installed_checks = (
+                    _load_installed_check_pack_checks(
+                        args.check_store_dir,
+                        tuple(args.check_pack_keys or ()),
+                    )
+                    if args.installed_check_packs
+                    else ()
+                )
             except ValueError as exc:
                 parser.error(str(exc))
 
             catalog = load_check_catalog(
-                additional_checks=pack_checks
+                additional_checks=(
+                    pack_checks
+                    + installed_checks
+                )
             )
             assessment_catalog_errors = catalog.errors
             registry = CheckRegistry()

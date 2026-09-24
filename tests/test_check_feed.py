@@ -17,6 +17,8 @@ from cryptography.hazmat.primitives.serialization import (
 
 from nightrecon.check_feed import (
     fetch_check_pack,
+    fetch_check_pack_artifact,
+    fetch_signed_check_pack_text,
     load_signed_check_feed,
 )
 from nightrecon.check_pack_signing import (
@@ -191,6 +193,73 @@ class CheckFeedTests(unittest.TestCase):
         self.assertEqual(
             pack.pack_id,
             "nightrecon.web.baseline",
+        )
+
+    def test_fetch_signed_pack_text_preserves_verified_envelope(self):
+        feed = load_signed_check_feed(
+            json.dumps(
+                self._feed_document()
+            ),
+            trusted_keys={
+                "feed-key": self.feed_public_key,
+            },
+        )
+
+        with patch(
+            "nightrecon.check_feed.urlopen",
+            return_value=io.BytesIO(
+                self.pack_bytes
+            ),
+        ):
+            text = fetch_signed_check_pack_text(
+                feed.packs[0],
+                trusted_pack_keys={
+                    "pack-key": self.pack_public_key,
+                },
+                timeout=3.0,
+            )
+
+        self.assertEqual(
+            json.loads(text),
+            self.pack_document,
+        )
+
+    def test_fetch_pack_artifact_preserves_signed_document(self):
+        feed = load_signed_check_feed(
+            json.dumps(
+                self._feed_document()
+            ),
+            trusted_keys={
+                "feed-key": self.feed_public_key,
+            },
+        )
+
+        with patch(
+            "nightrecon.check_feed.urlopen",
+            return_value=io.BytesIO(
+                self.pack_bytes
+            ),
+        ):
+            artifact = fetch_check_pack_artifact(
+                feed.packs[0],
+                trusted_pack_keys={
+                    "pack-key": self.pack_public_key,
+                },
+            )
+
+        self.assertEqual(
+            artifact.pack.pack_id,
+            "nightrecon.web.baseline",
+        )
+        self.assertEqual(
+            artifact.signed_text,
+            self.pack_bytes.decode("utf-8"),
+        )
+        self.assertEqual(
+            artifact.sha256,
+            hashlib.sha256(
+                self.pack_bytes
+            ).hexdigest(),
         )
 
     def test_fetch_pack_rejects_hash_mismatch(self):
