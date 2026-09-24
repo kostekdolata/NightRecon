@@ -9,7 +9,9 @@ from nightrecon.check_feed import (
     VerifiedCheckPackArtifact,
 )
 from nightrecon.check_pack_manager import (
+    CheckPackSyncResult,
     install_pack_from_feed,
+    sync_check_feed,
 )
 from nightrecon.check_pack_store import (
     InstalledCheckPackRecord,
@@ -101,6 +103,212 @@ class CheckPackManagerTests(unittest.TestCase):
                 "pack-key": b"p" * 32,
             },
         )
+
+    def test_sync_skips_unchanged_and_updates_changed_pack(self):
+        second_entry = CheckFeedPackEntry(
+            pack_id="nightrecon.tls.baseline",
+            version="2.0.0",
+            url="https://updates.example.test/tls.json",
+            sha256="b" * 64,
+            signer_key_id="pack-key",
+        )
+        feed = CheckPackFeed(
+            schema_version=1,
+            feed_id="nightrecon.official",
+            generated_at="2026-09-24T22:30:00Z",
+            packs=(self.entry, second_entry),
+        )
+        second_pack = CheckPack(
+            schema_version=1,
+            pack_id="nightrecon.tls.baseline",
+            name="TLS Baseline",
+            version="2.0.0",
+            checks=(),
+        )
+        second_artifact = VerifiedCheckPackArtifact(
+            pack=second_pack,
+            signed_text='{"signed":"tls"}',
+            sha256="b" * 64,
+        )
+        store = MagicMock()
+        store.active_version.side_effect = lambda pack_id: {
+            "nightrecon.web.baseline": "1.0.0",
+            "nightrecon.tls.baseline": "1.5.0",
+        }[pack_id]
+        store.list_versions.return_value = (
+            InstalledCheckPackRecord(
+                pack_id="nightrecon.web.baseline",
+                version="1.0.0",
+                signer_key_id="pack-key",
+                sha256="a" * 64,
+                path="/tmp/web.json",
+            ),
+        )
+        store.install_signed_pack.return_value = (
+            InstalledCheckPackRecord(
+                pack_id="nightrecon.tls.baseline",
+                version="2.0.0",
+                signer_key_id="pack-key",
+                sha256="b" * 64,
+                path="/tmp/tls.json",
+            )
+        )
+
+        with patch(
+            "nightrecon.check_pack_manager.fetch_signed_check_feed",
+            return_value=feed,
+        ):
+            with patch(
+                "nightrecon.check_pack_manager."
+                "fetch_check_pack_artifact",
+                return_value=second_artifact,
+            ) as fetch_pack:
+                results = sync_check_feed(
+                    feed_url=(
+                        "https://updates.example.test/feed.json"
+                    ),
+                    feed_trusted_keys={
+                        "feed-key": b"f" * 32,
+                    },
+                    pack_trusted_keys={
+                        "pack-key": b"p" * 32,
+                    },
+                    store=store,
+                    timeout=3.0,
+                )
+
+        self.assertEqual(
+            results,
+            (
+                CheckPackSyncResult(
+                    pack_id="nightrecon.web.baseline",
+                    advertised_version="1.0.0",
+                    previous_version="1.0.0",
+                    active_version="1.0.0",
+                    status="unchanged",
+                ),
+                CheckPackSyncResult(
+                    pack_id="nightrecon.tls.baseline",
+                    advertised_version="2.0.0",
+                    previous_version="1.5.0",
+                    active_version="2.0.0",
+                    status="updated",
+                ),
+            ),
+        )
+        fetch_pack.assert_called_once_with(
+            second_entry,
+            trusted_pack_keys={
+                "pack-key": b"p" * 32,
+            },
+            timeout=3.0,
+        )
+
+    def test_sync_isolates_pack_failure_and_continues(self):
+        second_entry = CheckFeedPackEntry(
+            pack_id="nightrecon.tls.baseline",
+            version="2.0.0",
+            url="https://updates.example.test/tls.json",
+            sha256="b" * 64,
+            signer_key_id="pack-key",
+        )
+        feed = CheckPackFeed(
+            schema_version=1,
+            feed_id="nightrecon.official",
+            generated_at="2026-09-24T22:30:00Z",
+            packs=(self.entry, second_entry),
+        )
+        second_pack = CheckPack(
+            schema_version=1,
+            pack_id="nightrecon.tls.baseline",
+            name="TLS Baseline",
+            version="2.0.0",
+            checks=(),
+        )
+        second_artifact = VerifiedCheckPackArtifact(
+            pack=second_pack,
+            signed_text='{"signed":"tls"}',
+            sha256="b" * 64,
+        )
+        store = MagicMock()
+        store.active_version.return_value = None
+        store.install_signed_pack.return_value = (
+            InstalledCheckPackRecord(
+                pack_id="nightrecon.tls.baseline",
+                version="2.0.0",
+                signer_key_id="pack-key",
+                sha256="b" * 64,
+                path="/tmp/tls.json",
+            )
+        )
+
+        with patch(
+            "nightrecon.check_pack_manager.fetch_signed_check_feed",
+            return_value=feed,
+        ):
+            with patch(
+                "nightrecon.check_pack_manager."
+                "fetch_check_pack_artifact",
+                side_effect=(
+                    ValueError("bad pack"),
+                    second_artifact,
+                ),
+            ):
+                results = sync_check_feed(
+                    feed_url=(
+                        "https://updates.example.test/feed.json"
+                    ),
+                    feed_trusted_keys={
+                        "feed-key": b"f" * 32,
+                    },
+                    pack_trusted_keys={
+                        "pack-key": b"p" * 32,
+                    },
+                    store=store,
+                )
+
+        self.assertEqual(results[0].status, "failed")
+        self.assertIn("bad pack", results[0].error)
+        self.assertEqual(results[1].status, "installed")
+        self.assertEqual(results[1].active_version, "2.0.0")
+
+    def test_sync_rejects_same_version_with_different_feed_hash(self):
+        store = MagicMock()
+        store.active_version.return_value = "1.0.0"
+        store.list_versions.return_value = (
+            InstalledCheckPackRecord(
+                pack_id="nightrecon.web.baseline",
+                version="1.0.0",
+                signer_key_id="pack-key",
+                sha256="b" * 64,
+                path="/tmp/web.json",
+            ),
+        )
+
+        with patch(
+            "nightrecon.check_pack_manager.fetch_signed_check_feed",
+            return_value=self.feed,
+        ):
+            with patch(
+                "nightrecon.check_pack_manager."
+                "fetch_check_pack_artifact"
+            ) as fetch_pack:
+                results = sync_check_feed(
+                    feed_url=(
+                        "https://updates.example.test/feed.json"
+                    ),
+                    feed_trusted_keys={
+                        "feed-key": b"f" * 32,
+                    },
+                    pack_trusted_keys={
+                        "pack-key": b"p" * 32,
+                    },
+                    store=store,
+                )
+
+        self.assertEqual(results[0].status, "failed")
+        self.assertIn("immutable", results[0].error)
+        fetch_pack.assert_not_called()
 
     def test_missing_pack_id_fails_before_download(self):
         store = MagicMock()
