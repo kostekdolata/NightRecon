@@ -7,6 +7,7 @@ from nightrecon.assessment_engine import (
     AssessmentCheckMetadata,
     AssessmentContext,
     AssessmentEngine,
+    AssessmentExecutionResult,
     AssessmentFinding,
     AssessmentSummary,
     CheckIntrusiveness,
@@ -266,10 +267,7 @@ class AssessmentEngineTests(unittest.TestCase):
                 port=80,
                 service="http",
                 executions=(
-                    __import__(
-                        "nightrecon.assessment_engine",
-                        fromlist=["AssessmentExecutionResult"],
-                    ).AssessmentExecutionResult(
+                    AssessmentExecutionResult(
                         check_id="one",
                         status="completed",
                         findings=(
@@ -280,18 +278,12 @@ class AssessmentEngineTests(unittest.TestCase):
                             ),
                         ),
                     ),
-                    __import__(
-                        "nightrecon.assessment_engine",
-                        fromlist=["AssessmentExecutionResult"],
-                    ).AssessmentExecutionResult(
+                    AssessmentExecutionResult(
                         check_id="two",
                         status="skipped",
                         reason="service_not_supported",
                     ),
-                    __import__(
-                        "nightrecon.assessment_engine",
-                        fromlist=["AssessmentExecutionResult"],
-                    ).AssessmentExecutionResult(
+                    AssessmentExecutionResult(
                         check_id="three",
                         status="error",
                         error="failed",
