@@ -72,6 +72,11 @@ class HostDiscoveryReport:
             "unresponsive_hosts": (
                 tested_count - responsive_count
             ),
+            "named_hosts": sum(
+                1
+                for result in self.results
+                if result.hostname
+            ),
         }
 
         return data
