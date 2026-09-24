@@ -320,6 +320,8 @@ class CliCheckFeedTests(unittest.TestCase):
                 "feed",
                 "--rollback-pack",
                 "nightrecon.web.baseline",
+                "--pack-key",
+                self.pack_key_spec,
                 "--store-dir",
                 "pack-store",
             ],
@@ -328,7 +330,7 @@ class CliCheckFeedTests(unittest.TestCase):
                 "nightrecon.cli.CheckPackStore"
             ) as store_class:
                 store = store_class.return_value
-                store.rollback.return_value = "1.0.0"
+                store.rollback_verified.return_value = "1.0.0"
 
                 with contextlib.redirect_stdout(stdout):
                     with contextlib.redirect_stderr(stderr):
@@ -339,8 +341,11 @@ class CliCheckFeedTests(unittest.TestCase):
             "Rolled back: nightrecon.web.baseline active=1.0.0",
             stdout.getvalue(),
         )
-        store.rollback.assert_called_once_with(
-            "nightrecon.web.baseline"
+        store.rollback_verified.assert_called_once_with(
+            "nightrecon.web.baseline",
+            trusted_keys={
+                "pack-key": self.pack_key_bytes,
+            },
         )
 
     def test_checks_feed_install_requires_pack_key(self):
