@@ -7,6 +7,10 @@ from dataclasses import asdict, dataclass
 from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.session import ScanSession
 from nightrecon.tcp_scanner import TcpPortResult
+from nightrecon.threat_context import (
+    ThreatContextResult,
+    summarize_threat_context,
+)
 from nightrecon.vulnerability_intelligence import (
     ServiceVulnerabilityResult,
     summarize_vulnerabilities,
@@ -29,6 +33,8 @@ class TcpScanReport:
     services: tuple[ServiceDetectionResult, ...] = ()
     vulnerability_intelligence_enabled: bool = False
     vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = ()
+    threat_context_enabled: bool = False
+    threat_context: tuple[ThreatContextResult, ...] = ()
 
     @classmethod
     def create(
@@ -40,6 +46,8 @@ class TcpScanReport:
         services: tuple[ServiceDetectionResult, ...] = (),
         vulnerability_intelligence_enabled: bool = False,
         vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = (),
+        threat_context_enabled: bool = False,
+        threat_context: tuple[ThreatContextResult, ...] = (),
     ) -> "TcpScanReport":
         return cls(
             session_id=session.session_id,
@@ -56,6 +64,8 @@ class TcpScanReport:
                 vulnerability_intelligence_enabled
             ),
             vulnerabilities=vulnerabilities,
+            threat_context_enabled=threat_context_enabled,
+            threat_context=threat_context,
         )
 
     @property
@@ -86,6 +96,16 @@ class TcpScanReport:
                 )
             )
             if self.vulnerability_intelligence_enabled
+            else None
+        )
+
+        data["threat_context_summary"] = (
+            asdict(
+                summarize_threat_context(
+                    self.threat_context
+                )
+            )
+            if self.threat_context_enabled
             else None
         )
 

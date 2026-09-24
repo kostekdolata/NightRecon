@@ -9,6 +9,7 @@ from nightrecon.session import ScanSession
 from nightrecon.software_identity import SoftwareIdentity
 from nightrecon.targets import parse_target
 from nightrecon.tcp_scanner import TcpPortResult
+from nightrecon.threat_context import ThreatContextResult
 from nightrecon.vulnerability_intelligence import (
     ServiceVulnerabilityResult,
     VulnerabilityFinding,
@@ -331,6 +332,64 @@ class TcpScanReportTests(unittest.TestCase):
                 "none_count": 0,
                 "unknown_count": 0,
                 "max_cvss_score": 7.5,
+            },
+        )
+
+    def test_report_dictionary_contains_threat_context(self):
+        target = parse_target("127.0.0.1")
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=("127.0.0.1",),
+        )
+
+        report = TcpScanReport.create(
+            session=session,
+            resolved_addresses=("127.0.0.1",),
+            ports_requested=(80,),
+            results=(),
+            services=(),
+            vulnerability_intelligence_enabled=True,
+            vulnerabilities=(),
+            threat_context_enabled=True,
+            threat_context=(
+                ThreatContextResult(
+                    vulnerability_id="CVE-2026-1234",
+                    known_exploited=True,
+                    kev_date_added="2026-09-01",
+                    kev_due_date="2026-09-22",
+                    kev_known_ransomware_campaign_use="Known",
+                    kev_required_action="Apply vendor mitigations.",
+                    epss_probability=0.42,
+                    epss_percentile=0.97,
+                    epss_date="2026-09-24",
+                ),
+            ),
+        )
+
+        data = report.to_dict()
+
+        self.assertTrue(data["threat_context_enabled"])
+        self.assertEqual(
+            data["threat_context"][0]["vulnerability_id"],
+            "CVE-2026-1234",
+        )
+        self.assertTrue(
+            data["threat_context"][0]["known_exploited"]
+        )
+        self.assertEqual(
+            data["threat_context"][0]["epss_probability"],
+            0.42,
+        )
+        self.assertEqual(
+            data["threat_context_summary"],
+            {
+                "cves_enriched": 1,
+                "known_exploited_count": 1,
+                "epss_available_count": 1,
+                "provider_error_count": 0,
+                "max_epss_probability": 0.42,
+                "max_epss_percentile": 0.97,
             },
         )
 

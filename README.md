@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.12.0**
+**v0.13.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, structured scan reports, target resolution, audit logging, and runtime configuration.
+NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, structured scan reports, target resolution, audit logging, and runtime configuration.
 
 ## Features
 
@@ -58,6 +58,14 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - Descriptive vulnerability summaries include services queried, provider successes/failures, total matches, severity counts, and maximum observed CVSS
 - CLI CVE output includes provider match evidence when available
 - CLI vulnerability summaries remain descriptive and do not generate exploitability or risk verdicts
+- Optional threat-context enrichment with `--threat-context` after `--vuln-lookup`
+- CISA Known Exploited Vulnerabilities (KEV) catalog enrichment for confirmed CVE identifiers
+- KEV date-added, due-date, ransomware-campaign-use, and required-action evidence
+- FIRST EPSS probability and percentile enrichment for CVE findings
+- EPSS CVE requests automatically batched within the provider query-length limit
+- KEV and EPSS provider failures handled fail-soft without aborting scans
+- Threat-context results deduplicated by CVE across multiple affected services
+- Threat-context reports and CLI summaries include CVEs enriched, KEV count, EPSS coverage, maximum EPSS probability/percentile, and distinct provider-error count
 - CLI display of detected services and observed banners
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
@@ -94,6 +102,10 @@ Enable vulnerability intelligence explicitly:
 
 `nightrecon scan 127.0.0.1 --scope 127.0.0.1 --vuln-lookup`
 
+Add external exploitation context to the resulting CVE findings:
+
+`nightrecon scan 127.0.0.1 --scope 127.0.0.1 --vuln-lookup --threat-context`
+
 Optionally set an NVD API key in the environment before the scan:
 
 `NIGHTRECON_NVD_API_KEY=<your-key>`
@@ -125,7 +137,9 @@ Future scanning components should not operate directly on arbitrary input. Targe
 
 Vulnerability intelligence is evidence enrichment, not exploitation. An NVD/CPE match does not prove that a detected service is exploitable in its deployed context. CVSS values are reported as severity metadata and should not be treated as a complete risk assessment.
 
-NightRecon v0.12.0 preserves the provider match basis and exact identifier used to obtain each vulnerability record. Summary counts and maximum observed CVSS are descriptive evidence only; they are not a NightRecon risk score.
+NightRecon preserves the provider match basis and exact identifier used to obtain each vulnerability record. Summary counts and maximum observed CVSS are descriptive evidence only; they are not a NightRecon risk score.
+
+Threat context is kept separate from CVE matching: CISA KEV indicates known exploitation evidence, while FIRST EPSS reports a probability/percentile signal. Neither is treated as proof that a particular NightRecon target is exploitable.
 
 ## Roadmap
 
