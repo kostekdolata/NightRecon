@@ -44,6 +44,17 @@ class HostDiscoveryReportTests(unittest.TestCase):
         self.assertEqual(data["target"], "192.0.2.0/30")
         self.assertEqual(data["target_type"], "cidr")
         self.assertEqual(data["ports_requested"], (22, 443))
+        self.assertEqual(
+            data["network"],
+            {
+                "normalized_cidr": "192.0.2.0/30",
+                "address_family": "ipv4",
+                "prefix_length": 30,
+                "total_addresses": 4,
+                "first_address": "192.0.2.0",
+                "last_address": "192.0.2.3",
+            },
+        )
         self.assertEqual(data["max_hosts"], 32)
         self.assertEqual(
             data["summary"],
