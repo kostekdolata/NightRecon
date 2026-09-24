@@ -20,8 +20,11 @@ class CheckCatalogResult:
     errors: tuple[str, ...] = ()
 
 
-def load_check_catalog() -> CheckCatalogResult:
-    """Load NightRecon built-ins and installed check plugins."""
+def load_check_catalog(
+    *,
+    additional_checks: tuple[AssessmentCheck, ...] = (),
+) -> CheckCatalogResult:
+    """Load built-ins, installed plugins, and additional checks."""
 
     registry = CheckRegistry()
     errors: list[str] = []
@@ -33,6 +36,12 @@ def load_check_catalog() -> CheckCatalogResult:
     errors.extend(discovery.errors)
 
     for check in discovery.checks:
+        try:
+            registry.register(check)
+        except ValueError as exc:
+            errors.append(str(exc))
+
+    for check in additional_checks:
         try:
             registry.register(check)
         except ValueError as exc:
