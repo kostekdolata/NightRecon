@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.9.0**
+**v0.10.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, structured scan reports, target resolution, audit logging, and runtime configuration.
+NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured scan reports, target resolution, audit logging, and runtime configuration.
 
 ## Features
 
@@ -28,6 +28,11 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - Bounded HTTP HEAD probing for confirmed HTTP services
 - HTTP status-line and Server-header extraction
 - HTTP metadata displayed in the CLI and persisted in scan reports
+- Bounded HTTP response-header capture with normalized header names
+- Security-header presence/missing analysis for Content-Security-Policy, Strict-Transport-Security, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, and Permissions-Policy
+- Transport-aware HSTS analysis: required only for HTTPS hostname targets, not plaintext HTTP or direct-IP scans
+- Security-header analysis skipped when no HTTP response is observed
+- Security-header analysis displayed in the CLI and persisted in structured scan reports
 - Bounded HTTPS HEAD probing through established TLS connections
 - TLS version and cipher detection
 - TLS Server Name Indication (SNI) support for hostname targets
@@ -35,7 +40,7 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - X.509 certificate validity-date extraction
 - X.509 DNS Subject Alternative Name extraction
 - X.509 SHA-256 certificate fingerprinting
-- HTTPS status-line and Server-header extraction
+- HTTPS status-line, Server-header, and bounded response-header extraction
 - TLS and HTTPS metadata displayed in the CLI and persisted in scan reports
 - TLS, certificate, and HTTPS probe failures handled without aborting the scan
 - CLI display of detected services and observed banners
@@ -102,7 +107,6 @@ Future scanning components should not operate directly on arbitrary input. Targe
 - host discovery
 - TCP port scanning
 - service identification
-- security-header analysis
 - vulnerability intelligence
 - reporting
 
