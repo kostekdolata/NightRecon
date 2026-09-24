@@ -57,6 +57,7 @@ class AssessmentContext:
     port: int
     service: str
     authorized: bool
+    service_result: object | None = None
 
     def __post_init__(self) -> None:
         if not 1 <= self.port <= 65535:
@@ -87,6 +88,108 @@ class AssessmentExecutionResult:
     findings: tuple[AssessmentFinding, ...] = ()
     reason: str = ""
     error: str = ""
+
+
+@dataclass(frozen=True)
+class ServiceAssessmentResult:
+    """Assessment executions bound to one detected network service."""
+
+    address: str
+    port: int
+    service: str
+    executions: tuple[AssessmentExecutionResult, ...] = ()
+
+
+@dataclass(frozen=True)
+class AssessmentSummary:
+    """Descriptive summary of assessment execution outcomes."""
+
+    services_assessed: int
+    checks_completed: int
+    checks_skipped: int
+    checks_errored: int
+    findings: int
+
+
+def assess_services(
+    *,
+    target: str,
+    services: tuple[object, ...],
+    checks: tuple[AssessmentCheck, ...],
+    max_intrusiveness: CheckIntrusiveness = (
+        CheckIntrusiveness.SAFE_ACTIVE
+    ),
+    authorized: bool,
+) -> tuple[ServiceAssessmentResult, ...]:
+    """Run assessment checks against detected services."""
+
+    engine = AssessmentEngine(
+        max_intrusiveness=max_intrusiveness
+    )
+    results: list[ServiceAssessmentResult] = []
+
+    ordered_services = sorted(
+        services,
+        key=lambda service: (
+            service.address,
+            service.port,
+            service.service,
+        ),
+    )
+
+    for service in ordered_services:
+        executions = engine.run(
+            checks=checks,
+            context=AssessmentContext(
+                target=target,
+                address=service.address,
+                port=service.port,
+                service=service.service,
+                authorized=authorized,
+                service_result=service,
+            ),
+        )
+
+        results.append(
+            ServiceAssessmentResult(
+                address=service.address,
+                port=service.port,
+                service=service.service,
+                executions=executions,
+            )
+        )
+
+    return tuple(results)
+
+
+def summarize_assessments(
+    results: tuple[ServiceAssessmentResult, ...],
+) -> AssessmentSummary:
+    """Return descriptive counts for service assessment results."""
+
+    completed = 0
+    skipped = 0
+    errored = 0
+    findings = 0
+
+    for service_result in results:
+        for execution in service_result.executions:
+            if execution.status == "completed":
+                completed += 1
+            elif execution.status == "skipped":
+                skipped += 1
+            elif execution.status == "error":
+                errored += 1
+
+            findings += len(execution.findings)
+
+    return AssessmentSummary(
+        services_assessed=len(results),
+        checks_completed=completed,
+        checks_skipped=skipped,
+        checks_errored=errored,
+        findings=findings,
+    )
 
 
 class AssessmentCheck(Protocol):
