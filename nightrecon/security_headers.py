@@ -23,6 +23,7 @@ class SecurityHeaderAnalysis:
 
 def analyze_security_headers(
     headers: dict[str, str],
+    require_hsts: bool = True,
 ) -> SecurityHeaderAnalysis:
     """Identify present and missing security headers."""
 
@@ -31,15 +32,22 @@ def analyze_security_headers(
         for name, value in headers.items()
     }
 
-    present = tuple(
+    headers_to_check = tuple(
         header
         for header in SECURITY_HEADERS
+        if require_hsts
+        or header != "strict-transport-security"
+    )
+
+    present = tuple(
+        header
+        for header in headers_to_check
         if header in normalized
     )
 
     missing = tuple(
         header
-        for header in SECURITY_HEADERS
+        for header in headers_to_check
         if header not in normalized
     )
 
