@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.16.0**
+**v0.17.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
+NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery and network inventory, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
 
 ## Features
 
@@ -104,7 +104,17 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
 - Per-port result storage
-- CIDR active scanning blocked until explicitly implemented
+- Ordinary `scan` CIDR port-scanning remains blocked; network discovery is isolated behind the explicit `discover` command
+- Authorized CIDR host discovery with full scope-containment validation before any probe activity
+- Hard per-run `--max-hosts` guard enforced before discovery probes are submitted
+- Bounded concurrent TCP reachability discovery using configurable evidence ports
+- TCP-open and TCP-refused observations treated as explicit host responsiveness evidence
+- IPv4 and IPv6 discovery support using standard TCP sockets without raw-packet privileges
+- Deterministic host-result ordering and structured per-host evidence
+- Optional fail-soft reverse-DNS enrichment for responsive hosts only
+- Structured discovery reports with responsive/unresponsive/named-host summaries
+- Network inventory metadata including normalized CIDR, address family, prefix length, total address capacity, and first/last addresses
+- Dedicated discovery audit events and JSON result persistence
 
 - Structured JSON Lines audit logging
 - Runtime timeout and worker configuration
@@ -131,6 +141,14 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 ## Example
 
 nightrecon scan 127.0.0.1 --scope 127.0.0.1
+
+Discover responsive hosts in an explicitly authorized CIDR:
+
+`nightrecon discover 192.0.2.0/24 --scope 192.0.2.0/24 --max-hosts 1024`
+
+Add reverse-DNS enrichment for responsive hosts:
+
+`nightrecon discover 192.0.2.0/24 --scope 192.0.2.0/24 --ports 22,80,443,445 --reverse-dns`
 
 Enable vulnerability intelligence explicitly:
 
@@ -227,6 +245,8 @@ NightRecon is designed around explicit authorization and scope enforcement.
 
 Future scanning components should not operate directly on arbitrary input. Targets must first pass through NightRecon's validation and scope authorization layers.
 
+CIDR discovery is intentionally separated from ordinary port scanning. The entire requested CIDR must be contained by an explicit scope rule, and NightRecon enforces the configured host ceiling before submitting any active discovery probe. Reverse-DNS enrichment runs only after reachability evidence is collected and never changes host responsiveness classification.
+
 Vulnerability intelligence is evidence enrichment, not exploitation. An NVD/CPE match does not prove that a detected service is exploitable in its deployed context. CVSS values are reported as severity metadata and should not be treated as a complete risk assessment.
 
 NightRecon preserves the provider match basis and exact identifier used to obtain each vulnerability record. Summary counts and maximum observed CVSS are descriptive evidence only; they are not a NightRecon risk score.
@@ -241,7 +261,6 @@ Managed feed state adds replay protection and immutable local version storage. I
 
 ## Roadmap
 
-- host discovery and network topology mapping
 - deeper service and operating-system fingerprinting
 - web crawling, content discovery, and DAST assessment
 - authenticated SSH, SMB, WinRM, database, and network-device assessment
