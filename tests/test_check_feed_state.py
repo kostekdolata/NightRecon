@@ -136,6 +136,53 @@ class CheckFeedStateStoreTests(unittest.TestCase):
             "2026-09-24T23:00:00Z",
         )
 
+    def test_validate_newer_feed_does_not_persist_state(self):
+        first = self.store.accept(
+            self.feed(),
+            source_url="https://updates.example.test/feed.json",
+        )
+        newer_feed = self.feed(
+            generated_at="2026-09-24T23:00:00Z",
+            version="1.1.0",
+            sha256="b" * 64,
+        )
+
+        candidate = self.store.validate(
+            newer_feed,
+            source_url="https://updates.example.test/feed.json",
+        )
+
+        self.assertEqual(
+            candidate.generated_at,
+            "2026-09-24T23:00:00Z",
+        )
+        self.assertEqual(
+            self.store.get("nightrecon.official"),
+            first,
+        )
+
+    def test_validate_rejects_older_feed_without_mutation(self):
+        first = self.store.accept(
+            self.feed(),
+            source_url="https://updates.example.test/feed.json",
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "older.*replay",
+        ):
+            self.store.validate(
+                self.feed(
+                    generated_at="2026-09-24T21:00:00Z"
+                ),
+                source_url="https://updates.example.test/feed.json",
+            )
+
+        self.assertEqual(
+            self.store.get("nightrecon.official"),
+            first,
+        )
+
     def test_managed_feed_requires_timezone_aware_generation_timestamp(self):
         with self.assertRaisesRegex(
             ValueError,
