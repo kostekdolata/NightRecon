@@ -10,6 +10,11 @@ from pathlib import Path
 import re
 import tempfile
 
+from nightrecon.check_feed import CheckPackFeed
+from nightrecon.check_feed_state import (
+    AcceptedCheckFeedState,
+    CheckFeedStateStore,
+)
 from nightrecon.check_pack_signing import (
     load_signed_check_pack,
 )
@@ -41,6 +46,21 @@ class CheckPackStore:
         root: str | Path,
     ) -> None:
         self.root = Path(root)
+
+    def accept_feed(
+        self,
+        feed: CheckPackFeed,
+        *,
+        source_url: str,
+    ) -> AcceptedCheckFeedState:
+        """Record a verified feed generation with replay protection."""
+
+        return CheckFeedStateStore(
+            self.root
+        ).accept(
+            feed,
+            source_url=source_url,
+        )
 
     def install_signed_pack(
         self,
