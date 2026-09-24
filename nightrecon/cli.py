@@ -29,7 +29,10 @@ from nightrecon.config import NightReconConfig
 from nightrecon.cisa_kev_provider import CisaKevProvider
 from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.epss_provider import FirstEpssProvider
-from nightrecon.host_discovery import discover_hosts
+from nightrecon.host_discovery import (
+    discover_hosts,
+    enrich_reverse_dns,
+)
 from nightrecon.logging import NightReconLogger
 from nightrecon.nvd_provider import NvdVulnerabilityProvider
 from nightrecon.ports import parse_ports
@@ -275,6 +278,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Hard maximum number of host addresses permitted in one "
             "discovery run. Default: 1024"
+        ),
+    )
+
+    discover_parser.add_argument(
+        "--reverse-dns",
+        action="store_true",
+        help=(
+            "Attempt fail-soft reverse-DNS enrichment for responsive "
+            "hosts after TCP discovery."
         ),
     )
 
@@ -869,6 +881,12 @@ def main() -> None:
                 max_workers=config.max_workers,
                 max_hosts=args.max_hosts,
             )
+
+            if args.reverse_dns:
+                discovery_results = enrich_reverse_dns(
+                    discovery_results,
+                    max_workers=config.max_workers,
+                )
         except ValueError as exc:
             logger.write(
                 "discovery.failed",
@@ -941,12 +959,19 @@ def main() -> None:
                 if result.port is not None
                 else "-"
             )
-            print(
+            line = (
                 f"  RESPONSIVE {result.address} "
                 f"method={result.method} "
                 f"observation={result.observation} "
                 f"port={port_text}"
             )
+
+            if result.hostname:
+                line += (
+                    f" hostname={result.hostname}"
+                )
+
+            print(line)
 
         print(
             f"Session ID: {discovery_report.session_id}"
