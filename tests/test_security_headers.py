@@ -30,6 +30,26 @@ class SecurityHeaderAnalysisTests(unittest.TestCase):
        )
         self.assertEqual(result.missing, ())
 
+    def test_hsts_can_be_excluded_when_not_applicable(self):
+        headers = {
+            "strict-transport-security": "max-age=31536000",
+            "x-content-type-options": "nosniff",
+        }
+
+        result = analyze_security_headers(
+            headers,
+            require_hsts=False,
+        )
+
+        self.assertNotIn(
+            "strict-transport-security",
+            result.present,
+        )
+        self.assertNotIn(
+            "strict-transport-security",
+            result.missing,
+        )
+
     def test_present_and_missing_security_headers_are_identified(self):
         headers = {
             "content-security-policy": "default-src 'self'",
