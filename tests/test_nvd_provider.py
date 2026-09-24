@@ -109,6 +109,105 @@ class NvdVulnerabilityProviderTests(unittest.TestCase):
             3.0,
         )
 
+    def test_api_key_is_sent_as_request_header(self):
+        payload = {
+            "resultsPerPage": 0,
+            "startIndex": 0,
+            "totalResults": 0,
+            "vulnerabilities": [],
+        }
+
+        response = io.BytesIO(
+            json.dumps(payload).encode("utf-8")
+        )
+
+        with patch(
+            "nightrecon.nvd_provider.urlopen",
+            return_value=response,
+        ) as urlopen:
+            provider = NvdVulnerabilityProvider(
+                api_key="test-api-key",
+            )
+
+            provider.lookup(self.software)
+
+        request = urlopen.call_args.args[0]
+        headers = {
+            name.lower(): value
+            for name, value in request.header_items()
+        }
+
+        self.assertEqual(
+            headers["apikey"],
+            "test-api-key",
+        )
+
+    def test_multiple_nvd_pages_are_collected(self):
+        first_payload = {
+            "resultsPerPage": 1,
+            "startIndex": 0,
+            "totalResults": 2,
+            "vulnerabilities": [
+                {
+                    "cve": {
+                        "id": "CVE-2026-1000",
+                        "descriptions": [],
+                        "metrics": {},
+                        "references": [],
+                    }
+                }
+            ],
+        }
+        second_payload = {
+            "resultsPerPage": 1,
+            "startIndex": 1,
+            "totalResults": 2,
+            "vulnerabilities": [
+                {
+                    "cve": {
+                        "id": "CVE-2026-1001",
+                        "descriptions": [],
+                        "metrics": {},
+                        "references": [],
+                    }
+                }
+            ],
+        }
+
+        responses = [
+            io.BytesIO(
+                json.dumps(first_payload).encode("utf-8")
+            ),
+            io.BytesIO(
+                json.dumps(second_payload).encode("utf-8")
+            ),
+        ]
+
+        with patch(
+            "nightrecon.nvd_provider.urlopen",
+            side_effect=responses,
+        ) as urlopen:
+            provider = NvdVulnerabilityProvider()
+
+            findings = provider.lookup(self.software)
+
+        self.assertEqual(
+            tuple(
+                finding.vulnerability_id
+                for finding in findings
+            ),
+            (
+                "CVE-2026-1000",
+                "CVE-2026-1001",
+            ),
+        )
+        self.assertEqual(urlopen.call_count, 2)
+        second_request = urlopen.call_args_list[1].args[0]
+        self.assertIn(
+            "startIndex=1",
+            second_request.full_url,
+        )
+
     def test_unsupported_software_skips_network_lookup(self):
         software = SoftwareIdentity(
             product="ExampleServer",
