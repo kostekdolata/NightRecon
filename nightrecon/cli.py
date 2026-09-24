@@ -7,6 +7,8 @@ from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
 from nightrecon.config import NightReconConfig
+from nightrecon.cisa_kev_provider import CisaKevProvider
+from nightrecon.epss_provider import FirstEpssProvider
 from nightrecon.logging import NightReconLogger
 from nightrecon.nvd_provider import NvdVulnerabilityProvider
 from nightrecon.ports import parse_ports
@@ -18,6 +20,7 @@ from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import TargetType, parse_target
 from nightrecon.tcp_scanner import scan_tcp_ports
+from nightrecon.threat_context import enrich_threat_context
 from nightrecon.vulnerability_intelligence import (
     enrich_service_vulnerabilities,
     summarize_vulnerabilities,
@@ -108,6 +111,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    scan_parser.add_argument(
+        "--threat-context",
+        action="store_true",
+        help=(
+            "Enrich CVE findings with CISA KEV and FIRST EPSS evidence. "
+            "Requires --vuln-lookup."
+        ),
+    )
+
     return parser
 
 
@@ -116,6 +128,11 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "scan":
+        if args.threat_context and not args.vuln_lookup:
+            parser.error(
+                "--threat-context requires --vuln-lookup."
+            )
+
         try:
             target = parse_target(args.target)
             scope = Scope.from_values(args.scope)
@@ -229,6 +246,15 @@ def main() -> None:
                 services=tuple(all_services),
             )
 
+        all_threat_context = ()
+
+        if args.threat_context:
+            all_threat_context = enrich_threat_context(
+                vulnerabilities=all_vulnerabilities,
+                kev_provider=CisaKevProvider(),
+                epss_provider=FirstEpssProvider(),
+            )
+
         report = TcpScanReport.create(
             session=session,
             resolved_addresses=resolution.addresses,
@@ -237,6 +263,8 @@ def main() -> None:
             services=tuple(all_services),
             vulnerability_intelligence_enabled=args.vuln_lookup,
             vulnerabilities=all_vulnerabilities,
+            threat_context_enabled=args.threat_context,
+            threat_context=all_threat_context,
         )
 
         store = ResultStore(config.results_dir)
@@ -397,6 +425,47 @@ def main() -> None:
                     )
 
                 print(" ".join(details))
+
+        for context in report.threat_context:
+            print(
+                "  THREAT CONTEXT "
+                f"{context.vulnerability_id} "
+                "known_exploited="
+                f"{'yes' if context.known_exploited else 'no'}"
+            )
+
+            if context.known_exploited:
+                print(
+                    "    KEV "
+                    f"date_added={context.kev_date_added or 'unknown'} "
+                    f"due_date={context.kev_due_date or 'unknown'}"
+                )
+
+                if context.kev_known_ransomware_campaign_use:
+                    print(
+                        "    KEV ransomware_use="
+                        f"{context.kev_known_ransomware_campaign_use}"
+                    )
+
+                if context.kev_required_action:
+                    print(
+                        "    KEV required_action="
+                        f"{context.kev_required_action}"
+                    )
+
+            if context.epss_probability is not None:
+                print(
+                    "    EPSS "
+                    f"probability={context.epss_probability} "
+                    f"percentile={context.epss_percentile} "
+                    f"date={context.epss_date or 'unknown'}"
+                )
+
+            for error in context.errors:
+                print(
+                    "    Threat Context Error: "
+                    f"{error}"
+                )
 
         if report.vulnerability_intelligence_enabled:
             vulnerability_summary = summarize_vulnerabilities(
