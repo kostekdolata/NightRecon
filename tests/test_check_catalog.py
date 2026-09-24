@@ -55,6 +55,35 @@ class CheckCatalogTests(unittest.TestCase):
         )
         self.assertEqual(result.errors, ())
 
+    def test_catalog_includes_additional_declarative_checks(self):
+        with patch(
+            "nightrecon.check_catalog.builtin_checks",
+            return_value=(
+                _Check("builtin.one"),
+            ),
+        ):
+            with patch(
+                "nightrecon.check_catalog.discover_installed_checks",
+                return_value=CheckDiscoveryResult(),
+            ):
+                result = load_check_catalog(
+                    additional_checks=(
+                        _Check("pack.one"),
+                    ),
+                )
+
+        self.assertEqual(
+            tuple(
+                check.metadata.check_id
+                for check in result.checks
+            ),
+            (
+                "builtin.one",
+                "pack.one",
+            ),
+        )
+        self.assertEqual(result.errors, ())
+
     def test_builtin_check_wins_duplicate_id(self):
         with patch(
             "nightrecon.check_catalog.builtin_checks",

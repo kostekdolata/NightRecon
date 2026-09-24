@@ -14,6 +14,11 @@ from nightrecon.assessment_engine import (
     summarize_assessments,
 )
 from nightrecon.check_catalog import load_check_catalog
+from nightrecon.check_feed import fetch_signed_check_feed
+from nightrecon.check_pack_signing import (
+    load_signed_check_pack_file,
+    parse_trusted_key_specs,
+)
 from nightrecon.config import NightReconConfig
 from nightrecon.cisa_kev_provider import CisaKevProvider
 from nightrecon.epss_provider import FirstEpssProvider
@@ -92,6 +97,48 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         dest="check_tags",
         help="Filter by check tag. May be repeated.",
+    )
+
+    checks_list_parser.add_argument(
+        "--check-pack",
+        action="append",
+        dest="check_pack_paths",
+        help=(
+            "Load a signed declarative check-pack JSON file. "
+            "May be repeated."
+        ),
+    )
+
+    checks_list_parser.add_argument(
+        "--check-pack-key",
+        action="append",
+        dest="check_pack_keys",
+        help=(
+            "Trust an Ed25519 check-pack signer using "
+            "KEY_ID=BASE64_PUBLIC_KEY. May be repeated."
+        ),
+    )
+
+    checks_feed_parser = checks_subparsers.add_parser(
+        "feed",
+        help="Inspect a signed declarative check feed.",
+    )
+
+    checks_feed_parser.add_argument(
+        "--url",
+        required=True,
+        help="HTTPS URL of the signed check-feed manifest.",
+    )
+
+    checks_feed_parser.add_argument(
+        "--feed-key",
+        action="append",
+        dest="feed_keys",
+        required=True,
+        help=(
+            "Trust an Ed25519 feed signer using "
+            "KEY_ID=BASE64_PUBLIC_KEY. May be repeated."
+        ),
     )
 
     scan_parser = subparsers.add_parser(
@@ -221,7 +268,49 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    scan_parser.add_argument(
+        "--check-pack",
+        action="append",
+        dest="check_pack_paths",
+        help=(
+            "Load a signed declarative assessment check-pack. "
+            "May be repeated. Requires --assessment."
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--check-pack-key",
+        action="append",
+        dest="check_pack_keys",
+        help=(
+            "Trust an Ed25519 check-pack signer using "
+            "KEY_ID=BASE64_PUBLIC_KEY. May be repeated. "
+            "Requires --assessment."
+        ),
+    )
+
     return parser
+
+
+def _load_requested_check_pack_checks(
+    paths: tuple[str, ...],
+    key_specs: tuple[str, ...],
+) -> tuple[object, ...]:
+    """Load explicitly requested signed declarative check packs."""
+
+    trusted_keys = parse_trusted_key_specs(
+        key_specs
+    )
+    checks: list[object] = []
+
+    for path in paths:
+        pack = load_signed_check_pack_file(
+            path,
+            trusted_keys=trusted_keys,
+        )
+        checks.extend(pack.checks)
+
+    return tuple(checks)
 
 
 def main() -> None:
@@ -229,12 +318,53 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "checks":
+        if args.checks_command == "feed":
+            try:
+                trusted_feed_keys = parse_trusted_key_specs(
+                    tuple(args.feed_keys or ())
+                )
+                feed = fetch_signed_check_feed(
+                    args.url,
+                    trusted_keys=trusted_feed_keys,
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
+
+            print(
+                f"Feed: {feed.feed_id} "
+                f"generated_at={feed.generated_at or '-'}"
+            )
+
+            if not feed.packs:
+                print("No check packs advertised.")
+
+            for entry in feed.packs:
+                print(
+                    f"{entry.pack_id} "
+                    f"version={entry.version} "
+                    f"signer={entry.signer_key_id} "
+                    f"sha256={entry.sha256} "
+                    f"url={entry.url}"
+                )
+
+            return
+
         if args.checks_command != "list":
             parser.error(
                 "The checks command requires a subcommand."
             )
 
-        catalog = load_check_catalog()
+        try:
+            pack_checks = _load_requested_check_pack_checks(
+                tuple(args.check_pack_paths or ()),
+                tuple(args.check_pack_keys or ()),
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+
+        catalog = load_check_catalog(
+            additional_checks=pack_checks
+        )
         registry = CheckRegistry()
         plugin_errors = list(catalog.errors)
 
@@ -294,6 +424,17 @@ def main() -> None:
         ):
             parser.error(
                 "--check/--check-family/--check-tag require --assessment."
+            )
+
+        if (
+            (
+                args.check_pack_paths
+                or args.check_pack_keys
+            )
+            and not args.assessment
+        ):
+            parser.error(
+                "--check-pack/--check-pack-key require --assessment."
             )
 
         if args.threat_context and not args.vuln_lookup:
@@ -405,7 +546,17 @@ def main() -> None:
         assessment_catalog_errors = ()
 
         if args.assessment:
-            catalog = load_check_catalog()
+            try:
+                pack_checks = _load_requested_check_pack_checks(
+                    tuple(args.check_pack_paths or ()),
+                    tuple(args.check_pack_keys or ()),
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
+
+            catalog = load_check_catalog(
+                additional_checks=pack_checks
+            )
             assessment_catalog_errors = catalog.errors
             registry = CheckRegistry()
 

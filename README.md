@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.14.0**
+**v0.15.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in and third-party plugins, structured scan reports, target resolution, audit logging, and runtime configuration.
+NightRecon now includes scope-enforced concurrent TCP scanning, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, signed check-feed verification, structured scan reports, target resolution, audit logging, and runtime configuration.
 
 ## Features
 
@@ -80,6 +80,16 @@ NightRecon now includes scope-enforced concurrent TCP scanning, concurrent servi
 - Explicit `--assessment` scan mode with `--check`, `--check-family`, `--check-tag`, and `--max-check-intrusiveness`
 - Service-bound assessment findings persisted in structured scan reports
 - Assessment summaries include services assessed, checks completed/skipped/errored, and finding totals
+- Declarative JSON assessment check packs with schema validation and no arbitrary code execution
+- Whitelisted declarative observation fields and fixed safe condition operators
+- Ed25519-signed check-pack envelopes with explicit trusted signer keys
+- Fail-closed signature verification for explicitly requested check packs
+- Signed declarative pack loading through `--check-pack` and `--check-pack-key`
+- Declarative pack checks participate in the normal registry, duplicate-ID protection, filters, safety ceilings, and reporting path
+- Pack provenance persisted through assessment execution as source pack ID and pack version
+- Signed check-feed manifests with Ed25519 verification
+- HTTPS-only feed-advertised pack URLs, bounded downloads, SHA-256 pinning, and signer-key pinning
+- `nightrecon checks feed` command for verified feed inspection
 - CLI display of detected services and observed banners
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
@@ -128,6 +138,14 @@ List only web-family checks:
 
 `nightrecon checks list --family web`
 
+Inspect a verified signed check feed:
+
+`nightrecon checks feed --url https://updates.example.test/feed.json --feed-key official=<base64-ed25519-public-key>`
+
+Load a signed declarative check pack into an assessment:
+
+`nightrecon scan 127.0.0.1 --scope 127.0.0.1 --assessment --check-pack ./check-packs/web-baseline.json --check-pack-key official=<base64-ed25519-public-key>`
+
 Run the safe-by-default assessment engine after service detection:
 
 `nightrecon scan 127.0.0.1 --scope 127.0.0.1 --assessment`
@@ -170,6 +188,12 @@ acme_checks = "acme_nightrecon:checks"
 
 The loaded object may be one check, a tuple/list of checks, or a factory returning either form. Each check exposes `metadata` using `AssessmentCheckMetadata` and a `run(context)` method returning structured `AssessmentFinding` objects. NightRecon validates check IDs, applies service/authentication/capability prerequisites, enforces the configured intrusiveness ceiling, and isolates plugin exceptions into structured execution errors.
 
+### Declarative Check Packs
+
+Signed declarative packs provide a lower-trust alternative to Python plugins. Pack conditions can inspect only a fixed whitelist of NightRecon observations such as service identity, HTTP/TLS metadata, security-header results, and structured software identity. Supported operators are fixed by NightRecon; declarative packs cannot import modules, evaluate Python expressions, execute commands, or open their own network connections. External pack files are accepted only after Ed25519 signature verification against user-supplied trusted public keys.
+
+Signed feed manifests can advertise pack versions and HTTPS locations. NightRecon verifies the feed signature, requires HTTPS pack URLs, checks a pinned SHA-256 of the downloaded signed-pack document, pins the expected pack signer, and then verifies the pack's own Ed25519 signature before loading it.
+
 
 ## Security Model
 
@@ -185,11 +209,13 @@ Threat context is kept separate from CVE matching: CISA KEV indicates known expl
 
 Assessment checks are gated by explicit scope authorization and declared intrusiveness. Passive and safe-active checks are the default ceiling. The ordinary scan CLI intentionally does not expose destructive checks; higher-impact validation belongs behind a separate approval-gated workflow rather than an ordinary scan flag.
 
+Declarative check packs are intentionally non-executable data. NightRecon does not trust a remote feed or downloaded pack merely because it came over HTTPS: feed signatures, pack hashes, signer IDs, and pack signatures are independently validated before a pack is accepted.
+
 ## Roadmap
 
 - host discovery and network topology mapping
 - deeper service and operating-system fingerprinting
-- declarative check-pack format and signed/updateable check feeds
+- check-feed installation, local cache, rollback, and automatic update management
 - web crawling, content discovery, and DAST assessment
 - authenticated SSH, SMB, WinRM, database, and network-device assessment
 - Active Directory and identity-security assessment

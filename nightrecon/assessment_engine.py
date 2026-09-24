@@ -38,6 +38,8 @@ class AssessmentCheckMetadata:
     requires_authentication: bool = False
     required_capabilities: tuple[str, ...] = ()
     version: str = "1"
+    source: str = ""
+    source_version: str = ""
 
     def __post_init__(self) -> None:
         if not self.check_id.strip():
@@ -92,6 +94,8 @@ class AssessmentExecutionResult:
     findings: tuple[AssessmentFinding, ...] = ()
     reason: str = ""
     error: str = ""
+    check_source: str = ""
+    check_source_version: str = ""
 
 
 @dataclass(frozen=True)
@@ -327,6 +331,8 @@ class AssessmentEngine:
                         check_id=metadata.check_id,
                         status="skipped",
                         reason="intrusiveness_not_allowed",
+                        check_source=metadata.source,
+                        check_source_version=metadata.source_version,
                     )
                 )
                 continue
@@ -341,6 +347,8 @@ class AssessmentEngine:
                         check_id=metadata.check_id,
                         status="skipped",
                         reason="service_not_supported",
+                        check_source=metadata.source,
+                        check_source_version=metadata.source_version,
                     )
                 )
                 continue
@@ -351,6 +359,8 @@ class AssessmentEngine:
                         check_id=metadata.check_id,
                         status="skipped",
                         reason="authentication_required",
+                        check_source=metadata.source,
+                        check_source_version=metadata.source_version,
                     )
                 )
                 continue
@@ -368,6 +378,8 @@ class AssessmentEngine:
                         check_id=metadata.check_id,
                         status="skipped",
                         reason="required_capability_unavailable",
+                        check_source=metadata.source,
+                        check_source_version=metadata.source_version,
                     )
                 )
                 continue
@@ -385,6 +397,8 @@ class AssessmentEngine:
                             str(exc)
                             or exc.__class__.__name__
                         ),
+                        check_source=metadata.source,
+                        check_source_version=metadata.source_version,
                     )
                 )
                 continue
@@ -394,6 +408,8 @@ class AssessmentEngine:
                     check_id=metadata.check_id,
                     status="completed",
                     findings=findings,
+                    check_source=metadata.source,
+                    check_source_version=metadata.source_version,
                 )
             )
 
