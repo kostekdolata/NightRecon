@@ -116,8 +116,11 @@ class CliHostDiscoveryTests(unittest.TestCase):
             "observation=tcp-open port=443",
             output,
         )
+        expected_path = str(
+            Path("results-test/discovery.json")
+        )
         self.assertIn(
-            "Result file: results-test/discovery.json",
+            f"Result file: {expected_path}",
             output,
         )
 
