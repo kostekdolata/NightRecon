@@ -174,6 +174,23 @@ def build_parser() -> argparse.ArgumentParser:
     checks_feed_parser.add_argument(
         "--sync",
         action="store_true",
+        help="Synchronize all advertised packs into the local verified store.",
+    )
+
+    checks_feed_parser.add_argument(
+        "--list-installed",
+        action="store_true",
+        help="List locally installed signed check-pack versions offline.",
+    )
+
+    checks_feed_parser.add_argument(
+        "--rollback-pack",
+        help="Rollback one installed pack to its previous verified version.",
+    )
+
+    checks_feed_parser.add_argument(
+        "--sync",
+        action="store_true",
         help=(
             "Synchronize all advertised packs into the local verified "
             "pack store."
@@ -374,6 +391,22 @@ def main() -> None:
 
     if args.command == "checks":
         if args.checks_command == "feed":
+            selected_actions = sum(
+                bool(value)
+                for value in (
+                    args.install_pack,
+                    args.sync,
+                    args.list_installed,
+                    args.rollback_pack,
+                )
+            )
+
+            if selected_actions > 1:
+                parser.error(
+                    "Choose only one of --install-pack, --sync, "
+                    "--list-installed, or --rollback-pack."
+                )
+
             if args.list_installed:
                 store = CheckPackStore(
                     args.store_dir
@@ -395,10 +428,16 @@ def main() -> None:
                     for record in store.list_versions(
                         pack_id
                     ):
+                        marker = (
+                            "yes"
+                            if record.version == active
+                            else "no"
+                        )
                         print(
                             f"  version={record.version} "
-                            f"signer={record.signer_key_id} "
-                            f"sha256={record.sha256}"
+                            f"active={marker} "
+                            f"signer={record.signer_key_id or '-'} "
+                            f"sha256={record.sha256 or '-'}"
                         )
 
                 return
@@ -429,9 +468,15 @@ def main() -> None:
                 )
                 return
 
-            if args.install_pack and args.sync:
+            if not args.url:
                 parser.error(
-                    "--install-pack and --sync cannot be used together."
+                    "--url is required unless using "
+                    "--list-installed or --rollback-pack."
+                )
+
+            if not args.feed_keys:
+                parser.error(
+                    "--feed-key is required for feed operations."
                 )
 
             if (
@@ -445,16 +490,6 @@ def main() -> None:
                 )
                 parser.error(
                     f"{option} requires --pack-key."
-                )
-
-            if not args.url:
-                parser.error(
-                    "checks feed requires --url for remote feed operations."
-                )
-
-            if not args.feed_keys:
-                parser.error(
-                    "checks feed requires --feed-key for remote feed operations."
                 )
 
             try:
