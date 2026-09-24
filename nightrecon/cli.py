@@ -17,6 +17,7 @@ from nightrecon.check_catalog import load_check_catalog
 from nightrecon.check_feed import fetch_signed_check_feed
 from nightrecon.check_pack_manager import (
     install_pack_from_verified_feed,
+    sync_verified_check_feed,
 )
 from nightrecon.check_pack_store import CheckPackStore
 from nightrecon.check_pack_signing import (
@@ -130,7 +131,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     checks_feed_parser.add_argument(
         "--url",
-        required=True,
         help="HTTPS URL of the signed check-feed manifest.",
     )
 
@@ -138,7 +138,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--feed-key",
         action="append",
         dest="feed_keys",
-        required=True,
         help=(
             "Trust an Ed25519 feed signer using "
             "KEY_ID=BASE64_PUBLIC_KEY. May be repeated."
@@ -169,6 +168,31 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Local NightRecon state directory for installed packs. "
             "Default: .nightrecon"
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--sync",
+        action="store_true",
+        help=(
+            "Synchronize all advertised packs into the local verified "
+            "pack store."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--list-installed",
+        action="store_true",
+        help=(
+            "List locally installed check packs without network access."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--rollback-pack",
+        help=(
+            "Reverify and reactivate the previous cached version of one "
+            "installed check pack without network access."
         ),
     )
 
@@ -350,9 +374,87 @@ def main() -> None:
 
     if args.command == "checks":
         if args.checks_command == "feed":
-            if args.install_pack and not args.feed_pack_keys:
+            if args.list_installed:
+                store = CheckPackStore(
+                    args.store_dir
+                )
+                pack_ids = store.list_pack_ids()
+
+                if not pack_ids:
+                    print("No installed check packs.")
+
+                for pack_id in pack_ids:
+                    active = store.active_version(
+                        pack_id
+                    )
+                    print(
+                        f"Installed Pack: {pack_id} "
+                        f"active={active or '-'}"
+                    )
+
+                    for record in store.list_versions(
+                        pack_id
+                    ):
+                        print(
+                            f"  version={record.version} "
+                            f"signer={record.signer_key_id} "
+                            f"sha256={record.sha256}"
+                        )
+
+                return
+
+            if args.rollback_pack:
+                if not args.feed_pack_keys:
+                    parser.error(
+                        "--rollback-pack requires --pack-key."
+                    )
+
+                try:
+                    trusted_pack_keys = parse_trusted_key_specs(
+                        tuple(args.feed_pack_keys or ())
+                    )
+                    store = CheckPackStore(
+                        args.store_dir
+                    )
+                    restored = store.rollback_verified(
+                        args.rollback_pack,
+                        trusted_keys=trusted_pack_keys,
+                    )
+                except ValueError as exc:
+                    parser.error(str(exc))
+
+                print(
+                    f"Rolled back: {args.rollback_pack} "
+                    f"active={restored}"
+                )
+                return
+
+            if args.install_pack and args.sync:
                 parser.error(
-                    "--install-pack requires --pack-key."
+                    "--install-pack and --sync cannot be used together."
+                )
+
+            if (
+                (args.install_pack or args.sync)
+                and not args.feed_pack_keys
+            ):
+                option = (
+                    "--install-pack"
+                    if args.install_pack
+                    else "--sync"
+                )
+                parser.error(
+                    f"{option} requires --pack-key."
+                )
+
+            if not args.url:
+                parser.error(
+                    "checks feed requires --url for remote feed operations."
+                )
+
+            if not args.feed_keys:
+                parser.error(
+                    "checks feed requires --feed-key for remote feed operations."
                 )
 
             try:
@@ -406,6 +508,36 @@ def main() -> None:
                     f"signer={installed.signer_key_id} "
                     f"sha256={installed.sha256}"
                 )
+
+            if args.sync:
+                try:
+                    trusted_pack_keys = parse_trusted_key_specs(
+                        tuple(args.feed_pack_keys or ())
+                    )
+                    store = CheckPackStore(
+                        args.store_dir
+                    )
+                    sync_results = sync_verified_check_feed(
+                        feed=feed,
+                        pack_trusted_keys=trusted_pack_keys,
+                        store=store,
+                    )
+                except ValueError as exc:
+                    parser.error(str(exc))
+
+                for result in sync_results:
+                    line = (
+                        f"SYNC {result.pack_id} "
+                        f"status={result.status} "
+                        f"advertised={result.advertised_version} "
+                        f"previous={result.previous_version or '-'} "
+                        f"active={result.active_version or '-'}"
+                    )
+
+                    if result.error:
+                        line += f" error={result.error}"
+
+                    print(line)
 
             return
 
