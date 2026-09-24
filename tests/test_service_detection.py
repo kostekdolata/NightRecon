@@ -419,6 +419,7 @@ class ServiceDetectionTests(unittest.TestCase):
                     address="127.0.0.1",
                     port=443,
                     timeout=1.0,
+                    server_hostname="example.test",
                 )
 
         self.assertEqual(
@@ -436,6 +437,46 @@ class ServiceDetectionTests(unittest.TestCase):
                 "referrer-policy",
                 "permissions-policy",
             ),
+        )
+
+    def test_https_ip_scan_does_not_require_hsts(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tls_service"
+            ) as tls_probe:
+                tls_probe.return_value.tls_version = "TLSv1.3"
+                tls_probe.return_value.cipher = (
+                    "TLS_AES_256_GCM_SHA384"
+                )
+                tls_probe.return_value.certificate_subject = ""
+                tls_probe.return_value.certificate_issuer = ""
+                tls_probe.return_value.certificate_not_before = ""
+                tls_probe.return_value.certificate_not_after = ""
+                tls_probe.return_value.certificate_sans = ()
+                tls_probe.return_value.certificate_sha256 = ""
+                tls_probe.return_value.http_status = (
+                    "HTTP/1.1 200 OK"
+                )
+                tls_probe.return_value.http_server = "nginx"
+                tls_probe.return_value.http_headers = (
+                    ("x-content-type-options", "nosniff"),
+                )
+
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=443,
+                    timeout=1.0,
+                )
+
+        self.assertNotIn(
+            "strict-transport-security",
+            result.security_headers_missing,
         )
 
     def test_failed_http_probe_does_not_report_missing_headers(self):
@@ -501,7 +542,6 @@ class ServiceDetectionTests(unittest.TestCase):
         self.assertEqual(
             result.security_headers_missing,
             (
-                "strict-transport-security",
                 "referrer-policy",
                 "permissions-policy",
             ),
