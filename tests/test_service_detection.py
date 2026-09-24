@@ -735,6 +735,15 @@ class ServiceDetectionTests(unittest.TestCase):
         self.assertEqual(result.port, 22)
         self.assertEqual(result.service, "ssh")
         self.assertEqual(result.banner, "SSH-2.0-OpenSSH_9.6")
+        self.assertEqual(
+            result.software_identity,
+            SoftwareIdentity(
+                product="OpenSSH",
+                version="9.6",
+                source="banner",
+                evidence="SSH-2.0-OpenSSH_9.6",
+            ),
+        )
 
         socket_factory.assert_called_once_with(
             socket.AF_INET,
