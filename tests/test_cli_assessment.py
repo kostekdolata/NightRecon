@@ -223,6 +223,83 @@ class CliAssessmentTests(unittest.TestCase):
             output,
         )
 
+    def test_assessment_scan_uses_active_installed_pack_checks(self):
+        installed_check = _Check(
+            check_id="web.installed"
+        )
+        stdout = io.StringIO()
+
+        def catalog_loader(*, additional_checks=()):
+            return CheckCatalogResult(
+                checks=additional_checks,
+            )
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "nightrecon",
+                "scan",
+                "127.0.0.1",
+                "--scope",
+                "127.0.0.1",
+                "--ports",
+                "80",
+                "--assessment",
+                "--installed-check-packs",
+                "--check-pack-key",
+                "test-key="
+                "a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=",
+                "--check-store-dir",
+                "pack-store",
+            ],
+        ):
+            with patch(
+                "nightrecon.cli.scan_tcp_ports",
+                return_value=self._scan_results(),
+            ):
+                with patch(
+                    "nightrecon.cli.detect_services",
+                    return_value=self._service_results(),
+                ):
+                    with patch(
+                        "nightrecon.cli._load_installed_check_pack_checks",
+                        return_value=(installed_check,),
+                    ) as installed_loader:
+                        with patch(
+                            "nightrecon.cli.load_check_catalog",
+                            side_effect=catalog_loader,
+                        ):
+                            with patch(
+                                "nightrecon.cli.assess_services",
+                                return_value=(),
+                            ) as assess:
+                                with patch(
+                                    "nightrecon.cli.ResultStore"
+                                ) as store_class:
+                                    store_class.return_value.save_report.return_value = (
+                                        Path("results/test.json")
+                                    )
+
+                                    with patch(
+                                        "nightrecon.cli.NightReconLogger"
+                                    ):
+                                        with contextlib.redirect_stdout(stdout):
+                                            main()
+
+        installed_loader.assert_called_once_with(
+            "pack-store",
+            (
+                "test-key="
+                "a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=",
+            ),
+        )
+        assess.assert_called_once()
+        self.assertEqual(
+            assess.call_args.kwargs["checks"],
+            (installed_check,),
+        )
+
     def test_destructive_intrusiveness_is_not_available_from_scan_cli(self):
         stderr = io.StringIO()
 
