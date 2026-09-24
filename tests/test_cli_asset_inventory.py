@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from nightrecon.asset_inventory import (
     AssetChange,
+    AssetChangeEvent,
     AssetInventory,
     AssetInventoryUpdate,
     AssetRecord,
@@ -108,6 +109,19 @@ class CliAssetInventoryTests(unittest.TestCase):
         apply_update.assert_called_once()
         inventory_store.save.assert_called_once_with(
             updated
+        )
+        inventory_store.append_change_events.assert_called_once()
+        discovery_events = (
+            inventory_store.append_change_events
+            .call_args.args[0]
+        )
+        self.assertEqual(
+            discovery_events[0].source_type,
+            "discovery",
+        )
+        self.assertEqual(
+            discovery_events[0].change.change_type,
+            "new-asset",
         )
         self.assertIn(
             "Inventory changes: 1",
@@ -226,9 +240,89 @@ class CliAssetInventoryTests(unittest.TestCase):
         inventory_store.save.assert_called_once_with(
             updated
         )
+        inventory_store.append_change_events.assert_called_once()
+        scan_events = (
+            inventory_store.append_change_events
+            .call_args.args[0]
+        )
+        self.assertEqual(
+            scan_events[0].source_type,
+            "scan",
+        )
+        self.assertEqual(
+            scan_events[0].change.port,
+            80,
+        )
         self.assertIn(
             "ASSET CHANGE 192.0.2.10 port-opened port=80",
             stdout.getvalue(),
+        )
+
+    def test_assets_history_is_offline_and_filterable(self):
+        events = (
+            AssetChangeEvent(
+                observed_at="2026-09-24T10:00:00+00:00",
+                session_id="session-1",
+                source_type="discovery",
+                change=AssetChange(
+                    address="192.0.2.10",
+                    change_type="new-asset",
+                ),
+            ),
+            AssetChangeEvent(
+                observed_at="2026-09-24T11:00:00+00:00",
+                session_id="session-2",
+                source_type="scan",
+                change=AssetChange(
+                    address="192.0.2.10",
+                    change_type="port-opened",
+                    port=443,
+                    after="https",
+                ),
+            ),
+        )
+        stdout = io.StringIO()
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "nightrecon",
+                "assets",
+                "history",
+                "--inventory-dir",
+                "assets-test",
+                "--address",
+                "192.0.2.10",
+                "--limit",
+                "10",
+            ],
+        ):
+            with patch(
+                "nightrecon.cli.AssetInventoryStore"
+            ) as store_class:
+                store_class.return_value.load_change_history.return_value = (
+                    events
+                )
+
+                with contextlib.redirect_stdout(stdout):
+                    main()
+
+        store_class.return_value.load_change_history.assert_called_once_with(
+            address="192.0.2.10",
+            limit=10,
+        )
+        output = stdout.getvalue()
+        self.assertIn("Asset changes: 2", output)
+        self.assertIn(
+            "ASSET CHANGE 192.0.2.10 new-asset "
+            "source=discovery session=session-1",
+            output,
+        )
+        self.assertIn(
+            "ASSET CHANGE 192.0.2.10 port-opened port=443 "
+            "after=https source=scan session=session-2",
+            output,
         )
 
     def test_assets_list_is_offline_and_displays_inventory(self):
