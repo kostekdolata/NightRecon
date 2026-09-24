@@ -189,6 +189,15 @@ class CliThreatContextTests(unittest.TestCase):
             "KEV date_added=2026-09-01 due_date=2026-09-22",
             output,
         )
+        self.assertIn(
+            "Threat Context Summary: cves=1 known_exploited=1 "
+            "epss_available=1 provider_errors=0",
+            output,
+        )
+        self.assertIn(
+            "Max EPSS: probability=0.42 percentile=0.97",
+            output,
+        )
 
 
 if __name__ == "__main__":
