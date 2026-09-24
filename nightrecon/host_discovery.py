@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import errno
 import ipaddress
 import itertools
@@ -26,6 +26,7 @@ class HostDiscoveryResult:
     port: int | None
     observation: str
     error_code: int | None = None
+    hostname: str = ""
 
 
 def probe_host(
@@ -196,6 +197,69 @@ def discover_hosts(
                 item.address
             ),
         )
+    )
+
+
+def enrich_reverse_dns(
+    results: tuple[HostDiscoveryResult, ...],
+    *,
+    max_workers: int = 20,
+) -> tuple[HostDiscoveryResult, ...]:
+    """Attach fail-soft reverse-DNS names to responsive discovery results."""
+
+    if max_workers < 1:
+        raise ValueError("max_workers must be at least 1.")
+
+    responsive_addresses = tuple(
+        result.address
+        for result in results
+        if result.responsive
+    )
+
+    if not responsive_addresses:
+        return results
+
+    names: dict[str, str] = {}
+
+    def lookup(address: str) -> tuple[str, str]:
+        try:
+            hostname = socket.gethostbyaddr(
+                address
+            )[0].strip()
+        except (OSError, socket.herror):
+            hostname = ""
+
+        return address, hostname
+
+    with ThreadPoolExecutor(
+        max_workers=min(
+            max_workers,
+            len(responsive_addresses),
+        )
+    ) as executor:
+        futures = [
+            executor.submit(
+                lookup,
+                address,
+            )
+            for address in responsive_addresses
+        ]
+
+        for future in as_completed(futures):
+            address, hostname = future.result()
+
+            if hostname:
+                names[address] = hostname
+
+    return tuple(
+        replace(
+            result,
+            hostname=names.get(
+                result.address,
+                result.hostname,
+            ),
+        )
+        for result in results
     )
 
 
