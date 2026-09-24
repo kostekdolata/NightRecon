@@ -35,6 +35,8 @@ class AssessmentCheckMetadata:
     intrusiveness: CheckIntrusiveness
     supported_services: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
+    requires_authentication: bool = False
+    required_capabilities: tuple[str, ...] = ()
     version: str = "1"
 
     def __post_init__(self) -> None:
@@ -57,6 +59,8 @@ class AssessmentContext:
     port: int
     service: str
     authorized: bool
+    authenticated: bool = False
+    capabilities: tuple[str, ...] = ()
     service_result: object | None = None
 
     def __post_init__(self) -> None:
@@ -337,6 +341,33 @@ class AssessmentEngine:
                         check_id=metadata.check_id,
                         status="skipped",
                         reason="service_not_supported",
+                    )
+                )
+                continue
+
+            if metadata.requires_authentication and not context.authenticated:
+                results.append(
+                    AssessmentExecutionResult(
+                        check_id=metadata.check_id,
+                        status="skipped",
+                        reason="authentication_required",
+                    )
+                )
+                continue
+
+            if (
+                metadata.required_capabilities
+                and not set(
+                    metadata.required_capabilities
+                ).issubset(
+                    set(context.capabilities)
+                )
+            ):
+                results.append(
+                    AssessmentExecutionResult(
+                        check_id=metadata.check_id,
+                        status="skipped",
+                        reason="required_capability_unavailable",
                     )
                 )
                 continue
