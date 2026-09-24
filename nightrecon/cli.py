@@ -15,6 +15,10 @@ from nightrecon.assessment_engine import (
 )
 from nightrecon.check_catalog import load_check_catalog
 from nightrecon.check_feed import fetch_signed_check_feed
+from nightrecon.check_pack_manager import (
+    install_pack_from_verified_feed,
+)
+from nightrecon.check_pack_store import CheckPackStore
 from nightrecon.check_pack_signing import (
     load_signed_check_pack_file,
     parse_trusted_key_specs,
@@ -138,6 +142,33 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Trust an Ed25519 feed signer using "
             "KEY_ID=BASE64_PUBLIC_KEY. May be repeated."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--install-pack",
+        help=(
+            "Install one advertised signed check pack into the local "
+            "verified pack store."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--pack-key",
+        action="append",
+        dest="feed_pack_keys",
+        help=(
+            "Trust a check-pack signer using "
+            "KEY_ID=BASE64_PUBLIC_KEY. May be repeated."
+        ),
+    )
+
+    checks_feed_parser.add_argument(
+        "--store-dir",
+        default=".nightrecon",
+        help=(
+            "Local NightRecon state directory for installed packs. "
+            "Default: .nightrecon"
         ),
     )
 
@@ -319,6 +350,11 @@ def main() -> None:
 
     if args.command == "checks":
         if args.checks_command == "feed":
+            if args.install_pack and not args.feed_pack_keys:
+                parser.error(
+                    "--install-pack requires --pack-key."
+                )
+
             try:
                 trusted_feed_keys = parse_trusted_key_specs(
                     tuple(args.feed_keys or ())
@@ -345,6 +381,30 @@ def main() -> None:
                     f"signer={entry.signer_key_id} "
                     f"sha256={entry.sha256} "
                     f"url={entry.url}"
+                )
+
+            if args.install_pack:
+                try:
+                    trusted_pack_keys = parse_trusted_key_specs(
+                        tuple(args.feed_pack_keys or ())
+                    )
+                    store = CheckPackStore(
+                        args.store_dir
+                    )
+                    installed = install_pack_from_verified_feed(
+                        feed=feed,
+                        pack_id=args.install_pack,
+                        pack_trusted_keys=trusted_pack_keys,
+                        store=store,
+                    )
+                except ValueError as exc:
+                    parser.error(str(exc))
+
+                print(
+                    f"Installed: {installed.pack_id} "
+                    f"version={installed.version} "
+                    f"signer={installed.signer_key_id} "
+                    f"sha256={installed.sha256}"
                 )
 
             return
