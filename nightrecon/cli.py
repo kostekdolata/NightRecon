@@ -20,6 +20,7 @@ from nightrecon.targets import TargetType, parse_target
 from nightrecon.tcp_scanner import scan_tcp_ports
 from nightrecon.vulnerability_intelligence import (
     enrich_service_vulnerabilities,
+    summarize_vulnerabilities,
 )
 
 
@@ -234,6 +235,7 @@ def main() -> None:
             ports_requested=ports,
             results=tuple(all_results),
             services=tuple(all_services),
+            vulnerability_intelligence_enabled=args.vuln_lookup,
             vulnerabilities=all_vulnerabilities,
         )
 
@@ -384,6 +386,34 @@ def main() -> None:
                     )
 
                 print(" ".join(details))
+
+        if report.vulnerability_intelligence_enabled:
+            vulnerability_summary = summarize_vulnerabilities(
+                report.vulnerabilities
+            )
+
+            print(
+                "Vulnerability Summary: "
+                f"services={vulnerability_summary.services_queried} "
+                f"successful={vulnerability_summary.successful_lookups} "
+                f"failed={vulnerability_summary.failed_lookups} "
+                f"matches={vulnerability_summary.total_findings}"
+            )
+            print(
+                "Severity: "
+                f"critical={vulnerability_summary.critical_count} "
+                f"high={vulnerability_summary.high_count} "
+                f"medium={vulnerability_summary.medium_count} "
+                f"low={vulnerability_summary.low_count} "
+                f"none={vulnerability_summary.none_count} "
+                f"unknown={vulnerability_summary.unknown_count}"
+            )
+
+            if vulnerability_summary.max_cvss_score is not None:
+                print(
+                    "Max CVSS observed: "
+                    f"{vulnerability_summary.max_cvss_score}"
+                )
 
         print(f"Session ID: {report.session_id}")
         print(f"Session status: {report.status}")
