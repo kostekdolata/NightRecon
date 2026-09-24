@@ -2,13 +2,18 @@
 
 import unittest
 
+from nightrecon.service_detection import ServiceDetectionResult
 from nightrecon.assessment_engine import (
     AssessmentCheckMetadata,
     AssessmentContext,
     AssessmentEngine,
     AssessmentFinding,
+    AssessmentSummary,
     CheckIntrusiveness,
     CheckRegistry,
+    ServiceAssessmentResult,
+    assess_services,
+    summarize_assessments,
 )
 
 
@@ -209,6 +214,102 @@ class AssessmentEngineTests(unittest.TestCase):
 
         self.assertEqual(results[0].status, "error")
         self.assertEqual(results[0].error, "check failed")
+
+    def test_assess_services_binds_results_to_service_context(self):
+        finding = AssessmentFinding(
+            check_id="web.safe",
+            title="Example finding",
+            summary="Example summary.",
+        )
+        check = _Check(
+            check_id="web.safe",
+            supported_services=("http",),
+            findings=(finding,),
+        )
+        service = ServiceDetectionResult(
+            address="127.0.0.1",
+            port=80,
+            service="http",
+            banner="",
+        )
+
+        results = assess_services(
+            target="example.test",
+            services=(service,),
+            checks=(check,),
+            max_intrusiveness=CheckIntrusiveness.SAFE_ACTIVE,
+            authorized=True,
+        )
+
+        self.assertEqual(
+            results,
+            (
+                ServiceAssessmentResult(
+                    address="127.0.0.1",
+                    port=80,
+                    service="http",
+                    executions=(
+                        results[0].executions[0],
+                    ),
+                ),
+            ),
+        )
+        self.assertIs(
+            check.calls[0].service_result,
+            service,
+        )
+
+    def test_assessment_summary_counts_execution_outcomes(self):
+        results = (
+            ServiceAssessmentResult(
+                address="127.0.0.1",
+                port=80,
+                service="http",
+                executions=(
+                    __import__(
+                        "nightrecon.assessment_engine",
+                        fromlist=["AssessmentExecutionResult"],
+                    ).AssessmentExecutionResult(
+                        check_id="one",
+                        status="completed",
+                        findings=(
+                            AssessmentFinding(
+                                check_id="one",
+                                title="Finding",
+                                summary="Summary.",
+                            ),
+                        ),
+                    ),
+                    __import__(
+                        "nightrecon.assessment_engine",
+                        fromlist=["AssessmentExecutionResult"],
+                    ).AssessmentExecutionResult(
+                        check_id="two",
+                        status="skipped",
+                        reason="service_not_supported",
+                    ),
+                    __import__(
+                        "nightrecon.assessment_engine",
+                        fromlist=["AssessmentExecutionResult"],
+                    ).AssessmentExecutionResult(
+                        check_id="three",
+                        status="error",
+                        error="failed",
+                    ),
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            summarize_assessments(results),
+            AssessmentSummary(
+                services_assessed=1,
+                checks_completed=1,
+                checks_skipped=1,
+                checks_errored=1,
+                findings=1,
+            ),
+        )
 
     def test_explicit_intrusiveness_ceiling_can_enable_intrusive_check(self):
         check = _Check(
