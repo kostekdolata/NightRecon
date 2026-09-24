@@ -54,6 +54,15 @@ class CheckPackFeed:
     packs: tuple[CheckFeedPackEntry, ...] = ()
 
 
+@dataclass(frozen=True)
+class VerifiedCheckPackArtifact:
+    """Verified signed check-pack document retained for local caching."""
+
+    pack: CheckPack
+    signed_text: str
+    sha256: str
+
+
 def load_signed_check_feed(
     text: str,
     *,
@@ -245,6 +254,89 @@ def fetch_signed_check_pack_text(
     return text
 
 
+def fetch_check_pack_artifact(
+    entry: CheckFeedPackEntry,
+    *,
+    trusted_pack_keys: dict[str, bytes],
+    timeout: float = 10.0,
+) -> VerifiedCheckPackArtifact:
+    """Fetch and verify one signed pack while retaining its signed envelope."""
+
+    if entry.signer_key_id not in trusted_pack_keys:
+        raise ValueError(
+            "Untrusted check-pack signer: "
+            f"{entry.signer_key_id}"
+        )
+
+    _require_https_url(
+        entry.url,
+        label="check-pack",
+    )
+
+    data = _download_bounded(
+        entry.url,
+        timeout=timeout,
+        max_bytes=MAX_PACK_BYTES,
+        label="check-pack",
+    )
+
+    observed_sha256 = hashlib.sha256(
+        data
+    ).hexdigest()
+
+    if not hmac.compare_digest(
+        observed_sha256,
+        entry.sha256,
+    ):
+        raise ValueError(
+            "Downloaded check-pack SHA-256 does not match feed."
+        )
+
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(
+            "Check-pack response is not valid UTF-8."
+        ) from exc
+
+    try:
+        document = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Invalid signed check-pack JSON: {exc.msg}"
+        ) from exc
+
+    if (
+        not isinstance(document, dict)
+        or document.get("key_id")
+        != entry.signer_key_id
+    ):
+        raise ValueError(
+            "Check-pack signer does not match feed entry."
+        )
+
+    pack = load_signed_check_pack(
+        text,
+        trusted_keys=trusted_pack_keys,
+    )
+
+    if pack.pack_id != entry.pack_id:
+        raise ValueError(
+            "Check-pack ID does not match feed entry."
+        )
+
+    if pack.version != entry.version:
+        raise ValueError(
+            "Check-pack version does not match feed entry."
+        )
+
+    return VerifiedCheckPackArtifact(
+        pack=pack,
+        signed_text=text,
+        sha256=observed_sha256,
+    )
+
+
 def fetch_check_pack(
     entry: CheckFeedPackEntry,
     *,
@@ -253,16 +345,11 @@ def fetch_check_pack(
 ) -> CheckPack:
     """Fetch and verify one signed check pack advertised by a feed."""
 
-    text = fetch_signed_check_pack_text(
+    return fetch_check_pack_artifact(
         entry,
         trusted_pack_keys=trusted_pack_keys,
         timeout=timeout,
-    )
-
-    return load_signed_check_pack(
-        text,
-        trusted_keys=trusted_pack_keys,
-    )
+    ).pack
 
 
 def _load_feed_payload(
