@@ -5,10 +5,36 @@ import unittest
 from nightrecon.software_identity import (
     SoftwareIdentity,
     parse_http_server_identity,
+    parse_ssh_banner_identity,
 )
 
 
 class SoftwareIdentityTests(unittest.TestCase):
+    def test_openssh_banner_product_and_version_are_extracted(self):
+        result = parse_ssh_banner_identity(
+            "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.5"
+        )
+
+        self.assertEqual(
+            result,
+            SoftwareIdentity(
+                product="OpenSSH",
+                version="9.6p1",
+                source="banner",
+                evidence=(
+                    "SSH-2.0-OpenSSH_9.6p1 "
+                    "Ubuntu-3ubuntu13.5"
+                ),
+            ),
+        )
+
+    def test_ssh_banner_without_explicit_supported_version_is_not_guessed(self):
+        result = parse_ssh_banner_identity(
+            "SSH-2.0-libssh"
+        )
+
+        self.assertIsNone(result)
+
     def test_http_server_product_and_version_are_extracted(self):
         result = parse_http_server_identity(
             "nginx/1.24.0"
