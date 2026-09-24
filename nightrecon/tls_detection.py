@@ -21,6 +21,7 @@ class TlsMetadata:
     certificate_sha256: str = ""
     http_status: str = ""
     http_server: str = ""
+    http_headers: tuple[tuple[str, str], ...] = ()
 
 
 def format_certificate_name(
@@ -97,6 +98,7 @@ def probe_tls_service(
                 certificate_sha256 = ""
                 http_status = ""
                 http_server = ""
+                http_headers: tuple[tuple[str, str], ...] = ()
 
                 der_certificate = tls_socket.getpeercert(
                     binary_form=True,
@@ -167,10 +169,25 @@ def probe_tls_service(
                         if lines:
                             http_status = lines[0].strip()
 
+                        parsed_headers: list[tuple[str, str]] = []
+
                         for line in lines[1:]:
-                            if line.lower().startswith("server:"):
-                                http_server = line.split(":", 1)[1].strip()
-                                break
+                            name, separator, value = line.partition(":")
+
+                            if not separator:
+                                continue
+
+                            header_name = name.strip().lower()
+                            header_value = value.strip()
+
+                            parsed_headers.append(
+                                (header_name, header_value)
+                            )
+
+                            if header_name == "server":
+                                http_server = header_value
+
+                        http_headers = tuple(parsed_headers)
 
                 except (socket.timeout, OSError, ssl.SSLError):
                     pass
@@ -187,6 +204,7 @@ def probe_tls_service(
                     certificate_sha256=certificate_sha256,
                     http_status=http_status,
                     http_server=http_server,
+                    http_headers=http_headers,
                 )
 
 
