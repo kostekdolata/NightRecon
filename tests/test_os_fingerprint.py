@@ -4,7 +4,9 @@ import unittest
 
 from nightrecon.os_fingerprint import (
     OperatingSystemEvidence,
+    HostOperatingSystemFingerprint,
     OperatingSystemFingerprint,
+    build_host_operating_system_fingerprints,
     build_operating_system_fingerprint,
 )
 from nightrecon.service_detection import ServiceDetectionResult
@@ -144,6 +146,67 @@ class OperatingSystemFingerprintTests(unittest.TestCase):
         self.assertEqual(
             result.candidates,
             ("FreeBSD", "Ubuntu"),
+        )
+
+    def test_host_fingerprints_are_grouped_and_sorted_by_address(self):
+        services = (
+            ServiceDetectionResult(
+                address="192.0.2.20",
+                port=22,
+                service="ssh",
+                banner="",
+                service_fingerprint=ServiceFingerprint(
+                    protocol="ssh",
+                    platform="Debian",
+                    source="banner",
+                    evidence="debian evidence",
+                    confidence="high",
+                ),
+            ),
+            ServiceDetectionResult(
+                address="192.0.2.10",
+                port=443,
+                service="https",
+                banner="",
+                service_fingerprint=ServiceFingerprint(
+                    protocol="http",
+                    platform="Ubuntu",
+                    source="http-server",
+                    evidence="ubuntu evidence",
+                    confidence="high",
+                ),
+            ),
+        )
+
+        result = build_host_operating_system_fingerprints(
+            services
+        )
+
+        self.assertEqual(
+            tuple(item.address for item in result),
+            ("192.0.2.10", "192.0.2.20"),
+        )
+        self.assertEqual(
+            result[0],
+            HostOperatingSystemFingerprint(
+                address="192.0.2.10",
+                fingerprint=OperatingSystemFingerprint(
+                    platform="Ubuntu",
+                    family="Linux",
+                    confidence="medium",
+                    evidence=(
+                        OperatingSystemEvidence(
+                            address="192.0.2.10",
+                            port=443,
+                            service="https",
+                            platform="Ubuntu",
+                            family="Linux",
+                            source="http-server",
+                            evidence="ubuntu evidence",
+                        ),
+                    ),
+                ),
+            ),
         )
 
     def test_known_platforms_map_to_os_families(self):
