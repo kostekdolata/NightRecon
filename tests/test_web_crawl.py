@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from nightrecon.web_crawl import (
     CrawlPage,
+    _SameOriginRedirectHandler,
     crawl_site,
     extract_same_origin_links,
     normalize_http_url,
@@ -150,6 +151,27 @@ class WebCrawlTests(unittest.TestCase):
                 "https://example.test/a",
             ),
         )
+
+    def test_cross_origin_redirect_is_blocked(self):
+        handler = _SameOriginRedirectHandler(
+            "https://example.test"
+        )
+
+        class RequestStub:
+            full_url = "https://example.test/start"
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cross-origin redirect blocked",
+        ):
+            handler.redirect_request(
+                RequestStub(),
+                None,
+                302,
+                "Found",
+                {},
+                "https://other.test/landing",
+            )
 
     def test_crawl_validation_rejects_invalid_limits(self):
         with self.assertRaises(ValueError):
