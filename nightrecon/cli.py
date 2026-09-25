@@ -3,6 +3,7 @@
 import argparse
 import os
 import sys
+from urllib.parse import urlsplit
 
 from nightrecon import __version__
 from nightrecon import report
@@ -61,6 +62,11 @@ from nightrecon.vulnerability_intelligence import (
     enrich_service_vulnerabilities,
     summarize_vulnerabilities,
 )
+from nightrecon.web_crawl import (
+    crawl_site,
+    normalize_http_url,
+)
+from nightrecon.web_report import WebCrawlReport
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -375,6 +381,62 @@ def build_parser() -> argparse.ArgumentParser:
             "Persistent NightRecon asset inventory directory. "
             "Default: inventory"
         ),
+    )
+
+    crawl_parser = subparsers.add_parser(
+        "crawl",
+        help="Crawl an authorized HTTP(S) origin.",
+    )
+
+    crawl_parser.add_argument(
+        "url",
+        help="Authorized HTTP(S) start URL.",
+    )
+
+    crawl_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help=(
+            "Authorized hostname, IP address, or CIDR rule. "
+            "The URL host must be explicitly within scope."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--max-pages",
+        type=int,
+        default=50,
+        help="Maximum pages fetched in one crawl. Default: 50",
+    )
+
+    crawl_parser.add_argument(
+        "--max-bytes-per-page",
+        type=int,
+        default=1_048_576,
+        help=(
+            "Maximum response bytes read per page. "
+            "Default: 1048576"
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=5.0,
+        help="Per-request timeout in seconds. Default: 5.0",
+    )
+
+    crawl_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    crawl_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
     )
 
     scan_parser = subparsers.add_parser(
@@ -1230,6 +1292,171 @@ def main() -> None:
                 f"Inventory file: {inventory_path}"
             )
 
+        return
+
+    if args.command == "crawl":
+        try:
+            normalized_url = normalize_http_url(
+                args.url
+            )
+            hostname = urlsplit(
+                normalized_url
+            ).hostname
+
+            if hostname is None:
+                raise ValueError(
+                    "URL must include a hostname."
+                )
+
+            target = parse_target(hostname)
+            scope = Scope.from_values(
+                args.scope
+            )
+            config = NightReconConfig(
+                connect_timeout=args.timeout,
+                max_workers=1,
+                results_dir=args.results_dir,
+                logs_dir=args.logs_dir,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+
+        logger = NightReconLogger(
+            config.logs_dir
+        )
+
+        if not scope.is_authorized(target):
+            logger.write(
+                "crawl.rejected",
+                url=normalized_url,
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason="outside_authorized_scope",
+            )
+            parser.error(
+                f"Target '{target.value}' is outside the authorized scope."
+            )
+
+        try:
+            crawl = crawl_site(
+                start_url=normalized_url,
+                max_pages=args.max_pages,
+                max_bytes_per_page=(
+                    args.max_bytes_per_page
+                ),
+                timeout=config.connect_timeout,
+            )
+        except ValueError as exc:
+            logger.write(
+                "crawl.failed",
+                url=normalized_url,
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason=str(exc),
+            )
+            parser.error(str(exc))
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=tuple(
+                args.scope
+            ),
+        )
+        crawl_report = WebCrawlReport.create(
+            session=session,
+            crawl=crawl,
+        )
+        output_path = ResultStore(
+            config.results_dir
+        ).save_web_crawl_report(
+            crawl_report
+        )
+
+        logger.write(
+            "crawl.completed",
+            session_id=crawl_report.session_id,
+            url=crawl_report.start_url,
+            origin=crawl_report.origin,
+            target=crawl_report.target,
+            target_type=crawl_report.target_type,
+            scope=args.scope,
+            pages_fetched=len(
+                crawl_report.pages
+            ),
+            successful_pages=len(
+                crawl_report.successful_pages
+            ),
+            failed_pages=len(
+                crawl_report.failed_pages
+            ),
+            status=crawl_report.status,
+        )
+
+        print(
+            "NightRecon crawl URL: "
+            f"{crawl_report.start_url}"
+        )
+        print(
+            f"Origin: {crawl_report.origin}"
+        )
+        print(
+            f"Target: {crawl_report.target}"
+        )
+        print(
+            f"Target type: {crawl_report.target_type}"
+        )
+        print(
+            "Scope authorization: approved"
+        )
+        print(
+            f"Pages fetched: {len(crawl_report.pages)}"
+        )
+        print(
+            "Successful pages: "
+            f"{len(crawl_report.successful_pages)}"
+        )
+        print(
+            "Failed pages: "
+            f"{len(crawl_report.failed_pages)}"
+        )
+
+        for page in crawl_report.pages:
+            line = (
+                f"  PAGE {page.url} "
+                f"status={page.status if page.status is not None else '-'} "
+                f"type={page.content_type or '-'} "
+                f"bytes={page.byte_count} "
+                f"links={len(page.links)}"
+            )
+
+            if page.error:
+                line += (
+                    f" error={page.error}"
+                )
+
+            print(line)
+
+        print(
+            f"Max pages: {crawl_report.max_pages}"
+        )
+        print(
+            "Max bytes per page: "
+            f"{crawl_report.max_bytes_per_page}"
+        )
+        print(
+            f"Connection timeout: {config.connect_timeout}"
+        )
+        print(
+            f"Session ID: {crawl_report.session_id}"
+        )
+        print(
+            f"Session status: {crawl_report.status}"
+        )
+        print(
+            f"Result file: {output_path}"
+        )
         return
 
     if args.command == "scan":
