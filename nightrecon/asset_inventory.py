@@ -34,6 +34,11 @@ class AssetRecord:
     last_seen: str
     last_checked_at: str
     hostnames: tuple[str, ...] = ()
+    os_platform: str = ""
+    os_family: str = ""
+    os_confidence: str = ""
+    os_candidates: tuple[str, ...] = ()
+    os_evidence_count: int = 0
     last_discovery_responsive: bool | None = None
     discovery_methods: tuple[str, ...] = ()
     services: tuple[AssetServiceRecord, ...] = ()
@@ -211,6 +216,10 @@ def apply_scan_report(
         (service.address, service.port): service
         for service in report.services
     }
+    operating_system_by_address = {
+        item.address: item.fingerprint
+        for item in report.operating_system_fingerprints
+    }
 
     for address in report.resolved_addresses:
         port_results = tuple(
@@ -374,6 +383,56 @@ def apply_scan_report(
             report.session_id,
         )
 
+        os_platform = existing.os_platform
+        os_family = existing.os_family
+        os_confidence = existing.os_confidence
+        os_candidates = existing.os_candidates
+        os_evidence_count = existing.os_evidence_count
+
+        observed_os = operating_system_by_address.get(
+            address
+        )
+
+        if observed_os is not None:
+            previous_os = _os_text(
+                platform=os_platform,
+                family=os_family,
+                confidence=os_confidence,
+                candidates=os_candidates,
+                evidence_count=os_evidence_count,
+            )
+            observed_os_text = _os_text(
+                platform=observed_os.platform,
+                family=observed_os.family,
+                confidence=observed_os.confidence,
+                candidates=observed_os.candidates,
+                evidence_count=len(observed_os.evidence),
+            )
+
+            if (
+                previous_os != observed_os_text
+                and (
+                    previous_os
+                    or observed_os_text
+                )
+            ):
+                changes.append(
+                    AssetChange(
+                        address=address,
+                        change_type="os-fingerprint-changed",
+                        before=previous_os,
+                        after=observed_os_text,
+                    )
+                )
+
+            os_platform = observed_os.platform
+            os_family = observed_os.family
+            os_confidence = observed_os.confidence
+            os_candidates = observed_os.candidates
+            os_evidence_count = len(
+                observed_os.evidence
+            )
+
         assets[address] = replace(
             existing,
             last_seen=(
@@ -383,6 +442,11 @@ def apply_scan_report(
             ),
             last_checked_at=report.created_at,
             hostnames=hostnames,
+            os_platform=os_platform,
+            os_family=os_family,
+            os_confidence=os_confidence,
+            os_candidates=os_candidates,
+            os_evidence_count=os_evidence_count,
             services=tuple(
                 sorted(
                     new_services.values(),
@@ -461,6 +525,39 @@ def _software_text(
         return f"{service.product} {service.version}"
 
     return service.product or service.version
+
+
+def _os_text(
+    *,
+    platform: str,
+    family: str,
+    confidence: str,
+    candidates: tuple[str, ...],
+    evidence_count: int,
+) -> str:
+    parts: list[str] = []
+
+    if platform:
+        parts.append(f"platform={platform}")
+
+    if family:
+        parts.append(f"family={family}")
+
+    if confidence:
+        parts.append(f"confidence={confidence}")
+
+    if candidates:
+        parts.append(
+            "candidates="
+            + ",".join(candidates)
+        )
+
+    if evidence_count:
+        parts.append(
+            f"evidence={evidence_count}"
+        )
+
+    return " | ".join(parts)
 
 
 def _fingerprint_text(
