@@ -5,12 +5,14 @@ from unittest.mock import patch
 
 from nightrecon.web_crawl import (
     CrawlPage,
+    WebCookieObservation,
     WebFormInput,
     _SameOriginRedirectHandler,
     crawl_site,
     discover_html_content,
     extract_same_origin_links,
     normalize_http_url,
+    parse_set_cookie_metadata,
     url_origin,
 )
 
@@ -75,6 +77,45 @@ class WebCrawlTests(unittest.TestCase):
                 "https://example.test/admin",
                 "https://example.test/help",
             ),
+        )
+
+    def test_set_cookie_metadata_discards_cookie_values(self):
+        observations = parse_set_cookie_metadata(
+            (
+                (
+                    "session=super-secret-session-value; "
+                    "Path=/; Secure; HttpOnly; SameSite=Lax"
+                ),
+                "prefs=private-preference; Path=/settings",
+            )
+        )
+
+        self.assertEqual(
+            observations,
+            (
+                WebCookieObservation(
+                    name="prefs",
+                    path="/settings",
+                    secure=False,
+                    http_only=False,
+                    same_site="",
+                ),
+                WebCookieObservation(
+                    name="session",
+                    path="/",
+                    secure=True,
+                    http_only=True,
+                    same_site="lax",
+                ),
+            ),
+        )
+        self.assertNotIn(
+            "super-secret-session-value",
+            repr(observations),
+        )
+        self.assertNotIn(
+            "private-preference",
+            repr(observations),
         )
 
     def test_passive_html_content_discovery_records_structure(self):
