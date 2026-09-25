@@ -1,6 +1,7 @@
 """Evidence-based operating-system fingerprinting for NightRecon."""
 
 from dataclasses import dataclass
+import ipaddress
 
 from nightrecon.service_detection import ServiceDetectionResult
 
@@ -19,6 +20,14 @@ class OperatingSystemEvidence:
 
 
 @dataclass(frozen=True)
+class HostOperatingSystemFingerprint:
+    """One host address plus its aggregated OS fingerprint."""
+
+    address: str
+    fingerprint: "OperatingSystemFingerprint"
+
+
+@dataclass(frozen=True)
 class OperatingSystemFingerprint:
     """Aggregated host OS fingerprint derived from explicit evidence."""
 
@@ -27,6 +36,42 @@ class OperatingSystemFingerprint:
     confidence: str = ""
     evidence: tuple[OperatingSystemEvidence, ...] = ()
     candidates: tuple[str, ...] = ()
+
+
+def build_host_operating_system_fingerprints(
+    services: tuple[ServiceDetectionResult, ...],
+) -> tuple[HostOperatingSystemFingerprint, ...]:
+    """Build one evidence-backed OS fingerprint per service address."""
+
+    addresses = {
+        service.address
+        for service in services
+    }
+    results: list[HostOperatingSystemFingerprint] = []
+
+    for address in sorted(
+        addresses,
+        key=ipaddress.ip_address,
+    ):
+        fingerprint = build_operating_system_fingerprint(
+            tuple(
+                service
+                for service in services
+                if service.address == address
+            )
+        )
+
+        if fingerprint is None:
+            continue
+
+        results.append(
+            HostOperatingSystemFingerprint(
+                address=address,
+                fingerprint=fingerprint,
+            )
+        )
+
+    return tuple(results)
 
 
 def build_operating_system_fingerprint(
