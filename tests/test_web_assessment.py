@@ -8,6 +8,7 @@ from nightrecon.web_assessment import (
 )
 from nightrecon.web_crawl import (
     CrawlPage,
+    WebCookieObservation,
     WebFormInput,
     WebFormObservation,
 )
@@ -105,6 +106,90 @@ class WebAssessmentTests(unittest.TestCase):
         self.assertIn(
             "http://cdn.example.test/legacy.js",
             findings[0].evidence,
+        )
+
+    def test_insecure_session_cookie_attributes_are_reported(self):
+        page = CrawlPage(
+            url="https://example.test/account",
+            status=200,
+            content_type="text/html",
+            byte_count=100,
+            links=(),
+            cookies=(
+                WebCookieObservation(
+                    name="session",
+                    path="/",
+                    secure=False,
+                    http_only=False,
+                    same_site="",
+                ),
+            ),
+        )
+
+        findings = assess_web_pages((page,))
+
+        self.assertEqual(
+            tuple(
+                finding.check_id
+                for finding in findings
+            ),
+            (
+                "web.cookie-missing-secure",
+                "web.session-cookie-missing-httponly",
+                "web.session-cookie-missing-samesite",
+            ),
+        )
+        self.assertTrue(
+            all(
+                finding.severity == "low"
+                for finding in findings
+            )
+        )
+
+    def test_secure_session_cookie_attributes_do_not_generate_findings(self):
+        page = CrawlPage(
+            url="https://example.test/account",
+            status=200,
+            content_type="text/html",
+            byte_count=100,
+            links=(),
+            cookies=(
+                WebCookieObservation(
+                    name="session",
+                    path="/",
+                    secure=True,
+                    http_only=True,
+                    same_site="lax",
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            assess_web_pages((page,)),
+            (),
+        )
+
+    def test_non_session_cookie_is_not_flagged_for_httponly_or_samesite(self):
+        page = CrawlPage(
+            url="https://example.test/",
+            status=200,
+            content_type="text/html",
+            byte_count=100,
+            links=(),
+            cookies=(
+                WebCookieObservation(
+                    name="theme",
+                    path="/",
+                    secure=True,
+                    http_only=False,
+                    same_site="",
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            assess_web_pages((page,)),
+            (),
         )
 
     def test_failed_pages_are_skipped(self):
