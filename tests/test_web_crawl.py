@@ -1,6 +1,7 @@
 """Tests for bounded NightRecon web crawling."""
 
 import unittest
+from email.message import Message
 from unittest.mock import patch
 
 from nightrecon.web_crawl import (
@@ -8,6 +9,7 @@ from nightrecon.web_crawl import (
     WebCookieObservation,
     WebFormInput,
     _SameOriginRedirectHandler,
+    _fetch_page,
     crawl_site,
     discover_html_content,
     extract_same_origin_links,
@@ -307,6 +309,73 @@ class WebCrawlTests(unittest.TestCase):
                 "https://example.test/",
                 "https://example.test/a",
             ),
+        )
+
+    def test_fetch_page_extracts_cookie_metadata_without_values(self):
+        secret_value = "fetch-path-cookie-secret"
+
+        class FakeResponse:
+            status = 200
+
+            def __init__(self):
+                self.headers = Message()
+                self.headers["Content-Type"] = (
+                    "text/html; charset=utf-8"
+                )
+                self.headers["Set-Cookie"] = (
+                    "session="
+                    f"{secret_value}; "
+                    "Path=/; Secure; HttpOnly; SameSite=Strict"
+                )
+
+            def __enter__(self):
+                return self
+
+            def __exit__(
+                self,
+                exc_type,
+                exc,
+                traceback,
+            ):
+                return False
+
+            def geturl(self):
+                return "https://example.test/"
+
+            def read(self, size):
+                return b"<html><title>Home</title></html>"
+
+        class FakeOpener:
+            def open(self, request, timeout):
+                return FakeResponse()
+
+        with patch(
+            "nightrecon.web_crawl.build_opener",
+            return_value=FakeOpener(),
+        ):
+            page = _fetch_page(
+                url="https://example.test/",
+                origin="https://example.test",
+                max_bytes=4096,
+                timeout=1.0,
+                user_agent="NightRecon-Test",
+            )
+
+        self.assertEqual(
+            page.cookies,
+            (
+                WebCookieObservation(
+                    name="session",
+                    path="/",
+                    secure=True,
+                    http_only=True,
+                    same_site="strict",
+                ),
+            ),
+        )
+        self.assertNotIn(
+            secret_value,
+            repr(page),
         )
 
     def test_authenticated_headers_are_forwarded_but_not_persisted(self):
