@@ -397,6 +397,18 @@ def _parse_service(
         version=_optional_text(
             data.get("version")
         ),
+        protocol_version=_optional_text(
+            data.get("protocol_version")
+        ),
+        platform=_optional_text(
+            data.get("platform")
+        ),
+        fingerprint_source=_optional_text(
+            data.get("fingerprint_source")
+        ),
+        fingerprint_confidence=_optional_text(
+            data.get("fingerprint_confidence")
+        ),
         tls_certificate_sha256=_optional_text(
             data.get(
                 "tls_certificate_sha256"

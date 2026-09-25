@@ -18,6 +18,10 @@ class AssetServiceRecord:
     service: str
     product: str = ""
     version: str = ""
+    protocol_version: str = ""
+    platform: str = ""
+    fingerprint_source: str = ""
+    fingerprint_confidence: str = ""
     tls_certificate_sha256: str = ""
 
 
@@ -313,6 +317,31 @@ def apply_scan_report(
                             )
                         )
 
+                    previous_fingerprint = _fingerprint_text(
+                        previous
+                    )
+                    observed_fingerprint = _fingerprint_text(
+                        observed
+                    )
+
+                    if (
+                        previous_fingerprint
+                        != observed_fingerprint
+                        and (
+                            previous_fingerprint
+                            or observed_fingerprint
+                        )
+                    ):
+                        changes.append(
+                            AssetChange(
+                                address=address,
+                                change_type="fingerprint-changed",
+                                port=port,
+                                before=previous_fingerprint,
+                                after=observed_fingerprint,
+                            )
+                        )
+
                 new_services[port] = observed
             elif port in old_services:
                 previous = old_services[port]
@@ -387,16 +416,38 @@ def _service_record(
 
     product = ""
     version = ""
+    protocol_version = ""
+    platform = ""
+    fingerprint_source = ""
+    fingerprint_confidence = ""
 
     if detected.software_identity is not None:
         product = detected.software_identity.product
         version = detected.software_identity.version
+
+    if detected.service_fingerprint is not None:
+        fingerprint = detected.service_fingerprint
+
+        if not product:
+            product = fingerprint.product
+
+        if not version:
+            version = fingerprint.version
+
+        protocol_version = fingerprint.protocol_version
+        platform = fingerprint.platform
+        fingerprint_source = fingerprint.source
+        fingerprint_confidence = fingerprint.confidence
 
     return AssetServiceRecord(
         port=port,
         service=detected.service,
         product=product,
         version=version,
+        protocol_version=protocol_version,
+        platform=platform,
+        fingerprint_source=fingerprint_source,
+        fingerprint_confidence=fingerprint_confidence,
         tls_certificate_sha256=(
             detected.tls_certificate_sha256
         ),
@@ -410,6 +461,23 @@ def _software_text(
         return f"{service.product} {service.version}"
 
     return service.product or service.version
+
+
+def _fingerprint_text(
+    service: AssetServiceRecord,
+) -> str:
+    parts = (
+        service.protocol_version,
+        service.platform,
+        service.fingerprint_source,
+        service.fingerprint_confidence,
+    )
+
+    return " | ".join(
+        part
+        for part in parts
+        if part
+    )
 
 
 def _append_unique(

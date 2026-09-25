@@ -40,6 +40,10 @@ class AssetInventoryStoreTests(unittest.TestCase):
                             service="https",
                             product="nginx",
                             version="1.24.0",
+                            protocol_version="1.1",
+                            platform="Ubuntu",
+                            fingerprint_source="http-server",
+                            fingerprint_confidence="high",
                             tls_certificate_sha256="abc123",
                         ),
                     ),
@@ -64,6 +68,48 @@ class AssetInventoryStoreTests(unittest.TestCase):
             self.assertFalse(
                 (Path(directory) / "assets.json.tmp").exists()
             )
+
+    def test_v018_inventory_without_fingerprint_fields_still_loads(self):
+        data = {
+            "schema_version": 1,
+            "updated_at": "2026-09-24T12:00:00+00:00",
+            "assets": [
+                {
+                    "address": "192.0.2.10",
+                    "first_seen": "2026-09-24T10:00:00+00:00",
+                    "last_seen": "2026-09-24T12:00:00+00:00",
+                    "last_checked_at": "2026-09-24T12:00:00+00:00",
+                    "hostnames": [],
+                    "last_discovery_responsive": None,
+                    "discovery_methods": [],
+                    "services": [
+                        {
+                            "port": 443,
+                            "service": "https",
+                            "product": "nginx",
+                            "version": "1.24.0",
+                            "tls_certificate_sha256": "abc123",
+                        }
+                    ],
+                    "source_session_ids": [],
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "assets.json"
+            path.write_text(
+                json.dumps(data),
+                encoding="utf-8",
+            )
+
+            inventory = AssetInventoryStore(directory).load()
+
+        service = inventory.assets[0].services[0]
+        self.assertEqual(service.protocol_version, "")
+        self.assertEqual(service.platform, "")
+        self.assertEqual(service.fingerprint_source, "")
+        self.assertEqual(service.fingerprint_confidence, "")
 
     def test_malformed_inventory_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

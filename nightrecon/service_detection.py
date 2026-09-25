@@ -8,6 +8,12 @@ import ipaddress
 import socket
 
 from nightrecon.security_headers import analyze_security_headers
+from nightrecon.service_fingerprint import (
+    ServiceFingerprint,
+    fingerprint_banner,
+    fingerprint_http_server,
+)
+from nightrecon.service_probe import probe_tcp_service
 from nightrecon.software_identity import (
     SoftwareIdentity,
     parse_http_server_identity,
@@ -50,6 +56,7 @@ class ServiceDetectionResult:
     security_headers_present: tuple[str, ...] = ()
     security_headers_missing: tuple[str, ...] = ()
     software_identity: SoftwareIdentity | None = None
+    service_fingerprint: ServiceFingerprint | None = None
     tls_version: str = ""
     tls_cipher: str = ""
     tls_certificate_subject: str = ""
@@ -204,6 +211,7 @@ def detect_service(
     port: int,
     timeout: float,
     server_hostname: str | None = None,
+    probe_intensity: int = 0,
 ) -> ServiceDetectionResult:
     """Connect to an open TCP port and collect bounded service metadata."""
 
@@ -273,6 +281,7 @@ def detect_service(
         security_headers_present: tuple[str, ...] = ()
         security_headers_missing: tuple[str, ...] = ()
         software_identity: SoftwareIdentity | None = None
+        service_fingerprint: ServiceFingerprint | None = None
         tls_version = ""
         tls_cipher = ""
         tls_certificate_subject = ""
@@ -317,10 +326,47 @@ def detect_service(
             software_identity = parse_http_server_identity(
                 http_server
             )
-        elif service == "ssh" and banner:
-            software_identity = parse_ssh_banner_identity(
+            service_fingerprint = fingerprint_http_server(
+                http_server
+            )
+        elif banner:
+            if service == "ssh":
+                software_identity = parse_ssh_banner_identity(
+                    banner
+                )
+
+            service_fingerprint = fingerprint_banner(
                 banner
             )
+
+        if (
+            probe_intensity > 0
+            and service_fingerprint is None
+        ):
+            active_fingerprint = probe_tcp_service(
+                address=address,
+                port=port,
+                timeout=timeout,
+                intensity=probe_intensity,
+            )
+
+            if active_fingerprint is not None:
+                service_fingerprint = active_fingerprint
+
+                if service == "unknown":
+                    service = active_fingerprint.protocol
+
+                if (
+                    software_identity is None
+                    and active_fingerprint.product
+                    and active_fingerprint.version
+                ):
+                    software_identity = SoftwareIdentity(
+                        product=active_fingerprint.product,
+                        version=active_fingerprint.version,
+                        source=active_fingerprint.source,
+                        evidence=active_fingerprint.evidence,
+                    )
 
         if http_status:
             header_analysis = analyze_security_headers(
@@ -345,6 +391,7 @@ def detect_service(
             security_headers_present=security_headers_present,
             security_headers_missing=security_headers_missing,
             software_identity=software_identity,
+            service_fingerprint=service_fingerprint,
             tls_version=tls_version,
             tls_cipher=tls_cipher,
             tls_certificate_subject=tls_certificate_subject,
@@ -365,6 +412,7 @@ def detect_services(
     timeout: float,
     max_workers: int = 50,
     server_hostname: str | None = None,
+    probe_intensity: int = 0,
 ) -> tuple[ServiceDetectionResult, ...]:
     """Detect services concurrently across multiple open TCP ports."""
 
@@ -379,16 +427,29 @@ def detect_services(
     with ThreadPoolExecutor(
         max_workers=min(max_workers, len(ports)),
     ) as executor:
-        futures = {
-            executor.submit(
-                detect_service,
-                address,
-                port,
-                timeout,
-                server_hostname,
-            ): port
-            for port in ports
-        }
+        if probe_intensity == 0:
+            futures = {
+                executor.submit(
+                    detect_service,
+                    address,
+                    port,
+                    timeout,
+                    server_hostname,
+                ): port
+                for port in ports
+            }
+        else:
+            futures = {
+                executor.submit(
+                    detect_service,
+                    address,
+                    port,
+                    timeout,
+                    server_hostname,
+                    probe_intensity,
+                ): port
+                for port in ports
+            }
 
         for future in as_completed(futures):
             results.append(future.result())

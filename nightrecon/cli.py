@@ -418,6 +418,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     scan_parser.add_argument(
+        "--service-probe-intensity",
+        type=int,
+        choices=range(0, 10),
+        default=0,
+        help=(
+            "Bounded active service-probe intensity from 0 to 9. "
+            "0 disables active service probes. Default: 0"
+        ),
+    )
+
+    scan_parser.add_argument(
         "--results-dir",
         default="results",
         help="Directory for result files. Default: results",
@@ -1346,20 +1357,43 @@ def main() -> None:
                 continue
 
             if target.target_type == TargetType.HOSTNAME:
-                services = detect_services(
-                    address=address,
-                    ports=open_ports,
-                    timeout=config.connect_timeout,
-                    max_workers=config.max_workers,
-                    server_hostname=target.value,
-            )
+                if args.service_probe_intensity > 0:
+                    services = detect_services(
+                        address=address,
+                        ports=open_ports,
+                        timeout=config.connect_timeout,
+                        max_workers=config.max_workers,
+                        server_hostname=target.value,
+                        probe_intensity=(
+                            args.service_probe_intensity
+                        ),
+                    )
+                else:
+                    services = detect_services(
+                        address=address,
+                        ports=open_ports,
+                        timeout=config.connect_timeout,
+                        max_workers=config.max_workers,
+                        server_hostname=target.value,
+                    )
             else:
-                services = detect_services(
-                    address=address,
-                    ports=open_ports,
-                    timeout=config.connect_timeout,
-                    max_workers=config.max_workers,
-        )
+                if args.service_probe_intensity > 0:
+                    services = detect_services(
+                        address=address,
+                        ports=open_ports,
+                        timeout=config.connect_timeout,
+                        max_workers=config.max_workers,
+                        probe_intensity=(
+                            args.service_probe_intensity
+                        ),
+                    )
+                else:
+                    services = detect_services(
+                        address=address,
+                        ports=open_ports,
+                        timeout=config.connect_timeout,
+                        max_workers=config.max_workers,
+                    )
 
             all_services.extend(services)
 
@@ -1541,6 +1575,44 @@ def main() -> None:
                     "    Software: "
                     f"{service.software_identity.product} "
                     f"{service.software_identity.version}"
+                )
+
+            if service.service_fingerprint is not None:
+                fingerprint = service.service_fingerprint
+                details = [
+                    f"protocol={fingerprint.protocol}",
+                ]
+
+                if fingerprint.protocol_version:
+                    details.append(
+                        "protocol_version="
+                        f"{fingerprint.protocol_version}"
+                    )
+
+                if fingerprint.product:
+                    details.append(
+                        f"product={fingerprint.product}"
+                    )
+
+                if fingerprint.version:
+                    details.append(
+                        f"version={fingerprint.version}"
+                    )
+
+                if fingerprint.platform:
+                    details.append(
+                        f"platform={fingerprint.platform}"
+                    )
+
+                if fingerprint.confidence:
+                    details.append(
+                        "confidence="
+                        f"{fingerprint.confidence}"
+                    )
+
+                print(
+                    "    Fingerprint: "
+                    + " ".join(details)
                 )
 
             if service.security_headers_present:
