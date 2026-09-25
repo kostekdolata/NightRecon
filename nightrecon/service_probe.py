@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+import socket
 
 from nightrecon.service_fingerprint import ServiceFingerprint
 
@@ -100,6 +101,57 @@ def select_service_probes(
     )
 
     return selected
+
+
+def probe_tcp_service(
+    address: str,
+    port: int,
+    timeout: float,
+    intensity: int,
+) -> ServiceFingerprint | None:
+    """Run bounded active probes and return the first explicit match."""
+
+    if timeout <= 0:
+        raise ValueError(
+            "timeout must be greater than 0."
+        )
+
+    probes = select_service_probes(
+        port=port,
+        intensity=intensity,
+    )
+
+    for probe in probes:
+        sock = None
+
+        try:
+            sock = socket.create_connection(
+                (address, port),
+                timeout=timeout,
+            )
+            sock.settimeout(timeout)
+            sock.sendall(probe.payload)
+            response = sock.recv(
+                probe.max_response_bytes
+            )
+        except (
+            OSError,
+            socket.timeout,
+        ):
+            continue
+        finally:
+            if sock is not None:
+                sock.close()
+
+        fingerprint = match_service_probe_response(
+            probe.probe_id,
+            response,
+        )
+
+        if fingerprint is not None:
+            return fingerprint
+
+    return None
 
 
 def match_service_probe_response(
