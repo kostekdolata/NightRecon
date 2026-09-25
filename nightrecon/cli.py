@@ -62,6 +62,10 @@ from nightrecon.vulnerability_intelligence import (
     enrich_service_vulnerabilities,
     summarize_vulnerabilities,
 )
+from nightrecon.web_assessment import (
+    assess_web_pages,
+    summarize_web_assessments,
+)
 from nightrecon.web_crawl import (
     crawl_site,
     normalize_http_url,
@@ -437,6 +441,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--logs-dir",
         default="logs",
         help="Directory for audit logs. Default: logs",
+    )
+
+    crawl_parser.add_argument(
+        "--assessment",
+        action="store_true",
+        help=(
+            "Run passive web DAST checks over captured crawl metadata. "
+            "No forms are submitted and no extra probe requests are sent."
+        ),
     )
 
     scan_parser = subparsers.add_parser(
@@ -1358,6 +1371,14 @@ def main() -> None:
             )
             parser.error(str(exc))
 
+        assessment_findings = (
+            assess_web_pages(
+                crawl.pages
+            )
+            if args.assessment
+            else ()
+        )
+
         session = ScanSession.create(
             target=target,
             scope_rules=tuple(
@@ -1367,6 +1388,8 @@ def main() -> None:
         crawl_report = WebCrawlReport.create(
             session=session,
             crawl=crawl,
+            assessment_enabled=args.assessment,
+            assessment_findings=assessment_findings,
         )
         output_path = ResultStore(
             config.results_dir
@@ -1390,6 +1413,12 @@ def main() -> None:
             ),
             failed_pages=len(
                 crawl_report.failed_pages
+            ),
+            assessment_enabled=(
+                crawl_report.assessment_enabled
+            ),
+            assessment_findings=len(
+                crawl_report.assessment_findings
             ),
             status=crawl_report.status,
         )
@@ -1465,6 +1494,33 @@ def main() -> None:
             for source in page.script_sources:
                 print(
                     f"    SCRIPT {source}"
+                )
+
+        if crawl_report.assessment_enabled:
+            assessment_summary = summarize_web_assessments(
+                crawl_report.assessment_findings
+            )
+            print(
+                "Web Assessment Summary: "
+                f"findings={assessment_summary.total_findings} "
+                f"high={assessment_summary.high_count} "
+                f"medium={assessment_summary.medium_count} "
+                f"low={assessment_summary.low_count} "
+                f"unknown={assessment_summary.unknown_count}"
+            )
+
+            for finding in crawl_report.assessment_findings:
+                print(
+                    "  FINDING "
+                    f"{finding.check_id} "
+                    f"severity={finding.severity} "
+                    f"page={finding.page_url}"
+                )
+                print(
+                    f"    {finding.title}"
+                )
+                print(
+                    f"    Evidence: {finding.evidence}"
                 )
 
         print(
