@@ -7,7 +7,12 @@ import unittest
 from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import parse_target
-from nightrecon.web_crawl import CrawlPage, CrawlResult
+from nightrecon.web_crawl import (
+    CrawlPage,
+    CrawlResult,
+    WebFormInput,
+    WebFormObservation,
+)
 from nightrecon.web_report import WebCrawlReport
 
 
@@ -28,6 +33,22 @@ class WebCrawlReportTests(unittest.TestCase):
                     byte_count=100,
                     links=(
                         "https://example.test/admin",
+                    ),
+                    title="Home",
+                    forms=(
+                        WebFormObservation(
+                            action="https://example.test/session",
+                            method="POST",
+                            inputs=(
+                                WebFormInput(
+                                    name="username",
+                                    input_type="text",
+                                ),
+                            ),
+                        ),
+                    ),
+                    script_sources=(
+                        "https://example.test/app.js",
                     ),
                 ),
                 CrawlPage(
@@ -69,6 +90,14 @@ class WebCrawlReportTests(unittest.TestCase):
         )
         self.assertEqual(
             data["summary"]["links_observed"],
+            1,
+        )
+        self.assertEqual(
+            data["summary"]["forms_observed"],
+            1,
+        )
+        self.assertEqual(
+            data["summary"]["script_sources_observed"],
             1,
         )
 
