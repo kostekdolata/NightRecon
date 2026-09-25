@@ -46,6 +46,7 @@ class _FakeOpener:
     ) -> None:
         self.responses = responses
         self.requests = []
+        self.request_objects = []
 
     def open(
         self,
@@ -58,6 +59,9 @@ class _FakeOpener:
                 request.get_method(),
                 timeout,
             )
+        )
+        self.request_objects.append(
+            request
         )
         return self.responses[
             request.full_url
@@ -150,6 +154,57 @@ class SafeActiveWebAssessmentTests(unittest.TestCase):
         self.assertIn(
             "DELETE, PUT",
             result.findings[0].evidence,
+        )
+
+    def test_authenticated_context_is_sent_with_options_probe(self):
+        page = CrawlPage(
+            url="https://example.test/",
+            status=200,
+            content_type="text/html",
+            byte_count=10,
+            links=(),
+        )
+        opener = _FakeOpener(
+            {
+                "https://example.test/": _FakeResponse(
+                    url="https://example.test/",
+                    allow="GET, OPTIONS",
+                )
+            }
+        )
+
+        with patch(
+            "nightrecon.web_active_assessment.build_opener",
+            return_value=opener,
+        ):
+            result = assess_web_pages_safe_active(
+                pages=(page,),
+                origin="https://example.test",
+                authorized=True,
+                authorization="Bearer test-token",
+                cookie="session=test-cookie",
+            )
+
+        request = opener.request_objects[0]
+        headers = dict(
+            request.header_items()
+        )
+
+        self.assertEqual(
+            headers["Authorization"],
+            "Bearer test-token",
+        )
+        self.assertEqual(
+            headers["Cookie"],
+            "session=test-cookie",
+        )
+        self.assertNotIn(
+            "test-token",
+            repr(result),
+        )
+        self.assertNotIn(
+            "test-cookie",
+            repr(result),
         )
 
     def test_safe_methods_do_not_generate_finding(self):
@@ -306,6 +361,22 @@ class SafeActiveWebAssessmentTests(unittest.TestCase):
                 origin="https://example.test",
                 authorized=True,
                 max_requests=0,
+            )
+
+        with self.assertRaises(ValueError):
+            assess_web_pages_safe_active(
+                pages=(),
+                origin="https://example.test",
+                authorized=True,
+                authorization="",
+            )
+
+        with self.assertRaises(ValueError):
+            assess_web_pages_safe_active(
+                pages=(),
+                origin="https://example.test",
+                authorized=True,
+                cookie="",
             )
 
 
