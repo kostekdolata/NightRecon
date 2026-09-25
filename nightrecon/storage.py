@@ -8,6 +8,7 @@ from pathlib import Path
 from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.report import TcpScanReport
 from nightrecon.session import ScanSession
+from nightrecon.web_report import WebCrawlReport
 
 
 class ResultStore:
@@ -37,6 +38,17 @@ class ResultStore:
         report: HostDiscoveryReport,
     ) -> Path:
         """Save a completed host-discovery report."""
+
+        return self._save_json(
+            session_id=report.session_id,
+            data=report.to_dict(),
+        )
+
+    def save_web_crawl_report(
+        self,
+        report: WebCrawlReport,
+    ) -> Path:
+        """Save a completed web-crawl report."""
 
         return self._save_json(
             session_id=report.session_id,
