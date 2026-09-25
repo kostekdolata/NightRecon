@@ -37,6 +37,20 @@ class WebCrawlTests(unittest.TestCase):
             "http://example.test:8080",
         )
 
+    def test_ipv6_url_normalization_preserves_brackets(self):
+        self.assertEqual(
+            normalize_http_url(
+                "https://[2001:db8::1]:443/docs#top"
+            ),
+            "https://[2001:db8::1]/docs",
+        )
+        self.assertEqual(
+            url_origin(
+                "http://[2001:db8::1]:8080/path"
+            ),
+            "http://[2001:db8::1]:8080",
+        )
+
     def test_extract_links_keeps_only_same_origin_http_links(self):
         html = """
         <a href="/admin">Admin</a>
