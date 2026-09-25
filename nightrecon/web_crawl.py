@@ -132,10 +132,16 @@ def normalize_http_url(value: str) -> str:
         scheme == "https" and port == 443
     )
 
+    host_for_netloc = (
+        f"[{host}]"
+        if ":" in host
+        else host
+    )
+
     if port is None or default_port:
-        netloc = host
+        netloc = host_for_netloc
     else:
-        netloc = f"{host}:{port}"
+        netloc = f"{host_for_netloc}:{port}"
 
     path = parsed.path or "/"
 
