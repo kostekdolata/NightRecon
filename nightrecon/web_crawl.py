@@ -9,7 +9,7 @@ from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
-_DEFAULT_USER_AGENT = "NightRecon/0.21 web-crawler"
+_DEFAULT_USER_AGENT = "NightRecon/0.22 web-crawler"
 _HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
 _MAX_TITLE_LENGTH = 512
 
