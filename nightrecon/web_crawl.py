@@ -5,9 +5,15 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from html.parser import HTMLParser
+from http.cookiejar import CookieJar
 from http.cookies import CookieError, SimpleCookie
 from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import (
+    HTTPCookieProcessor,
+    HTTPRedirectHandler,
+    Request,
+    build_opener,
+)
 
 
 _DEFAULT_USER_AGENT = "NightRecon/0.23 web-crawler"
@@ -472,6 +478,7 @@ def crawl_site(
     user_agent: str = _DEFAULT_USER_AGENT,
     authorization: str | None = None,
     cookie: str | None = None,
+    cookie_jar: CookieJar | None = None,
 ) -> CrawlResult:
     """Crawl one HTTP(S) origin with explicit resource bounds."""
 
@@ -530,6 +537,7 @@ def crawl_site(
                 if cookie is not None
                 else None
             ),
+            cookie_jar=cookie_jar,
         )
         pages.append(page)
 
@@ -556,6 +564,7 @@ def _fetch_page(
     user_agent: str,
     authorization: str | None = None,
     cookie: str | None = None,
+    cookie_jar: CookieJar | None = None,
 ) -> CrawlPage:
     headers = {
         "User-Agent": user_agent,
@@ -574,8 +583,17 @@ def _fetch_page(
         method="GET",
     )
 
+    handlers = [
+        _SameOriginRedirectHandler(origin),
+    ]
+
+    if cookie_jar is not None:
+        handlers.append(
+            HTTPCookieProcessor(cookie_jar)
+        )
+
     opener = build_opener(
-        _SameOriginRedirectHandler(origin)
+        *handlers
     )
 
     try:
