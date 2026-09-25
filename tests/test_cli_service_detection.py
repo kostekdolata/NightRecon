@@ -181,6 +181,12 @@ class CliServiceDetectionTests(unittest.TestCase):
             output,
         )
         self.assertIn(
+            "OS FINGERPRINT 127.0.0.1 "
+            "platform=Ubuntu family=Linux "
+            "confidence=medium evidence=1",
+            output,
+        )
+        self.assertIn(
             "Security Headers Present: "
             "content-security-policy, "
             "strict-transport-security, "
