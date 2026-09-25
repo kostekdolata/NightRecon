@@ -41,6 +41,9 @@ from nightrecon.host_discovery import (
 )
 from nightrecon.logging import NightReconLogger
 from nightrecon.nvd_provider import NvdVulnerabilityProvider
+from nightrecon.os_fingerprint import (
+    build_host_operating_system_fingerprints,
+)
 from nightrecon.ports import parse_ports
 from nightrecon.report import TcpScanReport
 from nightrecon.resolver import resolve_target
@@ -1397,6 +1400,12 @@ def main() -> None:
 
             all_services.extend(services)
 
+        operating_system_fingerprints = (
+            build_host_operating_system_fingerprints(
+                tuple(all_services)
+            )
+        )
+
         all_assessments = ()
         assessment_catalog_errors = ()
 
@@ -1479,6 +1488,9 @@ def main() -> None:
             ports_requested=ports,
             results=tuple(all_results),
             services=tuple(all_services),
+            operating_system_fingerprints=(
+                operating_system_fingerprints
+            ),
             assessment_enabled=args.assessment,
             assessment_catalog_errors=assessment_catalog_errors,
             assessments=all_assessments,
@@ -1744,6 +1756,39 @@ def main() -> None:
                     "Assessment Catalog Error: "
                     f"{error}"
                 )
+
+        for host_os in report.operating_system_fingerprints:
+            fingerprint = host_os.fingerprint
+
+            if fingerprint.confidence == "conflicting":
+                print(
+                    f"  OS FINGERPRINT {host_os.address} "
+                    "confidence=conflicting "
+                    "candidates="
+                    f"{','.join(fingerprint.candidates)}"
+                )
+                continue
+
+            details = [
+                f"platform={fingerprint.platform}",
+            ]
+
+            if fingerprint.family:
+                details.append(
+                    f"family={fingerprint.family}"
+                )
+
+            details.append(
+                f"confidence={fingerprint.confidence}"
+            )
+            details.append(
+                f"evidence={len(fingerprint.evidence)}"
+            )
+
+            print(
+                f"  OS FINGERPRINT {host_os.address} "
+                + " ".join(details)
+            )
 
         for vulnerability in report.vulnerabilities:
             lookup = vulnerability.lookup
