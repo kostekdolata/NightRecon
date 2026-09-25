@@ -481,6 +481,24 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    crawl_parser.add_argument(
+        "--authorization-env",
+        help=(
+            "Name of an environment variable containing the complete "
+            "HTTP Authorization header value for authenticated crawling. "
+            "The value is never printed or persisted."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--cookie-env",
+        help=(
+            "Name of an environment variable containing the HTTP Cookie "
+            "header value for authenticated crawling. "
+            "The value is never printed or persisted."
+        ),
+    )
+
     scan_parser = subparsers.add_parser(
         "scan",
         help="Scan an authorized target.",
@@ -1361,6 +1379,34 @@ def main() -> None:
                 logs_dir=args.logs_dir,
             )
 
+            authorization = None
+            cookie = None
+
+            if args.authorization_env:
+                authorization = os.environ.get(
+                    args.authorization_env
+                )
+
+                if (
+                    authorization is None
+                    or not authorization.strip()
+                ):
+                    raise ValueError(
+                        "Authorization environment variable "
+                        f"'{args.authorization_env}' is missing or empty."
+                    )
+
+            if args.cookie_env:
+                cookie = os.environ.get(
+                    args.cookie_env
+                )
+
+                if cookie is None or not cookie.strip():
+                    raise ValueError(
+                        "Cookie environment variable "
+                        f"'{args.cookie_env}' is missing or empty."
+                    )
+
             if (
                 args.assessment
                 and args.max_web_assessment_intrusiveness == "safe-active"
@@ -1397,6 +1443,8 @@ def main() -> None:
                     args.max_bytes_per_page
                 ),
                 timeout=config.connect_timeout,
+                authorization=authorization,
+                cookie=cookie,
             )
         except ValueError as exc:
             logger.write(
@@ -1431,6 +1479,8 @@ def main() -> None:
                     authorized=scope.is_authorized(target),
                     timeout=config.connect_timeout,
                     max_requests=args.max_web_assessment_requests,
+                    authorization=authorization,
+                    cookie=cookie,
                 )
             except (PermissionError, ValueError) as exc:
                 logger.write(
