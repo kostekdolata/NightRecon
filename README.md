@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.19.0**
+**v0.20.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
+NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
 
 ## Features
 
@@ -35,6 +35,16 @@ NightRecon now includes scope-enforced concurrent TCP scanning, authorized bound
 - Persistent asset inventory tracks protocol version, platform, fingerprint source, and confidence
 - Fingerprint changes are journaled separately from software-version changes
 - Existing v0.18 schema-version-1 asset inventories remain backward-compatible with empty defaults for new fingerprint fields
+- Evidence-based host operating-system fingerprints aggregated from explicit service platform observations
+- Deterministic normalization for Ubuntu, Debian, Red Hat Enterprise Linux, CentOS, Alpine Linux, FreeBSD, OpenBSD, Windows, and Unix evidence
+- Single explicit OS observation produces medium confidence; agreeing independent service evidence raises confidence to high
+- Conflicting platform evidence is preserved as explicit conflict candidates instead of forcing an OS guess
+- One OS fingerprint produced per resolved host address with deterministic address ordering
+- Host OS fingerprints persisted in scan reports and displayed in CLI output
+- Persistent asset inventory tracks OS platform, family, confidence, conflict candidates, and evidence count
+- OS fingerprint changes are journaled as dedicated `os-fingerprint-changed` events
+- Scans without new OS evidence preserve prior asset OS evidence rather than erasing it
+- Existing schema-version-1 inventories remain backward-compatible with empty OS defaults
 - Banner-based service identification on non-standard ports
 - Bounded passive banner detection on confirmed open ports
 - Graceful banner timeout handling
@@ -294,6 +304,8 @@ Persistent asset state remains evidence-based. A later discovery timeout or filt
 
 Deep service fingerprints remain evidence-backed. Active service probing is disabled by default, uses a bounded probe catalog and response size, skips raw-print port 9100, fails soft on probe errors, and does not infer product/version/platform values that are absent from observed responses.
 
+Operating-system fingerprints are evidence aggregations, not blind stack guesses. NightRecon only promotes explicit platform evidence already observed from services, raises confidence when independent services agree, and reports conflicting candidates rather than selecting an unsupported winner.
+
 Vulnerability intelligence is evidence enrichment, not exploitation. An NVD/CPE match does not prove that a detected service is exploitable in its deployed context. CVSS values are reported as severity metadata and should not be treated as a complete risk assessment.
 
 NightRecon preserves the provider match basis and exact identifier used to obtain each vulnerability record. Summary counts and maximum observed CVSS are descriptive evidence only; they are not a NightRecon risk score.
@@ -308,7 +320,6 @@ Managed feed state adds replay protection and immutable local version storage. I
 
 ## Roadmap
 
-- deeper operating-system fingerprinting
 - web crawling, content discovery, and DAST assessment
 - authenticated SSH, SMB, WinRM, database, and network-device assessment
 - Active Directory and identity-security assessment
