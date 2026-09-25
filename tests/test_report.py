@@ -3,6 +3,11 @@
 import unittest
 
 from nightrecon import report
+from nightrecon.os_fingerprint import (
+    HostOperatingSystemFingerprint,
+    OperatingSystemEvidence,
+    OperatingSystemFingerprint,
+)
 from nightrecon.assessment_engine import (
     AssessmentExecutionResult,
     AssessmentFinding,
@@ -509,6 +514,62 @@ class TcpScanReportTests(unittest.TestCase):
         )
         self.assertIsNone(
             data["vulnerability_summary"]
+        )
+
+    def test_report_dictionary_contains_operating_system_fingerprint(self):
+        target = parse_target("192.0.2.10")
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=("192.0.2.0/24",),
+        )
+
+        report = TcpScanReport.create(
+            session=session,
+            resolved_addresses=("192.0.2.10",),
+            ports_requested=(22,),
+            results=(),
+            services=(),
+            operating_system_fingerprints=(
+                HostOperatingSystemFingerprint(
+                    address="192.0.2.10",
+                    fingerprint=OperatingSystemFingerprint(
+                        platform="Ubuntu",
+                        family="Linux",
+                        confidence="high",
+                        evidence=(
+                            OperatingSystemEvidence(
+                                address="192.0.2.10",
+                                port=22,
+                                service="ssh",
+                                platform="Ubuntu",
+                                family="Linux",
+                                source="banner",
+                                evidence="ssh evidence",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        data = report.to_dict()
+
+        self.assertEqual(
+            data["operating_system_fingerprints"][0]["address"],
+            "192.0.2.10",
+        )
+        self.assertEqual(
+            data["operating_system_fingerprints"][0]["fingerprint"][
+                "platform"
+            ],
+            "Ubuntu",
+        )
+        self.assertEqual(
+            data["operating_system_fingerprints"][0]["fingerprint"][
+                "family"
+            ],
+            "Linux",
         )
 
     def test_report_is_completed(self):
