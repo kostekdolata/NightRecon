@@ -115,6 +115,10 @@ class WebCrawlReport:
                 len(page.script_sources)
                 for page in self.pages
             ),
+            "cookies_observed": sum(
+                len(page.cookies)
+                for page in self.pages
+            ),
         }
         data["assessment_summary"] = (
             asdict(

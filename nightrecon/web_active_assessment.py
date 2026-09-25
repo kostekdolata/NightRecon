@@ -10,7 +10,7 @@ from nightrecon.web_assessment import WebAssessmentFinding
 from nightrecon.web_crawl import CrawlPage, normalize_http_url, url_origin
 
 
-_DEFAULT_USER_AGENT = "NightRecon/0.22 safe-active-web-assessment"
+_DEFAULT_USER_AGENT = "NightRecon/0.23 safe-active-web-assessment"
 _RISKY_ADVERTISED_METHODS = frozenset(
     {
         "PUT",
