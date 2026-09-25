@@ -106,6 +106,9 @@ class WebCrawlReportTests(unittest.TestCase):
         self.assertIsNone(
             data["assessment_summary"]
         )
+        self.assertIsNone(
+            data["safe_active_summary"]
+        )
 
     def test_enabled_assessment_summary_is_persisted(self):
         session = ScanSession.create(
@@ -123,6 +126,7 @@ class WebCrawlReportTests(unittest.TestCase):
             session=session,
             crawl=crawl,
             assessment_enabled=True,
+            assessment_intrusiveness="passive",
             assessment_findings=(
                 WebAssessmentFinding(
                     check_id="web.password-form-uses-get",
@@ -150,6 +154,52 @@ class WebCrawlReportTests(unittest.TestCase):
         self.assertEqual(
             data["assessment_findings"][0]["check_id"],
             "web.password-form-uses-get",
+        )
+
+    def test_safe_active_summary_records_probe_evidence(self):
+        session = ScanSession.create(
+            target=parse_target("example.test"),
+            scope_rules=("example.test",),
+        )
+        crawl = CrawlResult(
+            start_url="https://example.test/",
+            origin="https://example.test",
+            pages=(),
+            max_pages=10,
+            max_bytes_per_page=4096,
+        )
+        report = WebCrawlReport.create(
+            session=session,
+            crawl=crawl,
+            assessment_enabled=True,
+            assessment_intrusiveness="safe-active",
+            assessment_findings=(),
+            safe_active_requests_attempted=3,
+            safe_active_successful_probes=2,
+            safe_active_errors=(
+                "https://example.test/b:HTTPError:405",
+            ),
+        )
+
+        data = report.to_dict()
+
+        self.assertEqual(
+            data["assessment_intrusiveness"],
+            "safe-active",
+        )
+        self.assertEqual(
+            data["safe_active_summary"],
+            {
+                "requests_attempted": 3,
+                "successful_probes": 2,
+                "errors": 1,
+            },
+        )
+        self.assertEqual(
+            data["safe_active_errors"],
+            [
+                "https://example.test/b:HTTPError:405"
+            ],
         )
 
     def test_report_is_saved_as_json(self):
