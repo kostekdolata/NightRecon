@@ -330,6 +330,24 @@ def _parse_asset(
                     [],
                 )
             ),
+            os_platform=_optional_text(
+                data.get("os_platform")
+            ),
+            os_family=_optional_text(
+                data.get("os_family")
+            ),
+            os_confidence=_optional_text(
+                data.get("os_confidence")
+            ),
+            os_candidates=_string_tuple(
+                data.get(
+                    "os_candidates",
+                    [],
+                )
+            ),
+            os_evidence_count=_optional_nonnegative_int(
+                data.get("os_evidence_count")
+            ),
             last_discovery_responsive=(
                 _optional_bool(
                     data.get(
@@ -465,6 +483,24 @@ def _string_tuple(
         )
 
     return tuple(value)
+
+
+def _optional_nonnegative_int(
+    value: object,
+) -> int:
+    if value is None:
+        return 0
+
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or value < 0
+    ):
+        raise ValueError(
+            "Invalid asset inventory JSON."
+        )
+
+    return value
 
 
 def _optional_bool(

@@ -32,6 +32,10 @@ class AssetInventoryStoreTests(unittest.TestCase):
                     last_seen="2026-09-24T12:00:00+00:00",
                     last_checked_at="2026-09-24T12:00:00+00:00",
                     hostnames=("web.example.test",),
+                    os_platform="Ubuntu",
+                    os_family="Linux",
+                    os_confidence="high",
+                    os_evidence_count=2,
                     last_discovery_responsive=True,
                     discovery_methods=("tcp-connect",),
                     services=(
@@ -110,6 +114,12 @@ class AssetInventoryStoreTests(unittest.TestCase):
         self.assertEqual(service.platform, "")
         self.assertEqual(service.fingerprint_source, "")
         self.assertEqual(service.fingerprint_confidence, "")
+        asset = inventory.assets[0]
+        self.assertEqual(asset.os_platform, "")
+        self.assertEqual(asset.os_family, "")
+        self.assertEqual(asset.os_confidence, "")
+        self.assertEqual(asset.os_candidates, ())
+        self.assertEqual(asset.os_evidence_count, 0)
 
     def test_malformed_inventory_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

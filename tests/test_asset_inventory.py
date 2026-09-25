@@ -10,6 +10,11 @@ from nightrecon.asset_inventory import (
     apply_scan_report,
 )
 from nightrecon.discovery_report import HostDiscoveryReport
+from nightrecon.os_fingerprint import (
+    HostOperatingSystemFingerprint,
+    OperatingSystemEvidence,
+    OperatingSystemFingerprint,
+)
 from nightrecon.host_discovery import HostDiscoveryResult
 from nightrecon.report import TcpScanReport
 from nightrecon.service_detection import ServiceDetectionResult
@@ -297,6 +302,118 @@ class AssetInventoryTests(unittest.TestCase):
                 for change in update.changes
             ),
         )
+
+    def test_scan_persists_and_tracks_host_os_fingerprint(self):
+        existing = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.10",
+                    first_seen="2026-09-24T10:00:00+00:00",
+                    last_seen="2026-09-24T10:00:00+00:00",
+                    last_checked_at="2026-09-24T10:00:00+00:00",
+                    os_platform="Ubuntu",
+                    os_family="Linux",
+                    os_confidence="medium",
+                    os_evidence_count=1,
+                ),
+            ),
+        )
+
+        report = TcpScanReport(
+            session_id="scan-os",
+            created_at="2026-09-24T15:00:00+00:00",
+            target="192.0.2.10",
+            target_type="ipv4",
+            scope=("192.0.2.0/24",),
+            status="completed",
+            resolved_addresses=("192.0.2.10",),
+            ports_requested=(),
+            results=(),
+            services=(),
+            operating_system_fingerprints=(
+                HostOperatingSystemFingerprint(
+                    address="192.0.2.10",
+                    fingerprint=OperatingSystemFingerprint(
+                        platform="Debian",
+                        family="Linux",
+                        confidence="high",
+                        evidence=(
+                            OperatingSystemEvidence(
+                                address="192.0.2.10",
+                                port=22,
+                                service="ssh",
+                                platform="Debian",
+                                family="Linux",
+                                source="banner",
+                                evidence="ssh evidence",
+                            ),
+                            OperatingSystemEvidence(
+                                address="192.0.2.10",
+                                port=80,
+                                service="http",
+                                platform="Debian",
+                                family="Linux",
+                                source="http-server",
+                                evidence="http evidence",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        update = apply_scan_report(existing, report)
+        asset = update.inventory.assets[0]
+
+        self.assertEqual(asset.os_platform, "Debian")
+        self.assertEqual(asset.os_family, "Linux")
+        self.assertEqual(asset.os_confidence, "high")
+        self.assertEqual(asset.os_evidence_count, 2)
+        self.assertEqual(asset.os_candidates, ())
+        self.assertIn(
+            "os-fingerprint-changed",
+            tuple(
+                change.change_type
+                for change in update.changes
+            ),
+        )
+
+    def test_scan_without_os_evidence_preserves_existing_os_fingerprint(self):
+        existing = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.10",
+                    first_seen="2026-09-24T10:00:00+00:00",
+                    last_seen="2026-09-24T10:00:00+00:00",
+                    last_checked_at="2026-09-24T10:00:00+00:00",
+                    os_platform="Ubuntu",
+                    os_family="Linux",
+                    os_confidence="medium",
+                    os_evidence_count=1,
+                ),
+            ),
+        )
+
+        report = TcpScanReport(
+            session_id="scan-no-os",
+            created_at="2026-09-24T16:00:00+00:00",
+            target="192.0.2.10",
+            target_type="ipv4",
+            scope=("192.0.2.0/24",),
+            status="completed",
+            resolved_addresses=("192.0.2.10",),
+            ports_requested=(),
+            results=(),
+            services=(),
+        )
+
+        update = apply_scan_report(existing, report)
+        asset = update.inventory.assets[0]
+
+        self.assertEqual(asset.os_platform, "Ubuntu")
+        self.assertEqual(asset.os_family, "Linux")
+        self.assertEqual(asset.os_confidence, "medium")
+        self.assertEqual(asset.os_evidence_count, 1)
 
     def test_scan_detects_port_and_software_changes(self):
         existing = AssetInventory(
