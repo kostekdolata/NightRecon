@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from nightrecon.os_fingerprint import (
+    HostOperatingSystemFingerprint,
+)
 from nightrecon.assessment_engine import (
     ServiceAssessmentResult,
     summarize_assessments,
@@ -35,6 +38,10 @@ class TcpScanReport:
     ports_requested: tuple[int, ...]
     results: tuple[TcpPortResult, ...]
     services: tuple[ServiceDetectionResult, ...] = ()
+    operating_system_fingerprints: tuple[
+        HostOperatingSystemFingerprint,
+        ...,
+    ] = ()
     assessment_enabled: bool = False
     assessment_catalog_errors: tuple[str, ...] = ()
     assessments: tuple[ServiceAssessmentResult, ...] = ()
@@ -51,6 +58,10 @@ class TcpScanReport:
         ports_requested: tuple[int, ...],
         results: tuple[TcpPortResult, ...],
         services: tuple[ServiceDetectionResult, ...] = (),
+        operating_system_fingerprints: tuple[
+            HostOperatingSystemFingerprint,
+            ...,
+        ] = (),
         assessment_enabled: bool = False,
         assessment_catalog_errors: tuple[str, ...] = (),
         assessments: tuple[ServiceAssessmentResult, ...] = (),
@@ -70,6 +81,9 @@ class TcpScanReport:
             ports_requested=ports_requested,
             results=results,
             services=services,
+            operating_system_fingerprints=(
+                operating_system_fingerprints
+            ),
             assessment_enabled=assessment_enabled,
             assessment_catalog_errors=assessment_catalog_errors,
             assessments=assessments,
