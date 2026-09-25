@@ -1543,6 +1543,44 @@ def main() -> None:
                     f"{service.software_identity.version}"
                 )
 
+            if service.service_fingerprint is not None:
+                fingerprint = service.service_fingerprint
+                details = [
+                    f"protocol={fingerprint.protocol}",
+                ]
+
+                if fingerprint.protocol_version:
+                    details.append(
+                        "protocol_version="
+                        f"{fingerprint.protocol_version}"
+                    )
+
+                if fingerprint.product:
+                    details.append(
+                        f"product={fingerprint.product}"
+                    )
+
+                if fingerprint.version:
+                    details.append(
+                        f"version={fingerprint.version}"
+                    )
+
+                if fingerprint.platform:
+                    details.append(
+                        f"platform={fingerprint.platform}"
+                    )
+
+                if fingerprint.confidence:
+                    details.append(
+                        "confidence="
+                        f"{fingerprint.confidence}"
+                    )
+
+                print(
+                    "    Fingerprint: "
+                    + " ".join(details)
+                )
+
             if service.security_headers_present:
                 print(
                     "    Security Headers Present: "
