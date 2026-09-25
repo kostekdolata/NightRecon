@@ -75,5 +75,13 @@ class WebCrawlReport:
                 len(page.links)
                 for page in self.pages
             ),
+            "forms_observed": sum(
+                len(page.forms)
+                for page in self.pages
+            ),
+            "script_sources_observed": sum(
+                len(page.script_sources)
+                for page in self.pages
+            ),
         }
         return data
