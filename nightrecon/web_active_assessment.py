@@ -55,6 +55,8 @@ def assess_web_pages_safe_active(
     timeout: float = 5.0,
     max_requests: int = 10,
     user_agent: str = _DEFAULT_USER_AGENT,
+    authorization: str | None = None,
+    cookie: str | None = None,
 ) -> SafeActiveWebAssessmentResult:
     """Issue bounded OPTIONS probes and inspect advertised HTTP methods."""
 
@@ -71,6 +73,22 @@ def assess_web_pages_safe_active(
 
     if not isinstance(user_agent, str) or not user_agent.strip():
         raise ValueError("user_agent must be a non-empty string.")
+
+    if authorization is not None and (
+        not isinstance(authorization, str)
+        or not authorization.strip()
+    ):
+        raise ValueError(
+            "authorization must be a non-empty string when provided."
+        )
+
+    if cookie is not None and (
+        not isinstance(cookie, str)
+        or not cookie.strip()
+    ):
+        raise ValueError(
+            "cookie must be a non-empty string when provided."
+        )
 
     normalized_origin = url_origin(origin)
     candidates: list[str] = []
@@ -113,12 +131,20 @@ def assess_web_pages_safe_active(
 
     for url in candidates:
         requests_attempted += 1
+        headers = {
+            "User-Agent": user_agent.strip(),
+            "Accept": "*/*",
+        }
+
+        if authorization is not None:
+            headers["Authorization"] = authorization.strip()
+
+        if cookie is not None:
+            headers["Cookie"] = cookie.strip()
+
         request = Request(
             url,
-            headers={
-                "User-Agent": user_agent.strip(),
-                "Accept": "*/*",
-            },
+            headers=headers,
             method="OPTIONS",
         )
 
