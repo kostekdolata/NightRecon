@@ -8,7 +8,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from nightrecon.cli import main
-from nightrecon.web_crawl import CrawlPage, CrawlResult
+from nightrecon.web_crawl import (
+    CrawlPage,
+    CrawlResult,
+    WebFormInput,
+    WebFormObservation,
+)
 
 
 def _crawl_result(
@@ -36,6 +41,22 @@ def _crawl_result(
                 content_type="text/html",
                 byte_count=128,
                 links=(),
+                title="Example Page",
+                forms=(
+                    WebFormObservation(
+                        action=f"{origin}/session",
+                        method="POST",
+                        inputs=(
+                            WebFormInput(
+                                name="username",
+                                input_type="text",
+                            ),
+                        ),
+                    ),
+                ),
+                script_sources=(
+                    f"{origin}/app.js",
+                ),
             ),
         ),
         max_pages=max_pages,
@@ -103,6 +124,18 @@ class CliWebCrawlTests(unittest.TestCase):
         )
         self.assertIn(
             "Pages fetched: 1",
+            stdout,
+        )
+        self.assertIn(
+            "Title: Example Page",
+            stdout,
+        )
+        self.assertIn(
+            "FORM method=POST",
+            stdout,
+        )
+        self.assertIn(
+            "SCRIPT https://example.test/app.js",
             stdout,
         )
         crawl_site.assert_called_once_with(
