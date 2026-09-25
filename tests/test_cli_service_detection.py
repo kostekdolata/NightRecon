@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from nightrecon.cli import main
 from nightrecon.service_detection import ServiceDetectionResult
+from nightrecon.service_fingerprint import ServiceFingerprint
 from nightrecon.software_identity import SoftwareIdentity
 from nightrecon.tcp_scanner import TcpPortResult
 
@@ -64,6 +65,15 @@ class CliServiceDetectionTests(unittest.TestCase):
                     version="1.24.0",
                     source="http-server",
                     evidence="nginx/1.24.0",
+                ),
+                service_fingerprint=ServiceFingerprint(
+                    protocol="http",
+                    product="nginx",
+                    version="1.24.0",
+                    platform="Ubuntu",
+                    source="http-server",
+                    evidence="nginx/1.24.0 (Ubuntu)",
+                    confidence="high",
                 ),
             ),
         )
@@ -163,6 +173,11 @@ class CliServiceDetectionTests(unittest.TestCase):
         )
         self.assertIn(
             "Software: nginx 1.24.0",
+            output,
+        )
+        self.assertIn(
+            "Fingerprint: protocol=http product=nginx "
+            "version=1.24.0 platform=Ubuntu confidence=high",
             output,
         )
         self.assertIn(
