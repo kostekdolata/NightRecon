@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.18.0**
+**v0.19.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, passive service fingerprinting, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
+NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
 
 ## Features
 
@@ -21,6 +21,20 @@ NightRecon now includes scope-enforced concurrent TCP scanning, authorized bound
 - Concurrent service detection across confirmed open ports
 - Configurable service-detection worker limits
 - Passive banner fingerprinting for SSH, FTP, and SMTP
+- Structured deep service fingerprints with protocol, protocol version, product, version, platform, source evidence, and confidence
+- Passive high-confidence fingerprint extraction from OpenSSH, ProFTPD, FileZilla, Postfix, Exim, and HTTP Server observations
+- Explicit platform hints preserved only when present in observed banners or HTTP Server metadata
+- Opt-in bounded active service-probe engine with intensity levels 0 through 9
+- Active HTTP HEAD, SMTP EHLO, Redis PING, memcached version, IMAP CAPABILITY, and POP3 CAPA probes
+- Active service probing disabled by default with `--service-probe-intensity 0`
+- Raw-print port 9100 excluded from active service probes
+- Bounded per-probe response reads and fail-soft timeout/OSError handling
+- Active probe fingerprints can identify services on non-standard ports without speculative fallback
+- Explicit active product/version evidence can feed existing software identity and downstream CPE/vulnerability intelligence
+- Deep fingerprints displayed in CLI output and persisted in scan reports
+- Persistent asset inventory tracks protocol version, platform, fingerprint source, and confidence
+- Fingerprint changes are journaled separately from software-version changes
+- Existing v0.18 schema-version-1 asset inventories remain backward-compatible with empty defaults for new fingerprint fields
 - Banner-based service identification on non-standard ports
 - Bounded passive banner detection on confirmed open ports
 - Graceful banner timeout handling
@@ -151,6 +165,10 @@ NightRecon now includes scope-enforced concurrent TCP scanning, authorized bound
 
 nightrecon scan 127.0.0.1 --scope 127.0.0.1
 
+Enable bounded active service fingerprint probes at a conservative intensity:
+
+`nightrecon scan 127.0.0.1 --scope 127.0.0.1 --ports 22,80,443,6379,9000 --service-probe-intensity 1`
+
 Discover responsive hosts in an explicitly authorized CIDR:
 
 `nightrecon discover 192.0.2.0/24 --scope 192.0.2.0/24 --max-hosts 1024`
@@ -274,6 +292,8 @@ CIDR discovery is intentionally separated from ordinary port scanning. The entir
 
 Persistent asset state remains evidence-based. A later discovery timeout or filtered response does not delete an asset or rewrite its prior `last_seen`; it records only the latest check outcome. Explicit scan results can close previously observed ports only when those ports were actually requested in the new scan.
 
+Deep service fingerprints remain evidence-backed. Active service probing is disabled by default, uses a bounded probe catalog and response size, skips raw-print port 9100, fails soft on probe errors, and does not infer product/version/platform values that are absent from observed responses.
+
 Vulnerability intelligence is evidence enrichment, not exploitation. An NVD/CPE match does not prove that a detected service is exploitable in its deployed context. CVSS values are reported as severity metadata and should not be treated as a complete risk assessment.
 
 NightRecon preserves the provider match basis and exact identifier used to obtain each vulnerability record. Summary counts and maximum observed CVSS are descriptive evidence only; they are not a NightRecon risk score.
@@ -288,7 +308,7 @@ Managed feed state adds replay protection and immutable local version storage. I
 
 ## Roadmap
 
-- deeper service and operating-system fingerprinting
+- deeper operating-system fingerprinting
 - web crawling, content discovery, and DAST assessment
 - authenticated SSH, SMB, WinRM, database, and network-device assessment
 - Active Directory and identity-security assessment
