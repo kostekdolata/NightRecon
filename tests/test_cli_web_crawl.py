@@ -146,6 +146,122 @@ class CliWebCrawlTests(unittest.TestCase):
         )
         store_class.return_value.save_web_crawl_report.assert_called_once()
 
+    def test_passive_assessment_is_opt_in_and_reports_findings(self):
+        crawl = CrawlResult(
+            start_url="http://example.test/login",
+            origin="http://example.test",
+            pages=(
+                CrawlPage(
+                    url="http://example.test/login",
+                    status=200,
+                    content_type="text/html",
+                    byte_count=128,
+                    links=(),
+                    forms=(
+                        WebFormObservation(
+                            action="http://example.test/session",
+                            method="GET",
+                            inputs=(
+                                WebFormInput(
+                                    name="password",
+                                    input_type="password",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            max_pages=50,
+            max_bytes_per_page=1_048_576,
+        )
+
+        with patch(
+            "nightrecon.cli.crawl_site",
+            return_value=crawl,
+        ):
+            with patch(
+                "nightrecon.cli.ResultStore"
+            ) as store_class:
+                store_class.return_value.save_web_crawl_report.return_value = (
+                    Path("results/crawl.json")
+                )
+
+                with patch(
+                    "nightrecon.cli.NightReconLogger"
+                ):
+                    code, stdout, stderr = self.run_cli(
+                        "crawl",
+                        "http://example.test/login",
+                        "--scope",
+                        "example.test",
+                        "--assessment",
+                    )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn(
+            "Web Assessment Summary: findings=2",
+            stdout,
+        )
+        self.assertIn(
+            "web.password-form-over-http",
+            stdout,
+        )
+        self.assertIn(
+            "web.password-form-uses-get",
+            stdout,
+        )
+
+        report = (
+            store_class.return_value
+            .save_web_crawl_report
+            .call_args.args[0]
+        )
+        self.assertTrue(
+            report.assessment_enabled
+        )
+        self.assertEqual(
+            len(report.assessment_findings),
+            2,
+        )
+
+    def test_assessment_is_disabled_by_default(self):
+        crawl = _crawl_result(
+            start_url="https://example.test/",
+        )
+
+        with patch(
+            "nightrecon.cli.crawl_site",
+            return_value=crawl,
+        ):
+            with patch(
+                "nightrecon.cli.assess_web_pages"
+            ) as assess:
+                with patch(
+                    "nightrecon.cli.ResultStore"
+                ) as store_class:
+                    store_class.return_value.save_web_crawl_report.return_value = (
+                        Path("results/crawl.json")
+                    )
+
+                    with patch(
+                        "nightrecon.cli.NightReconLogger"
+                    ):
+                        code, stdout, stderr = self.run_cli(
+                            "crawl",
+                            "https://example.test/",
+                            "--scope",
+                            "example.test",
+                        )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertNotIn(
+            "Web Assessment Summary:",
+            stdout,
+        )
+        assess.assert_not_called()
+
     def test_ip_inside_cidr_scope_is_authorized(self):
         crawl = _crawl_result(
             start_url="https://192.0.2.10/",
