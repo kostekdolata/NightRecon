@@ -6,7 +6,7 @@ from collections import deque
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 _DEFAULT_USER_AGENT = "NightRecon/0.21 web-crawler"
@@ -42,6 +42,42 @@ class CrawlResult:
     @property
     def successful_pages(self) -> int:
         return sum(page.error == "" for page in self.pages)
+
+
+class _SameOriginRedirectHandler(HTTPRedirectHandler):
+    """Allow redirects only within the crawl's authorized origin."""
+
+    def __init__(self, origin: str) -> None:
+        super().__init__()
+        self.origin = origin
+
+    def redirect_request(
+        self,
+        req,
+        fp,
+        code,
+        msg,
+        headers,
+        newurl,
+    ):
+        absolute = normalize_http_url(
+            urljoin(req.full_url, newurl)
+        )
+
+        if url_origin(absolute) != self.origin:
+            raise ValueError(
+                "Cross-origin redirect blocked: "
+                f"{absolute}"
+            )
+
+        return super().redirect_request(
+            req,
+            fp,
+            code,
+            msg,
+            headers,
+            absolute,
+        )
 
 
 class _LinkParser(HTMLParser):
@@ -239,14 +275,28 @@ def _fetch_page(
         method="GET",
     )
 
+    opener = build_opener(
+        _SameOriginRedirectHandler(origin)
+    )
+
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with opener.open(request, timeout=timeout) as response:
             status = getattr(response, "status", None)
             content_type = (
                 response.headers.get_content_type()
                 if response.headers is not None
                 else ""
             )
+            final_url = normalize_http_url(
+                response.geturl()
+            )
+
+            if url_origin(final_url) != origin:
+                raise ValueError(
+                    "Cross-origin response blocked: "
+                    f"{final_url}"
+                )
+
             raw = response.read(max_bytes + 1)
     except Exception as exc:
         return CrawlPage(
@@ -272,7 +322,7 @@ def _fetch_page(
             html = raw.decode("utf-8", errors="replace")
 
         links = extract_same_origin_links(
-            base_url=url,
+            base_url=final_url,
             html=html,
             origin=origin,
         )
