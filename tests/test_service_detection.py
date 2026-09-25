@@ -260,6 +260,74 @@ class ServiceDetectionTests(unittest.TestCase):
             ),
         )
 
+    def test_active_probe_can_identify_unknown_service_when_enabled(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        active_fingerprint = ServiceFingerprint(
+            protocol="http",
+            product="nginx",
+            version="1.24.0",
+            source="active-probe:http-head",
+            evidence="Server: nginx/1.24.0",
+            confidence="high",
+        )
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tcp_service",
+                return_value=active_fingerprint,
+            ) as active_probe:
+                result = detect_service(
+                    address="127.0.0.1",
+                    port=9000,
+                    timeout=1.0,
+                    probe_intensity=1,
+                )
+
+        active_probe.assert_called_once_with(
+            address="127.0.0.1",
+            port=9000,
+            timeout=1.0,
+            intensity=1,
+        )
+        self.assertEqual(result.service, "http")
+        self.assertEqual(
+            result.service_fingerprint,
+            active_fingerprint,
+        )
+        self.assertEqual(
+            result.software_identity,
+            SoftwareIdentity(
+                product="nginx",
+                version="1.24.0",
+                source="active-probe:http-head",
+                evidence="Server: nginx/1.24.0",
+            ),
+        )
+
+    def test_active_probe_is_disabled_by_default(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon.service_detection.socket.socket",
+            return_value=fake_socket,
+        ):
+            with patch(
+                "nightrecon.service_detection.probe_tcp_service"
+            ) as active_probe:
+                detect_service(
+                    address="127.0.0.1",
+                    port=9000,
+                    timeout=1.0,
+                )
+
+        active_probe.assert_not_called()
+
     def test_https_detection_includes_certificate_sha256(self):
         fake_socket = MagicMock()
         fake_socket.recv.side_effect = socket.timeout()
