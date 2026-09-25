@@ -8,6 +8,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from nightrecon.cli import main
+from nightrecon.web_active_assessment import (
+    SafeActiveWebAssessmentResult,
+)
+from nightrecon.web_assessment import WebAssessmentFinding
 from nightrecon.web_crawl import (
     CrawlPage,
     CrawlResult,
@@ -143,6 +147,8 @@ class CliWebCrawlTests(unittest.TestCase):
             max_pages=5,
             max_bytes_per_page=4096,
             timeout=5.0,
+            authorization=None,
+            cookie=None,
         )
         store_class.return_value.save_web_crawl_report.assert_called_once()
 
@@ -225,6 +231,160 @@ class CliWebCrawlTests(unittest.TestCase):
             2,
         )
 
+    def test_passive_assessment_does_not_run_safe_active_probes(self):
+        crawl = _crawl_result(
+            start_url="https://example.test/",
+        )
+
+        with patch(
+            "nightrecon.cli.crawl_site",
+            return_value=crawl,
+        ):
+            with patch(
+                "nightrecon.cli.assess_web_pages_safe_active"
+            ) as safe_active:
+                with patch(
+                    "nightrecon.cli.ResultStore"
+                ) as store_class:
+                    store_class.return_value.save_web_crawl_report.return_value = (
+                        Path("results/crawl.json")
+                    )
+
+                    with patch(
+                        "nightrecon.cli.NightReconLogger"
+                    ):
+                        code, stdout, stderr = self.run_cli(
+                            "crawl",
+                            "https://example.test/",
+                            "--scope",
+                            "example.test",
+                            "--assessment",
+                        )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn(
+            "Assessment intrusiveness: passive",
+            stdout,
+        )
+        safe_active.assert_not_called()
+
+    def test_safe_active_assessment_is_explicit_and_bounded(self):
+        crawl = _crawl_result(
+            start_url="https://example.test/",
+        )
+        active_result = SafeActiveWebAssessmentResult(
+            findings=(
+                WebAssessmentFinding(
+                    check_id="web.risky-http-methods-advertised",
+                    title="Potentially risky HTTP methods are advertised",
+                    severity="low",
+                    page_url="https://example.test/",
+                    evidence="OPTIONS Allow header advertised: DELETE",
+                ),
+            ),
+            requests_attempted=1,
+            successful_probes=1,
+            max_requests=3,
+            errors=(),
+        )
+
+        with patch(
+            "nightrecon.cli.crawl_site",
+            return_value=crawl,
+        ):
+            with patch(
+                "nightrecon.cli.assess_web_pages_safe_active",
+                return_value=active_result,
+            ) as safe_active:
+                with patch(
+                    "nightrecon.cli.ResultStore"
+                ) as store_class:
+                    store_class.return_value.save_web_crawl_report.return_value = (
+                        Path("results/crawl.json")
+                    )
+
+                    with patch(
+                        "nightrecon.cli.NightReconLogger"
+                    ):
+                        code, stdout, stderr = self.run_cli(
+                            "crawl",
+                            "https://example.test/",
+                            "--scope",
+                            "example.test",
+                            "--assessment",
+                            "--max-web-assessment-intrusiveness",
+                            "safe-active",
+                            "--max-web-assessment-requests",
+                            "3",
+                        )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn(
+            "Assessment intrusiveness: safe-active",
+            stdout,
+        )
+        self.assertIn(
+            "Safe-active probes: attempted=1 successful=1 errors=0",
+            stdout,
+        )
+        self.assertIn(
+            "web.risky-http-methods-advertised",
+            stdout,
+        )
+        safe_active.assert_called_once_with(
+            pages=crawl.pages,
+            origin=crawl.origin,
+            authorized=True,
+            timeout=5.0,
+            max_requests=3,
+            authorization=None,
+            cookie=None,
+        )
+
+        report = (
+            store_class.return_value
+            .save_web_crawl_report
+            .call_args.args[0]
+        )
+        self.assertEqual(
+            report.assessment_intrusiveness,
+            "safe-active",
+        )
+        self.assertEqual(
+            report.safe_active_requests_attempted,
+            1,
+        )
+
+    def test_invalid_safe_active_request_limit_is_rejected_before_crawl(self):
+        with patch(
+            "nightrecon.cli.crawl_site"
+        ) as crawl_site:
+            with patch(
+                "nightrecon.cli.NightReconLogger"
+            ) as logger_class:
+                code, stdout, stderr = self.run_cli(
+                    "crawl",
+                    "https://example.test/",
+                    "--scope",
+                    "example.test",
+                    "--assessment",
+                    "--max-web-assessment-intrusiveness",
+                    "safe-active",
+                    "--max-web-assessment-requests",
+                    "0",
+                )
+
+        self.assertEqual(code, 2)
+        self.assertEqual(stdout, "")
+        self.assertIn(
+            "max_web_assessment_requests must be at least 1",
+            stderr,
+        )
+        crawl_site.assert_not_called()
+        logger_class.assert_not_called()
+
     def test_assessment_is_disabled_by_default(self):
         crawl = _crawl_result(
             start_url="https://example.test/",
@@ -261,6 +421,195 @@ class CliWebCrawlTests(unittest.TestCase):
             stdout,
         )
         assess.assert_not_called()
+
+    def test_authenticated_crawl_reads_secrets_from_environment_only(self):
+        crawl = _crawl_result(
+            start_url="https://example.test/",
+        )
+        authorization = "Bearer super-secret-token"
+        cookie = "session=super-secret-cookie"
+
+        with patch.dict(
+            "os.environ",
+            {
+                "NIGHTRECON_TEST_AUTH": authorization,
+                "NIGHTRECON_TEST_COOKIE": cookie,
+            },
+            clear=False,
+        ):
+            with patch(
+                "nightrecon.cli.crawl_site",
+                return_value=crawl,
+            ) as crawl_site:
+                with patch(
+                    "nightrecon.cli.ResultStore"
+                ) as store_class:
+                    store_class.return_value.save_web_crawl_report.return_value = (
+                        Path("results/crawl.json")
+                    )
+
+                    with patch(
+                        "nightrecon.cli.NightReconLogger"
+                    ) as logger_class:
+                        code, stdout, stderr = self.run_cli(
+                            "crawl",
+                            "https://example.test/",
+                            "--scope",
+                            "example.test",
+                            "--authorization-env",
+                            "NIGHTRECON_TEST_AUTH",
+                            "--cookie-env",
+                            "NIGHTRECON_TEST_COOKIE",
+                        )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertEqual(
+            crawl_site.call_args.kwargs["authorization"],
+            authorization,
+        )
+        self.assertEqual(
+            crawl_site.call_args.kwargs["cookie"],
+            cookie,
+        )
+        self.assertNotIn(
+            authorization,
+            stdout,
+        )
+        self.assertNotIn(
+            cookie,
+            stdout,
+        )
+        self.assertNotIn(
+            authorization,
+            repr(
+                logger_class.return_value.write.call_args_list
+            ),
+        )
+        self.assertNotIn(
+            cookie,
+            repr(
+                logger_class.return_value.write.call_args_list
+            ),
+        )
+
+        report = (
+            store_class.return_value
+            .save_web_crawl_report
+            .call_args.args[0]
+        )
+        self.assertNotIn(
+            authorization,
+            repr(report),
+        )
+        self.assertNotIn(
+            cookie,
+            repr(report),
+        )
+
+    def test_authenticated_safe_active_reuses_ephemeral_context(self):
+        crawl = _crawl_result(
+            start_url="https://example.test/",
+        )
+        active_result = SafeActiveWebAssessmentResult(
+            findings=(),
+            requests_attempted=1,
+            successful_probes=1,
+            max_requests=2,
+            errors=(),
+        )
+
+        with patch.dict(
+            "os.environ",
+            {
+                "NIGHTRECON_TEST_AUTH": "Bearer active-secret",
+                "NIGHTRECON_TEST_COOKIE": "session=active-cookie",
+            },
+            clear=False,
+        ):
+            with patch(
+                "nightrecon.cli.crawl_site",
+                return_value=crawl,
+            ):
+                with patch(
+                    "nightrecon.cli.assess_web_pages_safe_active",
+                    return_value=active_result,
+                ) as safe_active:
+                    with patch(
+                        "nightrecon.cli.ResultStore"
+                    ) as store_class:
+                        store_class.return_value.save_web_crawl_report.return_value = (
+                            Path("results/crawl.json")
+                        )
+
+                        with patch(
+                            "nightrecon.cli.NightReconLogger"
+                        ):
+                            code, stdout, stderr = self.run_cli(
+                                "crawl",
+                                "https://example.test/",
+                                "--scope",
+                                "example.test",
+                                "--assessment",
+                                "--max-web-assessment-intrusiveness",
+                                "safe-active",
+                                "--max-web-assessment-requests",
+                                "2",
+                                "--authorization-env",
+                                "NIGHTRECON_TEST_AUTH",
+                                "--cookie-env",
+                                "NIGHTRECON_TEST_COOKIE",
+                            )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        safe_active.assert_called_once_with(
+            pages=crawl.pages,
+            origin=crawl.origin,
+            authorized=True,
+            timeout=5.0,
+            max_requests=2,
+            authorization="Bearer active-secret",
+            cookie="session=active-cookie",
+        )
+        self.assertNotIn(
+            "active-secret",
+            stdout,
+        )
+        self.assertNotIn(
+            "active-cookie",
+            stdout,
+        )
+
+    def test_missing_authentication_environment_variable_is_rejected(self):
+        with patch.dict(
+            "os.environ",
+            {},
+            clear=True,
+        ):
+            with patch(
+                "nightrecon.cli.crawl_site"
+            ) as crawl_site:
+                with patch(
+                    "nightrecon.cli.NightReconLogger"
+                ) as logger_class:
+                    code, stdout, stderr = self.run_cli(
+                        "crawl",
+                        "https://example.test/",
+                        "--scope",
+                        "example.test",
+                        "--authorization-env",
+                        "NIGHTRECON_MISSING_AUTH",
+                    )
+
+        self.assertEqual(code, 2)
+        self.assertEqual(stdout, "")
+        self.assertIn(
+            "NIGHTRECON_MISSING_AUTH",
+            stderr,
+        )
+        crawl_site.assert_not_called()
+        logger_class.assert_not_called()
 
     def test_ip_inside_cidr_scope_is_authorized(self):
         crawl = _crawl_result(

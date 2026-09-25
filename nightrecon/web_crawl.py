@@ -9,7 +9,7 @@ from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
-_DEFAULT_USER_AGENT = "NightRecon/0.21 web-crawler"
+_DEFAULT_USER_AGENT = "NightRecon/0.22 web-crawler"
 _HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
 _MAX_TITLE_LENGTH = 512
 
@@ -409,6 +409,8 @@ def crawl_site(
     max_bytes_per_page: int = 1_048_576,
     timeout: float = 5.0,
     user_agent: str = _DEFAULT_USER_AGENT,
+    authorization: str | None = None,
+    cookie: str | None = None,
 ) -> CrawlResult:
     """Crawl one HTTP(S) origin with explicit resource bounds."""
 
@@ -426,6 +428,22 @@ def crawl_site(
     if not isinstance(user_agent, str) or not user_agent.strip():
         raise ValueError("user_agent must be a non-empty string.")
 
+    if authorization is not None and (
+        not isinstance(authorization, str)
+        or not authorization.strip()
+    ):
+        raise ValueError(
+            "authorization must be a non-empty string when provided."
+        )
+
+    if cookie is not None and (
+        not isinstance(cookie, str)
+        or not cookie.strip()
+    ):
+        raise ValueError(
+            "cookie must be a non-empty string when provided."
+        )
+
     normalized_start = normalize_http_url(start_url)
     origin = url_origin(normalized_start)
     pending: deque[str] = deque((normalized_start,))
@@ -441,6 +459,16 @@ def crawl_site(
             max_bytes=max_bytes_per_page,
             timeout=timeout,
             user_agent=user_agent.strip(),
+            authorization=(
+                authorization.strip()
+                if authorization is not None
+                else None
+            ),
+            cookie=(
+                cookie.strip()
+                if cookie is not None
+                else None
+            ),
         )
         pages.append(page)
 
@@ -465,13 +493,23 @@ def _fetch_page(
     max_bytes: int,
     timeout: float,
     user_agent: str,
+    authorization: str | None = None,
+    cookie: str | None = None,
 ) -> CrawlPage:
+    headers = {
+        "User-Agent": user_agent,
+        "Accept": "text/html,application/xhtml+xml,*/*;q=0.1",
+    }
+
+    if authorization is not None:
+        headers["Authorization"] = authorization
+
+    if cookie is not None:
+        headers["Cookie"] = cookie
+
     request = Request(
         url,
-        headers={
-            "User-Agent": user_agent,
-            "Accept": "text/html,application/xhtml+xml,*/*;q=0.1",
-        },
+        headers=headers,
         method="GET",
     )
 

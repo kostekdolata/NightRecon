@@ -28,10 +28,14 @@ class WebCrawlReport:
     max_bytes_per_page: int
     pages: tuple[CrawlPage, ...]
     assessment_enabled: bool = False
+    assessment_intrusiveness: str = "disabled"
     assessment_findings: tuple[
         WebAssessmentFinding,
         ...,
     ] = ()
+    safe_active_requests_attempted: int = 0
+    safe_active_successful_probes: int = 0
+    safe_active_errors: tuple[str, ...] = ()
 
     @classmethod
     def create(
@@ -40,10 +44,14 @@ class WebCrawlReport:
         session: ScanSession,
         crawl: CrawlResult,
         assessment_enabled: bool = False,
+        assessment_intrusiveness: str = "disabled",
         assessment_findings: tuple[
             WebAssessmentFinding,
             ...,
         ] = (),
+        safe_active_requests_attempted: int = 0,
+        safe_active_successful_probes: int = 0,
+        safe_active_errors: tuple[str, ...] = (),
     ) -> "WebCrawlReport":
         return cls(
             session_id=session.session_id,
@@ -58,7 +66,15 @@ class WebCrawlReport:
             max_bytes_per_page=crawl.max_bytes_per_page,
             pages=crawl.pages,
             assessment_enabled=assessment_enabled,
+            assessment_intrusiveness=assessment_intrusiveness,
             assessment_findings=assessment_findings,
+            safe_active_requests_attempted=(
+                safe_active_requests_attempted
+            ),
+            safe_active_successful_probes=(
+                safe_active_successful_probes
+            ),
+            safe_active_errors=safe_active_errors,
         )
 
     @property
@@ -107,6 +123,24 @@ class WebCrawlReport:
                 )
             )
             if self.assessment_enabled
+            else None
+        )
+        data["safe_active_summary"] = (
+            {
+                "requests_attempted": (
+                    self.safe_active_requests_attempted
+                ),
+                "successful_probes": (
+                    self.safe_active_successful_probes
+                ),
+                "errors": len(
+                    self.safe_active_errors
+                ),
+            }
+            if (
+                self.assessment_enabled
+                and self.assessment_intrusiveness == "safe-active"
+            )
             else None
         )
         return data

@@ -268,6 +268,42 @@ class WebCrawlTests(unittest.TestCase):
             ),
         )
 
+    def test_authenticated_headers_are_forwarded_but_not_persisted(self):
+        page = CrawlPage(
+            url="https://example.test/",
+            status=200,
+            content_type="text/html",
+            byte_count=10,
+            links=(),
+        )
+
+        with patch(
+            "nightrecon.web_crawl._fetch_page",
+            return_value=page,
+        ) as fetch:
+            result = crawl_site(
+                start_url="https://example.test/",
+                authorization="Bearer test-token",
+                cookie="session=test-cookie",
+            )
+
+        self.assertEqual(
+            fetch.call_args.kwargs["authorization"],
+            "Bearer test-token",
+        )
+        self.assertEqual(
+            fetch.call_args.kwargs["cookie"],
+            "session=test-cookie",
+        )
+        self.assertNotIn(
+            "test-token",
+            repr(result),
+        )
+        self.assertNotIn(
+            "test-cookie",
+            repr(result),
+        )
+
     def test_cross_origin_redirect_is_blocked(self):
         handler = _SameOriginRedirectHandler(
             "https://example.test"
@@ -312,6 +348,18 @@ class WebCrawlTests(unittest.TestCase):
             crawl_site(
                 start_url="https://example.test/",
                 user_agent="",
+            )
+
+        with self.assertRaises(ValueError):
+            crawl_site(
+                start_url="https://example.test/",
+                authorization="",
+            )
+
+        with self.assertRaises(ValueError):
+            crawl_site(
+                start_url="https://example.test/",
+                cookie="",
             )
 
 

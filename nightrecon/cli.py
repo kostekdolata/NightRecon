@@ -66,6 +66,9 @@ from nightrecon.web_assessment import (
     assess_web_pages,
     summarize_web_assessments,
 )
+from nightrecon.web_active_assessment import (
+    assess_web_pages_safe_active,
+)
 from nightrecon.web_crawl import (
     crawl_site,
     normalize_http_url,
@@ -447,8 +450,52 @@ def build_parser() -> argparse.ArgumentParser:
         "--assessment",
         action="store_true",
         help=(
-            "Run passive web DAST checks over captured crawl metadata. "
-            "No forms are submitted and no extra probe requests are sent."
+            "Run web DAST checks. Passive checks are the default; "
+            "safe-active probes require an explicit intrusiveness setting."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--max-web-assessment-intrusiveness",
+        choices=(
+            "passive",
+            "safe-active",
+        ),
+        default="passive",
+        help=(
+            "Maximum web-assessment intrusiveness. "
+            "safe-active currently adds bounded non-mutating OPTIONS "
+            "probes only. Default: passive"
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--max-web-assessment-requests",
+        type=int,
+        default=10,
+        help=(
+            "Maximum safe-active web assessment requests. "
+            "Applies only with --assessment and "
+            "--max-web-assessment-intrusiveness safe-active. "
+            "Default: 10"
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--authorization-env",
+        help=(
+            "Name of an environment variable containing the complete "
+            "HTTP Authorization header value for authenticated crawling. "
+            "The value is never printed or persisted."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--cookie-env",
+        help=(
+            "Name of an environment variable containing the HTTP Cookie "
+            "header value for authenticated crawling. "
+            "The value is never printed or persisted."
         ),
     )
 
@@ -1331,6 +1378,43 @@ def main() -> None:
                 results_dir=args.results_dir,
                 logs_dir=args.logs_dir,
             )
+
+            authorization = None
+            cookie = None
+
+            if args.authorization_env:
+                authorization = os.environ.get(
+                    args.authorization_env
+                )
+
+                if (
+                    authorization is None
+                    or not authorization.strip()
+                ):
+                    raise ValueError(
+                        "Authorization environment variable "
+                        f"'{args.authorization_env}' is missing or empty."
+                    )
+
+            if args.cookie_env:
+                cookie = os.environ.get(
+                    args.cookie_env
+                )
+
+                if cookie is None or not cookie.strip():
+                    raise ValueError(
+                        "Cookie environment variable "
+                        f"'{args.cookie_env}' is missing or empty."
+                    )
+
+            if (
+                args.assessment
+                and args.max_web_assessment_intrusiveness == "safe-active"
+                and args.max_web_assessment_requests < 1
+            ):
+                raise ValueError(
+                    "max_web_assessment_requests must be at least 1."
+                )
         except ValueError as exc:
             parser.error(str(exc))
 
@@ -1359,6 +1443,8 @@ def main() -> None:
                     args.max_bytes_per_page
                 ),
                 timeout=config.connect_timeout,
+                authorization=authorization,
+                cookie=cookie,
             )
         except ValueError as exc:
             logger.write(
@@ -1378,6 +1464,49 @@ def main() -> None:
             if args.assessment
             else ()
         )
+        safe_active_requests_attempted = 0
+        safe_active_successful_probes = 0
+        safe_active_errors: tuple[str, ...] = ()
+
+        if (
+            args.assessment
+            and args.max_web_assessment_intrusiveness == "safe-active"
+        ):
+            try:
+                safe_active_result = assess_web_pages_safe_active(
+                    pages=crawl.pages,
+                    origin=crawl.origin,
+                    authorized=scope.is_authorized(target),
+                    timeout=config.connect_timeout,
+                    max_requests=args.max_web_assessment_requests,
+                    authorization=authorization,
+                    cookie=cookie,
+                )
+            except (PermissionError, ValueError) as exc:
+                logger.write(
+                    "crawl.assessment_failed",
+                    url=normalized_url,
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    scope=args.scope,
+                    intrusiveness="safe-active",
+                    reason=str(exc),
+                )
+                parser.error(str(exc))
+
+            assessment_findings = (
+                assessment_findings
+                + safe_active_result.findings
+            )
+            safe_active_requests_attempted = (
+                safe_active_result.requests_attempted
+            )
+            safe_active_successful_probes = (
+                safe_active_result.successful_probes
+            )
+            safe_active_errors = (
+                safe_active_result.errors
+            )
 
         session = ScanSession.create(
             target=target,
@@ -1389,7 +1518,19 @@ def main() -> None:
             session=session,
             crawl=crawl,
             assessment_enabled=args.assessment,
+            assessment_intrusiveness=(
+                args.max_web_assessment_intrusiveness
+                if args.assessment
+                else "disabled"
+            ),
             assessment_findings=assessment_findings,
+            safe_active_requests_attempted=(
+                safe_active_requests_attempted
+            ),
+            safe_active_successful_probes=(
+                safe_active_successful_probes
+            ),
+            safe_active_errors=safe_active_errors,
         )
         output_path = ResultStore(
             config.results_dir
@@ -1419,6 +1560,18 @@ def main() -> None:
             ),
             assessment_findings=len(
                 crawl_report.assessment_findings
+            ),
+            assessment_intrusiveness=(
+                crawl_report.assessment_intrusiveness
+            ),
+            safe_active_requests_attempted=(
+                crawl_report.safe_active_requests_attempted
+            ),
+            safe_active_successful_probes=(
+                crawl_report.safe_active_successful_probes
+            ),
+            safe_active_errors=len(
+                crawl_report.safe_active_errors
             ),
             status=crawl_report.status,
         )
@@ -1508,6 +1661,25 @@ def main() -> None:
                 f"low={assessment_summary.low_count} "
                 f"unknown={assessment_summary.unknown_count}"
             )
+
+            print(
+                "Assessment intrusiveness: "
+                f"{crawl_report.assessment_intrusiveness}"
+            )
+
+            if (
+                crawl_report.assessment_intrusiveness
+                == "safe-active"
+            ):
+                print(
+                    "Safe-active probes: "
+                    "attempted="
+                    f"{crawl_report.safe_active_requests_attempted} "
+                    "successful="
+                    f"{crawl_report.safe_active_successful_probes} "
+                    "errors="
+                    f"{len(crawl_report.safe_active_errors)}"
+                )
 
             for finding in crawl_report.assessment_findings:
                 print(
