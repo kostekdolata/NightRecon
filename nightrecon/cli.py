@@ -3,6 +3,7 @@
 import argparse
 import os
 import sys
+from http.cookiejar import CookieJar
 from urllib.parse import urlsplit
 
 from nightrecon import __version__
@@ -496,6 +497,16 @@ def build_parser() -> argparse.ArgumentParser:
             "Name of an environment variable containing the HTTP Cookie "
             "header value for authenticated crawling. "
             "The value is never printed or persisted."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--session-cookies",
+        action="store_true",
+        help=(
+            "Reuse response cookies only in memory for later requests "
+            "within this authorized crawl. Cookie values are never "
+            "printed or persisted. Cannot be combined with --cookie-env."
         ),
     )
 
@@ -1381,6 +1392,19 @@ def main() -> None:
 
             authorization = None
             cookie = None
+            session_cookie_jar = (
+                CookieJar()
+                if args.session_cookies
+                else None
+            )
+
+            if (
+                args.session_cookies
+                and args.cookie_env
+            ):
+                raise ValueError(
+                    "--session-cookies cannot be combined with --cookie-env."
+                )
 
             if args.authorization_env:
                 authorization = os.environ.get(
@@ -1445,6 +1469,7 @@ def main() -> None:
                 timeout=config.connect_timeout,
                 authorization=authorization,
                 cookie=cookie,
+                cookie_jar=session_cookie_jar,
             )
         except ValueError as exc:
             logger.write(
@@ -1481,6 +1506,7 @@ def main() -> None:
                     max_requests=args.max_web_assessment_requests,
                     authorization=authorization,
                     cookie=cookie,
+                    cookie_jar=session_cookie_jar,
                 )
             except (PermissionError, ValueError) as exc:
                 logger.write(
@@ -1573,6 +1599,9 @@ def main() -> None:
             safe_active_errors=len(
                 crawl_report.safe_active_errors
             ),
+            session_cookies_enabled=(
+                args.session_cookies
+            ),
             status=crawl_report.status,
         )
 
@@ -1591,6 +1620,10 @@ def main() -> None:
         )
         print(
             "Scope authorization: approved"
+        )
+        print(
+            "Session cookie continuity: "
+            f"{'enabled' if args.session_cookies else 'disabled'}"
         )
         print(
             f"Pages fetched: {len(crawl_report.pages)}"
