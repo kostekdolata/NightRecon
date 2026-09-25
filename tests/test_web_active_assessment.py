@@ -2,6 +2,8 @@
 
 import unittest
 from email.message import Message
+from http.cookiejar import CookieJar
+from urllib.request import HTTPCookieProcessor
 from unittest.mock import patch
 
 from nightrecon.web_active_assessment import (
@@ -204,6 +206,57 @@ class SafeActiveWebAssessmentTests(unittest.TestCase):
         )
         self.assertNotIn(
             "test-cookie",
+            repr(result),
+        )
+
+    def test_safe_active_reuses_ephemeral_cookie_jar(self):
+        page = CrawlPage(
+            url="https://example.test/",
+            status=200,
+            content_type="text/html",
+            byte_count=10,
+            links=(),
+        )
+        opener = _FakeOpener(
+            {
+                "https://example.test/": _FakeResponse(
+                    url="https://example.test/",
+                    allow="GET, OPTIONS",
+                )
+            }
+        )
+        cookie_jar = CookieJar()
+
+        with patch(
+            "nightrecon.web_active_assessment.build_opener",
+            return_value=opener,
+        ) as build:
+            result = assess_web_pages_safe_active(
+                pages=(page,),
+                origin="https://example.test",
+                authorized=True,
+                cookie_jar=cookie_jar,
+            )
+
+        processors = tuple(
+            handler
+            for handler in build.call_args.args
+            if isinstance(
+                handler,
+                HTTPCookieProcessor,
+            )
+        )
+
+        self.assertEqual(
+            len(processors),
+            1,
+        )
+        self.assertIs(
+            processors[0].cookiejar,
+            cookie_jar,
+        )
+        self.assertNotIn(
+            "CookieJar",
             repr(result),
         )
 
