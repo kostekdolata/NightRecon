@@ -197,9 +197,9 @@ class WebCrawlReportTests(unittest.TestCase):
         )
         self.assertEqual(
             data["safe_active_errors"],
-            [
-                "https://example.test/b:HTTPError:405"
-            ],
+            (
+                "https://example.test/b:HTTPError:405",
+            ),
         )
 
     def test_report_is_saved_as_json(self):
