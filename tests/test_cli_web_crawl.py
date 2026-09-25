@@ -17,6 +17,7 @@ from nightrecon.web_crawl import (
     CrawlResult,
     WebFormInput,
     WebFormObservation,
+    parse_set_cookie_metadata,
 )
 
 
@@ -610,6 +611,87 @@ class CliWebCrawlTests(unittest.TestCase):
         )
         crawl_site.assert_not_called()
         logger_class.assert_not_called()
+
+    def test_cookie_metadata_output_never_contains_cookie_values(self):
+        secret_value = "cli-cookie-secret-value"
+        crawl = CrawlResult(
+            start_url="https://example.test/",
+            origin="https://example.test",
+            pages=(
+                CrawlPage(
+                    url="https://example.test/",
+                    status=200,
+                    content_type="text/html",
+                    byte_count=128,
+                    links=(),
+                    cookies=parse_set_cookie_metadata(
+                        (
+                            (
+                                "session="
+                                f"{secret_value}; Path=/"
+                            ),
+                        )
+                    ),
+                ),
+            ),
+            max_pages=50,
+            max_bytes_per_page=1_048_576,
+        )
+
+        with patch(
+            "nightrecon.cli.crawl_site",
+            return_value=crawl,
+        ):
+            with patch(
+                "nightrecon.cli.ResultStore"
+            ) as store_class:
+                store_class.return_value.save_web_crawl_report.return_value = (
+                    Path("results/crawl.json")
+                )
+
+                with patch(
+                    "nightrecon.cli.NightReconLogger"
+                ):
+                    code, stdout, stderr = self.run_cli(
+                        "crawl",
+                        "https://example.test/",
+                        "--scope",
+                        "example.test",
+                        "--assessment",
+                    )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn(
+            "COOKIE name=session path=/ secure=no httponly=no samesite=-",
+            stdout,
+        )
+        self.assertIn(
+            "web.cookie-missing-secure",
+            stdout,
+        )
+        self.assertIn(
+            "web.session-cookie-missing-httponly",
+            stdout,
+        )
+        self.assertIn(
+            "web.session-cookie-missing-samesite",
+            stdout,
+        )
+        self.assertNotIn(
+            secret_value,
+            stdout,
+        )
+
+        report = (
+            store_class.return_value
+            .save_web_crawl_report
+            .call_args.args[0]
+        )
+        self.assertNotIn(
+            secret_value,
+            repr(report),
+        )
 
     def test_ip_inside_cidr_scope_is_authorized(self):
         crawl = _crawl_result(
