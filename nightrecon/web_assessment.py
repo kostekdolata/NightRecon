@@ -8,6 +8,36 @@ from urllib.parse import urlsplit
 from nightrecon.web_crawl import CrawlPage
 
 
+_SESSION_COOKIE_NAMES = frozenset(
+    {
+        "session",
+        "sessionid",
+        "session_id",
+        "sessid",
+        "sess_id",
+        "sid",
+        "auth",
+        "auth_token",
+        "access_token",
+        "refresh_token",
+        "jwt",
+        "jsessionid",
+        "phpsessid",
+        "asp.net_sessionid",
+    }
+)
+
+
+def _looks_like_session_cookie(name: str) -> bool:
+    normalized = name.strip().lower()
+
+    return (
+        normalized in _SESSION_COOKIE_NAMES
+        or normalized.startswith("session")
+        or normalized.endswith("_session")
+    )
+
+
 @dataclass(frozen=True)
 class WebAssessmentFinding:
     """One deterministic passive web-assessment finding."""
@@ -114,6 +144,73 @@ def assess_web_pages(
                             ),
                         )
                     )
+
+        for cookie in page.cookies:
+            cookie_label = (
+                f"{cookie.name} path={cookie.path or '-'}"
+            )
+
+            if (
+                page_scheme == "https"
+                and not cookie.secure
+            ):
+                findings.append(
+                    WebAssessmentFinding(
+                        check_id="web.cookie-missing-secure",
+                        title=(
+                            "HTTPS response cookie lacks "
+                            "the Secure attribute"
+                        ),
+                        severity="low",
+                        page_url=page.url,
+                        evidence=(
+                            f"cookie={cookie_label}"
+                        ),
+                    )
+                )
+
+            if not _looks_like_session_cookie(
+                cookie.name
+            ):
+                continue
+
+            if not cookie.http_only:
+                findings.append(
+                    WebAssessmentFinding(
+                        check_id=(
+                            "web.session-cookie-missing-httponly"
+                        ),
+                        title=(
+                            "Potential session cookie lacks "
+                            "the HttpOnly attribute"
+                        ),
+                        severity="low",
+                        page_url=page.url,
+                        evidence=(
+                            f"cookie={cookie_label} "
+                            "matched session-cookie name heuristic"
+                        ),
+                    )
+                )
+
+            if not cookie.same_site:
+                findings.append(
+                    WebAssessmentFinding(
+                        check_id=(
+                            "web.session-cookie-missing-samesite"
+                        ),
+                        title=(
+                            "Potential session cookie lacks "
+                            "the SameSite attribute"
+                        ),
+                        severity="low",
+                        page_url=page.url,
+                        evidence=(
+                            f"cookie={cookie_label} "
+                            "matched session-cookie name heuristic"
+                        ),
+                    )
+                )
 
     return tuple(findings)
 
