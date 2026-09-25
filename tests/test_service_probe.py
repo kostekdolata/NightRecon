@@ -1,10 +1,13 @@
 """Tests for bounded active service probes."""
 
+import socket
 import unittest
+from unittest.mock import MagicMock, patch
 
 from nightrecon.service_fingerprint import ServiceFingerprint
 from nightrecon.service_probe import (
     match_service_probe_response,
+    probe_tcp_service,
     select_service_probes,
 )
 
@@ -105,6 +108,73 @@ class ServiceProbeEngineTests(unittest.TestCase):
                 b"welcome\r\n",
             )
         )
+
+    def test_probe_tcp_service_returns_first_matching_fingerprint(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.return_value = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Server: nginx/1.24.0\r\n\r\n"
+        )
+
+        with patch(
+            "nightrecon.service_probe.socket.create_connection",
+            return_value=fake_socket,
+        ) as create_connection:
+            result = probe_tcp_service(
+                address="127.0.0.1",
+                port=9000,
+                timeout=1.0,
+                intensity=1,
+            )
+
+        self.assertEqual(result.protocol, "http")
+        self.assertEqual(result.product, "nginx")
+        fake_socket.sendall.assert_called_once()
+        fake_socket.recv.assert_called_once_with(4096)
+        fake_socket.close.assert_called_once()
+        create_connection.assert_called_once_with(
+            ("127.0.0.1", 9000),
+            timeout=1.0,
+        )
+
+    def test_probe_tcp_service_is_fail_soft_and_tries_next_probe(self):
+        first_socket = MagicMock()
+        first_socket.recv.side_effect = socket.timeout()
+
+        second_socket = MagicMock()
+        second_socket.recv.return_value = b"+PONG\r\n"
+
+        with patch(
+            "nightrecon.service_probe.socket.create_connection",
+            side_effect=(
+                first_socket,
+                second_socket,
+            ),
+        ):
+            result = probe_tcp_service(
+                address="127.0.0.1",
+                port=6379,
+                timeout=1.0,
+                intensity=1,
+            )
+
+        self.assertEqual(result.protocol, "redis")
+        first_socket.close.assert_called_once()
+        second_socket.close.assert_called_once()
+
+    def test_probe_tcp_service_skips_excluded_port_without_connecting(self):
+        with patch(
+            "nightrecon.service_probe.socket.create_connection"
+        ) as create_connection:
+            result = probe_tcp_service(
+                address="127.0.0.1",
+                port=9100,
+                timeout=1.0,
+                intensity=9,
+            )
+
+        self.assertIsNone(result)
+        create_connection.assert_not_called()
 
     def test_invalid_probe_intensity_is_rejected(self):
         with self.assertRaisesRegex(
