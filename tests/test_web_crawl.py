@@ -5,8 +5,10 @@ from unittest.mock import patch
 
 from nightrecon.web_crawl import (
     CrawlPage,
+    WebFormInput,
     _SameOriginRedirectHandler,
     crawl_site,
+    discover_html_content,
     extract_same_origin_links,
     normalize_http_url,
     url_origin,
@@ -74,6 +76,106 @@ class WebCrawlTests(unittest.TestCase):
                 "https://example.test/help",
             ),
         )
+
+    def test_passive_html_content_discovery_records_structure(self):
+        html = """
+        <html>
+          <head>
+            <title>  Admin   Login  </title>
+            <script src="/static/app.js"></script>
+            <script src="https://cdn.example.test/lib.js"></script>
+          </head>
+          <body>
+            <a href="/dashboard">Dashboard</a>
+            <a href="https://other.test/out">External</a>
+            <form action="/session" method="post">
+              <input name="username" value="do-not-store">
+              <input type="password" name="password" value="secret">
+            </form>
+          </body>
+        </html>
+        """
+
+        discovery = discover_html_content(
+            base_url="https://example.test/login",
+            html=html,
+            origin="https://example.test",
+        )
+
+        self.assertEqual(
+            discovery.title,
+            "Admin Login",
+        )
+        self.assertEqual(
+            discovery.links,
+            ("https://example.test/dashboard",),
+        )
+        self.assertEqual(
+            discovery.script_sources,
+            (
+                "https://cdn.example.test/lib.js",
+                "https://example.test/static/app.js",
+            ),
+        )
+        self.assertEqual(
+            len(discovery.forms),
+            1,
+        )
+        self.assertEqual(
+            discovery.forms[0].action,
+            "https://example.test/session",
+        )
+        self.assertEqual(
+            discovery.forms[0].method,
+            "POST",
+        )
+        self.assertEqual(
+            discovery.forms[0].inputs,
+            (
+                WebFormInput(
+                    name="username",
+                    input_type="text",
+                ),
+                WebFormInput(
+                    name="password",
+                    input_type="password",
+                ),
+            ),
+        )
+        self.assertFalse(
+            hasattr(
+                discovery.forms[0].inputs[0],
+                "value",
+            )
+        )
+
+    def test_form_actions_and_scripts_are_not_added_to_crawl_queue(self):
+        first = CrawlPage(
+            url="https://example.test/",
+            status=200,
+            content_type="text/html",
+            byte_count=100,
+            links=(),
+            forms=(),
+            script_sources=(
+                "https://example.test/app.js",
+            ),
+        )
+
+        with patch(
+            "nightrecon.web_crawl._fetch_page",
+            return_value=first,
+        ) as fetch:
+            result = crawl_site(
+                start_url="https://example.test/",
+                max_pages=10,
+            )
+
+        self.assertEqual(
+            tuple(page.url for page in result.pages),
+            ("https://example.test/",),
+        )
+        fetch.assert_called_once()
 
     def test_crawl_is_bounded_and_deterministic(self):
         pages = {
