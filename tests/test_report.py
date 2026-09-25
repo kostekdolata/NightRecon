@@ -10,6 +10,7 @@ from nightrecon.assessment_engine import (
 )
 from nightrecon.report import TcpScanReport
 from nightrecon.service_detection import ServiceDetectionResult
+from nightrecon.service_fingerprint import ServiceFingerprint
 from nightrecon.session import ScanSession
 from nightrecon.software_identity import SoftwareIdentity
 from nightrecon.targets import parse_target
@@ -78,6 +79,15 @@ class TcpScanReportTests(unittest.TestCase):
                     version="1.24.0",
                     source="http-server",
                     evidence="nginx/1.24.0",
+                ),
+                service_fingerprint=ServiceFingerprint(
+                    protocol="http",
+                    product="nginx",
+                    version="1.24.0",
+                    platform="Ubuntu",
+                    source="http-server",
+                    evidence="nginx/1.24.0 (Ubuntu)",
+                    confidence="high",
                 ),
             ),
         )
@@ -223,6 +233,19 @@ class TcpScanReportTests(unittest.TestCase):
                 "version": "1.24.0",
                 "source": "http-server",
                 "evidence": "nginx/1.24.0",
+            },
+        )
+        self.assertEqual(
+            data["services"][0]["service_fingerprint"],
+            {
+                "protocol": "http",
+                "protocol_version": "",
+                "product": "nginx",
+                "version": "1.24.0",
+                "platform": "Ubuntu",
+                "source": "http-server",
+                "evidence": "nginx/1.24.0 (Ubuntu)",
+                "confidence": "high",
             },
         )
 
