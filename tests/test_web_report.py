@@ -13,8 +13,10 @@ from nightrecon.targets import parse_target
 from nightrecon.web_crawl import (
     CrawlPage,
     CrawlResult,
+    WebCookieObservation,
     WebFormInput,
     WebFormObservation,
+    parse_set_cookie_metadata,
 )
 from nightrecon.web_report import WebCrawlReport
 
@@ -52,6 +54,15 @@ class WebCrawlReportTests(unittest.TestCase):
                     ),
                     script_sources=(
                         "https://example.test/app.js",
+                    ),
+                    cookies=(
+                        WebCookieObservation(
+                            name="session",
+                            path="/",
+                            secure=True,
+                            http_only=True,
+                            same_site="lax",
+                        ),
                     ),
                 ),
                 CrawlPage(
@@ -101,6 +112,10 @@ class WebCrawlReportTests(unittest.TestCase):
         )
         self.assertEqual(
             data["summary"]["script_sources_observed"],
+            1,
+        )
+        self.assertEqual(
+            data["summary"]["cookies_observed"],
             1,
         )
         self.assertIsNone(
@@ -200,6 +215,65 @@ class WebCrawlReportTests(unittest.TestCase):
             (
                 "https://example.test/b:HTTPError:405",
             ),
+        )
+
+    def test_cookie_values_do_not_reach_saved_json(self):
+        secret_value = "do-not-persist-this-cookie-value"
+        cookies = parse_set_cookie_metadata(
+            (
+                (
+                    "session="
+                    f"{secret_value}; "
+                    "Path=/; Secure; HttpOnly; SameSite=Lax"
+                ),
+            )
+        )
+        session = ScanSession.create(
+            target=parse_target("example.test"),
+            scope_rules=("example.test",),
+        )
+        crawl = CrawlResult(
+            start_url="https://example.test/",
+            origin="https://example.test",
+            pages=(
+                CrawlPage(
+                    url="https://example.test/",
+                    status=200,
+                    content_type="text/html",
+                    byte_count=10,
+                    links=(),
+                    cookies=cookies,
+                ),
+            ),
+            max_pages=1,
+            max_bytes_per_page=4096,
+        )
+        report = WebCrawlReport.create(
+            session=session,
+            crawl=crawl,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = ResultStore(
+                temp_dir
+            ).save_web_crawl_report(
+                report
+            )
+            raw_json = output_path.read_text(
+                encoding="utf-8"
+            )
+
+        self.assertNotIn(
+            secret_value,
+            raw_json,
+        )
+        self.assertIn(
+            '"name": "session"',
+            raw_json,
+        )
+        self.assertIn(
+            '"secure": true',
+            raw_json,
         )
 
     def test_report_is_saved_as_json(self):
