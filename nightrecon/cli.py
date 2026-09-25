@@ -1438,6 +1438,35 @@ def main() -> None:
 
             print(line)
 
+            if page.title:
+                print(
+                    f"    Title: {page.title}"
+                )
+
+            for form in page.forms:
+                input_summary = (
+                    ",".join(
+                        (
+                            f"{item.name or '-'}:"
+                            f"{item.input_type}"
+                        )
+                        for item in form.inputs
+                    )
+                    if form.inputs
+                    else "-"
+                )
+                print(
+                    "    FORM "
+                    f"method={form.method} "
+                    f"action={form.action or '-'} "
+                    f"inputs={input_summary}"
+                )
+
+            for source in page.script_sources:
+                print(
+                    f"    SCRIPT {source}"
+                )
+
         print(
             f"Max pages: {crawl_report.max_pages}"
         )
