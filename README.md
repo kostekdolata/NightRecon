@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.22.0**
+**v0.23.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution, plus a scope-enforced bounded same-origin web crawler with passive content discovery, secret-safe authenticated crawling, passive DAST, and explicitly gated bounded safe-active web assessment.
+NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution, plus a scope-enforced bounded same-origin web crawler with passive content discovery, secret-safe authenticated crawling, passive and safe-active DAST, and passive session-cookie security intelligence that never retains cookie values.
 
 ## Features
 
@@ -145,6 +145,12 @@ NightRecon now includes scope-enforced concurrent TCP scanning, authorized bound
 - Safe-active web assessment currently sends only bounded non-mutating OPTIONS requests and never sends PUT, DELETE, TRACE, CONNECT, PATCH, or form submissions
 - Safe-active OPTIONS probes never follow redirects, revalidate authorization at the assessment boundary, and enforce a hard `--max-web-assessment-requests` ceiling
 - Advertised PUT, DELETE, TRACE, or CONNECT methods are reported only as low-severity observed evidence; NightRecon does not claim those methods are exploitable
+- Set-Cookie response headers are reduced to non-secret metadata before persistence: cookie name, path, Secure, HttpOnly, and SameSite attributes
+- Raw cookie values are discarded before CrawlPage/report construction and are covered by fetch-path, saved-JSON, and CLI redaction tests
+- Structured crawl summaries include the number of observed response cookies without storing their values
+- Passive web assessment reports HTTPS cookies missing Secure as low-severity descriptive evidence
+- HttpOnly and SameSite checks are limited to cookie names commonly associated with sessions to reduce false-positive noise
+- Session-cookie attribute findings remain passive and do not claim account compromise, session theft, or exploitability
 - Per-port result storage
 - Ordinary `scan` CIDR port-scanning remains blocked; network discovery is isolated behind the explicit `discover` command
 - Authorized CIDR host discovery with full scope-containment validation before any probe activity
@@ -208,6 +214,10 @@ Use authenticated crawl context from environment variables without putting secre
 Enable the bounded safe-active OPTIONS layer explicitly:
 
 `nightrecon crawl https://example.test --scope example.test --assessment --max-web-assessment-intrusiveness safe-active --max-web-assessment-requests 10`
+
+Passive `--assessment` also evaluates observed Set-Cookie security attributes while discarding cookie values:
+
+`nightrecon crawl https://example.test --scope example.test --assessment`
 
 Enable bounded active service fingerprint probes at a conservative intensity:
 
@@ -352,7 +362,7 @@ Declarative check packs are intentionally non-executable data. NightRecon does n
 
 Managed feed state adds replay protection and immutable local version storage. Installed packs are reverified before activation, rollback, and assessment use. Dry-run planning validates signed feed freshness without persisting the newer generation or downloading artifacts.
 
-Web crawling reuses NightRecon's existing scope authorization boundary. The URL host is validated before requests begin, cross-origin redirects are blocked, and traversal is limited to normalized same-origin links. Passive content discovery records structure rather than secrets: form values are not retained, form actions are not submitted, and script sources are not fetched merely because they were observed. Authentication header values may be supplied only through named environment variables in the crawl CLI and remain ephemeral request context; they are not stored in NightRecon reports or audit records. Web assessment remains passive by default. Safe-active mode requires an explicit intrusiveness setting, revalidates authorization at the assessment boundary, enforces a separate request ceiling, sends only OPTIONS requests, refuses redirects, and treats advertised risky methods as descriptive evidence rather than proof of exploitability.
+Web crawling reuses NightRecon's existing scope authorization boundary. The URL host is validated before requests begin, cross-origin redirects are blocked, and traversal is limited to normalized same-origin links. Passive content discovery records structure rather than secrets: form values are not retained, form actions are not submitted, and script sources are not fetched merely because they were observed. Authentication header values may be supplied only through named environment variables in the crawl CLI and remain ephemeral request context; they are not stored in NightRecon reports or audit records. Set-Cookie values are likewise discarded before crawl result construction; only cookie names and security attributes are retained for descriptive session-security checks. Web assessment remains passive by default. Safe-active mode requires an explicit intrusiveness setting, revalidates authorization at the assessment boundary, enforces a separate request ceiling, sends only OPTIONS requests, refuses redirects, and treats advertised risky methods as descriptive evidence rather than proof of exploitability.
 
 ## Roadmap
 
