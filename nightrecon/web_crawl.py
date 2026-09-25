@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from html.parser import HTMLParser
+from http.cookies import CookieError, SimpleCookie
 from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -32,6 +33,17 @@ class WebFormObservation:
 
 
 @dataclass(frozen=True)
+class WebCookieObservation:
+    """Cookie metadata observed without retaining the cookie value."""
+
+    name: str
+    path: str
+    secure: bool
+    http_only: bool
+    same_site: str
+
+
+@dataclass(frozen=True)
 class HtmlContentDiscovery:
     """Passive structural metadata discovered in one HTML response."""
 
@@ -54,6 +66,7 @@ class CrawlPage:
     title: str = ""
     forms: tuple[WebFormObservation, ...] = ()
     script_sources: tuple[str, ...] = ()
+    cookies: tuple[WebCookieObservation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -225,6 +238,54 @@ class _HtmlContentParser(HTMLParser):
         self._current_form_action = ""
         self._current_form_method = ""
         self._current_form_inputs = None
+
+
+def parse_set_cookie_metadata(
+    values: tuple[str, ...],
+) -> tuple[WebCookieObservation, ...]:
+    """Parse Set-Cookie headers while discarding all cookie values."""
+
+    observations: list[WebCookieObservation] = []
+
+    for raw_value in values:
+        cookie = SimpleCookie()
+
+        try:
+            cookie.load(raw_value)
+        except CookieError:
+            continue
+
+        for name, morsel in cookie.items():
+            observations.append(
+                WebCookieObservation(
+                    name=name,
+                    path=morsel["path"].strip(),
+                    secure=bool(
+                        morsel["secure"]
+                    ),
+                    http_only=bool(
+                        morsel["httponly"]
+                    ),
+                    same_site=(
+                        morsel["samesite"]
+                        .strip()
+                        .lower()
+                    ),
+                )
+            )
+
+    return tuple(
+        sorted(
+            observations,
+            key=lambda item: (
+                item.name,
+                item.path,
+                item.secure,
+                item.http_only,
+                item.same_site,
+            ),
+        )
+    )
 
 
 def normalize_http_url(value: str) -> str:
@@ -525,6 +586,21 @@ def _fetch_page(
                 if response.headers is not None
                 else ""
             )
+            charset = (
+                response.headers.get_content_charset()
+                if response.headers is not None
+                else None
+            ) or "utf-8"
+            set_cookie_headers = (
+                tuple(
+                    response.headers.get_all(
+                        "Set-Cookie",
+                        [],
+                    )
+                )
+                if response.headers is not None
+                else ()
+            )
             final_url = normalize_http_url(
                 response.geturl()
             )
@@ -557,8 +633,6 @@ def _fetch_page(
     )
 
     if content_type in _HTML_CONTENT_TYPES:
-        charset = response.headers.get_content_charset() or "utf-8"
-
         try:
             html = raw.decode(charset, errors="replace")
         except LookupError:
@@ -579,4 +653,7 @@ def _fetch_page(
         title=discovery.title,
         forms=discovery.forms,
         script_sources=discovery.script_sources,
+        cookies=parse_set_cookie_metadata(
+            set_cookie_headers
+        ),
     )
