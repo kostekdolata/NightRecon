@@ -11,6 +11,34 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _DEFAULT_USER_AGENT = "NightRecon/0.21 web-crawler"
 _HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
+_MAX_TITLE_LENGTH = 512
+
+
+@dataclass(frozen=True)
+class WebFormInput:
+    """Non-sensitive HTML input metadata observed during crawling."""
+
+    name: str
+    input_type: str
+
+
+@dataclass(frozen=True)
+class WebFormObservation:
+    """Passive HTML form metadata without field values."""
+
+    action: str
+    method: str
+    inputs: tuple[WebFormInput, ...]
+
+
+@dataclass(frozen=True)
+class HtmlContentDiscovery:
+    """Passive structural metadata discovered in one HTML response."""
+
+    title: str
+    links: tuple[str, ...]
+    forms: tuple[WebFormObservation, ...]
+    script_sources: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -23,6 +51,9 @@ class CrawlPage:
     byte_count: int
     links: tuple[str, ...]
     error: str = ""
+    title: str = ""
+    forms: tuple[WebFormObservation, ...] = ()
+    script_sources: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -80,23 +111,120 @@ class _SameOriginRedirectHandler(HTTPRedirectHandler):
         )
 
 
-class _LinkParser(HTMLParser):
+class _HtmlContentParser(HTMLParser):
+    """Collect passive structural metadata from one HTML document."""
+
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.links: list[str] = []
+        self.script_sources: list[str] = []
+        self.forms: list[
+            tuple[str, str, tuple[WebFormInput, ...]]
+        ] = []
+        self._current_form_action = ""
+        self._current_form_method = ""
+        self._current_form_inputs: list[WebFormInput] | None = None
+        self._in_title = False
+        self._title_parts: list[str] = []
 
     def handle_starttag(
         self,
         tag: str,
         attrs: list[tuple[str, str | None]],
     ) -> None:
-        if tag.lower() not in {"a", "area"}:
+        lowered_tag = tag.lower()
+        attr_map = {
+            name.lower(): value
+            for name, value in attrs
+        }
+
+        if lowered_tag in {"a", "area"}:
+            href = attr_map.get("href")
+
+            if href:
+                self.links.append(href)
+
+        if lowered_tag == "script":
+            source = attr_map.get("src")
+
+            if source:
+                self.script_sources.append(source)
+
+        if lowered_tag == "title":
+            self._in_title = True
+
+        if lowered_tag == "form":
+            self._flush_current_form()
+            self._current_form_action = (
+                attr_map.get("action")
+                or ""
+            )
+            self._current_form_method = (
+                attr_map.get("method")
+                or "get"
+            )
+            self._current_form_inputs = []
             return
 
-        for name, value in attrs:
-            if name.lower() == "href" and value:
-                self.links.append(value)
-                break
+        if (
+            lowered_tag == "input"
+            and self._current_form_inputs is not None
+        ):
+            self._current_form_inputs.append(
+                WebFormInput(
+                    name=(
+                        attr_map.get("name")
+                        or ""
+                    ).strip(),
+                    input_type=(
+                        attr_map.get("type")
+                        or "text"
+                    ).strip().lower(),
+                )
+            )
+
+    def handle_endtag(
+        self,
+        tag: str,
+    ) -> None:
+        lowered_tag = tag.lower()
+
+        if lowered_tag == "title":
+            self._in_title = False
+        elif lowered_tag == "form":
+            self._flush_current_form()
+
+    def handle_data(
+        self,
+        data: str,
+    ) -> None:
+        if self._in_title:
+            self._title_parts.append(data)
+
+    def close(self) -> None:
+        super().close()
+        self._flush_current_form()
+
+    def title(self) -> str:
+        normalized = " ".join(
+            " ".join(self._title_parts).split()
+        )
+        return normalized[:_MAX_TITLE_LENGTH]
+
+    def _flush_current_form(self) -> None:
+        if self._current_form_inputs is None:
+            return
+
+        self.forms.append(
+            (
+                self._current_form_action,
+                self._current_form_method,
+                tuple(self._current_form_inputs),
+            )
+        )
+        self._current_form_action = ""
+        self._current_form_method = ""
+        self._current_form_inputs = None
 
 
 def normalize_http_url(value: str) -> str:
@@ -164,16 +292,17 @@ def url_origin(value: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-def extract_same_origin_links(
+def discover_html_content(
     *,
     base_url: str,
     html: str,
     origin: str,
-) -> tuple[str, ...]:
-    """Extract deterministic same-origin HTTP(S) links from HTML."""
+) -> HtmlContentDiscovery:
+    """Extract passive structural metadata from bounded HTML content."""
 
-    parser = _LinkParser()
+    parser = _HtmlContentParser()
     parser.feed(html)
+    parser.close()
 
     links: set[str] = set()
 
@@ -205,7 +334,72 @@ def extract_same_origin_links(
         if url_origin(absolute) == origin:
             links.add(absolute)
 
-    return tuple(sorted(links))
+    forms: list[WebFormObservation] = []
+
+    for raw_action, raw_method, inputs in parser.forms:
+        action_candidate = (
+            raw_action.strip()
+            if raw_action.strip()
+            else base_url
+        )
+
+        try:
+            action = normalize_http_url(
+                urljoin(base_url, action_candidate)
+            )
+        except ValueError:
+            action = ""
+
+        method = raw_method.strip().upper() or "GET"
+
+        forms.append(
+            WebFormObservation(
+                action=action,
+                method=method,
+                inputs=inputs,
+            )
+        )
+
+    script_sources: set[str] = set()
+
+    for raw_source in parser.script_sources:
+        source_candidate = raw_source.strip()
+
+        if not source_candidate:
+            continue
+
+        try:
+            source = normalize_http_url(
+                urljoin(base_url, source_candidate)
+            )
+        except ValueError:
+            continue
+
+        script_sources.add(source)
+
+    return HtmlContentDiscovery(
+        title=parser.title(),
+        links=tuple(sorted(links)),
+        forms=tuple(forms),
+        script_sources=tuple(
+            sorted(script_sources)
+        ),
+    )
+
+
+def extract_same_origin_links(
+    *,
+    base_url: str,
+    html: str,
+    origin: str,
+) -> tuple[str, ...]:
+    """Extract deterministic same-origin HTTP(S) links from HTML."""
+
+    return discover_html_content(
+        base_url=base_url,
+        html=html,
+        origin=origin,
+    ).links
 
 
 def crawl_site(
@@ -317,7 +511,12 @@ def _fetch_page(
     if len(raw) > max_bytes:
         raw = raw[:max_bytes]
 
-    links: tuple[str, ...] = ()
+    discovery = HtmlContentDiscovery(
+        title="",
+        links=(),
+        forms=(),
+        script_sources=(),
+    )
 
     if content_type in _HTML_CONTENT_TYPES:
         charset = response.headers.get_content_charset() or "utf-8"
@@ -327,7 +526,7 @@ def _fetch_page(
         except LookupError:
             html = raw.decode("utf-8", errors="replace")
 
-        links = extract_same_origin_links(
+        discovery = discover_html_content(
             base_url=final_url,
             html=html,
             origin=origin,
@@ -338,5 +537,8 @@ def _fetch_page(
         status=status,
         content_type=content_type,
         byte_count=len(raw),
-        links=links,
+        links=discovery.links,
+        title=discovery.title,
+        forms=discovery.forms,
+        script_sources=discovery.script_sources,
     )
