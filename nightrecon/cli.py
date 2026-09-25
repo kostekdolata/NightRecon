@@ -1649,6 +1649,19 @@ def main() -> None:
                     f"    SCRIPT {source}"
                 )
 
+            for cookie_observation in page.cookies:
+                print(
+                    "    COOKIE "
+                    f"name={cookie_observation.name} "
+                    f"path={cookie_observation.path or '-'} "
+                    "secure="
+                    f"{'yes' if cookie_observation.secure else 'no'} "
+                    "httponly="
+                    f"{'yes' if cookie_observation.http_only else 'no'} "
+                    "samesite="
+                    f"{cookie_observation.same_site or '-'}"
+                )
+
         if crawl_report.assessment_enabled:
             assessment_summary = summarize_web_assessments(
                 crawl_report.assessment_findings
