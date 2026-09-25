@@ -1,0 +1,42 @@
+name: Create v0.20.0 Annotated Tag
+
+on:
+  push:
+    branches:
+      - v0.20.0-dev
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Tag verified master release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out full repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create annotated v0.20.0 tag
+        shell: bash
+        env:
+          TARGET_SHA: f7324c3e4ae3ca080583d3f48d8c4e21262889fa
+        run: |
+          set -euo pipefail
+
+          git cat-file -e "${TARGET_SHA}^{commit}"
+
+          if git ls-remote --exit-code --tags origin refs/tags/v0.20.0 >/dev/null 2>&1; then
+            echo "v0.20.0 already exists on origin; refusing to replace it."
+            exit 1
+          fi
+
+          git config user.name "NightRecon Release"
+          git config user.email "actions@users.noreply.github.com"
+
+          git tag -a v0.20.0 "${TARGET_SHA}" \
+            -m "NightRecon v0.20.0 Evidence-Based OS Fingerprinting"
+
+          git push origin refs/tags/v0.20.0
