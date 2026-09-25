@@ -16,7 +16,7 @@ from urllib.request import (
 )
 
 
-_DEFAULT_USER_AGENT = "NightRecon/0.23 web-crawler"
+_DEFAULT_USER_AGENT = "NightRecon/0.24 web-crawler"
 _HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
 _MAX_TITLE_LENGTH = 512
 
