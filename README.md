@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.20.0**
+**v0.21.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, and a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution.
+NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution, plus a scope-enforced bounded same-origin web crawler with passive content discovery and opt-in passive DAST checks.
 
 ## Features
 
@@ -127,6 +127,17 @@ NightRecon now includes scope-enforced concurrent TCP scanning, authorized bound
 - CLI display of detected services and observed banners
 - Service connection-failure reporting without aborting the scan
 - Structured completed scan reports
+- Scope-enforced bounded same-origin HTTP(S) crawling through the dedicated `nightrecon crawl` command
+- Crawl URL hosts must independently satisfy existing hostname/IP/CIDR authorization rules before any request is sent
+- Cross-origin redirects are blocked and only normalized same-origin links are eligible for traversal
+- Explicit page-count, per-page byte, and per-request timeout bounds with fail-soft request errors
+- IPv4 and bracketed IPv6 web-origin support with deterministic URL normalization
+- Passive HTML content discovery for page titles, same-origin links, form actions/methods, input names/types, and script source URLs
+- Form field values are never collected; form actions and script sources are observation-only and are not automatically requested
+- Structured web-crawl reports persisted as JSON with page, form, script, link, and failure summaries
+- Opt-in passive web DAST mode with `nightrecon crawl ... --assessment`
+- Passive DAST checks for password forms on plaintext HTTP pages, password fields submitted with GET, and HTTPS pages referencing HTTP scripts
+- Web assessment is disabled by default and uses only captured crawl metadata; it does not submit forms or send additional assessment probes
 - Per-port result storage
 - Ordinary `scan` CIDR port-scanning remains blocked; network discovery is isolated behind the explicit `discover` command
 - Authorized CIDR host discovery with full scope-containment validation before any probe activity
@@ -174,6 +185,14 @@ NightRecon now includes scope-enforced concurrent TCP scanning, authorized bound
 ## Example
 
 nightrecon scan 127.0.0.1 --scope 127.0.0.1
+
+Crawl an explicitly authorized web origin with bounded same-origin traversal:
+
+`nightrecon crawl https://example.test --scope example.test --max-pages 50`
+
+Add passive content-based DAST checks without form submission or extra probe requests:
+
+`nightrecon crawl https://example.test --scope example.test --assessment`
 
 Enable bounded active service fingerprint probes at a conservative intensity:
 
@@ -318,9 +337,11 @@ Declarative check packs are intentionally non-executable data. NightRecon does n
 
 Managed feed state adds replay protection and immutable local version storage. Installed packs are reverified before activation, rollback, and assessment use. Dry-run planning validates signed feed freshness without persisting the newer generation or downloading artifacts.
 
+Web crawling reuses NightRecon's existing scope authorization boundary. The URL host is validated before requests begin, cross-origin redirects are blocked, and traversal is limited to normalized same-origin links. Passive content discovery records structure rather than secrets: form values are not retained, form actions are not submitted, and script sources are not fetched merely because they were observed. The initial web-assessment mode is passive and derives findings only from captured metadata; it does not claim exploitability.
+
 ## Roadmap
 
-- web crawling, content discovery, and DAST assessment
+- authenticated web application crawling and safe-active DAST expansion
 - authenticated SSH, SMB, WinRM, database, and network-device assessment
 - Active Directory and identity-security assessment
 - cloud posture assessment for AWS, Azure, and GCP
