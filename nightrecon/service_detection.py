@@ -8,6 +8,11 @@ import ipaddress
 import socket
 
 from nightrecon.security_headers import analyze_security_headers
+from nightrecon.service_fingerprint import (
+    ServiceFingerprint,
+    fingerprint_banner,
+    fingerprint_http_server,
+)
 from nightrecon.software_identity import (
     SoftwareIdentity,
     parse_http_server_identity,
@@ -50,6 +55,7 @@ class ServiceDetectionResult:
     security_headers_present: tuple[str, ...] = ()
     security_headers_missing: tuple[str, ...] = ()
     software_identity: SoftwareIdentity | None = None
+    service_fingerprint: ServiceFingerprint | None = None
     tls_version: str = ""
     tls_cipher: str = ""
     tls_certificate_subject: str = ""
@@ -273,6 +279,7 @@ def detect_service(
         security_headers_present: tuple[str, ...] = ()
         security_headers_missing: tuple[str, ...] = ()
         software_identity: SoftwareIdentity | None = None
+        service_fingerprint: ServiceFingerprint | None = None
         tls_version = ""
         tls_cipher = ""
         tls_certificate_subject = ""
@@ -317,8 +324,16 @@ def detect_service(
             software_identity = parse_http_server_identity(
                 http_server
             )
-        elif service == "ssh" and banner:
-            software_identity = parse_ssh_banner_identity(
+            service_fingerprint = fingerprint_http_server(
+                http_server
+            )
+        elif banner:
+            if service == "ssh":
+                software_identity = parse_ssh_banner_identity(
+                    banner
+                )
+
+            service_fingerprint = fingerprint_banner(
                 banner
             )
 
@@ -345,6 +360,7 @@ def detect_service(
             security_headers_present=security_headers_present,
             security_headers_missing=security_headers_missing,
             software_identity=software_identity,
+            service_fingerprint=service_fingerprint,
             tls_version=tls_version,
             tls_cipher=tls_cipher,
             tls_certificate_subject=tls_certificate_subject,
