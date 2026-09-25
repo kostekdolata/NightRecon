@@ -5,6 +5,9 @@ import tempfile
 import unittest
 
 from nightrecon.session import ScanSession
+from nightrecon.web_assessment import (
+    WebAssessmentFinding,
+)
 from nightrecon.storage import ResultStore
 from nightrecon.targets import parse_target
 from nightrecon.web_crawl import (
@@ -99,6 +102,54 @@ class WebCrawlReportTests(unittest.TestCase):
         self.assertEqual(
             data["summary"]["script_sources_observed"],
             1,
+        )
+        self.assertIsNone(
+            data["assessment_summary"]
+        )
+
+    def test_enabled_assessment_summary_is_persisted(self):
+        session = ScanSession.create(
+            target=parse_target("example.test"),
+            scope_rules=("example.test",),
+        )
+        crawl = CrawlResult(
+            start_url="https://example.test/",
+            origin="https://example.test",
+            pages=(),
+            max_pages=10,
+            max_bytes_per_page=4096,
+        )
+        report = WebCrawlReport.create(
+            session=session,
+            crawl=crawl,
+            assessment_enabled=True,
+            assessment_findings=(
+                WebAssessmentFinding(
+                    check_id="web.password-form-uses-get",
+                    title="Password form uses GET submission",
+                    severity="medium",
+                    page_url="https://example.test/login",
+                    evidence="method=GET contains password input",
+                ),
+            ),
+        )
+
+        data = report.to_dict()
+
+        self.assertTrue(
+            data["assessment_enabled"]
+        )
+        self.assertEqual(
+            data["assessment_summary"]["total_findings"],
+            1,
+        )
+        self.assertEqual(
+            data["assessment_summary"]["medium_count"],
+            1,
+        )
+        self.assertEqual(
+            data["assessment_findings"][0]["check_id"],
+            "web.password-form-uses-get",
         )
 
     def test_report_is_saved_as_json(self):
