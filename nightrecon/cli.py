@@ -7,6 +7,12 @@ import sys
 from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
+from nightrecon.asset_inventory import (
+    AssetChangeEvent,
+    apply_discovery_report,
+    apply_scan_report,
+)
+from nightrecon.asset_inventory_store import AssetInventoryStore
 from nightrecon.assessment_engine import (
     CheckIntrusiveness,
     CheckRegistry,
@@ -72,6 +78,55 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(
         dest="command",
         title="commands",
+    )
+
+    assets_parser = subparsers.add_parser(
+        "assets",
+        help="Inspect the persistent NightRecon asset inventory.",
+    )
+
+    assets_subparsers = assets_parser.add_subparsers(
+        dest="assets_command",
+        title="asset commands",
+    )
+
+    assets_list_parser = assets_subparsers.add_parser(
+        "list",
+        help="List persistent assets without network activity.",
+    )
+
+    assets_list_parser.add_argument(
+        "--inventory-dir",
+        default="inventory",
+        help=(
+            "Persistent NightRecon asset inventory directory. "
+            "Default: inventory"
+        ),
+    )
+
+    assets_history_parser = assets_subparsers.add_parser(
+        "history",
+        help="Inspect persisted asset changes without network activity.",
+    )
+
+    assets_history_parser.add_argument(
+        "--inventory-dir",
+        default="inventory",
+        help=(
+            "Persistent NightRecon asset inventory directory. "
+            "Default: inventory"
+        ),
+    )
+
+    assets_history_parser.add_argument(
+        "--address",
+        help="Filter history by exact asset IP address.",
+    )
+
+    assets_history_parser.add_argument(
+        "--limit",
+        type=int,
+        help="Return only the most recent N matching changes.",
     )
 
     checks_parser = subparsers.add_parser(
@@ -302,6 +357,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory for audit logs. Default: logs",
     )
 
+    discover_parser.add_argument(
+        "--update-inventory",
+        action="store_true",
+        help=(
+            "Merge discovery evidence into the persistent asset inventory."
+        ),
+    )
+
+    discover_parser.add_argument(
+        "--inventory-dir",
+        default="inventory",
+        help=(
+            "Persistent NightRecon asset inventory directory. "
+            "Default: inventory"
+        ),
+    )
+
     scan_parser = subparsers.add_parser(
         "scan",
         help="Scan an authorized target.",
@@ -355,6 +427,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--logs-dir",
         default="logs",
         help="Directory for audit logs. Default: logs",
+    )
+
+    scan_parser.add_argument(
+        "--update-inventory",
+        action="store_true",
+        help=(
+            "Merge scan evidence into the persistent asset inventory."
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--inventory-dir",
+        default="inventory",
+        help=(
+            "Persistent NightRecon asset inventory directory. "
+            "Default: inventory"
+        ),
     )
 
     scan_parser.add_argument(
@@ -527,6 +616,86 @@ def _load_installed_check_pack_checks(
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "assets":
+        if args.assets_command == "history":
+            try:
+                history = AssetInventoryStore(
+                    args.inventory_dir
+                ).load_change_history(
+                    address=args.address,
+                    limit=args.limit,
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
+
+            print(f"Asset changes: {len(history)}")
+
+            for event in history:
+                change = event.change
+                line = (
+                    f"ASSET CHANGE {change.address} "
+                    f"{change.change_type}"
+                )
+
+                if change.port is not None:
+                    line += f" port={change.port}"
+
+                if change.before:
+                    line += f" before={change.before}"
+
+                if change.after:
+                    line += f" after={change.after}"
+
+                line += (
+                    f" source={event.source_type}"
+                    f" session={event.session_id}"
+                    f" observed_at={event.observed_at}"
+                )
+                print(line)
+
+            return
+
+        if args.assets_command != "list":
+            parser.error(
+                "The assets command requires a subcommand."
+            )
+
+        try:
+            inventory = AssetInventoryStore(
+                args.inventory_dir
+            ).load()
+        except ValueError as exc:
+            parser.error(str(exc))
+
+        print(f"Assets: {len(inventory.assets)}")
+
+        for asset in inventory.assets:
+            hostnames = (
+                ",".join(asset.hostnames)
+                if asset.hostnames
+                else "-"
+            )
+            services = (
+                ",".join(
+                    (
+                        f"{service.port}/{service.service}/"
+                        f"{service.product or '-'}/"
+                        f"{service.version or '-'}"
+                    )
+                    for service in asset.services
+                )
+                if asset.services
+                else "-"
+            )
+
+            print(
+                f"ASSET {asset.address} "
+                f"hostnames={hostnames} "
+                f"services={services}"
+            )
+
+        return
 
     if args.command == "checks":
         if args.checks_command == "feed":
@@ -914,6 +1083,36 @@ def main() -> None:
             discovery_report
         )
 
+        inventory_update = None
+        inventory_path = None
+
+        if args.update_inventory:
+            try:
+                inventory_store = AssetInventoryStore(
+                    args.inventory_dir
+                )
+                current_inventory = inventory_store.load()
+                inventory_update = apply_discovery_report(
+                    current_inventory,
+                    discovery_report,
+                )
+                inventory_path = inventory_store.save(
+                    inventory_update.inventory
+                )
+                inventory_store.append_change_events(
+                    tuple(
+                        AssetChangeEvent(
+                            observed_at=discovery_report.created_at,
+                            session_id=discovery_report.session_id,
+                            source_type="discovery",
+                            change=change,
+                        )
+                        for change in inventory_update.changes
+                    )
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
+
         logger.write(
             "discovery.completed",
             session_id=discovery_report.session_id,
@@ -991,6 +1190,32 @@ def main() -> None:
         print(
             f"Result file: {output_path}"
         )
+        if inventory_update is not None:
+            print(
+                f"Inventory changes: {len(inventory_update.changes)}"
+            )
+
+            for change in inventory_update.changes:
+                line = (
+                    f"ASSET CHANGE {change.address} "
+                    f"{change.change_type}"
+                )
+
+                if change.port is not None:
+                    line += f" port={change.port}"
+
+                if change.before:
+                    line += f" before={change.before}"
+
+                if change.after:
+                    line += f" after={change.after}"
+
+                print(line)
+
+            print(
+                f"Inventory file: {inventory_path}"
+            )
+
         return
 
     if args.command == "scan":
@@ -1231,6 +1456,36 @@ def main() -> None:
 
         store = ResultStore(config.results_dir)
         output_path = store.save_report(report)
+
+        inventory_update = None
+        inventory_path = None
+
+        if args.update_inventory:
+            try:
+                inventory_store = AssetInventoryStore(
+                    args.inventory_dir
+                )
+                current_inventory = inventory_store.load()
+                inventory_update = apply_scan_report(
+                    current_inventory,
+                    report,
+                )
+                inventory_path = inventory_store.save(
+                    inventory_update.inventory
+                )
+                inventory_store.append_change_events(
+                    tuple(
+                        AssetChangeEvent(
+                            observed_at=report.created_at,
+                            session_id=report.session_id,
+                            source_type="scan",
+                            change=change,
+                        )
+                        for change in inventory_update.changes
+                    )
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
 
         open_ports = report.open_ports
 
@@ -1567,6 +1822,32 @@ def main() -> None:
         print(f"Connection timeout: {config.connect_timeout}")
         print(f"Max workers: {config.max_workers}")
         print(f"Result file: {output_path}")
+        if inventory_update is not None:
+            print(
+                f"Inventory changes: {len(inventory_update.changes)}"
+            )
+
+            for change in inventory_update.changes:
+                line = (
+                    f"ASSET CHANGE {change.address} "
+                    f"{change.change_type}"
+                )
+
+                if change.port is not None:
+                    line += f" port={change.port}"
+
+                if change.before:
+                    line += f" before={change.before}"
+
+                if change.after:
+                    line += f" after={change.after}"
+
+                print(line)
+
+            print(
+                f"Inventory file: {inventory_path}"
+            )
+
 
     if __name__ == "__main__":
         main()
