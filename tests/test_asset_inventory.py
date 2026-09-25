@@ -13,6 +13,7 @@ from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.host_discovery import HostDiscoveryResult
 from nightrecon.report import TcpScanReport
 from nightrecon.service_detection import ServiceDetectionResult
+from nightrecon.service_fingerprint import ServiceFingerprint
 from nightrecon.session import ScanSession
 from nightrecon.software_identity import SoftwareIdentity
 from nightrecon.targets import parse_target
@@ -213,6 +214,88 @@ class AssetInventoryTests(unittest.TestCase):
         self.assertIn(
             "port-opened",
             tuple(change.change_type for change in update.changes),
+        )
+
+    def test_scan_persists_and_tracks_deep_service_fingerprint(self):
+        existing = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.10",
+                    first_seen="2026-09-24T10:00:00+00:00",
+                    last_seen="2026-09-24T10:00:00+00:00",
+                    last_checked_at="2026-09-24T10:00:00+00:00",
+                    services=(
+                        AssetServiceRecord(
+                            port=22,
+                            service="ssh",
+                            product="OpenSSH",
+                            version="9.6p1",
+                            protocol_version="2.0",
+                            platform="Ubuntu",
+                            fingerprint_source="banner",
+                            fingerprint_confidence="high",
+                        ),
+                    ),
+                ),
+            ),
+        )
+        report = TcpScanReport(
+            session_id="scan-fingerprint",
+            created_at="2026-09-24T14:00:00+00:00",
+            target="192.0.2.10",
+            target_type="ipv4",
+            scope=("192.0.2.0/24",),
+            status="completed",
+            resolved_addresses=("192.0.2.10",),
+            ports_requested=(22,),
+            results=(
+                TcpPortResult(
+                    address="192.0.2.10",
+                    port=22,
+                    is_open=True,
+                    error_code=0,
+                ),
+            ),
+            services=(
+                ServiceDetectionResult(
+                    address="192.0.2.10",
+                    port=22,
+                    service="ssh",
+                    banner=(
+                        "SSH-2.0-OpenSSH_9.6p1 "
+                        "Debian-1"
+                    ),
+                    service_fingerprint=ServiceFingerprint(
+                        protocol="ssh",
+                        protocol_version="2.0",
+                        product="OpenSSH",
+                        version="9.6p1",
+                        platform="Debian",
+                        source="banner",
+                        evidence=(
+                            "SSH-2.0-OpenSSH_9.6p1 "
+                            "Debian-1"
+                        ),
+                        confidence="high",
+                    ),
+                ),
+            ),
+        )
+
+        update = apply_scan_report(existing, report)
+
+        service = update.inventory.assets[0].services[0]
+
+        self.assertEqual(service.protocol_version, "2.0")
+        self.assertEqual(service.platform, "Debian")
+        self.assertEqual(service.fingerprint_source, "banner")
+        self.assertEqual(service.fingerprint_confidence, "high")
+        self.assertIn(
+            "fingerprint-changed",
+            tuple(
+                change.change_type
+                for change in update.changes
+            ),
         )
 
     def test_scan_detects_port_and_software_changes(self):
