@@ -143,6 +143,64 @@ class BrowserRequestDecision:
     resource_kind: BrowserResourceKind
 
 
+@dataclass(frozen=True)
+class BrowserContentDecision:
+    """Decision for one captured response or DOM snapshot size."""
+
+    allowed: bool
+    reason: str
+    byte_count: int
+    max_bytes: int
+
+
+def authorize_response_capture(
+    *,
+    byte_count: int,
+    policy: BrowserDiscoveryPolicy,
+) -> BrowserContentDecision:
+    """Authorize bounded response capture without reading network data."""
+
+    if byte_count < 0:
+        raise ValueError(
+            "byte_count cannot be negative."
+        )
+
+    return BrowserContentDecision(
+        allowed=byte_count <= policy.max_response_bytes,
+        reason=(
+            "authorized"
+            if byte_count <= policy.max_response_bytes
+            else "response_byte_limit_exceeded"
+        ),
+        byte_count=byte_count,
+        max_bytes=policy.max_response_bytes,
+    )
+
+
+def authorize_dom_snapshot(
+    *,
+    byte_count: int,
+    policy: BrowserDiscoveryPolicy,
+) -> BrowserContentDecision:
+    """Authorize bounded serialized DOM retention."""
+
+    if byte_count < 0:
+        raise ValueError(
+            "byte_count cannot be negative."
+        )
+
+    return BrowserContentDecision(
+        allowed=byte_count <= policy.max_dom_bytes,
+        reason=(
+            "authorized"
+            if byte_count <= policy.max_dom_bytes
+            else "dom_byte_limit_exceeded"
+        ),
+        byte_count=byte_count,
+        max_bytes=policy.max_dom_bytes,
+    )
+
+
 def authorize_browser_request(
     *,
     request: BrowserRequest,
