@@ -1734,7 +1734,7 @@ def main() -> None:
                     policy=browser_policy,
                     headless=True,
                 )
-            except BrowserRuntimeUnavailable as exc:
+            except BrowserRuntimeUnavailable:
                 logger.write(
                     "crawl.browser_failed",
                     session_id=session.session_id,
@@ -1744,7 +1744,10 @@ def main() -> None:
                     scope=args.scope,
                     reason="browser_runtime_unavailable",
                 )
-                parser.error(str(exc))
+                parser.error(
+                    "Browser runtime unavailable. Install the NightRecon "
+                    "browser extra and Chromium runtime."
+                )
             except (PermissionError, ValueError) as exc:
                 logger.write(
                     "crawl.browser_failed",
