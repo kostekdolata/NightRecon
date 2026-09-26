@@ -91,6 +91,14 @@ class FormSubmissionPolicyTests(unittest.TestCase):
             decision.approved_fields,
             ("username",),
         )
+        self.assertEqual(
+            decision.submissions_used,
+            0,
+        )
+        self.assertEqual(
+            decision.max_submissions,
+            1,
+        )
         self.assertFalse(
             hasattr(decision, "values")
         )
