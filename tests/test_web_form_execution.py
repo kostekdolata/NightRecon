@@ -88,6 +88,8 @@ def _decision():
             "username",
             "csrf_token",
         ),
+        submissions_used=0,
+        max_submissions=1,
     )
 
 
@@ -183,6 +185,8 @@ class FormExecutionTests(unittest.TestCase):
             action_url="https://example.test/session",
             method="POST",
             approved_fields=(),
+            submissions_used=0,
+            max_submissions=1,
         )
 
         with patch(
@@ -428,6 +432,26 @@ class FormExecutionTests(unittest.TestCase):
             "CookieJar",
             repr(result),
         )
+
+    def test_stale_approval_is_rejected_before_network(self):
+        with patch(
+            "nightrecon.web_form_execution.build_opener"
+        ) as build:
+            with self.assertRaises(PermissionError):
+                execute_form_submission(
+                    intent=_intent(),
+                    decision=_decision(),
+                    state=_state(),
+                    field_values={
+                        "username": "alice",
+                        "csrf_token": "token",
+                    },
+                    submissions_used=1,
+                    origin="https://example.test",
+                    authorized=True,
+                )
+
+        build.assert_not_called()
 
     def test_action_budget_and_invalid_limits_fail_closed(self):
         exhausted = WorkflowState(
