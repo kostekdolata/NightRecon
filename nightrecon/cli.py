@@ -1727,7 +1727,6 @@ def main() -> None:
                 logger.write(
                     "crawl.browser_failed",
                     session_id=session.session_id,
-                    url=normalized_url,
                     origin=crawl.origin,
                     target=target.value,
                     target_type=target.target_type.value,
