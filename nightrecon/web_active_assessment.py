@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from http.cookiejar import CookieJar
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import (
+    HTTPCookieProcessor,
+    HTTPRedirectHandler,
+    Request,
+    build_opener,
+)
 
 from nightrecon.web_assessment import WebAssessmentFinding
 from nightrecon.web_crawl import CrawlPage, normalize_http_url, url_origin
 
 
-_DEFAULT_USER_AGENT = "NightRecon/0.23 safe-active-web-assessment"
+_DEFAULT_USER_AGENT = "NightRecon/0.24 safe-active-web-assessment"
 _RISKY_ADVERTISED_METHODS = frozenset(
     {
         "PUT",
@@ -57,6 +63,7 @@ def assess_web_pages_safe_active(
     user_agent: str = _DEFAULT_USER_AGENT,
     authorization: str | None = None,
     cookie: str | None = None,
+    cookie_jar: CookieJar | None = None,
 ) -> SafeActiveWebAssessmentResult:
     """Issue bounded OPTIONS probes and inspect advertised HTTP methods."""
 
@@ -125,8 +132,17 @@ def assess_web_pages_safe_active(
     findings: list[WebAssessmentFinding] = []
     successful_probes = 0
     requests_attempted = 0
+    handlers = [
+        _NoRedirectHandler(),
+    ]
+
+    if cookie_jar is not None:
+        handlers.append(
+            HTTPCookieProcessor(cookie_jar)
+        )
+
     opener = build_opener(
-        _NoRedirectHandler()
+        *handlers
     )
 
     for url in candidates:

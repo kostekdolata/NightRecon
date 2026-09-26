@@ -2,6 +2,8 @@
 
 import unittest
 from email.message import Message
+from http.cookiejar import CookieJar
+from urllib.request import HTTPCookieProcessor
 from unittest.mock import patch
 
 from nightrecon.web_crawl import (
@@ -375,6 +377,120 @@ class WebCrawlTests(unittest.TestCase):
         )
         self.assertNotIn(
             secret_value,
+            repr(page),
+        )
+
+    def test_ephemeral_cookie_jar_is_reused_across_crawl_pages(self):
+        first = CrawlPage(
+            url="https://example.test/",
+            status=200,
+            content_type="text/html",
+            byte_count=10,
+            links=("https://example.test/next",),
+        )
+        second = CrawlPage(
+            url="https://example.test/next",
+            status=200,
+            content_type="text/html",
+            byte_count=10,
+            links=(),
+        )
+        cookie_jar = CookieJar()
+
+        with patch(
+            "nightrecon.web_crawl._fetch_page",
+            side_effect=(first, second),
+        ) as fetch:
+            result = crawl_site(
+                start_url="https://example.test/",
+                max_pages=2,
+                cookie_jar=cookie_jar,
+            )
+
+        self.assertEqual(
+            result.pages_fetched,
+            2,
+        )
+        self.assertEqual(
+            fetch.call_count,
+            2,
+        )
+        self.assertTrue(
+            all(
+                call.kwargs["cookie_jar"] is cookie_jar
+                for call in fetch.call_args_list
+            )
+        )
+        self.assertNotIn(
+            "CookieJar",
+            repr(result),
+        )
+
+    def test_fetch_page_installs_cookie_processor_for_ephemeral_session(self):
+        class FakeResponse:
+            status = 200
+
+            def __init__(self):
+                self.headers = Message()
+                self.headers["Content-Type"] = (
+                    "text/html; charset=utf-8"
+                )
+
+            def __enter__(self):
+                return self
+
+            def __exit__(
+                self,
+                exc_type,
+                exc,
+                traceback,
+            ):
+                return False
+
+            def geturl(self):
+                return "https://example.test/"
+
+            def read(self, size):
+                return b"<html></html>"
+
+        class FakeOpener:
+            def open(self, request, timeout):
+                return FakeResponse()
+
+        cookie_jar = CookieJar()
+
+        with patch(
+            "nightrecon.web_crawl.build_opener",
+            return_value=FakeOpener(),
+        ) as build:
+            page = _fetch_page(
+                url="https://example.test/",
+                origin="https://example.test",
+                max_bytes=4096,
+                timeout=1.0,
+                user_agent="NightRecon-Test",
+                cookie_jar=cookie_jar,
+            )
+
+        processors = tuple(
+            handler
+            for handler in build.call_args.args
+            if isinstance(
+                handler,
+                HTTPCookieProcessor,
+            )
+        )
+
+        self.assertEqual(
+            len(processors),
+            1,
+        )
+        self.assertIs(
+            processors[0].cookiejar,
+            cookie_jar,
+        )
+        self.assertNotIn(
+            "CookieJar",
             repr(page),
         )
 

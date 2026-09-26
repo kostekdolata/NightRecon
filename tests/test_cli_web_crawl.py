@@ -4,6 +4,7 @@ import contextlib
 import io
 import sys
 import unittest
+from http.cookiejar import CookieJar
 from pathlib import Path
 from unittest.mock import patch
 
@@ -150,6 +151,7 @@ class CliWebCrawlTests(unittest.TestCase):
             timeout=5.0,
             authorization=None,
             cookie=None,
+            cookie_jar=None,
         )
         store_class.return_value.save_web_crawl_report.assert_called_once()
 
@@ -342,6 +344,7 @@ class CliWebCrawlTests(unittest.TestCase):
             max_requests=3,
             authorization=None,
             cookie=None,
+            cookie_jar=None,
         )
 
         report = (
@@ -572,6 +575,7 @@ class CliWebCrawlTests(unittest.TestCase):
             max_requests=2,
             authorization="Bearer active-secret",
             cookie="session=active-cookie",
+            cookie_jar=None,
         )
         self.assertNotIn(
             "active-secret",
@@ -607,6 +611,168 @@ class CliWebCrawlTests(unittest.TestCase):
         self.assertEqual(stdout, "")
         self.assertIn(
             "NIGHTRECON_MISSING_AUTH",
+            stderr,
+        )
+        crawl_site.assert_not_called()
+        logger_class.assert_not_called()
+
+    def test_session_cookies_use_ephemeral_cookie_jar(self):
+        crawl = _crawl_result(
+            start_url="https://example.test/",
+        )
+
+        with patch(
+            "nightrecon.cli.crawl_site",
+            return_value=crawl,
+        ) as crawl_site:
+            with patch(
+                "nightrecon.cli.ResultStore"
+            ) as store_class:
+                store_class.return_value.save_web_crawl_report.return_value = (
+                    Path("results/crawl.json")
+                )
+
+                with patch(
+                    "nightrecon.cli.NightReconLogger"
+                ):
+                    code, stdout, stderr = self.run_cli(
+                        "crawl",
+                        "https://example.test/",
+                        "--scope",
+                        "example.test",
+                        "--session-cookies",
+                    )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn(
+            "Session cookie continuity: enabled",
+            stdout,
+        )
+        cookie_jar = (
+            crawl_site.call_args.kwargs[
+                "cookie_jar"
+            ]
+        )
+        self.assertIsInstance(
+            cookie_jar,
+            CookieJar,
+        )
+        self.assertNotIn(
+            "CookieJar",
+            stdout,
+        )
+
+        report = (
+            store_class.return_value
+            .save_web_crawl_report
+            .call_args.args[0]
+        )
+        self.assertNotIn(
+            "CookieJar",
+            repr(report),
+        )
+
+    def test_safe_active_reuses_same_ephemeral_cookie_jar(self):
+        crawl = _crawl_result(
+            start_url="https://example.test/",
+        )
+        active_result = SafeActiveWebAssessmentResult(
+            findings=(),
+            requests_attempted=1,
+            successful_probes=1,
+            max_requests=2,
+            errors=(),
+        )
+
+        with patch(
+            "nightrecon.cli.crawl_site",
+            return_value=crawl,
+        ) as crawl_site:
+            with patch(
+                "nightrecon.cli.assess_web_pages_safe_active",
+                return_value=active_result,
+            ) as safe_active:
+                with patch(
+                    "nightrecon.cli.ResultStore"
+                ) as store_class:
+                    store_class.return_value.save_web_crawl_report.return_value = (
+                        Path("results/crawl.json")
+                    )
+
+                    with patch(
+                        "nightrecon.cli.NightReconLogger"
+                    ):
+                        code, stdout, stderr = self.run_cli(
+                            "crawl",
+                            "https://example.test/",
+                            "--scope",
+                            "example.test",
+                            "--session-cookies",
+                            "--assessment",
+                            "--max-web-assessment-intrusiveness",
+                            "safe-active",
+                            "--max-web-assessment-requests",
+                            "2",
+                        )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        crawl_cookie_jar = (
+            crawl_site.call_args.kwargs[
+                "cookie_jar"
+            ]
+        )
+        active_cookie_jar = (
+            safe_active.call_args.kwargs[
+                "cookie_jar"
+            ]
+        )
+        self.assertIsInstance(
+            crawl_cookie_jar,
+            CookieJar,
+        )
+        self.assertIs(
+            active_cookie_jar,
+            crawl_cookie_jar,
+        )
+        self.assertNotIn(
+            "CookieJar",
+            stdout,
+        )
+
+    def test_session_cookies_reject_raw_cookie_header_mode(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "NIGHTRECON_TEST_COOKIE": "session=secret",
+            },
+            clear=False,
+        ):
+            with patch(
+                "nightrecon.cli.crawl_site"
+            ) as crawl_site:
+                with patch(
+                    "nightrecon.cli.NightReconLogger"
+                ) as logger_class:
+                    code, stdout, stderr = self.run_cli(
+                        "crawl",
+                        "https://example.test/",
+                        "--scope",
+                        "example.test",
+                        "--session-cookies",
+                        "--cookie-env",
+                        "NIGHTRECON_TEST_COOKIE",
+                    )
+
+        self.assertEqual(code, 2)
+        self.assertEqual(stdout, "")
+        self.assertIn(
+            "--session-cookies cannot be combined with --cookie-env",
+            stderr,
+        )
+        self.assertNotIn(
+            "session=secret",
             stderr,
         )
         crawl_site.assert_not_called()
