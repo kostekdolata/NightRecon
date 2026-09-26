@@ -291,6 +291,8 @@ class FormExecutionTests(unittest.TestCase):
                 "username",
                 "csrf_token",
             ),
+            submissions_used=0,
+            max_submissions=1,
         )
         get_intent = WorkflowFormIntent(
             source_url="https://example.test/login",
@@ -308,6 +310,8 @@ class FormExecutionTests(unittest.TestCase):
                 "username",
                 "csrf_token",
             ),
+            submissions_used=0,
+            max_submissions=1,
         )
 
         with patch(
