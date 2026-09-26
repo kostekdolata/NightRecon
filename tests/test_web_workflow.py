@@ -12,6 +12,7 @@ from nightrecon.web_workflow import (
     WorkflowActionKind,
     WorkflowPolicy,
     WorkflowState,
+    advance_workflow_state,
     authorize_workflow_action,
     build_observed_navigation_plan,
 )
@@ -409,6 +410,104 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertEqual(
             state.actions_remaining,
             2,
+        )
+
+    def test_authorized_transition_advances_immutable_state(self):
+        policy = WorkflowPolicy(
+            origin="https://example.test",
+            max_actions=3,
+        )
+        state = WorkflowState(
+            current_url="https://example.test/",
+            visited_urls=(
+                "https://example.test/",
+            ),
+            actions_used=0,
+            max_actions=3,
+        )
+        action = WorkflowAction(
+            kind=WorkflowActionKind.NAVIGATE,
+            source_url="https://example.test/",
+            target_url="https://example.test/dashboard",
+            method="GET",
+        )
+        decision = authorize_workflow_action(
+            action=action,
+            policy=policy,
+            actions_used=state.actions_used,
+        )
+
+        advanced = advance_workflow_state(
+            state=state,
+            action=action,
+            decision=decision,
+        )
+
+        self.assertEqual(
+            state.current_url,
+            "https://example.test/",
+        )
+        self.assertEqual(
+            state.actions_used,
+            0,
+        )
+        self.assertEqual(
+            advanced.current_url,
+            "https://example.test/dashboard",
+        )
+        self.assertEqual(
+            advanced.actions_used,
+            1,
+        )
+        self.assertEqual(
+            advanced.actions_remaining,
+            2,
+        )
+        self.assertIn(
+            "https://example.test/dashboard",
+            advanced.visited_urls,
+        )
+
+    def test_denied_transition_cannot_advance_state(self):
+        policy = WorkflowPolicy(
+            origin="https://example.test",
+        )
+        state = WorkflowState(
+            current_url="https://example.test/",
+            visited_urls=(
+                "https://example.test/",
+            ),
+            actions_used=0,
+            max_actions=25,
+        )
+        action = WorkflowAction(
+            kind=WorkflowActionKind.NAVIGATE,
+            source_url="https://example.test/",
+            target_url="https://outside.test/",
+            method="GET",
+        )
+        decision = authorize_workflow_action(
+            action=action,
+            policy=policy,
+            actions_used=0,
+        )
+
+        self.assertFalse(decision.allowed)
+
+        with self.assertRaises(PermissionError):
+            advance_workflow_state(
+                state=state,
+                action=action,
+                decision=decision,
+            )
+
+        self.assertEqual(
+            state.actions_used,
+            0,
+        )
+        self.assertEqual(
+            state.current_url,
+            "https://example.test/",
         )
 
     def test_policy_rejects_invalid_limits_and_empty_methods(self):
