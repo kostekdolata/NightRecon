@@ -44,8 +44,8 @@ class ApiOpenApiTests(unittest.TestCase):
                 "schemas": {
                     "External": {
                         "$ref": (
-                            "https://schemas.example.test"
-                            "/external.json"
+                            "https://user:secret@schemas.example.test"
+                            "/external.json?token=hidden#Thing"
                         )
                     }
                 },
@@ -197,6 +197,10 @@ class ApiOpenApiTests(unittest.TestCase):
         )
         self.assertNotIn(
             "token=hidden",
+            serialized,
+        )
+        self.assertNotIn(
+            "user:secret",
             serialized,
         )
 
