@@ -260,12 +260,11 @@ class BrowserPlaywrightRuntimeTests(unittest.TestCase):
         self.assertTrue(
             any(
                 (
-                    not observation.allowed
-                    and observation.reason
-                    == "outside_authorized_origin"
+                    observation.status == 302
+                    and observation.capture_allowed
                 )
                 for observation
-                in result.snapshot.requests
+                in result.snapshot.responses
             )
         )
 
