@@ -87,6 +87,37 @@ def _redacted_url(value: Any) -> str:
     return ""
 
 
+class ApiDescriptionRuntimeUnavailable(RuntimeError):
+    """Raised when optional API-description parsing support is unavailable."""
+
+
+def _redacted_reference(value: str) -> str:
+    """Remove userinfo/query/fragment from external reference metadata."""
+
+    text = _safe_text(
+        value,
+        limit=2048,
+    )
+
+    if not text:
+        return ""
+
+    parts = urlsplit(text)
+
+    if parts.scheme and parts.netloc:
+        return _redacted_url(
+            text
+        )
+
+    return text.split(
+        "?",
+        1,
+    )[0].split(
+        "#",
+        1,
+    )[0]
+
+
 def _schema_type(schema: Any) -> tuple[str, str]:
     if not isinstance(schema, Mapping):
         return "", ""
@@ -373,12 +404,14 @@ def _external_refs(
                         "#/"
                     )
                 ):
-                    refs.add(
-                        _safe_text(
-                            child,
-                            limit=2048,
-                        )
+                    redacted = _redacted_reference(
+                        child
                     )
+
+                    if redacted:
+                        refs.add(
+                            redacted
+                        )
                 else:
                     walk(child)
         elif isinstance(item, list):
@@ -672,6 +705,78 @@ def load_api_description_json(
     ) as exc:
         raise ValueError(
             "API description must be valid UTF-8 JSON."
+        ) from exc
+
+    if not isinstance(
+        document,
+        Mapping,
+    ):
+        raise ValueError(
+            "API description root must be an object."
+        )
+
+    return normalize_api_description(
+        document
+    )
+
+
+def load_api_description(
+    path: str | Path,
+    *,
+    max_bytes: int = 2_097_152,
+) -> ApiInventory:
+    """Load a bounded local JSON or YAML API description."""
+
+    if max_bytes < 1:
+        raise ValueError(
+            "max_bytes must be at least 1."
+        )
+
+    file_path = Path(
+        path
+    )
+    payload = file_path.read_bytes()
+
+    if len(payload) > max_bytes:
+        raise ValueError(
+            "API description exceeds max_bytes."
+        )
+
+    suffix = file_path.suffix.lower()
+
+    if suffix == ".json":
+        return load_api_description_json(
+            file_path,
+            max_bytes=max_bytes,
+        )
+
+    if suffix not in {
+        ".yaml",
+        ".yml",
+    }:
+        raise ValueError(
+            "API description must use .json, .yaml, or .yml."
+        )
+
+    try:
+        import yaml
+    except ImportError as exc:
+        raise ApiDescriptionRuntimeUnavailable(
+            "YAML API descriptions require the NightRecon api extra."
+        ) from exc
+
+    try:
+        document = yaml.safe_load(
+            payload.decode(
+                "utf-8"
+            )
+        )
+    except (
+        UnicodeDecodeError,
+        yaml.YAMLError,
+    ) as exc:
+        raise ValueError(
+            "API description must be valid UTF-8 YAML."
         ) from exc
 
     if not isinstance(
