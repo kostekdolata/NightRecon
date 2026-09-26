@@ -1,0 +1,9 @@
+# NightRecon stable release tag allowlist
+# Format: tag<TAB>verified release merge commit SHA<TAB>annotated tag message
+v0.21.0	5c879b95b6eb6b1bf0c4f8ab2a67a6ef96204e0b	NightRecon v0.21.0 Web Crawling and Passive DAST
+v0.22.0	06ffad1894e35dd4fb2ba4efd5605cc5dcb51f05	NightRecon v0.22.0 Authenticated Crawling and Safe-Active Web Assessment
+v0.23.0	943bd8636f958ad3b68ac7458241a940add81ec7	NightRecon v0.23.0 Session Cookie Security Intelligence
+v0.24.0	555b5cbdcb0959b16ad4239da8517df100967613	NightRecon v0.24.0 Ephemeral Authenticated Session Continuity
+v0.25.0	ab84360bae37a5d340ca0f6d0753d8d5499675b7	NightRecon v0.25.0 Stateful Web Workflow Engine
+v0.26.0	1e5587509306da268bfa5a54a35bace764eb61be	NightRecon v0.26.0 Browser-Powered Application Discovery
+v0.27.0	67a44a9b70e20f830307a01732a50179b6553a08	NightRecon v0.27.0 API Intelligence
