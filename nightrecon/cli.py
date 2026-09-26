@@ -9,6 +9,11 @@ from urllib.parse import urlsplit
 from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
+from nightrecon.api_openapi import (
+    ApiDescriptionRuntimeUnavailable,
+    load_api_description,
+)
+from nightrecon.api_report import ApiInventoryReport
 from nightrecon.asset_inventory import (
     AssetChangeEvent,
     apply_discovery_report,
@@ -116,6 +121,73 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(
         dest="command",
         title="commands",
+    )
+
+    api_parser = subparsers.add_parser(
+        "api",
+        help="Inspect authorized API descriptions and API intelligence.",
+    )
+
+    api_subparsers = api_parser.add_subparsers(
+        dest="api_command",
+        title="api commands",
+    )
+
+    api_inspect_parser = api_subparsers.add_parser(
+        "inspect",
+        help=(
+            "Passively inspect a local OpenAPI/Swagger description "
+            "without network activity."
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "spec",
+        help=(
+            "Local .json, .yaml, or .yml OpenAPI/Swagger file. "
+            "YAML requires the optional NightRecon api extra."
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "--base-url",
+        required=True,
+        help=(
+            "Authorized HTTP(S) API base URL used only for scope/origin "
+            "validation. No request is sent."
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help=(
+            "Authorized scope rule for the API base host. "
+            "May be supplied multiple times."
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "--max-spec-bytes",
+        type=int,
+        default=2_097_152,
+        help=(
+            "Maximum local API description size in bytes. "
+            "Default: 2097152"
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    api_inspect_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
     )
 
     assets_parser = subparsers.add_parser(
@@ -876,6 +948,199 @@ def _load_installed_check_pack_checks(
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "api":
+        if args.api_command != "inspect":
+            parser.error(
+                "The api command requires a subcommand."
+            )
+
+        try:
+            if args.max_spec_bytes < 1:
+                raise ValueError(
+                    "max_spec_bytes must be at least 1."
+                )
+
+            raw_base = args.base_url.strip()
+            raw_parts = urlsplit(
+                raw_base
+            )
+
+            if (
+                raw_parts.username is not None
+                or raw_parts.password is not None
+            ):
+                raise ValueError(
+                    "--base-url must not contain URL credentials."
+                )
+
+            if raw_parts.query or raw_parts.fragment:
+                raise ValueError(
+                    "--base-url must not contain a query string or fragment."
+                )
+
+            normalized_base = normalize_http_url(
+                raw_base
+            )
+            base_origin = url_origin(
+                normalized_base
+            )
+            hostname = urlsplit(
+                normalized_base
+            ).hostname
+
+            if hostname is None:
+                raise ValueError(
+                    "--base-url must include a hostname."
+                )
+
+            target = parse_target(
+                hostname
+            )
+            scope = Scope.from_values(
+                args.scope
+            )
+            inventory = load_api_description(
+                args.spec,
+                max_bytes=args.max_spec_bytes,
+            )
+        except ApiDescriptionRuntimeUnavailable as exc:
+            parser.error(str(exc))
+        except (
+            OSError,
+            ValueError,
+        ) as exc:
+            parser.error(str(exc))
+
+        logger = NightReconLogger(
+            args.logs_dir
+        )
+
+        if not scope.is_authorized(
+            target
+        ):
+            logger.write(
+                "api.inspect.rejected",
+                base_origin=base_origin,
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason="outside_authorized_scope",
+            )
+            parser.error(
+                f"Target '{target.value}' is outside the authorized scope."
+            )
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=tuple(
+                args.scope
+            ),
+        )
+        api_report = ApiInventoryReport.create(
+            session=session,
+            base_origin=base_origin,
+            inventory=inventory,
+        )
+        output_path = ResultStore(
+            args.results_dir
+        ).save_api_inventory_report(
+            api_report
+        )
+        summary = api_report.to_dict()[
+            "summary"
+        ]
+
+        logger.write(
+            "api.inspect.completed",
+            session_id=api_report.session_id,
+            base_origin=api_report.base_origin,
+            target=api_report.target,
+            target_type=api_report.target_type,
+            scope=args.scope,
+            specification=api_report.specification,
+            specification_version=api_report.specification_version,
+            operations=summary["operations"],
+            safe_operations=summary["safe_operations"],
+            mutating_operations=summary["mutating_operations"],
+            external_references=summary["external_references"],
+            status=api_report.status,
+        )
+
+        print(
+            "API Description: "
+            f"{api_report.specification} "
+            f"{api_report.specification_version}"
+        )
+        print(
+            f"API Title: {api_report.title or '-'}"
+        )
+        print(
+            f"API Version: {api_report.api_version or '-'}"
+        )
+        print(
+            "API Summary: "
+            f"operations={summary['operations']} "
+            f"safe={summary['safe_operations']} "
+            f"mutating={summary['mutating_operations']} "
+            f"servers={summary['servers']} "
+            f"security_schemes={summary['security_schemes']} "
+            f"external_refs={summary['external_references']}"
+        )
+
+        for server in api_report.servers:
+            server_origin = ""
+
+            try:
+                server_origin = url_origin(
+                    normalize_http_url(
+                        server
+                    )
+                )
+            except ValueError:
+                pass
+
+            print(
+                "  API SERVER "
+                f"{server} "
+                "same_origin="
+                f"{'yes' if server_origin == base_origin else 'no'}"
+            )
+
+        for operation in api_report.operations:
+            parameters = (
+                ",".join(
+                    (
+                        f"{parameter.location}:"
+                        f"{parameter.name}:"
+                        f"{parameter.schema_type or '-'}"
+                    )
+                    for parameter in operation.parameters
+                )
+                if operation.parameters
+                else "-"
+            )
+            print(
+                "  API OPERATION "
+                f"{operation.method} {operation.path} "
+                f"id={operation.operation_id or '-'} "
+                f"params={parameters}"
+            )
+
+        for reference in (
+            api_report.external_references_observed
+        ):
+            print(
+                f"  API EXTERNAL REF {reference}"
+            )
+
+        print(
+            f"Session ID: {api_report.session_id}"
+        )
+        print(
+            f"API result file: {output_path}"
+        )
+        return
 
     if args.command == "assets":
         if args.assets_command == "history":
