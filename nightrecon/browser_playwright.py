@@ -323,15 +323,25 @@ def discover_with_playwright(
                 except (TypeError, ValueError):
                     byte_count = 0
 
+                response_status = getattr(
+                    response,
+                    "status",
+                    None,
+                )
                 response_observation = controller.record_response(
                     url=request.url,
-                    status=getattr(
-                        response,
-                        "status",
-                        None,
-                    ),
+                    status=response_status,
                     byte_count=byte_count,
                 )
+
+                if (
+                    response_status is not None
+                    and 300 <= response_status < 400
+                ):
+                    route.abort(
+                        "blockedbyresponse"
+                    )
+                    return
 
                 if not response_observation.capture_allowed:
                     route.abort(
