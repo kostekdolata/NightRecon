@@ -86,6 +86,16 @@ def execute_form_submission(
             "submissions_used cannot be negative."
         )
 
+    if submissions_used != decision.submissions_used:
+        raise PermissionError(
+            "Form approval is stale for the current submission count."
+        )
+
+    if submissions_used >= decision.max_submissions:
+        raise PermissionError(
+            "Form submission budget is exhausted."
+        )
+
     if state.actions_used >= state.max_actions:
         raise PermissionError(
             "Workflow action budget is exhausted."
