@@ -1,6 +1,7 @@
 """Tests for bounded NightRecon workflow navigation execution."""
 
 import unittest
+from http.cookiejar import CookieJar
 from unittest.mock import patch
 
 from nightrecon.web_crawl import (
@@ -102,6 +103,61 @@ class WebWorkflowExecutionTests(unittest.TestCase):
             max_bytes_per_page=4096,
             timeout=2.0,
             user_agent="NightRecon/0.25 workflow-navigation",
+            authorization=None,
+            cookie=None,
+            cookie_jar=None,
+        )
+
+    def test_ephemeral_auth_context_is_forwarded_but_not_retained(self):
+        action, decision = _authorized_action()
+        cookie_jar = CookieJar()
+        secret = "Bearer workflow-secret-value"
+        crawl = CrawlResult(
+            start_url="https://example.test/dashboard",
+            origin="https://example.test",
+            pages=(
+                CrawlPage(
+                    url="https://example.test/dashboard",
+                    status=200,
+                    content_type="text/html",
+                    byte_count=100,
+                    links=(),
+                ),
+            ),
+            max_pages=1,
+            max_bytes_per_page=262_144,
+        )
+
+        with patch(
+            "nightrecon.web_workflow_execution.crawl_site",
+            return_value=crawl,
+        ) as crawl_site:
+            result = execute_workflow_navigation(
+                action=action,
+                decision=decision,
+                state=_state(),
+                origin="https://example.test",
+                authorized=True,
+                authorization=secret,
+                cookie_jar=cookie_jar,
+            )
+
+        self.assertTrue(result.success)
+        self.assertEqual(
+            crawl_site.call_args.kwargs["authorization"],
+            secret,
+        )
+        self.assertIs(
+            crawl_site.call_args.kwargs["cookie_jar"],
+            cookie_jar,
+        )
+        self.assertNotIn(
+            "workflow-secret-value",
+            repr(result),
+        )
+        self.assertNotIn(
+            "CookieJar",
+            repr(result),
         )
 
     def test_explicit_authorization_is_required(self):
