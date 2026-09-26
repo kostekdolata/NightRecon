@@ -15,6 +15,12 @@ from nightrecon.asset_inventory import (
     apply_scan_report,
 )
 from nightrecon.asset_inventory_store import AssetInventoryStore
+from nightrecon.browser_playwright import (
+    BrowserRuntimeUnavailable,
+    discover_with_playwright,
+)
+from nightrecon.browser_policy import BrowserDiscoveryPolicy
+from nightrecon.browser_report import BrowserDiscoveryReport
 from nightrecon.assessment_engine import (
     CheckIntrusiveness,
     CheckRegistry,
@@ -552,6 +558,68 @@ def build_parser() -> argparse.ArgumentParser:
             "Explicitly execute one absolute same-origin GET URL after the "
             "crawl under workflow policy. Requires --workflow. May repeat. "
             "Form POST execution is not exposed by the v0.25 CLI."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--browser-discovery",
+        action="store_true",
+        help=(
+            "Run bounded Playwright/Chromium discovery for JavaScript-rendered "
+            "same-origin links and form metadata. Requires the optional "
+            "NightRecon browser extra and Chromium runtime. Authenticated "
+            "browser context is not yet supported in v0.26."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--browser-max-requests",
+        type=int,
+        default=100,
+        help="Maximum browser network requests reserved. Default: 100",
+    )
+
+    crawl_parser.add_argument(
+        "--browser-max-pages",
+        type=int,
+        default=10,
+        help="Maximum browser document navigations. Default: 10",
+    )
+
+    crawl_parser.add_argument(
+        "--browser-max-runtime",
+        type=float,
+        default=30.0,
+        help="Maximum browser runtime in seconds. Default: 30",
+    )
+
+    crawl_parser.add_argument(
+        "--browser-max-response-bytes",
+        type=int,
+        default=1_048_576,
+        help=(
+            "Maximum declared response bytes permitted for browser delivery. "
+            "Default: 1048576"
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--browser-max-dom-bytes",
+        type=int,
+        default=2_097_152,
+        help=(
+            "Maximum serialized browser-discovery metadata bytes retained. "
+            "Default: 2097152"
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--browser-max-dom-items",
+        type=int,
+        default=500,
+        help=(
+            "Maximum DOM links/forms/fields sampled per collection. "
+            "Default: 500"
         ),
     )
 
@@ -1480,6 +1548,47 @@ def main() -> None:
                     "--workflow-get URLs must use the crawl's exact origin."
                 )
 
+            if (
+                args.browser_discovery
+                and urlsplit(
+                    normalized_url
+                ).query
+            ):
+                raise ValueError(
+                    "--browser-discovery start URL must not include "
+                    "a query string."
+                )
+
+            if (
+                args.browser_discovery
+                and (
+                    args.authorization_env
+                    or args.cookie_env
+                    or args.session_cookies
+                )
+            ):
+                raise ValueError(
+                    "--browser-discovery does not yet accept authenticated "
+                    "crawl context; omit --authorization-env, --cookie-env, "
+                    "and --session-cookies for v0.26 browser discovery."
+                )
+
+            browser_policy = (
+                BrowserDiscoveryPolicy(
+                    origin=url_origin(
+                        normalized_url
+                    ),
+                    max_requests=args.browser_max_requests,
+                    max_pages=args.browser_max_pages,
+                    max_runtime_seconds=args.browser_max_runtime,
+                    max_response_bytes=args.browser_max_response_bytes,
+                    max_dom_bytes=args.browser_max_dom_bytes,
+                    max_dom_items=args.browser_max_dom_items,
+                )
+                if args.browser_discovery
+                else None
+            )
+
             if args.authorization_env:
                 authorization = os.environ.get(
                     args.authorization_env
@@ -1615,6 +1724,51 @@ def main() -> None:
             ),
         )
 
+        browser_report = None
+        browser_output_path = None
+
+        if browser_policy is not None:
+            try:
+                browser_result = discover_with_playwright(
+                    start_url=normalized_url,
+                    policy=browser_policy,
+                    headless=True,
+                )
+            except BrowserRuntimeUnavailable:
+                logger.write(
+                    "crawl.browser_failed",
+                    session_id=session.session_id,
+                    origin=crawl.origin,
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    scope=args.scope,
+                    reason="browser_runtime_unavailable",
+                )
+                parser.error(
+                    "Browser runtime unavailable. Install the NightRecon "
+                    "browser extra and Chromium runtime."
+                )
+            except (PermissionError, ValueError) as exc:
+                logger.write(
+                    "crawl.browser_failed",
+                    session_id=session.session_id,
+                    url=normalized_url,
+                    origin=crawl.origin,
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    scope=args.scope,
+                    reason=exc.__class__.__name__,
+                )
+                parser.error(
+                    "Browser discovery was rejected by its safety policy."
+                )
+
+            browser_report = BrowserDiscoveryReport.create(
+                session=session,
+                policy=browser_policy,
+                result=browser_result,
+            )
+
         workflow_report = None
         workflow_output_path = None
 
@@ -1724,6 +1878,11 @@ def main() -> None:
                 workflow_report
             )
 
+        if browser_report is not None:
+            browser_output_path = store.save_browser_discovery_report(
+                browser_report
+            )
+
         logger.write(
             "crawl.completed",
             session_id=crawl_report.session_id,
@@ -1771,6 +1930,25 @@ def main() -> None:
             workflow_executions=(
                 len(workflow_report.executions)
                 if workflow_report is not None
+                else 0
+            ),
+            browser_discovery_enabled=args.browser_discovery,
+            browser_status=(
+                browser_report.status
+                if browser_report is not None
+                else "disabled"
+            ),
+            browser_requests_observed=(
+                len(browser_report.requests)
+                if browser_report is not None
+                else 0
+            ),
+            browser_requests_blocked=(
+                sum(
+                    not item.allowed
+                    for item in browser_report.requests
+                )
+                if browser_report is not None
                 else 0
             ),
             status=crawl_report.status,
@@ -1961,6 +2139,52 @@ def main() -> None:
 
             print(
                 f"Workflow result file: {workflow_output_path}"
+            )
+
+        if browser_report is not None:
+            summary = browser_report.to_dict()["summary"]
+            print(
+                "Browser Discovery Summary: "
+                f"status={browser_report.status} "
+                f"requests={summary['requests_observed']} "
+                f"blocked={summary['requests_blocked']} "
+                f"links={summary['links_discovered']} "
+                f"forms={summary['forms_observed']}"
+            )
+            print(
+                "Browser limits: "
+                f"requests={browser_report.max_requests} "
+                f"pages={browser_report.max_pages} "
+                f"runtime={browser_report.max_runtime_seconds}s"
+            )
+
+            if browser_report.page is not None:
+                print(
+                    "  BROWSER PAGE "
+                    f"{browser_report.page.url} "
+                    f"title={browser_report.page.title or '-'}"
+                )
+
+                for link in browser_report.page.links:
+                    print(
+                        f"    BROWSER LINK {link}"
+                    )
+
+                for form in browser_report.page.forms:
+                    print(
+                        "    BROWSER FORM "
+                        f"method={form.method} "
+                        f"action={form.action or '-'} "
+                        f"inputs={len(form.inputs)}"
+                    )
+
+            if browser_report.error:
+                print(
+                    f"Browser error: {browser_report.error}"
+                )
+
+            print(
+                f"Browser result file: {browser_output_path}"
             )
 
         print(

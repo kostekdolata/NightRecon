@@ -41,7 +41,7 @@ Release gate: completed; merged to `master` with post-merge cross-platform CI ve
 
 ### v0.25.0 — Stateful Web Workflow Engine
 
-Status: release candidate.
+Status: released and verified stable.
 
 Delivered capabilities:
 
@@ -60,19 +60,31 @@ Delivered capabilities:
 
 Release gate: version/docs complete, exact-head cross-platform CI green, merge to `master`, then post-merge CI verification.
 
-### v0.26.x — Browser-Powered Application Discovery
+### v0.26.0 — Browser-Powered Application Discovery
 
-Goal: reach modern JavaScript-heavy applications while preserving NightRecon safety controls.
+Status: release candidate.
 
-Planned capabilities:
+Delivered capabilities:
 
-- sandboxed browser worker
-- DOM and SPA route discovery
-- client-side navigation observation
-- bounded JavaScript execution
-- browser request interception and scope enforcement
-- browser-worker isolation and resource ceilings
-- no automatic high-impact actions
+- optional Playwright/Chromium browser runtime behind the `browser` extra
+- backend-neutral browser worker controller and immutable accounting state
+- exact-origin interception policy with GET/HEAD-only defaults
+- request/page/runtime/response/DOM/DOM-item ceilings
+- request-budget reservation before network continuation
+- service workers blocked in Chromium contexts
+- dynamic DOM and JavaScript/SPA link discovery
+- bounded form metadata observation without form submission
+- only same-origin discovered links/form actions retained
+- cross-origin resource requests blocked before reaching outside servers
+- mutating browser methods blocked by default
+- redirects blocked at the response boundary
+- structured non-secret browser reports with query/fragment redaction
+- explicit opt-in `--browser-discovery` CLI surface
+- dedicated real Chromium loopback CI validation
+- authenticated browser context intentionally deferred beyond v0.26
+- no clicks, file uploads, arbitrary methods, or automatic high-impact actions
+
+Release gate: version/docs complete, exact-head standard + Chromium CI green, merge to `master`, then post-merge verification.
 
 ### v0.27.x — API Intelligence
 
@@ -259,7 +271,7 @@ The engine will eventually require a production platform around it:
 
 The current locked execution order is:
 
-1. Finish and release v0.25.0 Stateful Web Workflow Engine.
-2. Verify the merged `master` commit and post-merge CI as a stable checkpoint.
-3. Start v0.26.x Browser-Powered Application Discovery in a fresh development branch.
-4. Preserve sandboxing, same-origin/scope enforcement, resource ceilings, and no automatic high-impact actions before advancing to API intelligence or later generations.
+1. Finish and release v0.26.0 Browser-Powered Application Discovery.
+2. Verify the merged `master` commit and post-merge standard + Chromium CI as a stable checkpoint.
+3. Start v0.27.x API Intelligence in a fresh development branch.
+4. Keep API discovery/schema handling bounded, authorization-gated, evidence-based, and non-destructive before advancing to broader safe-active DAST.
