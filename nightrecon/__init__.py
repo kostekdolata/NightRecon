@@ -1,3 +1,3 @@
 """NightRecon - Authorized penetration testing and reconnaissance platform."""
 
-__version__ = "0.26.0"
+__version__ = "0.27.0"
