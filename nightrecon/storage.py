@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from nightrecon.browser_report import BrowserDiscoveryReport
 from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.report import TcpScanReport
 from nightrecon.session import ScanSession
@@ -64,6 +65,26 @@ class ResultStore:
 
         self.root.mkdir(parents=True, exist_ok=True)
         output_path = self.root / f"{report.session_id}-workflow.json"
+
+        with output_path.open("w", encoding="utf-8") as file:
+            json.dump(
+                report.to_dict(),
+                file,
+                indent=2,
+                sort_keys=True,
+            )
+            file.write("\n")
+
+        return output_path
+
+    def save_browser_discovery_report(
+        self,
+        report: BrowserDiscoveryReport,
+    ) -> Path:
+        """Save browser discovery evidence separately from crawl data."""
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        output_path = self.root / f"{report.session_id}-browser.json"
 
         with output_path.open("w", encoding="utf-8") as file:
             json.dump(
