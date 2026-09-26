@@ -288,12 +288,60 @@ def discover_with_playwright(
                     ),
                 )
 
-                if decision.allowed:
-                    route.continue_()
-                else:
+                if not decision.allowed:
                     route.abort(
                         "blockedbyclient"
                     )
+                    return
+
+                response = route.fetch(
+                    max_redirects=0,
+                    timeout=timeout_ms,
+                )
+                headers = getattr(
+                    response,
+                    "headers",
+                    {},
+                )
+                raw_length = (
+                    headers.get(
+                        "content-length",
+                        "0",
+                    )
+                    if isinstance(
+                        headers,
+                        dict,
+                    )
+                    else "0"
+                )
+
+                try:
+                    byte_count = max(
+                        int(raw_length),
+                        0,
+                    )
+                except (TypeError, ValueError):
+                    byte_count = 0
+
+                response_observation = controller.record_response(
+                    url=request.url,
+                    status=getattr(
+                        response,
+                        "status",
+                        None,
+                    ),
+                    byte_count=byte_count,
+                )
+
+                if not response_observation.capture_allowed:
+                    route.abort(
+                        "blockedbyresponse"
+                    )
+                    return
+
+                route.fulfill(
+                    response=response
+                )
 
             context.route(
                 "**/*",
