@@ -62,7 +62,7 @@ Release gate: version/docs complete, exact-head cross-platform CI green, merge t
 
 ### v0.26.0 — Browser-Powered Application Discovery
 
-Status: release candidate.
+Status: released and verified stable.
 
 Delivered capabilities:
 
@@ -86,19 +86,35 @@ Delivered capabilities:
 
 Release gate: version/docs complete, exact-head standard + Chromium CI green, merge to `master`, then post-merge verification.
 
-### v0.27.x — API Intelligence
+### v0.27.0 — API Intelligence
 
-Goal: make APIs first-class assessment targets.
+Status: release candidate.
 
-Planned capabilities:
+Delivered capabilities:
 
-- OpenAPI/Swagger import and discovery
-- REST endpoint and schema modelling
-- GraphQL metadata/introspection handling when explicitly permitted
-- API authentication context
-- parameter/type-aware passive checks
-- request generation bounded by declared schemas and safety policy
-- machine-readable API findings
+- normalized OpenAPI 3.x and Swagger 2.0 inventory models
+- bounded local JSON description loading and optional YAML support through the `api` extra
+- operation, parameter, server, security-scheme, request-content, and response-status modelling
+- server URL and external `$ref` redaction with no automatic remote-reference fetching
+- passive `nightrecon api inspect` command with explicit scope validation
+- structured machine-readable API inventory reports
+- explicit operation selectors and schema-derived URL planning
+- GET/HEAD-only safe-active API executor with exact-origin request policy
+- no invented required parameter values and no unresolved path templates
+- mutation operations blocked from the safe probe path
+- independent request, timeout, and response-byte ceilings
+- transient Authorization context through named environment variables only
+- response bodies excluded from validation result/report models
+- explicit `nightrecon api probe` command and separate validation reports
+- offline saved GraphQL introspection inspection
+- one fixed explicit GraphQL live introspection operation
+- GraphQL type, field, argument, query-root, mutation-root, and subscription-root metadata
+- no arbitrary GraphQL query text, variables, mutations, subscriptions, or arbitrary headers
+- redirect refusal and response ceilings for GraphQL introspection
+- real loopback API and GraphQL integration tests
+- dedicated API YAML runtime CI job alongside the existing Chromium integration job
+
+Release gate: version/docs complete, exact-head six-job push + PR CI green, merge to `master`, then post-merge six-job verification.
 
 ### v0.28.x — Expanded Safe-Active DAST
 
@@ -271,7 +287,7 @@ The engine will eventually require a production platform around it:
 
 The current locked execution order is:
 
-1. Finish and release v0.26.0 Browser-Powered Application Discovery.
-2. Verify the merged `master` commit and post-merge standard + Chromium CI as a stable checkpoint.
-3. Start v0.27.x API Intelligence in a fresh development branch.
-4. Keep API discovery/schema handling bounded, authorization-gated, evidence-based, and non-destructive before advancing to broader safe-active DAST.
+1. Finish and release v0.27.0 API Intelligence.
+2. Verify the merged `master` commit and post-merge standard + Chromium + API YAML CI as a stable checkpoint.
+3. Start v0.28.x Expanded Safe-Active DAST in a fresh development branch.
+4. Keep active validation bounded, explicit, non-destructive, evidence-based, and independently budgeted before credentialed infrastructure assessment.
