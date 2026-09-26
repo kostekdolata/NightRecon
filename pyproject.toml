@@ -20,6 +20,9 @@ dependencies = [
 browser = [
     "playwright>=1.63,<2",
 ]
+api = [
+    "PyYAML>=6.0,<7",
+]
 keywords = [
     "security",
     "pentesting",
