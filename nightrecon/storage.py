@@ -9,6 +9,7 @@ from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.report import TcpScanReport
 from nightrecon.session import ScanSession
 from nightrecon.web_report import WebCrawlReport
+from nightrecon.web_workflow_report import WebWorkflowReport
 
 
 class ResultStore:
@@ -54,6 +55,26 @@ class ResultStore:
             session_id=report.session_id,
             data=report.to_dict(),
         )
+
+    def save_web_workflow_report(
+        self,
+        report: WebWorkflowReport,
+    ) -> Path:
+        """Save a completed web-workflow report without overwriting crawl data."""
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        output_path = self.root / f"{report.session_id}-workflow.json"
+
+        with output_path.open("w", encoding="utf-8") as file:
+            json.dump(
+                report.to_dict(),
+                file,
+                indent=2,
+                sort_keys=True,
+            )
+            file.write("\n")
+
+        return output_path
 
     def _save_json(
         self,
