@@ -122,6 +122,8 @@ class FormSubmissionDecision:
     action_url: str
     method: str
     approved_fields: tuple[str, ...]
+    submissions_used: int
+    max_submissions: int
 
 
 def authorize_form_submission(
@@ -153,6 +155,8 @@ def authorize_form_submission(
             action_url=action_url,
             method=method,
             approved_fields=(),
+            submissions_used=submissions_used,
+            max_submissions=policy.max_submissions,
         )
 
     if not policy.enabled:
@@ -241,4 +245,6 @@ def authorize_form_submission(
         action_url=action_url,
         method=method,
         approved_fields=requested_names,
+        submissions_used=submissions_used,
+        max_submissions=policy.max_submissions,
     )
