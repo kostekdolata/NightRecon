@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import unittest
+from http.cookiejar import CookieJar
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from nightrecon.web_workflow import (
@@ -24,6 +25,78 @@ class _WorkflowLabHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.server.get_paths.append(self.path)
+        self.server.authorization_headers.append(
+            self.headers.get("Authorization", "")
+        )
+        self.server.cookie_headers.append(
+            self.headers.get("Cookie", "")
+        )
+
+        if self.path == "/seed":
+            body = b"<html><body>seed</body></html>"
+            self.send_response(200)
+            self.send_header(
+                "Set-Cookie",
+                "session=loopback-session-secret; Path=/; HttpOnly",
+            )
+            self.send_header(
+                "Content-Type",
+                "text/html; charset=utf-8",
+            )
+            self.send_header(
+                "Content-Length",
+                str(len(body)),
+            )
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if self.path == "/protected":
+            cookie = self.headers.get("Cookie", "")
+
+            if "session=loopback-session-secret" not in cookie:
+                self.send_response(401)
+                self.end_headers()
+                return
+
+            body = b"<html><body>protected</body></html>"
+            self.send_response(200)
+            self.send_header(
+                "Content-Type",
+                "text/html; charset=utf-8",
+            )
+            self.send_header(
+                "Content-Length",
+                str(len(body)),
+            )
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if self.path == "/authorized":
+            authorization = self.headers.get(
+                "Authorization",
+                "",
+            )
+
+            if authorization != "Bearer loopback-auth-secret":
+                self.send_response(401)
+                self.end_headers()
+                return
+
+            body = b"<html><body>authorized</body></html>"
+            self.send_response(200)
+            self.send_header(
+                "Content-Type",
+                "text/html; charset=utf-8",
+            )
+            self.send_header(
+                "Content-Length",
+                str(len(body)),
+            )
+            self.end_headers()
+            self.wfile.write(body)
+            return
 
         if self.path == "/redirect":
             self.send_response(302)
@@ -78,6 +151,8 @@ class WorkflowLoopbackIntegrationTests(unittest.TestCase):
         )
         self.server.get_paths = []
         self.server.post_paths = []
+        self.server.authorization_headers = []
+        self.server.cookie_headers = []
         self.thread = threading.Thread(
             target=self.server.serve_forever,
             daemon=True,
@@ -196,6 +271,103 @@ class WorkflowLoopbackIntegrationTests(unittest.TestCase):
         self.assertEqual(
             self.server.post_paths,
             [],
+        )
+
+    def test_cookie_jar_persists_ephemeral_session_across_get_steps(self):
+        policy = WorkflowPolicy(
+            origin=self.origin,
+            max_actions=3,
+        )
+        cookie_jar = CookieJar()
+        state = self._state()
+
+        seed_action = WorkflowAction(
+            kind=WorkflowActionKind.NAVIGATE,
+            source_url=f"{self.origin}/start",
+            target_url=f"{self.origin}/seed",
+            method="GET",
+        )
+        seed_decision = authorize_workflow_action(
+            action=seed_action,
+            policy=policy,
+            actions_used=state.actions_used,
+        )
+        seed_result = execute_workflow_navigation(
+            action=seed_action,
+            decision=seed_decision,
+            state=state,
+            origin=self.origin,
+            authorized=True,
+            cookie_jar=cookie_jar,
+        )
+
+        self.assertTrue(seed_result.success)
+        self.assertEqual(
+            self.server.cookie_headers[0],
+            "",
+        )
+
+        protected_action = WorkflowAction(
+            kind=WorkflowActionKind.NAVIGATE,
+            source_url=f"{self.origin}/seed",
+            target_url=f"{self.origin}/protected",
+            method="GET",
+        )
+        protected_decision = authorize_workflow_action(
+            action=protected_action,
+            policy=policy,
+            actions_used=seed_result.state.actions_used,
+        )
+        protected_result = execute_workflow_navigation(
+            action=protected_action,
+            decision=protected_decision,
+            state=seed_result.state,
+            origin=self.origin,
+            authorized=True,
+            cookie_jar=cookie_jar,
+        )
+
+        self.assertTrue(protected_result.success)
+        self.assertIn(
+            "session=loopback-session-secret",
+            self.server.cookie_headers[1],
+        )
+        self.assertNotIn(
+            "loopback-session-secret",
+            repr(seed_result),
+        )
+        self.assertNotIn(
+            "loopback-session-secret",
+            repr(protected_result),
+        )
+        self.assertEqual(
+            protected_result.state.actions_used,
+            2,
+        )
+
+    def test_authorization_header_is_ephemeral_request_context(self):
+        action, decision = self._navigation(
+            "/authorized"
+        )
+        secret = "Bearer loopback-auth-secret"
+
+        result = execute_workflow_navigation(
+            action=action,
+            decision=decision,
+            state=self._state(),
+            origin=self.origin,
+            authorized=True,
+            authorization=secret,
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(
+            self.server.authorization_headers,
+            [secret],
+        )
+        self.assertNotIn(
+            "loopback-auth-secret",
+            repr(result),
         )
 
     def test_cross_origin_redirect_is_blocked_without_followup_request(self):
