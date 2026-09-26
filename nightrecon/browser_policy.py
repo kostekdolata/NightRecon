@@ -35,6 +35,7 @@ class BrowserDiscoveryPolicy:
     max_runtime_seconds: float = 30.0
     max_response_bytes: int = 1_048_576
     max_dom_bytes: int = 2_097_152
+    max_dom_items: int = 500
     allowed_methods: tuple[str, ...] = ("GET", "HEAD")
 
     def __post_init__(self) -> None:
@@ -63,6 +64,11 @@ class BrowserDiscoveryPolicy:
         if self.max_dom_bytes < 1:
             raise ValueError(
                 "max_dom_bytes must be at least 1."
+            )
+
+        if self.max_dom_items < 1:
+            raise ValueError(
+                "max_dom_items must be at least 1."
             )
 
         methods = tuple(
