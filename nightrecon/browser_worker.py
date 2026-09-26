@@ -133,6 +133,70 @@ class BrowserDiscoveryController:
         )
         return decision
 
+    def intercept_request(
+        self,
+        *,
+        url: str,
+        method: str,
+        resource_kind: BrowserResourceKind,
+        top_level_document: bool = False,
+    ) -> BrowserRequestDecision:
+        """Authorize and reserve budget before a backend request continues.
+
+        Browser backends should use this method from route interception so
+        concurrent requests cannot oversubscribe request or page budgets.
+        Reserved budget remains consumed if the network request later fails.
+        """
+
+        decision = self.decide_request(
+            url=url,
+            method=method,
+            resource_kind=resource_kind,
+            top_level_document=top_level_document,
+        )
+
+        if decision.allowed:
+            self._state = advance_browser_worker_state(
+                state=self._state,
+                request_decision=decision,
+                document_loaded=top_level_document,
+                elapsed_seconds=0.0,
+            )
+
+        return decision
+
+    def add_runtime_elapsed(
+        self,
+        *,
+        elapsed_seconds: float,
+    ) -> BrowserWorkerState:
+        """Account elapsed worker runtime independently of request count."""
+
+        if elapsed_seconds < 0:
+            raise ValueError(
+                "elapsed_seconds cannot be negative."
+            )
+
+        runtime_seconds = (
+            self._state.runtime_seconds
+            + elapsed_seconds
+        )
+
+        if runtime_seconds > self._state.max_runtime_seconds:
+            raise ValueError(
+                "Browser runtime budget exceeded."
+            )
+
+        self._state = BrowserWorkerState(
+            requests_used=self._state.requests_used,
+            pages_used=self._state.pages_used,
+            runtime_seconds=runtime_seconds,
+            max_requests=self._state.max_requests,
+            max_pages=self._state.max_pages,
+            max_runtime_seconds=self._state.max_runtime_seconds,
+        )
+        return self._state
+
     def record_completed_request(
         self,
         *,
