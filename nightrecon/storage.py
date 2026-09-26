@@ -9,6 +9,7 @@ from nightrecon.api_report import ApiInventoryReport
 from nightrecon.api_validation_report import ApiValidationReport
 from nightrecon.browser_report import BrowserDiscoveryReport
 from nightrecon.discovery_report import HostDiscoveryReport
+from nightrecon.graphql_report import GraphQLSchemaReport
 from nightrecon.report import TcpScanReport
 from nightrecon.session import ScanSession
 from nightrecon.web_report import WebCrawlReport
@@ -107,6 +108,26 @@ class ResultStore:
 
         self.root.mkdir(parents=True, exist_ok=True)
         output_path = self.root / f"{report.session_id}-api-validation.json"
+
+        with output_path.open("w", encoding="utf-8") as file:
+            json.dump(
+                report.to_dict(),
+                file,
+                indent=2,
+                sort_keys=True,
+            )
+            file.write("\n")
+
+        return output_path
+
+    def save_graphql_schema_report(
+        self,
+        report: GraphQLSchemaReport,
+    ) -> Path:
+        """Save GraphQL schema metadata separately from API inventory."""
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        output_path = self.root / f"{report.session_id}-graphql.json"
 
         with output_path.open("w", encoding="utf-8") as file:
             json.dump(
