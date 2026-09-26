@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.25.0**
+**v0.26.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution, plus a scope-enforced bounded same-origin web crawler with passive content discovery, secret-safe authenticated crawling, passive and safe-active DAST, passive session-cookie security intelligence that never persists cookie values, opt-in ephemeral session-cookie continuity, and the v0.25 Stateful Web Workflow Engine with bounded same-origin navigation, explicit workflow planning, non-secret workflow reports, form-intent classification, and tightly gated internal form-submission execution.
+NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution, plus a scope-enforced bounded same-origin web crawler with passive content discovery, secret-safe authenticated crawling, passive and safe-active DAST, passive session-cookie security intelligence that never persists cookie values, the v0.25 Stateful Web Workflow Engine, and the v0.26 Browser-Powered Application Discovery layer for bounded JavaScript/SPA route discovery under strict request, runtime, DOM, origin, and method controls.
 
 ## Features
 
@@ -167,6 +167,22 @@ NightRecon now includes scope-enforced concurrent TCP scanning, authorized bound
 - Destructive-looking form actions such as logout/delete/remove/destroy/revoke/password-change/reset are blocked by default
 - Structured workflow reports are saved separately as `<session>-workflow.json` and contain no Authorization values, cookie state, or form-field values
 - Loopback integration tests validate real GET/POST behavior without external network access
+- Optional Playwright-powered Chromium discovery through the `browser` extra
+- Browser discovery is disabled by default and enabled explicitly with `--browser-discovery`
+- Exact-origin browser network policy with GET/HEAD-only default method allowlist
+- Cross-origin scripts, XHR/fetch, images, fonts, stylesheets, documents, and other resources are blocked before network continuation
+- Browser-originated POST and other mutating methods are blocked by default
+- Redirect responses are stopped at the browser response boundary and are never followed to another origin
+- Dedicated browser request, page, runtime, response-size, DOM-size, and DOM-item ceilings
+- Request budgets are reserved before intercepted requests continue so concurrent browser activity cannot oversubscribe limits
+- Service workers are disabled in the Chromium context
+- JavaScript-generated SPA links and form metadata can be observed after DOM execution
+- Browser form actions remain observation-only; the browser adapter performs no clicks, form submissions, file uploads, or arbitrary-method requests
+- Only same-origin discovered links and form actions are retained
+- Browser query strings and fragments are stripped from persisted reports and failure audit data
+- Browser reports persist non-secret request/response/DOM metadata separately from crawl reports
+- Authenticated browser context is intentionally not supported in v0.26
+- Dedicated Chromium loopback CI proves dynamic DOM discovery, cross-origin request blocking, POST blocking, and redirect refusal
 - Per-port result storage
 - Ordinary `scan` CIDR port-scanning remains blocked; network discovery is isolated behind the explicit `discover` command
 - Authorized CIDR host discovery with full scope-containment validation before any probe activity
@@ -240,6 +256,22 @@ Execute only explicitly named same-origin GET workflow steps with an action ceil
 `nightrecon crawl https://example.test --scope example.test --workflow --workflow-max-actions 5 --workflow-get https://example.test/dashboard --session-cookies`
 
 The v0.25 CLI does not expose form POST execution. Form-submission execution remains behind the internal explicit policy API while its safety model matures.
+
+Install the optional browser runtime support:
+
+`python -m pip install -e ".[browser]"`
+
+Then install Chromium for Playwright:
+
+`python -m playwright install chromium`
+
+Run bounded browser-powered discovery against an explicitly authorized origin:
+
+`nightrecon crawl https://example.test --scope example.test --browser-discovery`
+
+Tighten browser ceilings for a smaller assessment:
+
+`nightrecon crawl https://example.test --scope example.test --browser-discovery --browser-max-requests 40 --browser-max-pages 3 --browser-max-runtime 10 --browser-max-dom-items 200`
 
 Enable the bounded safe-active OPTIONS layer explicitly:
 
@@ -392,11 +424,11 @@ Declarative check packs are intentionally non-executable data. NightRecon does n
 
 Managed feed state adds replay protection and immutable local version storage. Installed packs are reverified before activation, rollback, and assessment use. Dry-run planning validates signed feed freshness without persisting the newer generation or downloading artifacts.
 
-Web crawling reuses NightRecon's existing scope authorization boundary. The URL host is validated before requests begin, cross-origin redirects are blocked, and traversal is limited to normalized same-origin links. Passive content discovery records structure rather than secrets: form values are not retained, form actions are not submitted, and script sources are not fetched merely because they were observed. Authentication header values may be supplied only through named environment variables in the crawl CLI and remain ephemeral request context; they are not stored in NightRecon reports or audit records. Set-Cookie values are likewise discarded before crawl result construction; only cookie names and security attributes are retained for descriptive session-security checks. When `--session-cookies` is explicitly enabled, response cookie values may exist transiently inside an in-memory cookie jar for request continuity during that single process, but the jar is not attached to crawl results or persisted output. Web assessment remains passive by default. Safe-active mode requires an explicit intrusiveness setting, revalidates authorization at the assessment boundary, enforces a separate request ceiling, sends only OPTIONS requests, refuses redirects, and treats advertised risky methods as descriptive evidence rather than proof of exploitability. Stateful workflow support preserves the same boundary: workflow mode is opt-in, planned form actions remain observation-only, CLI execution is limited to explicitly named same-origin GET transitions, and every transition is revalidated against an action budget. Workflow reports persist only non-secret metadata. The internal form-submission layer is separately gated, disabled by default, POST-only, exact-field-allowlisted, sensitive-field-aware, budget-bound, redirect-free, and blocks destructive-looking actions by default; it is intentionally not exposed by the v0.25 CLI.
+Web crawling reuses NightRecon's existing scope authorization boundary. The URL host is validated before requests begin, cross-origin redirects are blocked, and traversal is limited to normalized same-origin links. Passive content discovery records structure rather than secrets: form values are not retained, form actions are not submitted, and script sources are not fetched merely because they were observed. Authentication header values may be supplied only through named environment variables in the crawl CLI and remain ephemeral request context; they are not stored in NightRecon reports or audit records. Set-Cookie values are likewise discarded before crawl result construction; only cookie names and security attributes are retained for descriptive session-security checks. When `--session-cookies` is explicitly enabled, response cookie values may exist transiently inside an in-memory cookie jar for request continuity during that single process, but the jar is not attached to crawl results or persisted output. Web assessment remains passive by default. Safe-active mode requires an explicit intrusiveness setting, revalidates authorization at the assessment boundary, enforces a separate request ceiling, sends only OPTIONS requests, refuses redirects, and treats advertised risky methods as descriptive evidence rather than proof of exploitability. Stateful workflow support preserves the same boundary: workflow mode is opt-in, planned form actions remain observation-only, CLI execution is limited to explicitly named same-origin GET transitions, and every transition is revalidated against an action budget. Workflow reports persist only non-secret metadata. The internal form-submission layer is separately gated, disabled by default, POST-only, exact-field-allowlisted, sensitive-field-aware, budget-bound, redirect-free, and blocks destructive-looking actions by default; it is intentionally not exposed by the v0.25 CLI. Browser-powered discovery is a separate opt-in capability. Its controller authorizes intercepted requests before network continuation, enforces exact-origin and GET/HEAD-only defaults, reserves request/page budgets before continuing, blocks service workers, refuses browser redirects at the response boundary, bounds response and DOM retention, and records only redacted non-secret metadata. The v0.26 browser path does not support authenticated browser context, clicks, form submissions, uploads, or arbitrary methods.
 
 ## Roadmap
 
-The authoritative NightRecon development plan is maintained in [ROADMAP.md](ROADMAP.md). v0.25.0 completes the first Stateful Web Workflow Engine release. After this release is merged and post-merge CI is verified, the next locked milestone is v0.26.x Browser-Powered Application Discovery, followed by API intelligence, credentialed infrastructure assessment, identity/attack-path intelligence, Red validation, Blue defensive validation, White-team control, and Black-box external attack-surface capabilities.
+The authoritative NightRecon development plan is maintained in [ROADMAP.md](ROADMAP.md). v0.26.0 completes the first Browser-Powered Application Discovery release. After this release is merged and post-merge CI is verified, the next locked milestone is v0.27.x API Intelligence, followed by expanded safe-active DAST, credentialed infrastructure assessment, identity/attack-path intelligence, Red validation, Blue defensive validation, White-team control, and Black-box external attack-surface capabilities.
 
 ## License
 
