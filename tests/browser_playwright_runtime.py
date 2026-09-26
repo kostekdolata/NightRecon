@@ -50,10 +50,12 @@ class _PrimaryHandler(BaseHTTPRequestHandler):
 
         if self.path == "/app.js":
             body = b"""
-            const link = document.createElement("a");
-            link.href = "/spa-route";
-            link.textContent = "SPA Route";
-            document.body.appendChild(link);
+            window.addEventListener("DOMContentLoaded", () => {
+              const link = document.createElement("a");
+              link.href = "/spa-route";
+              link.textContent = "SPA Route";
+              document.body.appendChild(link);
+            });
             """
             self._send(
                 200,
