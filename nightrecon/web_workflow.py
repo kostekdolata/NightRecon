@@ -174,6 +174,55 @@ def authorize_workflow_action(
     )
 
 
+def advance_workflow_state(
+    *,
+    state: WorkflowState,
+    action: WorkflowAction,
+    decision: WorkflowDecision,
+) -> WorkflowState:
+    """Advance immutable workflow state after an already authorized action.
+
+    This function records state only. It performs no network activity.
+    """
+
+    if not decision.allowed:
+        raise PermissionError(
+            f"Workflow transition denied: {decision.reason}"
+        )
+
+    if state.actions_used >= state.max_actions:
+        raise ValueError(
+            "Workflow state action budget is exhausted."
+        )
+
+    target = normalize_http_url(
+        action.target_url
+    )
+    method = action.method.strip().upper()
+
+    if decision.normalized_target_url != target:
+        raise ValueError(
+            "Workflow decision target does not match action target."
+        )
+
+    if decision.method != method:
+        raise ValueError(
+            "Workflow decision method does not match action method."
+        )
+
+    visited = state.visited_urls
+
+    if target not in visited:
+        visited = (*visited, target)
+
+    return WorkflowState(
+        current_url=target,
+        visited_urls=visited,
+        actions_used=state.actions_used + 1,
+        max_actions=state.max_actions,
+    )
+
+
 def build_observed_navigation_plan(
     *,
     pages: tuple[CrawlPage, ...],
