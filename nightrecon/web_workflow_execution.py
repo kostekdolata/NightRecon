@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from http.cookiejar import CookieJar
 
 from nightrecon.web_crawl import (
     CrawlPage,
@@ -42,6 +43,8 @@ def execute_workflow_navigation(
     timeout: float = 5.0,
     max_bytes: int = 262_144,
     user_agent: str = _DEFAULT_USER_AGENT,
+    authorization: str | None = None,
+    cookie_jar: CookieJar | None = None,
 ) -> WorkflowNavigationResult:
     """Execute one bounded same-origin GET navigation.
 
@@ -86,6 +89,14 @@ def execute_workflow_navigation(
             "user_agent must be a non-empty string."
         )
 
+    if authorization is not None and (
+        not isinstance(authorization, str)
+        or not authorization.strip()
+    ):
+        raise ValueError(
+            "authorization must be a non-empty string when provided."
+        )
+
     normalized_origin = url_origin(origin)
     source = normalize_http_url(
         action.source_url
@@ -113,6 +124,13 @@ def execute_workflow_navigation(
         max_bytes_per_page=max_bytes,
         timeout=timeout,
         user_agent=user_agent.strip(),
+        authorization=(
+            authorization.strip()
+            if authorization is not None
+            else None
+        ),
+        cookie=None,
+        cookie_jar=cookie_jar,
     )
 
     page = (
