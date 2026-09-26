@@ -10,6 +10,10 @@ from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
 from nightrecon.api_execution import execute_api_request
+from nightrecon.api_graphql import (
+    execute_graphql_introspection,
+    load_graphql_introspection_json,
+)
 from nightrecon.api_openapi import (
     ApiDescriptionRuntimeUnavailable,
     load_api_description,
@@ -64,6 +68,7 @@ from nightrecon.host_discovery import (
     discover_hosts,
     enrich_reverse_dns,
 )
+from nightrecon.graphql_report import GraphQLSchemaReport
 from nightrecon.logging import NightReconLogger
 from nightrecon.nvd_provider import NvdVulnerabilityProvider
 from nightrecon.os_fingerprint import (
@@ -298,6 +303,118 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     api_probe_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
+    )
+
+    api_graphql_inspect_parser = api_subparsers.add_parser(
+        "graphql-inspect",
+        help=(
+            "Passively inspect saved GraphQL introspection JSON without "
+            "network activity."
+        ),
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "introspection",
+        help="Local saved GraphQL introspection JSON file.",
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--endpoint-url",
+        required=True,
+        help=(
+            "Authorized GraphQL endpoint URL used only for scope/origin "
+            "context. No request is sent."
+        ),
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help="Authorized scope rule for the GraphQL endpoint host.",
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--max-spec-bytes",
+        type=int,
+        default=2_097_152,
+        help=(
+            "Maximum saved introspection JSON size in bytes. "
+            "Default: 2097152"
+        ),
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
+    )
+
+    api_graphql_introspect_parser = api_subparsers.add_parser(
+        "graphql-introspect",
+        help=(
+            "Execute one fixed bounded GraphQL introspection operation "
+            "against an explicitly authorized endpoint."
+        ),
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--endpoint-url",
+        required=True,
+        help=(
+            "Authorized GraphQL endpoint URL. The URL must not contain "
+            "credentials, query data, or fragments."
+        ),
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help="Authorized scope rule for the GraphQL endpoint host.",
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--max-response-bytes",
+        type=int,
+        default=1_048_576,
+        help=(
+            "Maximum introspection response bytes. "
+            "Default: 1048576"
+        ),
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=5.0,
+        help="Introspection request timeout in seconds. Default: 5.0",
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--authorization-env",
+        help=(
+            "Read the complete Authorization header value from this "
+            "environment variable. The value is never printed or persisted."
+        ),
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    api_graphql_introspect_parser.add_argument(
         "--logs-dir",
         default="logs",
         help="Directory for audit logs. Default: logs",
@@ -1063,6 +1180,233 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "api":
+        if args.api_command in {
+            "graphql-inspect",
+            "graphql-introspect",
+        }:
+            try:
+                raw_endpoint = args.endpoint_url.strip()
+                raw_parts = urlsplit(
+                    raw_endpoint
+                )
+
+                if (
+                    raw_parts.username is not None
+                    or raw_parts.password is not None
+                    or raw_parts.query
+                    or raw_parts.fragment
+                ):
+                    raise ValueError(
+                        "GraphQL endpoint URL must not contain credentials, "
+                        "query data, or a fragment."
+                    )
+
+                endpoint_url = normalize_http_url(
+                    raw_endpoint
+                )
+                endpoint_origin = url_origin(
+                    endpoint_url
+                )
+                hostname = urlsplit(
+                    endpoint_url
+                ).hostname
+
+                if hostname is None:
+                    raise ValueError(
+                        "GraphQL endpoint URL must include a hostname."
+                    )
+
+                target = parse_target(
+                    hostname
+                )
+                scope = Scope.from_values(
+                    args.scope
+                )
+
+                if args.api_command == "graphql-inspect":
+                    if args.max_spec_bytes < 1:
+                        raise ValueError(
+                            "max_spec_bytes must be at least 1."
+                        )
+
+                    graphql_schema = load_graphql_introspection_json(
+                        args.introspection,
+                        max_bytes=args.max_spec_bytes,
+                    )
+                    authorization = None
+                else:
+                    if args.max_response_bytes < 1:
+                        raise ValueError(
+                            "max_response_bytes must be at least 1."
+                        )
+
+                    if args.timeout <= 0:
+                        raise ValueError(
+                            "timeout must be greater than 0."
+                        )
+
+                    authorization = None
+
+                    if args.authorization_env:
+                        authorization = os.environ.get(
+                            args.authorization_env
+                        )
+
+                        if (
+                            authorization is None
+                            or not authorization.strip()
+                        ):
+                            raise ValueError(
+                                "Authorization environment variable "
+                                f"'{args.authorization_env}' is missing or empty."
+                            )
+            except (
+                OSError,
+                ValueError,
+            ) as exc:
+                parser.error(str(exc))
+
+            logger = NightReconLogger(
+                args.logs_dir
+            )
+
+            if not scope.is_authorized(
+                target
+            ):
+                logger.write(
+                    "api.graphql.rejected",
+                    endpoint_url=endpoint_url,
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    scope=args.scope,
+                    reason="outside_authorized_scope",
+                )
+                parser.error(
+                    f"Target '{target.value}' is outside the authorized scope."
+                )
+
+            source = "saved-introspection"
+
+            if args.api_command == "graphql-introspect":
+                result = execute_graphql_introspection(
+                    endpoint_url=endpoint_url,
+                    origin=endpoint_origin,
+                    authorized=scope.is_authorized(
+                        target
+                    ),
+                    timeout=args.timeout,
+                    max_response_bytes=args.max_response_bytes,
+                    authorization=authorization,
+                )
+
+                if (
+                    not result.success
+                    or result.schema is None
+                ):
+                    logger.write(
+                        "api.graphql.introspection_failed",
+                        endpoint_url=endpoint_url,
+                        target=target.value,
+                        target_type=target.target_type.value,
+                        scope=args.scope,
+                        reason=result.reason,
+                        status=result.status,
+                        byte_count=result.byte_count,
+                    )
+                    parser.error(
+                        "GraphQL introspection failed: "
+                        f"{result.reason}"
+                    )
+
+                graphql_schema = result.schema
+                source = "live-introspection"
+
+            session = ScanSession.create(
+                target=target,
+                scope_rules=tuple(
+                    args.scope
+                ),
+            )
+            graphql_report = GraphQLSchemaReport.create(
+                session=session,
+                endpoint_url=endpoint_url,
+                source=source,
+                schema=graphql_schema,
+            )
+            output_path = ResultStore(
+                args.results_dir
+            ).save_graphql_schema_report(
+                graphql_report
+            )
+            summary = graphql_report.to_dict()[
+                "summary"
+            ]
+
+            logger.write(
+                "api.graphql.completed",
+                session_id=session.session_id,
+                endpoint_url=endpoint_url,
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                source=source,
+                types=summary["types"],
+                fields=summary["fields"],
+                query_type=summary["query_type"],
+                mutation_type=summary["mutation_type"],
+                subscription_type=summary["subscription_type"],
+                status=graphql_report.status,
+            )
+
+            print(
+                "GraphQL Schema Summary: "
+                f"source={source} "
+                f"types={summary['types']} "
+                f"fields={summary['fields']} "
+                f"query={summary['query_type'] or '-'} "
+                f"mutation={summary['mutation_type'] or '-'} "
+                f"subscription={summary['subscription_type'] or '-'}"
+            )
+
+            for gql_type in graphql_report.types:
+                if not gql_type["fields"]:
+                    continue
+
+                print(
+                    "  GRAPHQL TYPE "
+                    f"{gql_type['kind']} {gql_type['name']} "
+                    f"fields={len(gql_type['fields'])}"
+                )
+
+                for field in gql_type["fields"]:
+                    arguments = (
+                        ",".join(
+                            (
+                                f"{argument['name']}:"
+                                f"{argument['type_name'] or argument['type_kind'] or '-'}"
+                                f"{'!' if argument['required'] else ''}"
+                            )
+                            for argument in field["arguments"]
+                        )
+                        if field["arguments"]
+                        else "-"
+                    )
+                    print(
+                        "    GRAPHQL FIELD "
+                        f"{field['name']} "
+                        "returns="
+                        f"{field['return_type_name'] or field['return_type_kind'] or '-'} "
+                        f"args={arguments}"
+                    )
+
+            print(
+                f"Session ID: {session.session_id}"
+            )
+            print(
+                f"GraphQL result file: {output_path}"
+            )
+            return
+
         if args.api_command == "probe":
             try:
                 if args.max_spec_bytes < 1:
