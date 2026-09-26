@@ -28,15 +28,34 @@ class _FakeRequest:
         return self._navigation
 
 
+class _FakeApiResponse:
+    def __init__(self, status=200, content_length="64"):
+        self.status = status
+        self.headers = {
+            "content-length": content_length,
+        }
+
+
 class _FakeRoute:
     def __init__(self, request):
         self.request = request
         self.continued = False
         self.aborted = False
         self.abort_code = None
+        self.fetch_kwargs = None
+        self.fulfilled = False
+        self.fulfilled_response = None
 
     def continue_(self):
         self.continued = True
+
+    def fetch(self, **kwargs):
+        self.fetch_kwargs = kwargs
+        return _FakeApiResponse()
+
+    def fulfill(self, *, response):
+        self.fulfilled = True
+        self.fulfilled_response = response
 
     def abort(self, error_code=None):
         self.aborted = True
@@ -288,6 +307,13 @@ class PlaywrightBrowserAdapterTests(unittest.TestCase):
             "**/*",
         )
         self.assertEqual(
+            page.routes[0].fetch_kwargs,
+            {
+                "max_redirects": 0,
+                "timeout": 5000,
+            },
+        )
+        self.assertEqual(
             page.default_timeout,
             5000,
         )
@@ -297,10 +323,10 @@ class PlaywrightBrowserAdapterTests(unittest.TestCase):
         )
 
         self.assertTrue(
-            page.routes[0].continued
+            page.routes[0].fulfilled
         )
         self.assertTrue(
-            page.routes[1].continued
+            page.routes[1].fulfilled
         )
         self.assertTrue(
             page.routes[2].aborted
@@ -430,7 +456,7 @@ class PlaywrightBrowserAdapterTests(unittest.TestCase):
             result.error
         )
         self.assertTrue(
-            page.routes[0].continued
+            page.routes[0].fulfilled
         )
         self.assertTrue(
             page.routes[1].aborted
