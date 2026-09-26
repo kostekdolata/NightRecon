@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from nightrecon.api_report import ApiInventoryReport
+from nightrecon.api_validation_report import ApiValidationReport
 from nightrecon.browser_report import BrowserDiscoveryReport
 from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.report import TcpScanReport
@@ -86,6 +87,26 @@ class ResultStore:
 
         self.root.mkdir(parents=True, exist_ok=True)
         output_path = self.root / f"{report.session_id}-api.json"
+
+        with output_path.open("w", encoding="utf-8") as file:
+            json.dump(
+                report.to_dict(),
+                file,
+                indent=2,
+                sort_keys=True,
+            )
+            file.write("\n")
+
+        return output_path
+
+    def save_api_validation_report(
+        self,
+        report: ApiValidationReport,
+    ) -> Path:
+        """Save bounded API validation evidence separately from inventory."""
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        output_path = self.root / f"{report.session_id}-api-validation.json"
 
         with output_path.open("w", encoding="utf-8") as file:
             json.dump(
