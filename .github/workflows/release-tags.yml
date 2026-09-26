@@ -1,0 +1,160 @@
+name: Release Tag Guard
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/release-tag-allowlist.tsv"
+      - ".github/workflows/release-tags.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/release-tag-allowlist.tsv"
+      - ".github/workflows/release-tags.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional allowlisted tag to create. Leave blank to create all missing allowlisted tags."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-tag-guard
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release tag allowlist
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate allowlist
+        shell: bash
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          file=".github/release-tag-allowlist.tsv"
+          test -f "$file"
+
+          declare -A seen_tags=()
+          found_requested=0
+
+          while IFS=$'\t' read -r tag sha message; do
+            [[ -z "${tag:-}" || "$tag" == \#* ]] && continue
+
+            if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Invalid tag format: $tag" >&2
+              exit 1
+            fi
+
+            if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Invalid commit SHA for $tag: $sha" >&2
+              exit 1
+            fi
+
+            if [[ -z "${message:-}" ]]; then
+              echo "Missing annotated tag message for $tag" >&2
+              exit 1
+            fi
+
+            if [[ -n "${seen_tags[$tag]+x}" ]]; then
+              echo "Duplicate allowlist tag: $tag" >&2
+              exit 1
+            fi
+            seen_tags["$tag"]=1
+
+            git cat-file -e "$sha^{commit}"
+
+            if ! git merge-base --is-ancestor "$sha" origin/master; then
+              echo "Allowlisted commit for $tag is not reachable from master: $sha" >&2
+              exit 1
+            fi
+
+            if [[ -n "${REQUESTED_TAG:-}" && "$tag" == "$REQUESTED_TAG" ]]; then
+              found_requested=1
+            fi
+          done < "$file"
+
+          if [[ -n "${REQUESTED_TAG:-}" && "$found_requested" -ne 1 ]]; then
+            echo "Requested tag is not allowlisted: $REQUESTED_TAG" >&2
+            exit 1
+          fi
+
+  create-tags:
+    name: Create missing approved release tags
+    needs:
+      - validate
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create only missing allowlisted annotated tags
+        shell: bash
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          git fetch --force --tags origin
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          file=".github/release-tag-allowlist.tsv"
+          found_requested=0
+
+          while IFS=$'\t' read -r tag sha message; do
+            [[ -z "${tag:-}" || "$tag" == \#* ]] && continue
+
+            if [[ -n "${REQUESTED_TAG:-}" && "$tag" != "$REQUESTED_TAG" ]]; then
+              continue
+            fi
+
+            found_requested=1
+
+            git cat-file -e "$sha^{commit}"
+
+            if ! git merge-base --is-ancestor "$sha" origin/master; then
+              echo "Refusing tag outside master ancestry: $tag -> $sha" >&2
+              exit 1
+            fi
+
+            if git show-ref --verify --quiet "refs/tags/$tag"; then
+              existing_commit="$(git rev-list -n 1 "$tag")"
+
+              if [[ "$existing_commit" != "$sha" ]]; then
+                echo "Refusing to move existing tag $tag from $existing_commit to $sha" >&2
+                exit 1
+              fi
+
+              echo "Tag $tag already exists at approved commit $sha; leaving unchanged."
+              continue
+            fi
+
+            git tag -a "$tag" "$sha" -m "$message"
+            git push origin "refs/tags/$tag"
+            echo "Created $tag at $sha"
+          done < "$file"
+
+          if [[ -n "${REQUESTED_TAG:-}" && "$found_requested" -ne 1 ]]; then
+            echo "Requested tag is not allowlisted: $REQUESTED_TAG" >&2
+            exit 1
+          fi
