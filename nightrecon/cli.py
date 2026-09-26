@@ -1550,6 +1550,17 @@ def main() -> None:
 
             if (
                 args.browser_discovery
+                and urlsplit(
+                    normalized_url
+                ).query
+            ):
+                raise ValueError(
+                    "--browser-discovery start URL must not include "
+                    "a query string."
+                )
+
+            if (
+                args.browser_discovery
                 and (
                     args.authorization_env
                     or args.cookie_env
