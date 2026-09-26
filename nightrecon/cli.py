@@ -9,6 +9,27 @@ from urllib.parse import urlsplit
 from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
+from nightrecon.api_execution import execute_api_request
+from nightrecon.api_graphql import (
+    execute_graphql_introspection,
+    load_graphql_introspection_json,
+)
+from nightrecon.api_openapi import (
+    ApiDescriptionRuntimeUnavailable,
+    load_api_description,
+)
+from nightrecon.api_planner import select_api_operations
+from nightrecon.api_policy import (
+    ApiRequest,
+    ApiRequestPolicy,
+    ApiRequestState,
+    authorize_api_request,
+)
+from nightrecon.api_report import ApiInventoryReport
+from nightrecon.api_validation_report import (
+    ApiValidationRecord,
+    ApiValidationReport,
+)
 from nightrecon.asset_inventory import (
     AssetChangeEvent,
     apply_discovery_report,
@@ -47,6 +68,7 @@ from nightrecon.host_discovery import (
     discover_hosts,
     enrich_reverse_dns,
 )
+from nightrecon.graphql_report import GraphQLSchemaReport
 from nightrecon.logging import NightReconLogger
 from nightrecon.nvd_provider import NvdVulnerabilityProvider
 from nightrecon.os_fingerprint import (
@@ -116,6 +138,286 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(
         dest="command",
         title="commands",
+    )
+
+    api_parser = subparsers.add_parser(
+        "api",
+        help="Inspect authorized API descriptions and API intelligence.",
+    )
+
+    api_subparsers = api_parser.add_subparsers(
+        dest="api_command",
+        title="api commands",
+    )
+
+    api_inspect_parser = api_subparsers.add_parser(
+        "inspect",
+        help=(
+            "Passively inspect a local OpenAPI/Swagger description "
+            "without network activity."
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "spec",
+        help=(
+            "Local .json, .yaml, or .yml OpenAPI/Swagger file. "
+            "YAML requires the optional NightRecon api extra."
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "--base-url",
+        required=True,
+        help=(
+            "Authorized HTTP(S) API base URL used only for scope/origin "
+            "validation. No request is sent."
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help=(
+            "Authorized scope rule for the API base host. "
+            "May be supplied multiple times."
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "--max-spec-bytes",
+        type=int,
+        default=2_097_152,
+        help=(
+            "Maximum local API description size in bytes. "
+            "Default: 2097152"
+        ),
+    )
+
+    api_inspect_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    api_inspect_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
+    )
+
+    api_probe_parser = api_subparsers.add_parser(
+        "probe",
+        help=(
+            "Execute explicitly selected bounded GET/HEAD API operations "
+            "from a local OpenAPI/Swagger description."
+        ),
+    )
+
+    api_probe_parser.add_argument(
+        "spec",
+        help=(
+            "Local .json, .yaml, or .yml OpenAPI/Swagger file. "
+            "YAML requires the optional NightRecon api extra."
+        ),
+    )
+
+    api_probe_parser.add_argument(
+        "--base-url",
+        required=True,
+        help=(
+            "Authorized HTTP(S) API base URL. Selected operation paths "
+            "are resolved beneath this URL."
+        ),
+    )
+
+    api_probe_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help=(
+            "Authorized scope rule for the API base host. "
+            "May be supplied multiple times."
+        ),
+    )
+
+    api_probe_parser.add_argument(
+        "--operation",
+        action="append",
+        dest="api_operations",
+        required=True,
+        help=(
+            "Exact operationId, or METHOD /path when operationId is absent. "
+            "May be repeated. Only GET/HEAD operations without required "
+            "parameter values are executable."
+        ),
+    )
+
+    api_probe_parser.add_argument(
+        "--max-spec-bytes",
+        type=int,
+        default=2_097_152,
+        help=(
+            "Maximum local API description size in bytes. "
+            "Default: 2097152"
+        ),
+    )
+
+    api_probe_parser.add_argument(
+        "--max-requests",
+        type=int,
+        default=10,
+        help="Maximum API requests in this validation run. Default: 10",
+    )
+
+    api_probe_parser.add_argument(
+        "--max-response-bytes",
+        type=int,
+        default=1_048_576,
+        help=(
+            "Maximum response bytes read per GET request. "
+            "Response bodies are not persisted. Default: 1048576"
+        ),
+    )
+
+    api_probe_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=5.0,
+        help="Per-request timeout in seconds. Default: 5.0",
+    )
+
+    api_probe_parser.add_argument(
+        "--authorization-env",
+        help=(
+            "Read the complete Authorization header value from this "
+            "environment variable. The value is never printed or persisted."
+        ),
+    )
+
+    api_probe_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    api_probe_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
+    )
+
+    api_graphql_inspect_parser = api_subparsers.add_parser(
+        "graphql-inspect",
+        help=(
+            "Passively inspect saved GraphQL introspection JSON without "
+            "network activity."
+        ),
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "introspection",
+        help="Local saved GraphQL introspection JSON file.",
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--endpoint-url",
+        required=True,
+        help=(
+            "Authorized GraphQL endpoint URL used only for scope/origin "
+            "context. No request is sent."
+        ),
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help="Authorized scope rule for the GraphQL endpoint host.",
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--max-spec-bytes",
+        type=int,
+        default=2_097_152,
+        help=(
+            "Maximum saved introspection JSON size in bytes. "
+            "Default: 2097152"
+        ),
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    api_graphql_inspect_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
+    )
+
+    api_graphql_introspect_parser = api_subparsers.add_parser(
+        "graphql-introspect",
+        help=(
+            "Execute one fixed bounded GraphQL introspection operation "
+            "against an explicitly authorized endpoint."
+        ),
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--endpoint-url",
+        required=True,
+        help=(
+            "Authorized GraphQL endpoint URL. The URL must not contain "
+            "credentials, query data, or fragments."
+        ),
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help="Authorized scope rule for the GraphQL endpoint host.",
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--max-response-bytes",
+        type=int,
+        default=1_048_576,
+        help=(
+            "Maximum introspection response bytes. "
+            "Default: 1048576"
+        ),
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=5.0,
+        help="Introspection request timeout in seconds. Default: 5.0",
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--authorization-env",
+        help=(
+            "Read the complete Authorization header value from this "
+            "environment variable. The value is never printed or persisted."
+        ),
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    api_graphql_introspect_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
     )
 
     assets_parser = subparsers.add_parser(
@@ -876,6 +1178,679 @@ def _load_installed_check_pack_checks(
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "api":
+        if args.api_command in {
+            "graphql-inspect",
+            "graphql-introspect",
+        }:
+            try:
+                raw_endpoint = args.endpoint_url.strip()
+                raw_parts = urlsplit(
+                    raw_endpoint
+                )
+
+                if (
+                    raw_parts.username is not None
+                    or raw_parts.password is not None
+                    or raw_parts.query
+                    or raw_parts.fragment
+                ):
+                    raise ValueError(
+                        "GraphQL endpoint URL must not contain credentials, "
+                        "query data, or a fragment."
+                    )
+
+                endpoint_url = normalize_http_url(
+                    raw_endpoint
+                )
+                endpoint_origin = url_origin(
+                    endpoint_url
+                )
+                hostname = urlsplit(
+                    endpoint_url
+                ).hostname
+
+                if hostname is None:
+                    raise ValueError(
+                        "GraphQL endpoint URL must include a hostname."
+                    )
+
+                target = parse_target(
+                    hostname
+                )
+                scope = Scope.from_values(
+                    args.scope
+                )
+
+                if args.api_command == "graphql-inspect":
+                    if args.max_spec_bytes < 1:
+                        raise ValueError(
+                            "max_spec_bytes must be at least 1."
+                        )
+
+                    graphql_schema = load_graphql_introspection_json(
+                        args.introspection,
+                        max_bytes=args.max_spec_bytes,
+                    )
+                    authorization = None
+                else:
+                    if args.max_response_bytes < 1:
+                        raise ValueError(
+                            "max_response_bytes must be at least 1."
+                        )
+
+                    if args.timeout <= 0:
+                        raise ValueError(
+                            "timeout must be greater than 0."
+                        )
+
+                    authorization = None
+
+                    if args.authorization_env:
+                        authorization = os.environ.get(
+                            args.authorization_env
+                        )
+
+                        if (
+                            authorization is None
+                            or not authorization.strip()
+                        ):
+                            raise ValueError(
+                                "Authorization environment variable "
+                                f"'{args.authorization_env}' is missing or empty."
+                            )
+            except (
+                OSError,
+                ValueError,
+            ) as exc:
+                parser.error(str(exc))
+
+            logger = NightReconLogger(
+                args.logs_dir
+            )
+
+            if not scope.is_authorized(
+                target
+            ):
+                logger.write(
+                    "api.graphql.rejected",
+                    endpoint_url=endpoint_url,
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    scope=args.scope,
+                    reason="outside_authorized_scope",
+                )
+                parser.error(
+                    f"Target '{target.value}' is outside the authorized scope."
+                )
+
+            source = "saved-introspection"
+
+            if args.api_command == "graphql-introspect":
+                result = execute_graphql_introspection(
+                    endpoint_url=endpoint_url,
+                    origin=endpoint_origin,
+                    authorized=scope.is_authorized(
+                        target
+                    ),
+                    timeout=args.timeout,
+                    max_response_bytes=args.max_response_bytes,
+                    authorization=authorization,
+                )
+
+                if (
+                    not result.success
+                    or result.schema is None
+                ):
+                    logger.write(
+                        "api.graphql.introspection_failed",
+                        endpoint_url=endpoint_url,
+                        target=target.value,
+                        target_type=target.target_type.value,
+                        scope=args.scope,
+                        reason=result.reason,
+                        status=result.status,
+                        byte_count=result.byte_count,
+                    )
+                    parser.error(
+                        "GraphQL introspection failed: "
+                        f"{result.reason}"
+                    )
+
+                graphql_schema = result.schema
+                source = "live-introspection"
+
+            session = ScanSession.create(
+                target=target,
+                scope_rules=tuple(
+                    args.scope
+                ),
+            )
+            graphql_report = GraphQLSchemaReport.create(
+                session=session,
+                endpoint_url=endpoint_url,
+                source=source,
+                schema=graphql_schema,
+            )
+            output_path = ResultStore(
+                args.results_dir
+            ).save_graphql_schema_report(
+                graphql_report
+            )
+            summary = graphql_report.to_dict()[
+                "summary"
+            ]
+
+            logger.write(
+                "api.graphql.completed",
+                session_id=session.session_id,
+                endpoint_url=endpoint_url,
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                source=source,
+                types=summary["types"],
+                fields=summary["fields"],
+                query_type=summary["query_type"],
+                mutation_type=summary["mutation_type"],
+                subscription_type=summary["subscription_type"],
+                status=graphql_report.status,
+            )
+
+            print(
+                "GraphQL Schema Summary: "
+                f"source={source} "
+                f"types={summary['types']} "
+                f"fields={summary['fields']} "
+                f"query={summary['query_type'] or '-'} "
+                f"mutation={summary['mutation_type'] or '-'} "
+                f"subscription={summary['subscription_type'] or '-'}"
+            )
+
+            for gql_type in graphql_report.types:
+                if not gql_type["fields"]:
+                    continue
+
+                print(
+                    "  GRAPHQL TYPE "
+                    f"{gql_type['kind']} {gql_type['name']} "
+                    f"fields={len(gql_type['fields'])}"
+                )
+
+                for field in gql_type["fields"]:
+                    arguments = (
+                        ",".join(
+                            (
+                                f"{argument['name']}:"
+                                f"{argument['type_name'] or argument['type_kind'] or '-'}"
+                                f"{'!' if argument['required'] else ''}"
+                            )
+                            for argument in field["arguments"]
+                        )
+                        if field["arguments"]
+                        else "-"
+                    )
+                    print(
+                        "    GRAPHQL FIELD "
+                        f"{field['name']} "
+                        "returns="
+                        f"{field['return_type_name'] or field['return_type_kind'] or '-'} "
+                        f"args={arguments}"
+                    )
+
+            print(
+                f"Session ID: {session.session_id}"
+            )
+            print(
+                f"GraphQL result file: {output_path}"
+            )
+            return
+
+        if args.api_command == "probe":
+            try:
+                if args.max_spec_bytes < 1:
+                    raise ValueError(
+                        "max_spec_bytes must be at least 1."
+                    )
+
+                if args.max_requests < 1:
+                    raise ValueError(
+                        "max_requests must be at least 1."
+                    )
+
+                if args.max_response_bytes < 1:
+                    raise ValueError(
+                        "max_response_bytes must be at least 1."
+                    )
+
+                if args.timeout <= 0:
+                    raise ValueError(
+                        "timeout must be greater than 0."
+                    )
+
+                raw_base = args.base_url.strip()
+                raw_parts = urlsplit(
+                    raw_base
+                )
+
+                if (
+                    raw_parts.username is not None
+                    or raw_parts.password is not None
+                ):
+                    raise ValueError(
+                        "--base-url must not contain URL credentials."
+                    )
+
+                if raw_parts.query or raw_parts.fragment:
+                    raise ValueError(
+                        "--base-url must not contain a query string or fragment."
+                    )
+
+                normalized_base = normalize_http_url(
+                    raw_base
+                )
+                base_origin = url_origin(
+                    normalized_base
+                )
+                hostname = urlsplit(
+                    normalized_base
+                ).hostname
+
+                if hostname is None:
+                    raise ValueError(
+                        "--base-url must include a hostname."
+                    )
+
+                target = parse_target(
+                    hostname
+                )
+                scope = Scope.from_values(
+                    args.scope
+                )
+                inventory = load_api_description(
+                    args.spec,
+                    max_bytes=args.max_spec_bytes,
+                )
+                selections = select_api_operations(
+                    inventory=inventory,
+                    selectors=tuple(
+                        args.api_operations
+                    ),
+                    base_url=normalized_base,
+                )
+
+                if len(selections) > args.max_requests:
+                    raise ValueError(
+                        "Selected API operations exceed max_requests."
+                    )
+
+                authorization = None
+
+                if args.authorization_env:
+                    authorization = os.environ.get(
+                        args.authorization_env
+                    )
+
+                    if (
+                        authorization is None
+                        or not authorization.strip()
+                    ):
+                        raise ValueError(
+                            "Authorization environment variable "
+                            f"'{args.authorization_env}' is missing or empty."
+                        )
+            except ApiDescriptionRuntimeUnavailable as exc:
+                parser.error(str(exc))
+            except (
+                OSError,
+                ValueError,
+            ) as exc:
+                parser.error(str(exc))
+
+            logger = NightReconLogger(
+                args.logs_dir
+            )
+
+            if not scope.is_authorized(
+                target
+            ):
+                logger.write(
+                    "api.probe.rejected",
+                    base_origin=base_origin,
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    scope=args.scope,
+                    reason="outside_authorized_scope",
+                )
+                parser.error(
+                    f"Target '{target.value}' is outside the authorized scope."
+                )
+
+            session = ScanSession.create(
+                target=target,
+                scope_rules=tuple(
+                    args.scope
+                ),
+            )
+            policy = ApiRequestPolicy(
+                origin=base_origin,
+                max_requests=args.max_requests,
+            )
+            state = ApiRequestState(
+                requests_used=0,
+                max_requests=args.max_requests,
+            )
+            records = []
+
+            for selection in selections:
+                request = ApiRequest(
+                    url=selection.url,
+                    method=selection.operation.method,
+                    operation_id=selection.operation.operation_id,
+                )
+                decision = authorize_api_request(
+                    request=request,
+                    policy=policy,
+                    state=state,
+                )
+
+                if not decision.allowed:
+                    raise ValueError(
+                        "API request policy rejected selected operation "
+                        f"'{selection.selector}': {decision.reason}"
+                    )
+
+                result = execute_api_request(
+                    request=request,
+                    decision=decision,
+                    state=state,
+                    origin=base_origin,
+                    authorized=scope.is_authorized(
+                        target
+                    ),
+                    timeout=args.timeout,
+                    max_response_bytes=args.max_response_bytes,
+                    authorization=authorization,
+                )
+                state = result.state
+                records.append(
+                    ApiValidationRecord.from_result(
+                        selection=selection,
+                        result=result,
+                    )
+                )
+
+            api_inventory_report = ApiInventoryReport.create(
+                session=session,
+                base_origin=base_origin,
+                inventory=inventory,
+            )
+            validation_report = ApiValidationReport.create(
+                session=session,
+                base_origin=base_origin,
+                max_requests=args.max_requests,
+                max_response_bytes=args.max_response_bytes,
+                records=tuple(
+                    records
+                ),
+            )
+            store = ResultStore(
+                args.results_dir
+            )
+            inventory_path = store.save_api_inventory_report(
+                api_inventory_report
+            )
+            validation_path = store.save_api_validation_report(
+                validation_report
+            )
+            summary = validation_report.to_dict()[
+                "summary"
+            ]
+
+            logger.write(
+                "api.probe.completed",
+                session_id=session.session_id,
+                base_origin=base_origin,
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                selected_operations=summary[
+                    "selected_operations"
+                ],
+                attempted_requests=summary[
+                    "attempted_requests"
+                ],
+                successful_requests=summary[
+                    "successful_requests"
+                ],
+                failed_requests=summary[
+                    "failed_requests"
+                ],
+                status=validation_report.status,
+            )
+
+            print(
+                "API Validation Summary: "
+                f"selected={summary['selected_operations']} "
+                f"attempted={summary['attempted_requests']} "
+                f"successful={summary['successful_requests']} "
+                f"failed={summary['failed_requests']}"
+            )
+
+            for record in validation_report.records:
+                print(
+                    "  API PROBE "
+                    f"{record.method} {record.url} "
+                    f"selector={record.selector} "
+                    f"success={'yes' if record.success else 'no'} "
+                    f"status={record.status if record.status is not None else '-'} "
+                    f"reason={record.reason} "
+                    f"bytes={record.byte_count}"
+                )
+
+            print(
+                f"Session ID: {session.session_id}"
+            )
+            print(
+                f"API inventory file: {inventory_path}"
+            )
+            print(
+                f"API validation file: {validation_path}"
+            )
+            return
+
+        if args.api_command != "inspect":
+            parser.error(
+                "The api command requires a subcommand."
+            )
+
+        try:
+            if args.max_spec_bytes < 1:
+                raise ValueError(
+                    "max_spec_bytes must be at least 1."
+                )
+
+            raw_base = args.base_url.strip()
+            raw_parts = urlsplit(
+                raw_base
+            )
+
+            if (
+                raw_parts.username is not None
+                or raw_parts.password is not None
+            ):
+                raise ValueError(
+                    "--base-url must not contain URL credentials."
+                )
+
+            if raw_parts.query or raw_parts.fragment:
+                raise ValueError(
+                    "--base-url must not contain a query string or fragment."
+                )
+
+            normalized_base = normalize_http_url(
+                raw_base
+            )
+            base_origin = url_origin(
+                normalized_base
+            )
+            hostname = urlsplit(
+                normalized_base
+            ).hostname
+
+            if hostname is None:
+                raise ValueError(
+                    "--base-url must include a hostname."
+                )
+
+            target = parse_target(
+                hostname
+            )
+            scope = Scope.from_values(
+                args.scope
+            )
+            inventory = load_api_description(
+                args.spec,
+                max_bytes=args.max_spec_bytes,
+            )
+        except ApiDescriptionRuntimeUnavailable as exc:
+            parser.error(str(exc))
+        except (
+            OSError,
+            ValueError,
+        ) as exc:
+            parser.error(str(exc))
+
+        logger = NightReconLogger(
+            args.logs_dir
+        )
+
+        if not scope.is_authorized(
+            target
+        ):
+            logger.write(
+                "api.inspect.rejected",
+                base_origin=base_origin,
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason="outside_authorized_scope",
+            )
+            parser.error(
+                f"Target '{target.value}' is outside the authorized scope."
+            )
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=tuple(
+                args.scope
+            ),
+        )
+        api_report = ApiInventoryReport.create(
+            session=session,
+            base_origin=base_origin,
+            inventory=inventory,
+        )
+        output_path = ResultStore(
+            args.results_dir
+        ).save_api_inventory_report(
+            api_report
+        )
+        summary = api_report.to_dict()[
+            "summary"
+        ]
+
+        logger.write(
+            "api.inspect.completed",
+            session_id=api_report.session_id,
+            base_origin=api_report.base_origin,
+            target=api_report.target,
+            target_type=api_report.target_type,
+            scope=args.scope,
+            specification=api_report.specification,
+            specification_version=api_report.specification_version,
+            operations=summary["operations"],
+            safe_operations=summary["safe_operations"],
+            mutating_operations=summary["mutating_operations"],
+            external_references=summary["external_references"],
+            status=api_report.status,
+        )
+
+        print(
+            "API Description: "
+            f"{api_report.specification} "
+            f"{api_report.specification_version}"
+        )
+        print(
+            f"API Title: {api_report.title or '-'}"
+        )
+        print(
+            f"API Version: {api_report.api_version or '-'}"
+        )
+        print(
+            "API Summary: "
+            f"operations={summary['operations']} "
+            f"safe={summary['safe_operations']} "
+            f"mutating={summary['mutating_operations']} "
+            f"servers={summary['servers']} "
+            f"security_schemes={summary['security_schemes']} "
+            f"external_refs={summary['external_references']}"
+        )
+
+        for server in api_report.servers:
+            server_origin = ""
+
+            try:
+                server_origin = url_origin(
+                    normalize_http_url(
+                        server
+                    )
+                )
+            except ValueError:
+                pass
+
+            print(
+                "  API SERVER "
+                f"{server} "
+                "same_origin="
+                f"{'yes' if server_origin == base_origin else 'no'}"
+            )
+
+        for operation in api_report.operations:
+            parameters = (
+                ",".join(
+                    (
+                        f"{parameter.location}:"
+                        f"{parameter.name}:"
+                        f"{parameter.schema_type or '-'}"
+                    )
+                    for parameter in operation.parameters
+                )
+                if operation.parameters
+                else "-"
+            )
+            print(
+                "  API OPERATION "
+                f"{operation.method} {operation.path} "
+                f"id={operation.operation_id or '-'} "
+                f"params={parameters}"
+            )
+
+        for reference in (
+            api_report.external_references_observed
+        ):
+            print(
+                f"  API EXTERNAL REF {reference}"
+            )
+
+        print(
+            f"Session ID: {api_report.session_id}"
+        )
+        print(
+            f"API result file: {output_path}"
+        )
+        return
 
     if args.command == "assets":
         if args.assets_command == "history":

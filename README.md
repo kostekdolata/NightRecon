@@ -6,9 +6,9 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Version
 
-**v0.26.0**
+**v0.27.0**
 
-NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution, plus a scope-enforced bounded same-origin web crawler with passive content discovery, secret-safe authenticated crawling, passive and safe-active DAST, passive session-cookie security intelligence that never persists cookie values, the v0.25 Stateful Web Workflow Engine, and the v0.26 Browser-Powered Application Discovery layer for bounded JavaScript/SPA route discovery under strict request, runtime, DOM, origin, and method controls.
+NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution, plus a scope-enforced bounded same-origin web crawler with passive content discovery, secret-safe authenticated crawling, passive and safe-active DAST, passive session-cookie security intelligence that never persists cookie values, the v0.25 Stateful Web Workflow Engine, the v0.26 Browser-Powered Application Discovery layer, and v0.27 API Intelligence for OpenAPI/Swagger inventory, explicitly selected bounded GET/HEAD validation, and fixed GraphQL schema introspection.
 
 ## Features
 
@@ -183,6 +183,25 @@ NightRecon now includes scope-enforced concurrent TCP scanning, authorized bound
 - Browser reports persist non-secret request/response/DOM metadata separately from crawl reports
 - Authenticated browser context is intentionally not supported in v0.26
 - Dedicated Chromium loopback CI proves dynamic DOM discovery, cross-origin request blocking, POST blocking, and redirect refusal
+- First-class OpenAPI 3.x and Swagger 2.0 normalization with operation, parameter, server, security-scheme, request-content, and response-status metadata
+- Local OpenAPI/Swagger inspection through `nightrecon api inspect` with no network retrieval
+- Optional YAML API description support through the `api` extra using safe YAML loading
+- API description size ceilings and dedicated YAML runtime CI validation
+- Declared server URLs and external `$ref` metadata are redacted before reporting; remote `$ref` documents are never fetched automatically
+- Structured API inventory reports saved separately as `<session>-api.json`
+- Explicit `nightrecon api probe` safe-active validation for named operations only
+- API probe execution supports GET/HEAD only and refuses mutation operations, unresolved path templates, and operations requiring invented parameter values
+- Selected API operations must fit the request budget before the first request is sent
+- API redirects are never followed; request timeout and response-byte ceilings are independently enforced
+- API Authorization context can be supplied only through a named environment variable and is never printed or persisted
+- API response bodies are never retained in validation result/report models
+- Structured API validation reports saved separately as `<session>-api-validation.json`
+- Offline GraphQL introspection JSON inspection through `nightrecon api graphql-inspect`
+- Explicit live GraphQL schema discovery through `nightrecon api graphql-introspect` sends exactly one built-in introspection operation
+- GraphQL CLI accepts no arbitrary GraphQL query text, variables, mutations, subscriptions, or arbitrary request headers
+- GraphQL redirects and oversized responses fail closed
+- GraphQL reports retain type, field, argument, and root-operation metadata only and are saved separately as `<session>-graphql.json`
+- Real loopback tests validate API GET/HEAD execution and fixed GraphQL introspection without external network access
 - Per-port result storage
 - Ordinary `scan` CIDR port-scanning remains blocked; network discovery is isolated behind the explicit `discover` command
 - Authorized CIDR host discovery with full scope-containment validation before any probe activity
@@ -272,6 +291,30 @@ Run bounded browser-powered discovery against an explicitly authorized origin:
 Tighten browser ceilings for a smaller assessment:
 
 `nightrecon crawl https://example.test --scope example.test --browser-discovery --browser-max-requests 40 --browser-max-pages 3 --browser-max-runtime 10 --browser-max-dom-items 200`
+
+Install optional YAML API-description support:
+
+`python -m pip install -e ".[api]"`
+
+Inspect a local OpenAPI/Swagger description without network activity:
+
+`nightrecon api inspect ./openapi.yaml --base-url https://example.test/api --scope example.test`
+
+Probe only explicitly selected safe operations from that local schema:
+
+`nightrecon api probe ./openapi.yaml --base-url https://example.test/api --scope example.test --operation listUsers --max-requests 3`
+
+Use transient API Authorization context from an environment variable:
+
+`nightrecon api probe ./openapi.yaml --base-url https://example.test/api --scope example.test --operation listUsers --authorization-env NIGHTRECON_API_AUTH`
+
+Inspect a previously saved GraphQL introspection response offline:
+
+`nightrecon api graphql-inspect ./introspection.json --endpoint-url https://example.test/graphql --scope example.test`
+
+Run one fixed bounded GraphQL introspection operation against an authorized endpoint:
+
+`nightrecon api graphql-introspect --endpoint-url https://example.test/graphql --scope example.test --authorization-env NIGHTRECON_GRAPHQL_AUTH`
 
 Enable the bounded safe-active OPTIONS layer explicitly:
 
@@ -424,11 +467,11 @@ Declarative check packs are intentionally non-executable data. NightRecon does n
 
 Managed feed state adds replay protection and immutable local version storage. Installed packs are reverified before activation, rollback, and assessment use. Dry-run planning validates signed feed freshness without persisting the newer generation or downloading artifacts.
 
-Web crawling reuses NightRecon's existing scope authorization boundary. The URL host is validated before requests begin, cross-origin redirects are blocked, and traversal is limited to normalized same-origin links. Passive content discovery records structure rather than secrets: form values are not retained, form actions are not submitted, and script sources are not fetched merely because they were observed. Authentication header values may be supplied only through named environment variables in the crawl CLI and remain ephemeral request context; they are not stored in NightRecon reports or audit records. Set-Cookie values are likewise discarded before crawl result construction; only cookie names and security attributes are retained for descriptive session-security checks. When `--session-cookies` is explicitly enabled, response cookie values may exist transiently inside an in-memory cookie jar for request continuity during that single process, but the jar is not attached to crawl results or persisted output. Web assessment remains passive by default. Safe-active mode requires an explicit intrusiveness setting, revalidates authorization at the assessment boundary, enforces a separate request ceiling, sends only OPTIONS requests, refuses redirects, and treats advertised risky methods as descriptive evidence rather than proof of exploitability. Stateful workflow support preserves the same boundary: workflow mode is opt-in, planned form actions remain observation-only, CLI execution is limited to explicitly named same-origin GET transitions, and every transition is revalidated against an action budget. Workflow reports persist only non-secret metadata. The internal form-submission layer is separately gated, disabled by default, POST-only, exact-field-allowlisted, sensitive-field-aware, budget-bound, redirect-free, and blocks destructive-looking actions by default; it is intentionally not exposed by the v0.25 CLI. Browser-powered discovery is a separate opt-in capability. Its controller authorizes intercepted requests before network continuation, enforces exact-origin and GET/HEAD-only defaults, reserves request/page budgets before continuing, blocks service workers, refuses browser redirects at the response boundary, bounds response and DOM retention, and records only redacted non-secret metadata. The v0.26 browser path does not support authenticated browser context, clicks, form submissions, uploads, or arbitrary methods.
+Web crawling reuses NightRecon's existing scope authorization boundary. The URL host is validated before requests begin, cross-origin redirects are blocked, and traversal is limited to normalized same-origin links. Passive content discovery records structure rather than secrets: form values are not retained, form actions are not submitted, and script sources are not fetched merely because they were observed. Authentication header values may be supplied only through named environment variables in the crawl CLI and remain ephemeral request context; they are not stored in NightRecon reports or audit records. Set-Cookie values are likewise discarded before crawl result construction; only cookie names and security attributes are retained for descriptive session-security checks. When `--session-cookies` is explicitly enabled, response cookie values may exist transiently inside an in-memory cookie jar for request continuity during that single process, but the jar is not attached to crawl results or persisted output. Web assessment remains passive by default. Safe-active mode requires an explicit intrusiveness setting, revalidates authorization at the assessment boundary, enforces a separate request ceiling, sends only OPTIONS requests, refuses redirects, and treats advertised risky methods as descriptive evidence rather than proof of exploitability. Stateful workflow support preserves the same boundary: workflow mode is opt-in, planned form actions remain observation-only, CLI execution is limited to explicitly named same-origin GET transitions, and every transition is revalidated against an action budget. Workflow reports persist only non-secret metadata. The internal form-submission layer is separately gated, disabled by default, POST-only, exact-field-allowlisted, sensitive-field-aware, budget-bound, redirect-free, and blocks destructive-looking actions by default; it is intentionally not exposed by the v0.25 CLI. Browser-powered discovery is a separate opt-in capability. Its controller authorizes intercepted requests before network continuation, enforces exact-origin and GET/HEAD-only defaults, reserves request/page budgets before continuing, blocks service workers, refuses browser redirects at the response boundary, bounds response and DOM retention, and records only redacted non-secret metadata. The v0.26 browser path does not support authenticated browser context, clicks, form submissions, uploads, or arbitrary methods. API intelligence follows the same authorization-first model. Local schema inspection never fetches declared servers or external references. Safe-active API probing requires the operator to name each operation explicitly, allows only GET/HEAD operations without unresolved required values, enforces exact-origin request budgets and redirect refusal, and retains response metadata rather than response bodies. GraphQL live introspection is isolated to one fixed built-in introspection operation; NightRecon does not accept arbitrary GraphQL query text, variables, mutations, subscriptions, or arbitrary headers through this path.
 
 ## Roadmap
 
-The authoritative NightRecon development plan is maintained in [ROADMAP.md](ROADMAP.md). v0.26.0 completes the first Browser-Powered Application Discovery release. After this release is merged and post-merge CI is verified, the next locked milestone is v0.27.x API Intelligence, followed by expanded safe-active DAST, credentialed infrastructure assessment, identity/attack-path intelligence, Red validation, Blue defensive validation, White-team control, and Black-box external attack-surface capabilities.
+The authoritative NightRecon development plan is maintained in [ROADMAP.md](ROADMAP.md). v0.27.0 completes the first API Intelligence release. After this release is merged and post-merge CI is verified, the next locked milestone is v0.28.x Expanded Safe-Active DAST, followed by credentialed infrastructure assessment, identity/attack-path intelligence, Red validation, Blue defensive validation, White-team control, and Black-box external attack-surface capabilities.
 
 ## License
 
