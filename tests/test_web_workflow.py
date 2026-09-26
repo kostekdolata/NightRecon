@@ -246,6 +246,156 @@ class WebWorkflowTests(unittest.TestCase):
             ),
         )
 
+    def test_simulated_application_workflow_stays_within_safe_policy(self):
+        pages = (
+            CrawlPage(
+                url="https://example.test/login",
+                status=200,
+                content_type="text/html",
+                byte_count=200,
+                links=(
+                    "https://example.test/help",
+                    "https://example.test/dashboard",
+                    "https://outside.test/phish",
+                ),
+                forms=(
+                    WebFormObservation(
+                        action="https://example.test/session",
+                        method="POST",
+                        inputs=(
+                            WebFormInput(
+                                name="username",
+                                input_type="text",
+                            ),
+                            WebFormInput(
+                                name="password",
+                                input_type="password",
+                            ),
+                            WebFormInput(
+                                name="csrf_token",
+                                input_type="hidden",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            CrawlPage(
+                url="https://example.test/dashboard",
+                status=200,
+                content_type="text/html",
+                byte_count=200,
+                links=(
+                    "https://example.test/profile",
+                    "https://example.test/logout",
+                ),
+                forms=(
+                    WebFormObservation(
+                        action="https://example.test/logout",
+                        method="POST",
+                        inputs=(),
+                    ),
+                ),
+            ),
+            CrawlPage(
+                url="https://example.test/profile",
+                status=200,
+                content_type="text/html",
+                byte_count=100,
+                links=(),
+            ),
+        )
+
+        policy = WorkflowPolicy(
+            origin="https://example.test",
+            max_actions=3,
+        )
+        plan = build_observed_navigation_plan(
+            pages=pages,
+            origin=policy.origin,
+            max_actions=policy.max_actions,
+        )
+
+        self.assertEqual(
+            tuple(
+                action.target_url
+                for action in plan
+            ),
+            (
+                "https://example.test/help",
+                "https://example.test/dashboard",
+                "https://example.test/profile",
+            ),
+        )
+        self.assertTrue(
+            all(
+                action.kind
+                == WorkflowActionKind.NAVIGATE
+                for action in plan
+            )
+        )
+        self.assertTrue(
+            all(
+                authorize_workflow_action(
+                    action=action,
+                    policy=policy,
+                    actions_used=index,
+                ).allowed
+                for index, action in enumerate(plan)
+            )
+        )
+
+        planned_targets = tuple(
+            action.target_url
+            for action in plan
+        )
+        self.assertNotIn(
+            "https://outside.test/phish",
+            planned_targets,
+        )
+        self.assertNotIn(
+            "https://example.test/session",
+            planned_targets,
+        )
+        self.assertNotIn(
+            "https://example.test/logout",
+            planned_targets,
+        )
+
+        login_submission = WorkflowAction(
+            kind=WorkflowActionKind.SUBMIT_FORM,
+            source_url="https://example.test/login",
+            target_url="https://example.test/session",
+            method="POST",
+        )
+        decision = authorize_workflow_action(
+            action=login_submission,
+            policy=policy,
+            actions_used=0,
+        )
+
+        self.assertFalse(decision.allowed)
+        self.assertEqual(
+            decision.reason,
+            "method_not_allowed",
+        )
+
+        exhausted = authorize_workflow_action(
+            action=WorkflowAction(
+                kind=WorkflowActionKind.NAVIGATE,
+                source_url="https://example.test/profile",
+                target_url="https://example.test/settings",
+                method="GET",
+            ),
+            policy=policy,
+            actions_used=3,
+        )
+
+        self.assertFalse(exhausted.allowed)
+        self.assertEqual(
+            exhausted.reason,
+            "action_budget_exhausted",
+        )
+
     def test_workflow_state_reports_remaining_budget(self):
         state = WorkflowState(
             current_url="https://example.test/",
