@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from nightrecon.api_report import ApiInventoryReport
 from nightrecon.browser_report import BrowserDiscoveryReport
 from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.report import TcpScanReport
@@ -65,6 +66,26 @@ class ResultStore:
 
         self.root.mkdir(parents=True, exist_ok=True)
         output_path = self.root / f"{report.session_id}-workflow.json"
+
+        with output_path.open("w", encoding="utf-8") as file:
+            json.dump(
+                report.to_dict(),
+                file,
+                indent=2,
+                sort_keys=True,
+            )
+            file.write("\n")
+
+        return output_path
+
+    def save_api_inventory_report(
+        self,
+        report: ApiInventoryReport,
+    ) -> Path:
+        """Save passive API inventory evidence separately from scan data."""
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        output_path = self.root / f"{report.session_id}-api.json"
 
         with output_path.open("w", encoding="utf-8") as file:
             json.dump(
