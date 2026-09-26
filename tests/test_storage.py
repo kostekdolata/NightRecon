@@ -12,6 +12,7 @@ from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import parse_target
 from nightrecon.tcp_scanner import TcpPortResult
+from nightrecon.web_workflow_report import WebWorkflowReport
 
 
 class ResultStoreTests(unittest.TestCase):
@@ -218,6 +219,64 @@ class ResultStoreTests(unittest.TestCase):
             self.assertEqual(data["results"][0]["port"], 80)
             self.assertTrue(data["results"][0]["is_open"])
             self.assertEqual(data["results"][0]["error_code"], 0)
+
+    def test_web_workflow_report_is_saved_without_overwriting_session_report(self):
+        target = parse_target("example.com")
+        session = ScanSession.create(
+            target=target,
+            scope_rules=("example.com",),
+        )
+        report = WebWorkflowReport.create(
+            session=session,
+            origin="https://example.com",
+            max_actions=5,
+            planned_actions=(),
+            forms=(),
+            executions=(),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = ResultStore(temp_dir)
+            session_path = store.save_session(
+                session
+            )
+            workflow_path = store.save_web_workflow_report(
+                report
+            )
+
+            self.assertTrue(
+                session_path.exists()
+            )
+            self.assertTrue(
+                workflow_path.exists()
+            )
+            self.assertNotEqual(
+                session_path,
+                workflow_path,
+            )
+            self.assertEqual(
+                workflow_path.name,
+                f"{session.session_id}-workflow.json",
+            )
+
+            with workflow_path.open(
+                "r",
+                encoding="utf-8",
+            ) as file:
+                data = json.load(file)
+
+            self.assertEqual(
+                data["session_id"],
+                session.session_id,
+            )
+            self.assertEqual(
+                data["summary"]["planned_actions"],
+                0,
+            )
+            self.assertEqual(
+                data["summary"]["executions_requested"],
+                0,
+            )
 
 
 if __name__ == "__main__":

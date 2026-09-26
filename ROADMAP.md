@@ -28,7 +28,7 @@ NightRecon will converge on four controlled operational modes, with Purple workf
 
 ### v0.24.0 — Ephemeral Authenticated Session Continuity
 
-Status: release candidate.
+Status: released and verified stable.
 
 - opt-in in-memory session cookie continuity
 - same session context reused across authorized same-origin crawl requests
@@ -37,22 +37,28 @@ Status: release candidate.
 - raw cookie-header mode remains mutually exclusive with session-cookie mode
 - existing scope, redirect, request-count, and intrusiveness controls remain unchanged
 
-Release gate: documentation complete, full cross-platform CI green, merge to `master`, stable checkpoint verified.
+Release gate: completed; merged to `master` with post-merge cross-platform CI verified.
 
-### v0.25.x — Stateful Web Workflow Engine
+### v0.25.0 — Stateful Web Workflow Engine
 
-Goal: represent and safely navigate authenticated application workflows rather than isolated pages.
+Status: release candidate.
 
-Planned capabilities:
+Delivered capabilities:
 
-- explicit workflow model and navigation state
-- form-aware discovery without automatic unsafe submission
-- CSRF/token observation and bounded replay support where explicitly permitted
-- multi-step authenticated flows
-- deterministic request budgets
-- same-origin and scope revalidation at every transition
-- secret redaction and transient credential/session context
-- workflow evidence and reproducible traces
+- immutable workflow model, navigation state, and explicit transition policy
+- passive same-origin workflow planning from captured crawl evidence
+- field-name/type classification for ordinary, hidden, credential, anti-CSRF, and session-token inputs without retaining values
+- deterministic workflow action budgets and same-origin revalidation
+- bounded GET-only workflow execution with hard timeout/response ceilings
+- ephemeral Authorization and in-memory cookie continuity across approved GET steps
+- explicit form-submission policy that defaults to disabled
+- same-origin POST-only internal form executor with exact field allowlists, sensitive-field gates, submission budgets, stale-approval rejection, body/response ceilings, and redirect refusal
+- destructive-looking actions blocked by default
+- v0.25 CLI exposes planning and explicit GET execution only; form POST execution remains internal
+- separate non-secret workflow reports and reproducible execution evidence
+- real loopback integration coverage proving GET/POST boundaries without external network access
+
+Release gate: version/docs complete, exact-head cross-platform CI green, merge to `master`, then post-merge CI verification.
 
 ### v0.26.x — Browser-Powered Application Discovery
 
@@ -253,7 +259,7 @@ The engine will eventually require a production platform around it:
 
 The current locked execution order is:
 
-1. Finish and release v0.24.0.
-2. Verify `master` and CI as a stable checkpoint.
-3. Start v0.25.x Stateful Web Workflow Engine in a fresh development branch.
-4. Do not begin browser-powered discovery, API intelligence, credentialed infrastructure, identity graphing, or adversary validation until the preceding layer has a verified checkpoint.
+1. Finish and release v0.25.0 Stateful Web Workflow Engine.
+2. Verify the merged `master` commit and post-merge CI as a stable checkpoint.
+3. Start v0.26.x Browser-Powered Application Discovery in a fresh development branch.
+4. Preserve sandboxing, same-origin/scope enforcement, resource ceilings, and no automatic high-impact actions before advancing to API intelligence or later generations.

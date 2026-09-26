@@ -73,8 +73,23 @@ from nightrecon.web_active_assessment import (
 from nightrecon.web_crawl import (
     crawl_site,
     normalize_http_url,
+    url_origin,
 )
+from nightrecon.web_form_intent import observe_form_intents
 from nightrecon.web_report import WebCrawlReport
+from nightrecon.web_workflow import (
+    WorkflowAction,
+    WorkflowActionKind,
+    WorkflowPolicy,
+    WorkflowState,
+    authorize_workflow_action,
+    build_observed_navigation_plan,
+)
+from nightrecon.web_workflow_execution import execute_workflow_navigation
+from nightrecon.web_workflow_report import (
+    WebWorkflowReport,
+    WorkflowExecutionRecord,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -507,6 +522,36 @@ def build_parser() -> argparse.ArgumentParser:
             "Reuse response cookies only in memory for later requests "
             "within this authorized crawl. Cookie values are never "
             "printed or persisted. Cannot be combined with --cookie-env."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--workflow",
+        action="store_true",
+        help=(
+            "Build a non-secret stateful workflow plan from observed links "
+            "and forms. No form submissions are performed."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--workflow-max-actions",
+        type=int,
+        default=10,
+        help=(
+            "Maximum workflow actions permitted for explicit workflow GET "
+            "execution. Default: 10"
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--workflow-get",
+        action="append",
+        dest="workflow_get_urls",
+        help=(
+            "Explicitly execute one absolute same-origin GET URL after the "
+            "crawl under workflow policy. Requires --workflow. May repeat. "
+            "Form POST execution is not exposed by the v0.25 CLI."
         ),
     )
 
@@ -1406,6 +1451,35 @@ def main() -> None:
                     "--session-cookies cannot be combined with --cookie-env."
                 )
 
+            if args.workflow_get_urls and not args.workflow:
+                raise ValueError(
+                    "--workflow-get requires --workflow."
+                )
+
+            if args.workflow and args.workflow_max_actions < 1:
+                raise ValueError(
+                    "workflow_max_actions must be at least 1."
+                )
+
+            if args.workflow_get_urls and args.cookie_env:
+                raise ValueError(
+                    "--workflow-get does not accept raw --cookie-env context; "
+                    "use --session-cookies for ephemeral cookie continuity."
+                )
+
+            workflow_get_urls = tuple(
+                normalize_http_url(value)
+                for value in (args.workflow_get_urls or ())
+            )
+
+            if any(
+                url_origin(value) != url_origin(normalized_url)
+                for value in workflow_get_urls
+            ):
+                raise ValueError(
+                    "--workflow-get URLs must use the crawl's exact origin."
+                )
+
             if args.authorization_env:
                 authorization = os.environ.get(
                     args.authorization_env
@@ -1540,6 +1614,86 @@ def main() -> None:
                 args.scope
             ),
         )
+
+        workflow_report = None
+        workflow_output_path = None
+
+        if args.workflow:
+            planned_actions = build_observed_navigation_plan(
+                pages=crawl.pages,
+                origin=crawl.origin,
+                max_actions=args.workflow_max_actions,
+            )
+            form_intents = observe_form_intents(
+                pages=crawl.pages,
+                origin=crawl.origin,
+            )
+            workflow_policy = WorkflowPolicy(
+                origin=crawl.origin,
+                max_actions=args.workflow_max_actions,
+            )
+            workflow_state = WorkflowState(
+                current_url=normalized_url,
+                visited_urls=(normalized_url,),
+                actions_used=0,
+                max_actions=args.workflow_max_actions,
+            )
+            workflow_executions = []
+
+            for workflow_url in workflow_get_urls:
+                action = WorkflowAction(
+                    kind=WorkflowActionKind.NAVIGATE,
+                    source_url=workflow_state.current_url,
+                    target_url=workflow_url,
+                    method="GET",
+                )
+                decision = authorize_workflow_action(
+                    action=action,
+                    policy=workflow_policy,
+                    actions_used=workflow_state.actions_used,
+                )
+
+                if not decision.allowed:
+                    workflow_executions.append(
+                        WorkflowExecutionRecord.denied(
+                            action=action,
+                            decision=decision,
+                            actions_used_after=workflow_state.actions_used,
+                        )
+                    )
+                    continue
+
+                result = execute_workflow_navigation(
+                    action=action,
+                    decision=decision,
+                    state=workflow_state,
+                    origin=crawl.origin,
+                    authorized=scope.is_authorized(target),
+                    timeout=config.connect_timeout,
+                    max_bytes=args.max_bytes_per_page,
+                    authorization=authorization,
+                    cookie_jar=session_cookie_jar,
+                )
+                workflow_executions.append(
+                    WorkflowExecutionRecord.completed(
+                        action=action,
+                        decision=decision,
+                        result=result,
+                    )
+                )
+
+                if result.success:
+                    workflow_state = result.state
+
+            workflow_report = WebWorkflowReport.create(
+                session=session,
+                origin=crawl.origin,
+                max_actions=args.workflow_max_actions,
+                planned_actions=planned_actions,
+                forms=form_intents,
+                executions=tuple(workflow_executions),
+            )
+
         crawl_report = WebCrawlReport.create(
             session=session,
             crawl=crawl,
@@ -1558,11 +1712,17 @@ def main() -> None:
             ),
             safe_active_errors=safe_active_errors,
         )
-        output_path = ResultStore(
+        store = ResultStore(
             config.results_dir
-        ).save_web_crawl_report(
+        )
+        output_path = store.save_web_crawl_report(
             crawl_report
         )
+
+        if workflow_report is not None:
+            workflow_output_path = store.save_web_workflow_report(
+                workflow_report
+            )
 
         logger.write(
             "crawl.completed",
@@ -1601,6 +1761,17 @@ def main() -> None:
             ),
             session_cookies_enabled=(
                 args.session_cookies
+            ),
+            workflow_enabled=args.workflow,
+            workflow_planned_actions=(
+                len(workflow_report.planned_actions)
+                if workflow_report is not None
+                else 0
+            ),
+            workflow_executions=(
+                len(workflow_report.executions)
+                if workflow_report is not None
+                else 0
             ),
             status=crawl_report.status,
         )
@@ -1740,6 +1911,57 @@ def main() -> None:
                 print(
                     f"    Evidence: {finding.evidence}"
                 )
+
+        if workflow_report is not None:
+            print(
+                "Workflow Summary: "
+                f"planned={len(workflow_report.planned_actions)} "
+                f"forms={len(workflow_report.forms)} "
+                f"executions={len(workflow_report.executions)} "
+                f"successful={workflow_report.successful_executions}"
+            )
+            print(
+                f"Workflow max actions: {workflow_report.max_actions}"
+            )
+
+            for action in workflow_report.planned_actions:
+                print(
+                    "  WORKFLOW PLAN "
+                    f"{action.method} {action.target_url} "
+                    f"kind={action.kind}"
+                )
+
+            for form in workflow_report.forms:
+                fields = (
+                    ",".join(
+                        f"{field.name or '-'}:{field.field_class}"
+                        for field in form.fields
+                    )
+                    if form.fields
+                    else "-"
+                )
+                print(
+                    "  WORKFLOW FORM "
+                    f"method={form.method} "
+                    f"action={form.action_url or '-'} "
+                    "same_origin="
+                    f"{'yes' if form.action_same_origin else 'no'} "
+                    f"fields={fields}"
+                )
+
+            for execution in workflow_report.executions:
+                print(
+                    "  WORKFLOW EXEC "
+                    f"{execution.action.method} "
+                    f"{execution.action.target_url} "
+                    f"allowed={'yes' if execution.allowed else 'no'} "
+                    f"success={'yes' if execution.success else 'no'} "
+                    f"reason={execution.execution_reason}"
+                )
+
+            print(
+                f"Workflow result file: {workflow_output_path}"
+            )
 
         print(
             f"Max pages: {crawl_report.max_pages}"
