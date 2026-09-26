@@ -135,6 +135,99 @@ class BrowserWorkerControllerTests(unittest.TestCase):
             2.5,
         )
 
+    def test_interception_reserves_budget_before_network_continuation(self):
+        first = self.controller.intercept_request(
+            url="https://example.test/a.js",
+            method="GET",
+            resource_kind=BrowserResourceKind.SCRIPT,
+        )
+        second = self.controller.intercept_request(
+            url="https://example.test/b.js",
+            method="GET",
+            resource_kind=BrowserResourceKind.SCRIPT,
+        )
+        third = self.controller.intercept_request(
+            url="https://example.test/c.js",
+            method="GET",
+            resource_kind=BrowserResourceKind.SCRIPT,
+        )
+        blocked = self.controller.intercept_request(
+            url="https://example.test/d.js",
+            method="GET",
+            resource_kind=BrowserResourceKind.SCRIPT,
+        )
+
+        self.assertTrue(first.allowed)
+        self.assertTrue(second.allowed)
+        self.assertTrue(third.allowed)
+        self.assertFalse(blocked.allowed)
+        self.assertEqual(
+            blocked.reason,
+            "request_budget_exhausted",
+        )
+        self.assertEqual(
+            self.controller.state.requests_used,
+            3,
+        )
+
+    def test_intercepted_document_reserves_page_budget_immediately(self):
+        first = self.controller.intercept_request(
+            url="https://example.test/one",
+            method="GET",
+            resource_kind=BrowserResourceKind.DOCUMENT,
+            top_level_document=True,
+        )
+        second = self.controller.intercept_request(
+            url="https://example.test/two",
+            method="GET",
+            resource_kind=BrowserResourceKind.DOCUMENT,
+            top_level_document=True,
+        )
+        blocked = self.controller.intercept_request(
+            url="https://example.test/three",
+            method="GET",
+            resource_kind=BrowserResourceKind.DOCUMENT,
+            top_level_document=True,
+        )
+
+        self.assertTrue(first.allowed)
+        self.assertTrue(second.allowed)
+        self.assertFalse(blocked.allowed)
+        self.assertEqual(
+            blocked.reason,
+            "page_budget_exhausted",
+        )
+        self.assertEqual(
+            self.controller.state.pages_used,
+            2,
+        )
+
+    def test_runtime_can_be_accounted_without_double_counting_requests(self):
+        decision = self.controller.intercept_request(
+            url="https://example.test/app.js",
+            method="GET",
+            resource_kind=BrowserResourceKind.SCRIPT,
+        )
+        self.assertTrue(decision.allowed)
+
+        self.controller.add_runtime_elapsed(
+            elapsed_seconds=1.25,
+        )
+
+        self.assertEqual(
+            self.controller.state.requests_used,
+            1,
+        )
+        self.assertEqual(
+            self.controller.state.runtime_seconds,
+            1.25,
+        )
+
+        with self.assertRaises(ValueError):
+            self.controller.add_runtime_elapsed(
+                elapsed_seconds=4.0,
+            )
+
     def test_request_budget_blocks_later_interception(self):
         for path in (
             "/a.js",
