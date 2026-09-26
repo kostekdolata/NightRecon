@@ -29,11 +29,19 @@ class _FakeRequest:
 
 
 class _FakeApiResponse:
-    def __init__(self, status=200, content_length="64"):
+    def __init__(
+        self,
+        status=200,
+        content_length="64",
+        location=None,
+    ):
         self.status = status
         self.headers = {
             "content-length": content_length,
         }
+
+        if location is not None:
+            self.headers["location"] = location
 
 
 class _FakeRoute:
@@ -51,6 +59,14 @@ class _FakeRoute:
 
     def fetch(self, **kwargs):
         self.fetch_kwargs = kwargs
+
+        if self.request.url.endswith("/redirect"):
+            return _FakeApiResponse(
+                status=302,
+                content_length="0",
+                location="https://outside.test/escaped",
+            )
+
         return _FakeApiResponse()
 
     def fulfill(self, *, response):
@@ -108,7 +124,7 @@ class _FakePage:
             ),
         )
 
-        for request in requests:
+        for index, request in enumerate(requests):
             route = _FakeRoute(
                 request
             )
@@ -116,6 +132,11 @@ class _FakePage:
                 route
             )
             self.routes.append(route)
+
+            if index == 0 and route.aborted:
+                raise RuntimeError(
+                    "navigation blocked"
+                )
 
         self.url = url
         return object()
@@ -383,6 +404,47 @@ class PlaywrightBrowserAdapterTests(unittest.TestCase):
 
         self.assertIsNone(
             factory.playwright.chromium.launch_kwargs
+        )
+
+    def test_redirect_response_is_blocked_before_browser_followup(self):
+        factory = _FakeFactory()
+        times = iter(
+            (
+                2.0,
+            )
+        )
+
+        result = discover_with_playwright(
+            start_url="https://example.test/redirect",
+            policy=self.policy,
+            playwright_factory=factory,
+            clock=lambda: next(times),
+        )
+
+        self.assertIsNone(
+            result.page
+        )
+        self.assertIn(
+            "navigation blocked",
+            result.error,
+        )
+        route = (
+            factory.playwright
+            .chromium.browser.context.page.routes[0]
+        )
+        self.assertTrue(
+            route.aborted
+        )
+        self.assertFalse(
+            route.fulfilled
+        )
+        self.assertEqual(
+            route.abort_code,
+            "blockedbyresponse",
+        )
+        self.assertEqual(
+            route.fetch_kwargs["max_redirects"],
+            0,
         )
 
     def test_dom_metadata_over_ceiling_is_discarded(self):
