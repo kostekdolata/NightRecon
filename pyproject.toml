@@ -23,6 +23,9 @@ browser = [
 api = [
     "PyYAML>=6.0,<7",
 ]
+ssh = [
+    "paramiko>=5.0,<6",
+]
 keywords = [
     "security",
     "pentesting",
