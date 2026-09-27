@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Mapping
 import json
 
@@ -11,17 +11,8 @@ import json
 SCHEMA_VERSION = 1
 _VALID_NIGHTS = frozenset({"white", "blue", "red", "purple", "black"})
 _FORBIDDEN_FIELD_FRAGMENTS = (
-    "password",
-    "passwd",
-    "secret",
-    "token",
-    "credential",
-    "cookie",
-    "authorization",
-    "api_key",
-    "apikey",
-    "private_key",
-    "session",
+    "password", "passwd", "secret", "token", "credential", "cookie",
+    "authorization", "api_key", "apikey", "private_key", "session",
 )
 
 
@@ -87,29 +78,6 @@ class EvidenceRecord:
         return json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
 
     @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> "EngagementEnvelope":
-        if not isinstance(payload, Mapping):
-            raise ValueError("engagement envelope must be an object")
-        if set(payload) != {"schema_version", "engagement_id", "records"}:
-            raise ValueError("engagement envelope schema is not supported")
-        records = payload["records"]
-        if not isinstance(records, list):
-            raise ValueError("records must be a list")
-        return cls(
-            schema_version=payload["schema_version"],
-            engagement_id=payload["engagement_id"],
-            records=tuple(EvidenceRecord.from_dict(item) for item in records),
-        )
-
-    @classmethod
-    def from_json(cls, payload: str) -> "EngagementEnvelope":
-        try:
-            decoded = json.loads(payload)
-        except (TypeError, json.JSONDecodeError) as exc:
-            raise ValueError("engagement envelope is not valid JSON") from exc
-        return cls.from_dict(decoded)
-
-    @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "EvidenceRecord":
         if not isinstance(payload, Mapping):
             raise ValueError("evidence record must be an object")
@@ -120,7 +88,9 @@ class EvidenceRecord:
         if set(payload) != required:
             raise ValueError("evidence record schema is not supported")
         limitations = payload["limitations"]
-        if not isinstance(limitations, list) or any(not isinstance(item, str) for item in limitations):
+        if not isinstance(limitations, list) or any(
+            not isinstance(item, str) for item in limitations
+        ):
             raise ValueError("limitations must be a list of strings")
         return cls(
             schema_version=payload["schema_version"],
@@ -162,3 +132,26 @@ class EngagementEnvelope:
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "EngagementEnvelope":
+        if not isinstance(payload, Mapping):
+            raise ValueError("engagement envelope must be an object")
+        if set(payload) != {"schema_version", "engagement_id", "records"}:
+            raise ValueError("engagement envelope schema is not supported")
+        records = payload["records"]
+        if not isinstance(records, list):
+            raise ValueError("records must be a list")
+        return cls(
+            schema_version=payload["schema_version"],
+            engagement_id=payload["engagement_id"],
+            records=tuple(EvidenceRecord.from_dict(item) for item in records),
+        )
+
+    @classmethod
+    def from_json(cls, payload: str) -> "EngagementEnvelope":
+        try:
+            decoded = json.loads(payload)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ValueError("engagement envelope is not valid JSON") from exc
+        return cls.from_dict(decoded)
