@@ -123,6 +123,30 @@ jobs:
         run: python tests/smb_impacket_runtime.py
 
 
+  winrm-runtime-integration:
+    name: pywinrm runtime compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon WinRM extra
+        run: python -m pip install -e ".[winrm]"
+
+      - name: Run pywinrm runtime compatibility
+        run: python tests/winrm_pywinrm_runtime.py
+
+
   browser-integration:
     name: Playwright Chromium loopback integration
     runs-on: ubuntu-latest
