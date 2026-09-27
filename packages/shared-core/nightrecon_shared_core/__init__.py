@@ -9,6 +9,7 @@ from nightrecon_shared_core.editions import (
     available_commands,
     edition_name,
 )
+from nightrecon_shared_core.file_store import FileEngagementStore
 from nightrecon_shared_core.store import (
     EngagementStore,
     EvidenceConflictError,
@@ -17,7 +18,8 @@ from nightrecon_shared_core.store import (
 
 __all__ = [
     "EDITIONS", "Edition", "EditionRouteError", "EngagementEnvelope", "EngagementStore",
-    "EvidenceConflictError", "EvidenceRecord", "InMemoryEngagementStore",
+    "EvidenceConflictError", "EvidenceRecord", "FileEngagementStore",
+    "InMemoryEngagementStore",
     "Scope", "Target", "TargetType",
     "available_commands", "edition_name", "parse_target",
 ]
