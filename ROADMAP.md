@@ -251,6 +251,15 @@ Deferred to subsequent Generation 2 releases:
 
 NightRecon continues to distinguish observed relationships from inferred hypotheses and keeps path reasoning reproducible and evidence-backed.
 
+### v0.32.0 — Red Product Readiness
+
+Status: development in verified batches; no release tag yet.
+
+The measurable Red completion gates and specialist comparison are maintained
+in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md). The first evidence-only path-review
+primitive is under development. Red remains an integrated CLI capability until
+its independent installation, command isolation, and acceptance tests pass.
+
 ## Generation 3 — Red Validation Engine
 
 Goal: controlled validation of authorized attack paths.
@@ -372,8 +381,9 @@ The current execution order is:
    correction merged and verified.
 2. Verify the internal fail-closed edition command gateway without changing
    the existing single-package CLI defaults.
-3. Package the first useful independently installable edition behind that
-   gateway, proving isolated installation and no cross-edition active commands.
+3. Complete the Red acceptance gates in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md),
+   beginning with evidence-only path review and a useful independently
+   installable Red package behind the verified gateway.
 4. Begin Active Directory identity collection as a separate authorization-first
    Generation 2 release built on the stable graph evidence contract.
 5. Grow the remaining independently installable editions as their real
