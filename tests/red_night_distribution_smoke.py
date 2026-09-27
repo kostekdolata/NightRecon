@@ -82,13 +82,20 @@ def main() -> None:
         directory = Path(root)
         wheels = directory / "wheels"
         wheels.mkdir()
-        for package in (REPOSITORY, REPOSITORY / "packages" / "red-night"):
+        for package in (
+            REPOSITORY,
+            REPOSITORY / "packages" / "shared-core",
+            REPOSITORY / "packages" / "red-night",
+        ):
             check(
                 sys.executable, "-m", "pip", "wheel", "--no-index",
                 "--no-deps", "--no-build-isolation", "--wheel-dir", str(wheels),
                 str(package), cwd=directory,
             )
         core_wheel = next(wheels.glob("nightrecon-0.31.0-*.whl"))
+        shared_core_wheel = next(
+            wheels.glob("nightrecon_shared_core-0.32.0.dev0-*.whl")
+        )
         app_wheel = next(wheels.glob("nightrecon_red_night-0.32.0.dev0-*.whl"))
 
         for mode in ("isolated", "combined"):
@@ -98,6 +105,16 @@ def main() -> None:
             if mode == "combined" or arguments.offline_host_dependencies:
                 check(str(python), "-m", "pip", "install", "--no-index",
                       "--no-deps", str(core_wheel), cwd=directory)
+            check(str(python), "-m", "pip", "install", "--no-index",
+                  "--no-deps", str(shared_core_wheel), cwd=directory)
+            check(
+                str(python), "-c",
+                "import nightrecon_shared_core as c; "
+                "assert c.edition_name('red') == 'Red Night'; "
+                "assert c.Scope.from_values(['192.0.2.0/24']).is_authorized("
+                "c.parse_target('192.0.2.10'))",
+                cwd=directory,
+            )
             if mode == "combined":
                 assert "Red Night command boundary" in check(
                     command(bin_dir, "red-night"), "--help", cwd=directory,
@@ -116,12 +133,14 @@ def main() -> None:
                 "import importlib.metadata as m; "
                 "print(m.version('nightrecon')); "
                 "print(m.version('nightrecon-red-night')); "
+                "print(m.version('nightrecon-shared-core')); "
                 "print(m.requires('nightrecon-red-night'))",
                 cwd=directory,
             )
             assert "0.31.0" in metadata
-            assert "0.32.0.dev0" in metadata
+            assert metadata.count("0.32.0.dev0") >= 2
             assert "nightrecon==0.31.0" in metadata
+            assert "nightrecon-shared-core==0.32.0.dev0" in metadata
             check(str(python), "-m", "red_night_app", "--help", cwd=directory)
 
             if mode == "combined":
