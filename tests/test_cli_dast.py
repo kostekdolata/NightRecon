@@ -412,7 +412,10 @@ class CliDastTests(unittest.TestCase):
             stdout,
         )
         self.assertIn(
-            "DAST result file: results/session-dast.json",
+            (
+                "DAST result file: "
+                f"{Path('results/session-dast.json')}"
+            ),
             stdout,
         )
 
