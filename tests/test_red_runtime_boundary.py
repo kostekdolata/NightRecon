@@ -16,6 +16,10 @@ from nightrecon.edition_policy import (
     available_commands,
     edition_name,
 )
+from nightrecon.red_ownership import (
+    RED_BASE_DEPENDENCIES,
+    RED_LEGACY_BRIDGE_DEPENDENCY,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,10 +31,10 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
         payload = tomllib.loads(
             (ROOT / "packages" / "red-night" / "pyproject.toml").read_text(encoding="utf-8")
         )
-        dependencies = payload["project"]["dependencies"]
+        dependencies = set(payload["project"]["dependencies"])
         self.assertEqual(
             dependencies,
-            ["nightrecon==0.31.0", "nightrecon-shared-core==0.32.0.dev0"],
+            set(RED_BASE_DEPENDENCIES) | {RED_LEGACY_BRIDGE_DEPENDENCY},
         )
 
     def test_red_app_entrypoint_is_a_thin_adapter(self) -> None:
