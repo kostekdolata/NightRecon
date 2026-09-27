@@ -118,7 +118,7 @@ Release gate: version/docs complete, exact-head six-job push + PR CI green, merg
 
 ### v0.28.0 — Expanded Safe-Active DAST
 
-Status: release candidate.
+Status: released, tagged, and verified stable.
 
 Delivered capabilities:
 
@@ -149,26 +149,58 @@ Delivered capabilities:
 
 Release gate: version/docs complete, exact-head six-job push + PR CI green, merge to `master`, verify post-merge six-job CI, then add the verified merge commit to the guarded release-tag allowlist.
 
-### v0.29–v0.30 — Credentialed Infrastructure Assessment
+### v0.29.0 — Read-Only SSH Credentialed Assessment
 
-Goal: extend beyond unauthenticated service observation.
+Status: release candidate.
+
+Delivered capabilities:
+
+- protocol-neutral credentialed infrastructure action/state/policy models
+- explicit scope enforcement and transport allowlists
+- symbolic action IDs instead of arbitrary command text
+- immutable per-run action budgets
+- mutating actions blocked by default
+- opaque credential references with no secret-value fields
+- ephemeral in-memory secret handles with TTL, byte ceilings, zeroization, redacted representations, and serialization refusal
+- credential-provider boundary registry with environment-backed resolution built in
+- one-shot infrastructure execution contract that clears credential material after every attempt
+- bounded typed fact model for secret-free transport evidence
+- optional Paramiko SSH runtime through the `ssh` extra
+- strict `known_hosts` verification and reject policy for unknown/changed host keys
+- password-authenticated SSH with agent and local-key discovery disabled
+- fixed internal read-only actions only: `ssh.system_identity` and `ssh.os_inventory`
+- no shell, PTY, SFTP, arbitrary command text, file transfer, or mutation action surface
+- connect/command timeout, output-byte, and total-action ceilings
+- allowlisted typed parsing of system identity and OS-release metadata
+- sanitized authentication/host-key/SSH/connection/command/parse/output-limit failure reasons
+- separate secret-free infrastructure assessment reports
+- explicit `nightrecon infra ssh` CLI surface
+- dedicated Paramiko runtime compatibility CI job
+
+Release gate: version/docs complete, exact-head seven-job PR CI green, merge to `master`, verify post-merge seven-job CI, then add the verified merge commit to the guarded release-tag allowlist.
+
+### v0.30.x — Broader Credentialed Infrastructure Assessment
+
+Goal: extend the same authorization-first credentialed model beyond SSH.
 
 Planned targets:
 
-- SSH
 - SMB
 - WinRM
 - supported databases
-- supported network devices
+- selected network devices
 
 Controls:
 
-- explicit credential source
+- explicit credential/provider source
 - least-privilege guidance
 - read-only/configuration-audit defaults
-- secret redaction
-- command allowlists
+- protocol-specific action allowlists
+- strict endpoint/server identity verification where available
+- secret redaction and ephemeral credential handling
+- bounded typed evidence only
 - capability-specific request/action ceilings
+- no arbitrary command/query surface
 
 ## Generation 2 — Identity and Attack-Path Intelligence
 
@@ -306,7 +338,7 @@ The engine will eventually require a production platform around it:
 
 The current locked execution order is:
 
-1. Finish and release v0.28.0 Expanded Safe-Active DAST.
-2. Verify the merged `master` commit with the full six-job matrix and create the guarded `v0.28.0` annotated tag.
-3. Start v0.29.x Credentialed Infrastructure Assessment in a fresh development branch.
-4. Begin credentialed infrastructure with explicit credential sources, read-only defaults, command allowlists, secret redaction, and independent action budgets before broader protocol coverage.
+1. Finish and release v0.29.0 Read-Only SSH Credentialed Assessment.
+2. Verify the merged `master` commit with the full seven-job matrix and create the guarded `v0.29.0` annotated tag.
+3. Start v0.30.x Broader Credentialed Infrastructure Assessment in a fresh development branch.
+4. Extend the same secret-handling, allowlist, identity-verification, typed-evidence, and action-budget model to SMB, WinRM, supported databases, and selected network devices before beginning identity/attack-path intelligence.
