@@ -6,16 +6,17 @@ This roadmap is directional. Release scope may be split into smaller verified in
 
 ## Operating Modes
 
-NightRecon will converge on five independently selectable editions: White,
-Blue, Red, Purple, and Black-box. They share one mandatory authorization-first
-core, so installing an edition alone never removes the safety boundary. The
+NightRecon will converge on five independently installable applications:
+White Night, Blue Night, Red Night, Purple Night, and Black Night. Users will be
+able to install one, any combination, or the full suite. They share one mandatory
+authorization-first core, so installing one Night alone never removes the safety boundary. The
 edition architecture and honest availability status are in [EDITIONS.md](EDITIONS.md).
 
-- **Red** — reconnaissance, exposure discovery, vulnerability validation, attack-path validation, and controlled adversary emulation.
-- **Blue** — defensive-control testing, telemetry validation, detection engineering, exposure reduction, and remediation verification.
-- **White** — authorization, scope, rules of engagement, approvals, safety controls, audit, evidence, exercise control, and emergency stop.
-- **Black** — deliberately knowledge-limited external assessment beginning from an explicitly authorized starting scope.
-- **Purple** — correlation of approved Red actions with Blue prevention, telemetry, alerts, and detection coverage, usable as a separate evidence-analysis edition or alongside Red and Blue.
+- **Red Night** — reconnaissance, exposure discovery, vulnerability validation, attack-path validation, and controlled adversary emulation.
+- **Blue Night** — defensive-control testing, telemetry validation, detection engineering, exposure reduction, and remediation verification.
+- **White Night** — authorization, scope, rules of engagement, approvals, safety controls, audit, evidence, exercise control, and emergency stop.
+- **Black Night** — deliberately knowledge-limited external assessment beginning from an explicitly authorized starting scope.
+- **Purple Night** — correlation of approved Red Night actions with Blue Night prevention, telemetry, alerts, and detection coverage, usable on its own with exported evidence or alongside Red Night and Blue Night.
 
 ## Locked Safety Principles
 
@@ -306,7 +307,7 @@ Planned integrations and capabilities:
 - false-negative tracking
 - remediation and re-test loops
 
-Purple workflows will correlate approved Red activity with Blue telemetry and detections.
+Purple Night workflows will correlate approved Red Night activity with Blue Night telemetry and detections.
 
 ## Generation 5 — White Team Command Layer
 
@@ -377,15 +378,15 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Keep the five-edition catalog, separation contract, and v0.31 CLI version
+1. Keep the five-Night catalog, separation contract, and v0.31 CLI version
    correction merged and verified.
 2. Verify the internal fail-closed edition command gateway without changing
    the existing single-package CLI defaults.
-3. Complete the Red acceptance gates in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md),
+3. Complete the Red Night acceptance gates in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md),
    beginning with evidence-only path review and a useful independently
-   installable Red package behind the verified gateway.
+   installable Red Night package behind the verified gateway.
 4. Begin Active Directory identity collection as a separate authorization-first
    Generation 2 release built on the stable graph evidence contract.
-5. Grow the remaining independently installable editions as their real
+5. Grow the remaining independently installable Nights as their real
    workflows and isolation tests become available; add Entra ID and broader
    privilege/trust collectors in subsequent verified releases.

@@ -1,6 +1,6 @@
-# NightRecon Red Completion Standard
+# Red Night Completion Standard
 
-NightRecon Red is intended to be a separately installable, authorization-first
+Red Night is intended to be a separately installable, authorization-first
 assessment and adversary-validation application. Its existing reconnaissance,
 web/API, infrastructure, and graph foundations do not make it a finished Red
 product. Completion requires the measurable gates below; no single specialist
@@ -23,7 +23,7 @@ to claim that a matching feature name means equivalent effectiveness.
 ## Release gates
 
 1. **Independent installation:** a Red package and launcher install without
-   Blue, Purple, White, or Black-box applications. The mandatory shared safety
+   Blue Night, Purple Night, White Night, or Black Night applications. The mandatory shared safety
    core remains present. An all-editions installation composes without changing
    Red's defaults. Test both the isolated and combined installations.
 2. **Engagement safety:** authorization records, explicit target and time scope,
