@@ -35,6 +35,9 @@ winrm = [
 postgres = [
     "psycopg[binary]>=3.2,<4",
 ]
+mysql = [
+    "mysql-connector-python>=9.0,<10",
+]
 keywords = [
     "security",
     "pentesting",
