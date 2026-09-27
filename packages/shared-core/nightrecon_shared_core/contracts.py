@@ -86,6 +86,54 @@ class EvidenceRecord:
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
 
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "EngagementEnvelope":
+        if not isinstance(payload, Mapping):
+            raise ValueError("engagement envelope must be an object")
+        if set(payload) != {"schema_version", "engagement_id", "records"}:
+            raise ValueError("engagement envelope schema is not supported")
+        records = payload["records"]
+        if not isinstance(records, list):
+            raise ValueError("records must be a list")
+        return cls(
+            schema_version=payload["schema_version"],
+            engagement_id=payload["engagement_id"],
+            records=tuple(EvidenceRecord.from_dict(item) for item in records),
+        )
+
+    @classmethod
+    def from_json(cls, payload: str) -> "EngagementEnvelope":
+        try:
+            decoded = json.loads(payload)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ValueError("engagement envelope is not valid JSON") from exc
+        return cls.from_dict(decoded)
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "EvidenceRecord":
+        if not isinstance(payload, Mapping):
+            raise ValueError("evidence record must be an object")
+        required = {
+            "schema_version", "engagement_id", "evidence_id", "source_night",
+            "evidence_type", "observed_at", "provenance", "data", "limitations",
+        }
+        if set(payload) != required:
+            raise ValueError("evidence record schema is not supported")
+        limitations = payload["limitations"]
+        if not isinstance(limitations, list) or any(not isinstance(item, str) for item in limitations):
+            raise ValueError("limitations must be a list of strings")
+        return cls(
+            schema_version=payload["schema_version"],
+            engagement_id=payload["engagement_id"],
+            evidence_id=payload["evidence_id"],
+            source_night=payload["source_night"],
+            evidence_type=payload["evidence_type"],
+            observed_at=payload["observed_at"],
+            provenance=payload["provenance"],
+            data=payload["data"],
+            limitations=tuple(limitations),
+        )
+
 
 @dataclass(frozen=True)
 class EngagementEnvelope:
