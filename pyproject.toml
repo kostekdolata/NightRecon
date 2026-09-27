@@ -47,6 +47,7 @@ keywords = [
 
 [project.scripts]
 nightrecon = "nightrecon.cli:main"
+red-night = "nightrecon.red_night:main"
 
 [tool.setuptools.packages.find]
 include = ["nightrecon*"]

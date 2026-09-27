@@ -382,9 +382,10 @@ The current execution order is:
    correction merged and verified.
 2. Verify the internal fail-closed edition command gateway without changing
    the existing single-package CLI defaults.
-3. Complete the Red Night acceptance gates in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md),
-   beginning with evidence-only path review and a useful independently
-   installable Red Night package behind the verified gateway.
+3. Complete the Red Night acceptance gates in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md).
+   Evidence-only path review and a shared-distribution `red-night` launcher
+   now exist; build a separately installable Red Night package with isolated
+   and combined install tests behind the verified gateway.
 4. Begin Active Directory identity collection as a separate authorization-first
    Generation 2 release built on the stable graph evidence contract.
 5. Grow the remaining independently installable Nights as their real
