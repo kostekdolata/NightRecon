@@ -26,7 +26,7 @@ _COMMANDS = MappingProxyType({
     "blue": frozenset({"editions"}),
     "red": frozenset({
         "editions", "infra", "api", "assets", "checks", "discover",
-        "crawl", "scan",
+        "crawl", "scan", "identity",
     }),
     "purple": frozenset({"editions"}),
     "black": frozenset({"editions"}),
@@ -60,5 +60,11 @@ def run_edition_cli(edition: str, argv: Sequence[str]) -> None:
 
     if arguments[0] not in allowed:
         raise EditionRouteError("Command is not available in this edition.")
+
+    if edition == "red" and arguments[0] == "identity":
+        from nightrecon.red_directory_cli import main as identity_main
+
+        identity_main(arguments[1:])
+        return
 
     legacy_main(arguments)
