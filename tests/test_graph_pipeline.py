@@ -8,6 +8,7 @@ from nightrecon.assessment_engine import (
     ServiceAssessmentResult,
 )
 from nightrecon.asset_inventory import AssetInventory, AssetRecord, AssetServiceRecord
+from nightrecon.graph_critical_asset import CriticalAssetEvidence
 from nightrecon.graph_identity_evidence import (
     GroupEvidence,
     GroupMembershipEvidence,
@@ -197,6 +198,43 @@ class GraphPipelineTests(unittest.TestCase):
             {"member-of", "has-permission", "applies-to"}.issubset(
                 relationships
             )
+        )
+
+    def test_pipeline_projects_critical_asset_evidence(self):
+        inventory = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.74",
+                    first_seen="2026-09-27T19:00:00+00:00",
+                    last_seen="2026-09-27T19:00:00+00:00",
+                    last_checked_at="2026-09-27T19:00:00+00:00",
+                    source_session_ids=("scan-critical",),
+                ),
+            ),
+        )
+
+        graph = build_identity_graph(
+            inventory=inventory,
+            critical_assets=(
+                CriticalAssetEvidence(
+                    asset_key="192.0.2.74",
+                    label="Tier 0 server",
+                    source_id="critical-tier0",
+                    rationale="Tier 0 administration dependency.",
+                ),
+            ),
+            critical_asset_observed_at="2026-09-27T19:02:00+00:00",
+        )
+
+        self.assertTrue(
+            any(
+                node.kind is GraphNodeKind.CRITICAL_ASSET
+                for node in graph.nodes
+            )
+        )
+        self.assertIn(
+            "classified-as-critical",
+            {edge.relationship for edge in graph.edges},
         )
 
     def test_pipeline_is_deterministic_for_identical_inputs(self):
