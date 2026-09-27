@@ -5,7 +5,16 @@ import unittest
 from nightrecon.asset_inventory import AssetInventory, AssetRecord, AssetServiceRecord
 from nightrecon.graph_builder import GraphBuildLimits
 from nightrecon.graph_models import GraphEvidenceState, GraphNodeKind
-from nightrecon.graph_projection import build_identity_graph_from_asset_inventory
+from nightrecon.software_identity import SoftwareIdentity
+from nightrecon.vulnerability_intelligence import (
+    ServiceVulnerabilityResult,
+    VulnerabilityFinding,
+    VulnerabilityLookupResult,
+)
+from nightrecon.graph_projection import (
+    add_vulnerability_evidence_to_identity_graph,
+    build_identity_graph_from_asset_inventory,
+)
 
 
 class GraphProjectionTests(unittest.TestCase):
@@ -139,6 +148,160 @@ class GraphProjectionTests(unittest.TestCase):
             build_identity_graph_from_asset_inventory(
                 inventory,
                 limits=GraphBuildLimits(max_nodes=1, max_edges=1),
+            )
+
+
+    def test_vulnerability_matches_create_observed_graph_evidence_only(self):
+        inventory = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.50",
+                    first_seen="2026-09-27T12:00:00+00:00",
+                    last_seen="2026-09-27T12:00:00+00:00",
+                    last_checked_at="2026-09-27T12:00:00+00:00",
+                    services=(
+                        AssetServiceRecord(
+                            port=443,
+                            service="https",
+                            product="nginx",
+                            version="1.24.0",
+                        ),
+                    ),
+                    source_session_ids=("scan-vuln",),
+                ),
+            ),
+        )
+        graph = build_identity_graph_from_asset_inventory(inventory)
+        software = SoftwareIdentity(
+            product="nginx",
+            version="1.24.0",
+            source="http-server",
+            evidence="nginx/1.24.0",
+        )
+        finding = VulnerabilityFinding(
+            vulnerability_id="CVE-2026-1234",
+            source="nvd",
+            summary="Provider vulnerability description.",
+            severity="HIGH",
+            cvss_score=8.1,
+            match_basis="cpe-match",
+            matched_identifier="cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+        )
+        results = (
+            ServiceVulnerabilityResult(
+                address="192.0.2.50",
+                port=443,
+                service="https",
+                lookup=VulnerabilityLookupResult(
+                    provider="nvd",
+                    software_identity=software,
+                    findings=(finding,),
+                ),
+            ),
+        )
+
+        enriched = add_vulnerability_evidence_to_identity_graph(
+            graph,
+            results,
+            observed_at="2026-09-27T12:00:00+00:00",
+        )
+
+        vulnerability = next(
+            node
+            for node in enriched.nodes
+            if node.kind is GraphNodeKind.VULNERABILITY
+        )
+        edge = next(
+            edge
+            for edge in enriched.edges
+            if edge.relationship == "matched-vulnerability"
+        )
+
+        self.assertEqual(vulnerability.label, "CVE-2026-1234")
+        self.assertEqual(dict(vulnerability.properties)["provider"], "nvd")
+        self.assertEqual(dict(vulnerability.properties)["severity"], "HIGH")
+        self.assertEqual(dict(vulnerability.properties)["cvss_score"], "8.1")
+        self.assertEqual(edge.evidence_state, GraphEvidenceState.OBSERVED)
+        self.assertEqual(
+            dict(edge.properties)["claim"],
+            "provider-match-only",
+        )
+
+    def test_vulnerability_provider_errors_do_not_create_findings(self):
+        inventory = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.51",
+                    first_seen="2026-09-27T12:00:00+00:00",
+                    last_seen="2026-09-27T12:00:00+00:00",
+                    last_checked_at="2026-09-27T12:00:00+00:00",
+                    services=(AssetServiceRecord(port=22, service="ssh"),),
+                    source_session_ids=("scan-error",),
+                ),
+            ),
+        )
+        graph = build_identity_graph_from_asset_inventory(inventory)
+        software = SoftwareIdentity(
+            product="OpenSSH",
+            version="9.6",
+            source="ssh-banner",
+            evidence="OpenSSH_9.6",
+        )
+        results = (
+            ServiceVulnerabilityResult(
+                address="192.0.2.51",
+                port=22,
+                service="ssh",
+                lookup=VulnerabilityLookupResult(
+                    provider="nvd",
+                    software_identity=software,
+                    error="provider unavailable",
+                ),
+            ),
+        )
+
+        enriched = add_vulnerability_evidence_to_identity_graph(
+            graph,
+            results,
+        )
+
+        self.assertEqual(enriched, graph)
+
+    def test_vulnerability_projection_requires_existing_service_node(self):
+        software = SoftwareIdentity(
+            product="nginx",
+            version="1.24.0",
+            source="http-server",
+            evidence="nginx/1.24.0",
+        )
+        results = (
+            ServiceVulnerabilityResult(
+                address="192.0.2.99",
+                port=443,
+                service="https",
+                lookup=VulnerabilityLookupResult(
+                    provider="nvd",
+                    software_identity=software,
+                    findings=(
+                        VulnerabilityFinding(
+                            vulnerability_id="CVE-2026-9999",
+                            source="nvd",
+                            summary="Example.",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "service is missing from graph",
+        ):
+            add_vulnerability_evidence_to_identity_graph(
+                build_identity_graph_from_asset_inventory(
+                    AssetInventory.empty()
+                ),
+                results,
             )
 
 
