@@ -109,8 +109,13 @@ another backend, but it must implement the same store semantics.
 
 Red Night is the first producer wired into this layer. Its offline identity
 import can persist evidence with `--store <path> --engagement-id <id>` and can
-read it back with `identity store-list`. These are explicit local persistence
-operations; the default identity-import output remains unchanged.
+read it back with `identity store-list`. Engagement coordination metadata can be
+created with `identity store-metadata`; its authorization reference is only a
+pointer to separately enforced authorization state and never grants permission.
+Standalone stores can export one engagement with `identity store-export` and
+import it into another compatible store with `identity store-import`, preserving
+source Night, provenance, limitations, metadata, and evidence IDs. These are
+explicit local data operations; the default identity-import output remains unchanged.
 
 Evidence imported from another Night is never authorization. Any later active
 operation still requires the shared core's target scope, approvals, budgets,

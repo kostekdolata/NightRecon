@@ -15,7 +15,11 @@ from nightrecon.graph_identity_projection import add_identity_evidence_to_identi
 from nightrecon.graph_report import IdentityGraphReport
 from nightrecon.graph_snapshot import create_identity_graph_snapshot_manifest
 from nightrecon.red_directory_import import DirectoryImportLimits, import_directory_snapshot
-from nightrecon_shared_core.contracts import EngagementEnvelope, EvidenceRecord
+from nightrecon_shared_core.contracts import (
+    EngagementEnvelope,
+    EngagementMetadata,
+    EvidenceRecord,
+)
 from nightrecon_shared_core.file_store import FileEngagementStore
 
 
@@ -57,47 +61,52 @@ def _evidence_record(
     )
 
 
-def main(argv: Sequence[str]) -> None:
-    """Review bounded offline identity evidence and optional shared-store records."""
+def _store_error(exc: Exception) -> None:
+    print(f"red-night identity: {exc}", file=sys.stderr)
+    raise SystemExit(2) from None
 
+
+def main(argv: Sequence[str]) -> None:
     parser = argparse.ArgumentParser(prog="red-night identity")
     operations = parser.add_subparsers(dest="operation", required=True)
 
-    importer = operations.add_parser(
-        "import", help="Review a local normalized directory snapshot."
-    )
+    importer = operations.add_parser("import", help="Review a local normalized directory snapshot.")
     importer.add_argument("path", help="Local UTF-8 JSON snapshot (no live LDAP connection).")
     importer.add_argument("--source-id", required=True, help="Non-secret evidence source ID.")
-    importer.add_argument(
-        "--engagement-id",
-        help="Approved engagement ID; required for envelope export or store persistence.",
-    )
-    importer.add_argument(
-        "--export-envelope",
-        action="store_true",
-        help="Emit a portable NightRecon engagement envelope instead of the legacy summary.",
-    )
-    importer.add_argument(
-        "--store",
-        help="Optional portable engagement-store JSON path for this evidence record.",
-    )
-    importer.add_argument(
-        "--include-graph", action="store_true",
-        help="Include graph labels and provenance in JSON output (may identify people).",
-    )
+    importer.add_argument("--engagement-id", help="Approved engagement ID for envelope/store output.")
+    importer.add_argument("--export-envelope", action="store_true")
+    importer.add_argument("--store", help="Optional portable engagement-store JSON path.")
+    importer.add_argument("--include-graph", action="store_true")
 
-    listing = operations.add_parser(
-        "store-list", help="Read portable shared evidence without performing collection."
+    listing = operations.add_parser("store-list", help="Read portable shared evidence.")
+    listing.add_argument("store")
+    listing.add_argument("--engagement-id", required=True)
+    listing.add_argument("--source-night")
+    listing.add_argument("--evidence-type")
+
+    metadata_cmd = operations.add_parser(
+        "store-metadata", help="Create engagement coordination metadata."
     )
-    listing.add_argument("store", help="Portable engagement-store JSON path.")
-    listing.add_argument("--engagement-id", required=True, help="Engagement to read.")
-    listing.add_argument("--source-night", help="Optional source Night filter.")
-    listing.add_argument("--evidence-type", help="Optional evidence type filter.")
+    metadata_cmd.add_argument("store")
+    metadata_cmd.add_argument("--engagement-id", required=True)
+    metadata_cmd.add_argument("--name", required=True)
+    metadata_cmd.add_argument("--authorization-reference", required=True)
+    metadata_cmd.add_argument("--status", default="planned")
+    metadata_cmd.add_argument("--description")
+
+    export_cmd = operations.add_parser("store-export", help="Export one engagement envelope.")
+    export_cmd.add_argument("store")
+    export_cmd.add_argument("--engagement-id", required=True)
+    export_cmd.add_argument("--output", required=True)
+
+    import_cmd = operations.add_parser("store-import", help="Import one engagement envelope.")
+    import_cmd.add_argument("store")
+    import_cmd.add_argument("input")
 
     args = parser.parse_args(argv)
 
-    if args.operation == "store-list":
-        try:
+    try:
+        if args.operation == "store-list":
             store = FileEngagementStore(args.store)
             records = store.records(
                 args.engagement_id,
@@ -106,59 +115,91 @@ def main(argv: Sequence[str]) -> None:
             )
             print(EngagementEnvelope(
                 engagement_id=args.engagement_id,
+                metadata=store.metadata(args.engagement_id),
                 records=records,
             ).to_json())
-        except (OSError, ValueError) as exc:
-            print(f"red-night identity: {exc}", file=sys.stderr)
-            raise SystemExit(2) from None
-        return
+            return
+
+        if args.operation == "store-metadata":
+            store = FileEngagementStore(args.store)
+            metadata = EngagementMetadata(
+                engagement_id=args.engagement_id,
+                name=args.name,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                authorization_reference=args.authorization_reference,
+                status=args.status,
+                description=args.description,
+            )
+            store.set_metadata(metadata)
+            print(json.dumps(metadata.to_dict(), sort_keys=True))
+            return
+
+        if args.operation == "store-export":
+            store = FileEngagementStore(args.store)
+            envelope = store.export_envelope(args.engagement_id)
+            Path(args.output).write_text(envelope.to_json() + "\n", encoding="utf-8")
+            print(json.dumps({
+                "engagement_id": args.engagement_id,
+                "records": len(envelope.records),
+                "output": str(Path(args.output)),
+            }, sort_keys=True))
+            return
+
+        if args.operation == "store-import":
+            envelope = EngagementEnvelope.from_json(
+                Path(args.input).read_text(encoding="utf-8")
+            )
+            FileEngagementStore(args.store).import_envelope(envelope)
+            print(json.dumps({
+                "engagement_id": envelope.engagement_id,
+                "records": len(envelope.records),
+                "source_nights": sorted({
+                    record.source_night for record in envelope.records
+                }),
+            }, sort_keys=True))
+            return
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        _store_error(exc)
 
     if (args.export_envelope or args.store) and not args.engagement_id:
-        print(
-            "red-night identity: --engagement-id is required with "
-            "--export-envelope or --store",
-            file=sys.stderr,
-        )
-        raise SystemExit(2)
+        _store_error(ValueError(
+            "--engagement-id is required with --export-envelope or --store"
+        ))
 
     limits = DirectoryImportLimits()
     try:
         with Path(args.path).open("rb") as source:
             payload = source.read(limits.max_bytes + 1)
         imported = import_directory_snapshot(
-            payload, source_id=args.source_id, limits=limits,
+            payload, source_id=args.source_id, limits=limits
         )
         graph = add_identity_evidence_to_identity_graph(
             IdentityGraphBuilder().build(), imported.evidence,
         )
     except (OSError, ValueError) as exc:
-        print(f"red-night identity: {exc}", file=sys.stderr)
-        raise SystemExit(2) from None
+        _store_error(exc)
 
     manifest = create_identity_graph_snapshot_manifest(graph)
     envelope: EngagementEnvelope | None = None
-
     if args.export_envelope or args.store:
-        record = _evidence_record(
-            engagement_id=args.engagement_id,
-            source_id=args.source_id,
-            graph_sha256=manifest.graph_sha256,
-            graph_schema_version=manifest.schema_version,
-            identity_count=len(imported.evidence.identities),
-            group_count=len(imported.evidence.groups),
-            observed_membership_count=len(imported.evidence.memberships),
-            unresolved_member_count=imported.unresolved_members,
-        )
         envelope = EngagementEnvelope(
             engagement_id=args.engagement_id,
-            records=(record,),
+            records=(_evidence_record(
+                engagement_id=args.engagement_id,
+                source_id=args.source_id,
+                graph_sha256=manifest.graph_sha256,
+                graph_schema_version=manifest.schema_version,
+                identity_count=len(imported.evidence.identities),
+                group_count=len(imported.evidence.groups),
+                observed_membership_count=len(imported.evidence.memberships),
+                unresolved_member_count=imported.unresolved_members,
+            ),),
         )
         if args.store:
             try:
                 FileEngagementStore(args.store).append_envelope(envelope)
             except (OSError, ValueError) as exc:
-                print(f"red-night identity: {exc}", file=sys.stderr)
-                raise SystemExit(2) from None
+                _store_error(exc)
 
     if args.export_envelope:
         assert envelope is not None

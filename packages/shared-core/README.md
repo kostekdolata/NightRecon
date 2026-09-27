@@ -6,7 +6,7 @@ Current exported surface:
 
 - edition identity and fail-closed command ownership policy
 - explicit target parsing and scope authorization
-- versioned, secret-free cross-Night evidence contracts
+- versioned, secret-free cross-Night evidence and engagement metadata contracts
 - backend-neutral engagement-store protocol
 - in-memory reference store
 - portable deterministic JSON file store for standalone Nights
@@ -19,4 +19,4 @@ The shared core must never depend on Red, Blue, White, Purple, Black, or the leg
 
 Standalone Nights can use `FileEngagementStore` for local persisted engagement evidence. Composed installations can provide another backend implementing the same `EngagementStore` protocol so multiple Nights can share evidence without creating Night-to-Night runtime dependencies.
 
-The portable store uses strict schema validation, immutable evidence IDs, conflict rejection, deterministic ordering, and atomic file replacement. Stored evidence remains context only: reading evidence from another Night never grants authorization to perform an active operation.
+The portable store uses strict schema validation, immutable evidence IDs, metadata conflict rejection, deterministic ordering, and atomic file replacement. Engagements can be exported/imported as portable envelopes while retaining source Night and provenance. Metadata carries only an authorization reference; it is coordination context and never grants authorization to perform an active operation. Legacy schema-version-1 envelopes without metadata remain readable.

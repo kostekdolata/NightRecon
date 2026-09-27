@@ -100,6 +100,43 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert len(stored["records"]) == 1
     assert stored["records"][0]["source_night"] == "red"
 
+    metadata = json.loads(check(
+        app, "identity", "store-metadata", str(store_path),
+        "--engagement-id", "eng-packaged-smoke",
+        "--name", "Packaged smoke engagement",
+        "--authorization-reference", "approval://packaged-smoke",
+        "--status", "active",
+        cwd=directory,
+    ))
+    assert metadata["engagement_id"] == "eng-packaged-smoke"
+    assert metadata["authorization_reference"] == "approval://packaged-smoke"
+
+    export_path = directory / f"engagement-export-{bin_dir.parent.name}.json"
+    exported = json.loads(check(
+        app, "identity", "store-export", str(store_path),
+        "--engagement-id", "eng-packaged-smoke",
+        "--output", str(export_path),
+        cwd=directory,
+    ))
+    assert exported["records"] == 1
+    exported_envelope = json.loads(export_path.read_text(encoding="utf-8"))
+    assert exported_envelope["metadata"]["name"] == "Packaged smoke engagement"
+
+    imported_store = directory / f"engagement-import-{bin_dir.parent.name}.json"
+    imported_store_result = json.loads(check(
+        app, "identity", "store-import", str(imported_store), str(export_path),
+        cwd=directory,
+    ))
+    assert imported_store_result["engagement_id"] == "eng-packaged-smoke"
+    assert imported_store_result["source_nights"] == ["red"]
+    imported_envelope = json.loads(check(
+        app, "identity", "store-list", str(imported_store),
+        "--engagement-id", "eng-packaged-smoke",
+        cwd=directory,
+    ))
+    assert imported_envelope["metadata"]["authorization_reference"] == "approval://packaged-smoke"
+    assert len(imported_envelope["records"]) == 1
+
     denied = subprocess.run(
         [app, "unknown-command"], cwd=directory, capture_output=True,
         text=True, timeout=20, check=False,

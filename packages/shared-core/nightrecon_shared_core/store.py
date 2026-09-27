@@ -1,9 +1,4 @@
-"""Backend-neutral engagement evidence storage interfaces.
-
-This layer deliberately defines storage semantics without selecting SQLite,
-PostgreSQL, files, IPC, or a workspace service. Standalone Nights and composed
-NightRecon installations can therefore share the same contract.
-"""
+"""Backend-neutral engagement evidence storage interfaces."""
 
 from __future__ import annotations
 
@@ -11,30 +6,26 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Protocol
 
-from nightrecon_shared_core.contracts import EngagementEnvelope, EvidenceRecord
+from nightrecon_shared_core.contracts import (
+    EngagementEnvelope,
+    EngagementMetadata,
+    EvidenceRecord,
+)
 
 
 class EngagementStore(Protocol):
-    """Minimal append/read contract for shared NightRecon engagement evidence."""
-
-    def append(self, record: EvidenceRecord) -> None:
-        """Persist one immutable evidence record.
-
-        Implementations must reject a conflicting duplicate evidence_id rather
-        than silently overwrite existing evidence.
-        """
-
-    def append_envelope(self, envelope: EngagementEnvelope) -> None:
-        """Persist every record in one already-validated engagement envelope."""
-
+    def set_metadata(self, metadata: EngagementMetadata) -> None: ...
+    def metadata(self, engagement_id: str) -> EngagementMetadata | None: ...
+    def append(self, record: EvidenceRecord) -> None: ...
+    def append_envelope(self, envelope: EngagementEnvelope) -> None: ...
+    def export_envelope(self, engagement_id: str) -> EngagementEnvelope: ...
     def records(
         self,
         engagement_id: str,
         *,
         source_night: str | None = None,
         evidence_type: str | None = None,
-    ) -> tuple[EvidenceRecord, ...]:
-        """Return deterministic evidence for one engagement."""
+    ) -> tuple[EvidenceRecord, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -45,11 +36,31 @@ class EvidenceConflictError(ValueError):
         return f"conflicting evidence_id already exists: {self.evidence_id}"
 
 
-class InMemoryEngagementStore:
-    """Reference store used for tests and ephemeral standalone workflows."""
+@dataclass(frozen=True)
+class MetadataConflictError(ValueError):
+    engagement_id: str
 
+    def __str__(self) -> str:
+        return f"conflicting engagement metadata already exists: {self.engagement_id}"
+
+
+class InMemoryEngagementStore:
     def __init__(self) -> None:
         self._records: dict[tuple[str, str], EvidenceRecord] = {}
+        self._metadata: dict[str, EngagementMetadata] = {}
+
+    def set_metadata(self, metadata: EngagementMetadata) -> None:
+        existing = self._metadata.get(metadata.engagement_id)
+        if existing is None:
+            self._metadata[metadata.engagement_id] = metadata
+            return
+        if existing != metadata:
+            raise MetadataConflictError(metadata.engagement_id)
+
+    def metadata(self, engagement_id: str) -> EngagementMetadata | None:
+        if not isinstance(engagement_id, str) or not engagement_id.strip():
+            raise ValueError("engagement_id must be a nonblank string")
+        return self._metadata.get(engagement_id)
 
     def append(self, record: EvidenceRecord) -> None:
         key = (record.engagement_id, record.evidence_id)
@@ -61,14 +72,26 @@ class InMemoryEngagementStore:
             raise EvidenceConflictError(record.evidence_id)
 
     def append_envelope(self, envelope: EngagementEnvelope) -> None:
-        # Validate all conflicts before mutating so envelope append is atomic.
+        if envelope.metadata is not None:
+            existing_metadata = self._metadata.get(envelope.engagement_id)
+            if existing_metadata is not None and existing_metadata != envelope.metadata:
+                raise MetadataConflictError(envelope.engagement_id)
         for record in envelope.records:
             key = (record.engagement_id, record.evidence_id)
             existing = self._records.get(key)
             if existing is not None and existing != record:
                 raise EvidenceConflictError(record.evidence_id)
+        if envelope.metadata is not None:
+            self._metadata[envelope.engagement_id] = envelope.metadata
         for record in envelope.records:
             self._records[(record.engagement_id, record.evidence_id)] = record
+
+    def export_envelope(self, engagement_id: str) -> EngagementEnvelope:
+        return EngagementEnvelope(
+            engagement_id=engagement_id,
+            metadata=self.metadata(engagement_id),
+            records=self.records(engagement_id),
+        )
 
     def records(
         self,
@@ -89,12 +112,10 @@ class InMemoryEngagementStore:
         return tuple(sorted(matches, key=lambda item: item.evidence_id))
 
     def engagements(self) -> tuple[str, ...]:
-        """Return known engagement IDs deterministically."""
-
-        return tuple(sorted({engagement_id for engagement_id, _ in self._records}))
+        return tuple(sorted(
+            set(self._metadata) | {engagement_id for engagement_id, _ in self._records}
+        ))
 
     def extend(self, records: Iterable[EvidenceRecord]) -> None:
-        """Append records one by one; intended for adapters, not transactions."""
-
         for record in records:
             self.append(record)

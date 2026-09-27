@@ -7,16 +7,22 @@ import json
 import os
 import tempfile
 
-from nightrecon_shared_core.contracts import EngagementEnvelope, EvidenceRecord
-from nightrecon_shared_core.store import EvidenceConflictError, InMemoryEngagementStore
+from nightrecon_shared_core.contracts import (
+    EngagementEnvelope,
+    EngagementMetadata,
+    EvidenceRecord,
+)
+from nightrecon_shared_core.store import (
+    EvidenceConflictError,
+    InMemoryEngagementStore,
+    MetadataConflictError,
+)
 
 
 _STORE_SCHEMA_VERSION = 1
 
 
 class FileEngagementStore:
-    """Small deterministic store suitable for standalone local installations."""
-
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self._memory = InMemoryEngagementStore()
@@ -48,10 +54,7 @@ class FileEngagementStore:
         payload = {
             "schema_version": _STORE_SCHEMA_VERSION,
             "engagements": [
-                EngagementEnvelope(
-                    engagement_id=engagement_id,
-                    records=self._memory.records(engagement_id),
-                ).to_dict()
+                self._memory.export_envelope(engagement_id).to_dict()
                 for engagement_id in self._memory.engagements()
             ],
         }
@@ -76,19 +79,33 @@ class FileEngagementStore:
                 pass
             raise
 
+    def set_metadata(self, metadata: EngagementMetadata) -> None:
+        before = self._memory.metadata(metadata.engagement_id)
+        self._memory.set_metadata(metadata)
+        if before != metadata:
+            self._persist()
+
+    def metadata(self, engagement_id: str) -> EngagementMetadata | None:
+        return self._memory.metadata(engagement_id)
+
     def append(self, record: EvidenceRecord) -> None:
         before = self._memory.records(record.engagement_id)
         self._memory.append(record)
-        after = self._memory.records(record.engagement_id)
-        if after != before:
+        if self._memory.records(record.engagement_id) != before:
             self._persist()
 
     def append_envelope(self, envelope: EngagementEnvelope) -> None:
-        before = self._memory.records(envelope.engagement_id)
+        before = self._memory.export_envelope(envelope.engagement_id)
         self._memory.append_envelope(envelope)
-        after = self._memory.records(envelope.engagement_id)
+        after = self._memory.export_envelope(envelope.engagement_id)
         if after != before:
             self._persist()
+
+    def import_envelope(self, envelope: EngagementEnvelope) -> None:
+        self.append_envelope(envelope)
+
+    def export_envelope(self, engagement_id: str) -> EngagementEnvelope:
+        return self._memory.export_envelope(engagement_id)
 
     def records(
         self,
@@ -107,4 +124,8 @@ class FileEngagementStore:
         return self._memory.engagements()
 
 
-__all__ = ["EvidenceConflictError", "FileEngagementStore"]
+__all__ = [
+    "EvidenceConflictError",
+    "FileEngagementStore",
+    "MetadataConflictError",
+]
