@@ -59,6 +59,7 @@ class SmbEvidenceContractTests(unittest.TestCase):
             names,
             {
                 "username",
+                "domain",
                 "port",
                 "connect_timeout",
                 "operation_timeout",
