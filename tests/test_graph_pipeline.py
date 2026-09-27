@@ -8,7 +8,14 @@ from nightrecon.assessment_engine import (
     ServiceAssessmentResult,
 )
 from nightrecon.asset_inventory import AssetInventory, AssetRecord, AssetServiceRecord
-from nightrecon.graph_models import GraphNodeKind
+from nightrecon.graph_identity_evidence import (
+    GroupEvidence,
+    GroupMembershipEvidence,
+    IdentityEvidence,
+    IdentityEvidenceBundle,
+    PermissionEvidence,
+)
+from nightrecon.graph_models import GraphEvidenceState, GraphNodeKind
 from nightrecon.graph_pipeline import build_identity_graph
 from nightrecon.software_identity import SoftwareIdentity
 from nightrecon.threat_context import ThreatContextResult
@@ -123,6 +130,74 @@ class GraphPipelineTests(unittest.TestCase):
         self.assertIn("exposes", relationships)
         self.assertIn("matched-vulnerability", relationships)
         self.assertIn("has-assessment-finding", relationships)
+
+    def test_pipeline_composes_identity_group_and_permission_evidence(self):
+        inventory = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.73",
+                    first_seen="2026-09-27T19:00:00+00:00",
+                    last_seen="2026-09-27T19:00:00+00:00",
+                    last_checked_at="2026-09-27T19:00:00+00:00",
+                    services=(AssetServiceRecord(port=443, service="https"),),
+                    source_session_ids=("scan-identity",),
+                ),
+            ),
+        )
+        identity_evidence = IdentityEvidenceBundle(
+            identities=(
+                IdentityEvidence(
+                    natural_key="user:alice",
+                    label="Alice",
+                    source_id="identity-alice",
+                    identity_type="user",
+                ),
+            ),
+            groups=(
+                GroupEvidence(
+                    natural_key="group:admins",
+                    label="Admins",
+                    source_id="group-admins",
+                ),
+            ),
+            memberships=(
+                GroupMembershipEvidence(
+                    member_kind=GraphNodeKind.IDENTITY,
+                    member_key="user:alice",
+                    group_key="group:admins",
+                    source_id="membership-alice-admins",
+                    evidence_state=GraphEvidenceState.INFERRED,
+                ),
+            ),
+            permissions=(
+                PermissionEvidence(
+                    natural_key="permission:admins-asset",
+                    label="Administrative access",
+                    subject_kind=GraphNodeKind.GROUP,
+                    subject_key="group:admins",
+                    target_kind=GraphNodeKind.ASSET,
+                    target_key="192.0.2.73",
+                    source_id="permission-admins-asset",
+                ),
+            ),
+        )
+
+        graph = build_identity_graph(
+            inventory=inventory,
+            identity_evidence=identity_evidence,
+            identity_observed_at="2026-09-27T19:01:00+00:00",
+        )
+
+        kinds = {node.kind for node in graph.nodes}
+        self.assertIn(GraphNodeKind.IDENTITY, kinds)
+        self.assertIn(GraphNodeKind.GROUP, kinds)
+        self.assertIn(GraphNodeKind.PERMISSION, kinds)
+        relationships = {edge.relationship for edge in graph.edges}
+        self.assertTrue(
+            {"member-of", "has-permission", "applies-to"}.issubset(
+                relationships
+            )
+        )
 
     def test_pipeline_is_deterministic_for_identical_inputs(self):
         inventory = AssetInventory(
