@@ -99,6 +99,23 @@ The full-suite installation should therefore feel like one integrated NightRecon
 workspace while preserving the ability to install, upgrade, run, and remove each
 Night independently.
 
+### Shared engagement storage
+
+The shared core now defines a backend-neutral `EngagementStore` contract plus a
+portable `FileEngagementStore` for standalone applications. The file store is
+strictly versioned, deterministic, conflict-safe, and written by atomic replace.
+A future full-stack workspace may use SQLite, PostgreSQL, a local service, or
+another backend, but it must implement the same store semantics.
+
+Red Night is the first producer wired into this layer. Its offline identity
+import can persist evidence with `--store <path> --engagement-id <id>` and can
+read it back with `identity store-list`. These are explicit local persistence
+operations; the default identity-import output remains unchanged.
+
+Evidence imported from another Night is never authorization. Any later active
+operation still requires the shared core's target scope, approvals, budgets,
+and stop controls.
+
 ## Separation contract
 
 - The shared core owns existing scope and authorization checks, budgets, secret
