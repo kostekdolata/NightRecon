@@ -71,6 +71,10 @@ over-budget exports are rejected. The CLI returns a label-free summary by
 default and exposes full graph labels only on `--include-graph`. This is not a
 live AD/Entra collector; it needs authorized real-world integration and lab
 benchmarking before the identity gate can close.
+Optional `--start-dn` and `--target-dn` inspect only observed group membership
+paths from the supplied snapshot. Depth, path count, and explored state are
+hard-capped; incomplete searches set `truncated` instead of implying no path.
+Membership never becomes an access or exploitation verdict.
 
 The `red-night` entry point routes existing assessment commands through the
 fail-closed Red gateway. Packaged-command smoke tests verify the installed

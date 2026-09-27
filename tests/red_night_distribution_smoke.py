@@ -52,6 +52,8 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
         "entries": [
             {"dn": "CN=Operator,DC=example,DC=test", "kind": "user",
              "name": "Operator"},
+            {"dn": "CN=Team,DC=example,DC=test", "kind": "group",
+             "name": "Team", "members": ["CN=Operator,DC=example,DC=test"]},
         ],
     }), encoding="utf-8")
     imported = json.loads(check(
@@ -60,7 +62,14 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     ))
     assert imported["identities"] == 1
     assert "graph" not in imported
-    assert imported["observed_memberships"] == 0
+    assert imported["observed_memberships"] == 1
+    path_review = json.loads(check(
+        app, "identity", "import", str(snapshot), "--source-id", "packaged-smoke",
+        "--start-dn", "CN=Operator,DC=example,DC=test",
+        "--target-dn", "CN=Team,DC=example,DC=test", cwd=directory,
+    ))
+    assert path_review["path_review"]["paths"] == 1
+    assert not path_review["path_review"]["truncated"]
     denied = subprocess.run(
         [app, "unknown-command"], cwd=directory, capture_output=True,
         text=True, timeout=20, check=False,

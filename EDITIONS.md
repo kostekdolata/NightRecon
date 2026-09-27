@@ -34,6 +34,13 @@ and a reproducible graph fingerprint without listing people. Add
 `--include-graph` only when you intend to export graph labels and provenance;
 this can disclose identity data. The command reads at most 1 MB, makes no
 directory connection, and never treats an absent member as an observed edge.
+To review known group membership paths in that same snapshot, supply both
+`--start-dn 'CN=Analyst,DC=example,DC=test'` and
+`--target-dn 'CN=Reviewers,DC=example,DC=test'`. The target must be an
+imported group. The summary reports the path count and whether the fixed
+depth, path, or exploration budget left results incomplete. `--include-graph`
+also includes path IDs and graph labels. These are membership relationships,
+not proven access, privilege escalation, or exploitability.
 
 `packages/red-night/` is a separately built **development-preview** Red Night
 distribution. Installing its wheel with the matching NightRecon shared-runtime
