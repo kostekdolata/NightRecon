@@ -78,7 +78,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert record["data"]["observed_membership_count"] == 0
     assert "No live directory collection performed" in record["limitations"]
 
-    store_path = directory / "engagement-store.json"
+    store_path = directory / f"engagement-store-{bin_dir.parent.name}.json"
     persisted = json.loads(check(
         app, "identity", "import", str(snapshot),
         "--source-id", "packaged-smoke-store",
