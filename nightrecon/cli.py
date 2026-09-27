@@ -72,7 +72,7 @@ from nightrecon.dast_policy import (
 )
 from nightrecon.dast_report import DastAssessmentReport
 from nightrecon.epss_provider import FirstEpssProvider
-from nightrecon.host_discovery import (
+from nightrecon.red_host_discovery import (
     discover_hosts,
     enrich_reverse_dns,
 )
@@ -135,7 +135,7 @@ from nightrecon.service_detection import detect_services
 from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import TargetType, parse_target
-from nightrecon.tcp_scanner import scan_tcp_ports
+from nightrecon.red_tcp_scanner import scan_tcp_ports
 from nightrecon.threat_context import (
     enrich_threat_context,
     summarize_threat_context,

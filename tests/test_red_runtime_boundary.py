@@ -139,6 +139,25 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 2)
             self.assertIn("--engagement-id is required", completed.stderr)
 
+    def test_legacy_discovery_modules_are_compatibility_reexports(self) -> None:
+        host_source = (ROOT / "nightrecon" / "host_discovery.py").read_text(
+            encoding="utf-8"
+        )
+        tcp_source = (ROOT / "nightrecon" / "tcp_scanner.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("nightrecon.red_host_discovery", host_source)
+        self.assertIn("nightrecon.red_tcp_scanner", tcp_source)
+        self.assertNotIn("socket.socket", host_source)
+        self.assertNotIn("socket.socket", tcp_source)
+
+    def test_legacy_cli_consumes_red_discovery_engines_directly(self) -> None:
+        source = (ROOT / "nightrecon" / "cli.py").read_text(encoding="utf-8")
+        self.assertIn("from nightrecon.red_host_discovery import", source)
+        self.assertIn("from nightrecon.red_tcp_scanner import", source)
+        self.assertNotIn("from nightrecon.host_discovery import", source)
+        self.assertNotIn("from nightrecon.tcp_scanner import", source)
+
     def test_shared_workspace_has_no_night_runtime_import(self) -> None:
         source = (
             ROOT / "packages" / "shared-core" /

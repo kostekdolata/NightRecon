@@ -11,15 +11,22 @@ from nightrecon.host_discovery import (
     enrich_reverse_dns,
     probe_host,
 )
+from nightrecon import red_host_discovery
 
 
 class HostDiscoveryTests(unittest.TestCase):
+    def test_legacy_module_reexports_red_engine(self):
+        self.assertIs(HostDiscoveryResult, red_host_discovery.HostDiscoveryResult)
+        self.assertIs(discover_hosts, red_host_discovery.discover_hosts)
+        self.assertIs(enrich_reverse_dns, red_host_discovery.enrich_reverse_dns)
+        self.assertIs(probe_host, red_host_discovery.probe_host)
+
     def test_open_tcp_port_marks_host_responsive(self):
         fake_socket = MagicMock()
         fake_socket.connect_ex.return_value = 0
 
         with patch(
-            "nightrecon.host_discovery.socket.socket",
+            "nightrecon.red_host_discovery.socket.socket",
             return_value=fake_socket,
         ):
             result = probe_host(
@@ -46,7 +53,7 @@ class HostDiscoveryTests(unittest.TestCase):
         fake_socket.connect_ex.return_value = errno.ECONNREFUSED
 
         with patch(
-            "nightrecon.host_discovery.socket.socket",
+            "nightrecon.red_host_discovery.socket.socket",
             return_value=fake_socket,
         ):
             result = probe_host(
@@ -64,7 +71,7 @@ class HostDiscoveryTests(unittest.TestCase):
         fake_socket.connect_ex.return_value = errno.EHOSTUNREACH
 
         with patch(
-            "nightrecon.host_discovery.socket.socket",
+            "nightrecon.red_host_discovery.socket.socket",
             return_value=fake_socket,
         ):
             result = probe_host(
@@ -94,7 +101,7 @@ class HostDiscoveryTests(unittest.TestCase):
             )
 
         with patch(
-            "nightrecon.host_discovery.probe_host",
+            "nightrecon.red_host_discovery.probe_host",
             side_effect=fake_probe,
         ):
             result = discover_hosts(
@@ -116,7 +123,7 @@ class HostDiscoveryTests(unittest.TestCase):
 
     def test_host_limit_is_enforced_before_probing(self):
         with patch(
-            "nightrecon.host_discovery.probe_host"
+            "nightrecon.red_host_discovery.probe_host"
         ) as probe:
             with self.assertRaisesRegex(
                 ValueError,
@@ -186,7 +193,7 @@ class HostDiscoveryTests(unittest.TestCase):
         )
 
         with patch(
-            "nightrecon.host_discovery.socket.gethostbyaddr",
+            "nightrecon.red_host_discovery.socket.gethostbyaddr",
             return_value=(
                 "host1.example.test",
                 [],
@@ -221,7 +228,7 @@ class HostDiscoveryTests(unittest.TestCase):
         )
 
         with patch(
-            "nightrecon.host_discovery.socket.gethostbyaddr",
+            "nightrecon.red_host_discovery.socket.gethostbyaddr",
             side_effect=socket.herror(),
         ):
             enriched = enrich_reverse_dns(
@@ -246,7 +253,7 @@ class HostDiscoveryTests(unittest.TestCase):
         fake_socket.connect_ex.return_value = 0
 
         with patch(
-            "nightrecon.host_discovery.socket.socket",
+            "nightrecon.red_host_discovery.socket.socket",
             return_value=fake_socket,
         ) as socket_factory:
             result = probe_host(

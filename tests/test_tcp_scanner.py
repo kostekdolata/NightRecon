@@ -9,15 +9,21 @@ from nightrecon.tcp_scanner import (
     scan_tcp_port,
     scan_tcp_ports,
 )
+from nightrecon import red_tcp_scanner
 
 
 class TcpScannerTests(unittest.TestCase):
+    def test_legacy_module_reexports_red_engine(self):
+        self.assertIs(TcpPortResult, red_tcp_scanner.TcpPortResult)
+        self.assertIs(scan_tcp_port, red_tcp_scanner.scan_tcp_port)
+        self.assertIs(scan_tcp_ports, red_tcp_scanner.scan_tcp_ports)
+
     def test_open_ipv4_port(self):
         fake_socket = MagicMock()
         fake_socket.connect_ex.return_value = 0
 
         with patch(
-            "nightrecon.tcp_scanner.socket.socket",
+            "nightrecon.red_tcp_scanner.socket.socket",
             return_value=fake_socket,
         ) as socket_factory:
             result = scan_tcp_port(
@@ -46,7 +52,7 @@ class TcpScannerTests(unittest.TestCase):
         fake_socket.connect_ex.return_value = 10061
 
         with patch(
-            "nightrecon.tcp_scanner.socket.socket",
+            "nightrecon.red_tcp_scanner.socket.socket",
             return_value=fake_socket,
         ):
             result = scan_tcp_port(
@@ -64,7 +70,7 @@ class TcpScannerTests(unittest.TestCase):
         fake_socket.connect_ex.return_value = 0
 
         with patch(
-            "nightrecon.tcp_scanner.socket.socket",
+            "nightrecon.red_tcp_scanner.socket.socket",
             return_value=fake_socket,
         ) as socket_factory:
             result = scan_tcp_port(
@@ -94,7 +100,7 @@ class TcpScannerTests(unittest.TestCase):
             )
 
         with patch(
-            "nightrecon.tcp_scanner.scan_tcp_port",
+            "nightrecon.red_tcp_scanner.scan_tcp_port",
             side_effect=fake_scan,
         ) as scan_port:
             results = scan_tcp_ports(
@@ -120,7 +126,7 @@ class TcpScannerTests(unittest.TestCase):
             )
 
         with patch(
-            "nightrecon.tcp_scanner.scan_tcp_port",
+            "nightrecon.red_tcp_scanner.scan_tcp_port",
             side_effect=fake_scan,
         ):
             results = scan_tcp_ports(
@@ -146,7 +152,7 @@ class TcpScannerTests(unittest.TestCase):
             )
 
         with patch(
-            "nightrecon.tcp_scanner.scan_tcp_port",
+            "nightrecon.red_tcp_scanner.scan_tcp_port",
             side_effect=fake_scan,
         ):
             results = scan_tcp_ports(

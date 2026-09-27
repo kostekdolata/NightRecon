@@ -67,11 +67,29 @@ Red Night exposes the first workspace adapter:
 These commands read, summarize, import, or export evidence only. They do not
 scan, collect, approve, or authorize targets.
 
+## Red-owned execution extraction
+
+Bounded host discovery and TCP connect scanning now have canonical Red-owned
+modules:
+
+- `nightrecon.red_host_discovery`
+- `nightrecon.red_tcp_scanner`
+
+The legacy `nightrecon.host_discovery` and `nightrecon.tcp_scanner` modules
+are compatibility re-exports only, and the compatibility CLI consumes the
+canonical Red modules directly. This establishes ownership without changing the
+public API or bypassing existing CLI scope checks.
+
+These engines are still physically inside the legacy `nightrecon` distribution,
+so this is an ownership/runtime seam rather than complete package isolation.
+Moving them into a separately versioned Red engine package remains a later
+packaging gate.
+
 ## Red-owned engines still to extract
 
 The remaining Red runtime boundary includes:
 
-- network discovery, TCP scanning, service/version and OS evidence;
+- service/version and OS evidence beyond the extracted TCP primitives;
 - web/API assessment and bounded browser workflows;
 - infrastructure assessment adapters;
 - vulnerability/check execution for authorized Red assessment;
@@ -97,8 +115,8 @@ Each isolation batch must:
 
 ## Next physical extraction target
 
-The next package-boundary work should extract a coherent Red-owned execution
-slice from the legacy runtime rather than add another shared abstraction. A good
-first candidate is bounded network discovery/service evidence because its scope
-checks are already explicit and can be validated against the existing Red
-acceptance standard while retaining the compatibility CLI adapter.
+The next package-boundary work should continue from the extracted discovery/TCP
+seam into bounded service detection and evidence projection, keeping existing
+scope checks and compatibility behavior intact. Once a coherent Red execution
+slice no longer depends on unrelated legacy modules, it can move into a
+separately versioned Red engine distribution.
