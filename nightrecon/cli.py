@@ -1,6 +1,7 @@
 """Command-line interface for NightRecon."""
 
 import argparse
+import json
 import os
 import sys
 from http.cookiejar import CookieJar
@@ -9,6 +10,7 @@ from urllib.parse import urlsplit
 from nightrecon import __version__
 from nightrecon import report
 from nightrecon import config
+from nightrecon.edition_catalog import EDITIONS
 from nightrecon.api_execution import execute_api_request
 from nightrecon.api_graphql import (
     execute_graphql_introspection,
@@ -189,6 +191,16 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(
         dest="command",
         title="commands",
+    )
+
+    editions_parser = subparsers.add_parser(
+        "editions",
+        help="Show the five planned NightRecon product editions and their readiness.",
+    )
+    editions_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output the edition catalog as JSON.",
     )
 
     infra_parser = subparsers.add_parser(
@@ -1731,6 +1743,18 @@ def _load_installed_check_pack_checks(
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "editions":
+        if args.json:
+            print(json.dumps([edition.to_record() for edition in EDITIONS]))
+        else:
+            for edition in EDITIONS:
+                print(
+                    f"{edition.name}: {edition.foundation_status}; "
+                    "standalone edition not yet available"
+                )
+                print(f"  {edition.purpose}")
+        return
 
     if args.command == "infra":
         if args.infra_command == "smb":

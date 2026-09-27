@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from nightrecon.cli import main
+from nightrecon.resolver import ResolutionResult
 
 
 class CliTests(unittest.TestCase):
@@ -67,13 +68,19 @@ class CliTests(unittest.TestCase):
         self.assertIn("outside the authorized scope", stderr)
 
     def test_exact_hostname_scope_is_approved(self):
+        # Scope behavior must not depend on external DNS being available.
         with patch("nightrecon.cli.NightReconLogger"):
-            code, stdout, stderr = self.run_cli(
-                "scan",
-                "example.com",
-                "--scope",
-                "example.com",
-            )
+            with patch("nightrecon.cli.resolve_target") as resolve:
+                resolve.return_value = ResolutionResult(
+                    target="example.com",
+                    addresses=("127.0.0.1",),
+                )
+                code, stdout, stderr = self.run_cli(
+                    "scan",
+                    "example.com",
+                    "--scope",
+                    "example.com",
+                )
 
         self.assertEqual(code, 0)
         self.assertIn("Scope authorization: approved", stdout)
@@ -240,7 +247,5 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
 
 

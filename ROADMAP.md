@@ -6,13 +6,16 @@ This roadmap is directional. Release scope may be split into smaller verified in
 
 ## Operating Modes
 
-NightRecon will converge on four controlled operational modes, with Purple workflows linking offensive actions to defensive detections.
+NightRecon will converge on five independently selectable editions: White,
+Blue, Red, Purple, and Black-box. They share one mandatory authorization-first
+core, so installing an edition alone never removes the safety boundary. The
+edition architecture and honest availability status are in [EDITIONS.md](EDITIONS.md).
 
 - **Red** — reconnaissance, exposure discovery, vulnerability validation, attack-path validation, and controlled adversary emulation.
 - **Blue** — defensive-control testing, telemetry validation, detection engineering, exposure reduction, and remediation verification.
 - **White** — authorization, scope, rules of engagement, approvals, safety controls, audit, evidence, exercise control, and emergency stop.
 - **Black** — deliberately knowledge-limited external assessment beginning from an explicitly authorized starting scope.
-- **Purple workflow** — correlation of Red actions with Blue prevention, telemetry, alerts, and detection coverage.
+- **Purple** — correlation of approved Red actions with Blue prevention, telemetry, alerts, and detection coverage, usable as a separate evidence-analysis edition or alongside Red and Blue.
 
 ## Locked Safety Principles
 
@@ -215,7 +218,7 @@ Goal: move from isolated findings to graph-based exposure reasoning.
 
 ### v0.31.0 — Identity Graph Foundation
 
-Status: implementation complete; release verification in progress.
+Status: released, tagged, and verified stable.
 
 Delivered foundation:
 
@@ -363,10 +366,15 @@ The engine will eventually require a production platform around it:
 
 ## Immediate Sequence
 
-The current locked execution order is:
+The current execution order is:
 
-1. Complete v0.31.0 release metadata and exact-head CI verification.
-2. Merge the verified v0.31.0 release commit to `master` and verify the post-merge CI matrix.
-3. Add that exact verified release merge commit to the guarded release-tag allowlist and create the annotated `v0.31.0` tag.
-4. Begin Active Directory identity collection as a separate authorization-first Generation 2 release built on the stable graph evidence contract.
-5. Add Entra ID and broader privilege/trust collectors in subsequent independently verified releases rather than expanding v0.31.0 scope.
+1. Establish the five-edition catalog and separation contract while fixing the
+   post-release v0.31 CLI version mismatch.
+2. Add tested, fail-closed command ownership and edition routing without
+   changing the existing single-package CLI defaults.
+3. Begin Active Directory identity collection as a separate authorization-first
+   Generation 2 release built on the stable graph evidence contract.
+4. Add Entra ID and broader privilege/trust collectors in subsequent
+   independently verified releases.
+5. Package each edition independently only after isolation tests prove one
+   edition cannot silently invoke another edition's active commands.
