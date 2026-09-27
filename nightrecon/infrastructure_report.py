@@ -210,3 +210,92 @@ class SmbInfrastructureAssessmentReport:
             ),
         }
         return data
+
+
+
+@dataclass(frozen=True)
+class WinRmInfrastructureAssessmentReport:
+    """Secret-free read-only WinRM assessment report."""
+
+    session_id: str
+    created_at: str
+    target: str
+    target_type: str
+    scope: tuple[str, ...]
+    status: str
+    transport: str
+    username: str
+    port: int
+    authentication: str
+    tls_required: bool
+    certificate_validation: str
+    max_actions: int
+    max_patches: int
+    records: tuple[
+        InfrastructureActionRecord,
+        ...
+    ]
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        session: ScanSession,
+        username: str,
+        port: int,
+        max_actions: int,
+        max_patches: int,
+        records: tuple[
+            InfrastructureActionRecord,
+            ...
+        ],
+    ) -> "WinRmInfrastructureAssessmentReport":
+        return cls(
+            session_id=session.session_id,
+            created_at=datetime.now(
+                timezone.utc
+            ).isoformat(),
+            target=session.target,
+            target_type=session.target_type,
+            scope=session.scope,
+            status="completed",
+            transport="winrm",
+            username=username,
+            port=port,
+            authentication="ntlm",
+            tls_required=True,
+            certificate_validation="required",
+            max_actions=max_actions,
+            max_patches=max_patches,
+            records=records,
+        )
+
+    def to_dict(
+        self,
+    ) -> dict:
+        data = asdict(
+            self
+        )
+        successful = sum(
+            record.success
+            for record in self.records
+        )
+        attempted = max(
+            (
+                record.actions_used_after
+                for record in self.records
+            ),
+            default=0,
+        )
+        data["summary"] = {
+            "selected_actions": len(
+                self.records
+            ),
+            "attempted_actions": attempted,
+            "successful_actions": successful,
+            "failed_actions": (
+                len(self.records)
+                - successful
+            ),
+        }
+        return data
