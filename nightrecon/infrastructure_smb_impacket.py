@@ -28,6 +28,10 @@ class ImpacketSmbRuntimeUnavailable(RuntimeError):
     """Raised when the optional Impacket SMB runtime is unavailable."""
 
 
+class ImpacketSmbConnectionError(RuntimeError):
+    """Secret-safe SMB runtime connection/authentication failure."""
+
+
 @dataclass(frozen=True)
 class _ImpacketSymbols:
     SMBConnection: Any
@@ -395,14 +399,21 @@ class ImpacketSmbRuntimeFactory:
                     False,
                 )
 
+            connection.setTimeout(
+                profile.operation_timeout
+            )
+
             return _ImpacketSmbSession(
                 connection,
                 symbols,
             )
-        except Exception:
+        except Exception as exc:
             if connection is not None:
                 try:
                     connection.close()
                 except Exception:
                     pass
-            raise
+
+            raise ImpacketSmbConnectionError(
+                "SMB runtime connection or authentication failed."
+            ) from None
