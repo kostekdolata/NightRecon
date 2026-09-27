@@ -9,7 +9,7 @@ description = "Red Night application launcher for authorized NightRecon assessme
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-dependencies = ["nightrecon==0.31.0"]
+dependencies = ["nightrecon==0.31.0", "nightrecon-shared-core==0.32.0.dev0"]
 
 [project.scripts]
 red-night-app = "red_night_app:main"
