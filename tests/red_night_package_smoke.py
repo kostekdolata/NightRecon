@@ -6,6 +6,8 @@ import json
 import shutil
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -38,6 +40,18 @@ def main() -> None:
     scan_help = run("scan", "--help")
     assert scan_help.returncode == 0, scan_help.stderr
     assert "--scope" in scan_help.stdout
+
+    with tempfile.TemporaryDirectory(prefix="red-night-identity-") as directory:
+        export = Path(directory) / "directory.json"
+        export.write_text(json.dumps({"schema_version": 1, "entries": [
+            {"dn": "CN=Operator,DC=example,DC=test", "kind": "user",
+             "name": "Operator"},
+        ]}), encoding="utf-8")
+        imported = run("identity", "import", str(export),
+                       "--source-id", "launcher-smoke")
+        assert imported.returncode == 0, imported.stderr
+        assert json.loads(imported.stdout)["identities"] == 1
+        assert "graph" not in json.loads(imported.stdout)
 
     print("Red Night installed launcher smoke: passed")
 

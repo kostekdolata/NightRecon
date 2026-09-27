@@ -46,6 +46,21 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert len(catalog) == 5
     assert all(not item["standalone_available"] for item in catalog)
     assert "--scope" in check(app, "scan", "--help", cwd=directory)
+    snapshot = directory / "directory-export.json"
+    snapshot.write_text(json.dumps({
+        "schema_version": 1,
+        "entries": [
+            {"dn": "CN=Operator,DC=example,DC=test", "kind": "user",
+             "name": "Operator"},
+        ],
+    }), encoding="utf-8")
+    imported = json.loads(check(
+        app, "identity", "import", str(snapshot), "--source-id", "packaged-smoke",
+        cwd=directory,
+    ))
+    assert imported["identities"] == 1
+    assert "graph" not in imported
+    assert imported["observed_memberships"] == 0
     denied = subprocess.run(
         [app, "unknown-command"], cwd=directory, capture_output=True,
         text=True, timeout=20, check=False,

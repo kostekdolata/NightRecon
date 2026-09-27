@@ -276,7 +276,8 @@ The measurable Red completion gates and specialist comparison are maintained
 in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md). The evidence-only path-review
 primitive and shared-distribution launcher are implemented. An offline
 normalized directory-export importer now bridges observed user/group
-membership evidence into the graph without live queries. Red remains an
+membership evidence into the graph without live queries, with a Red-only
+offline CLI command and opt-in graph export. Red remains an
 integrated CLI capability until
 its independent installation, command isolation, and acceptance tests pass.
 

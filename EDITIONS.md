@@ -25,6 +25,16 @@ command. For example, `red-night --help` lists its allowed commands and
 entry point inside the shared distribution, not a separately installable Red
 Night application. Existing target scope and assessment policies still apply.
 
+Red Night can review a local, normalized directory snapshot using
+`red-night identity import snapshot.json --source-id approved-export-1` (also
+available via `red-night-app`). The input schema is
+`{"schema_version":1,"entries":[{"dn":"CN=Analyst,DC=example,DC=test","kind":"user","name":"Analyst"},{"dn":"CN=Reviewers,DC=example,DC=test","kind":"group","name":"Reviewers","members":["CN=Analyst,DC=example,DC=test"]}]}`.
+The default JSON response contains counts, unresolved membership references,
+and a reproducible graph fingerprint without listing people. Add
+`--include-graph` only when you intend to export graph labels and provenance;
+this can disclose identity data. The command reads at most 1 MB, makes no
+directory connection, and never treats an absent member as an observed edge.
+
 `packages/red-night/` is a separately built **development-preview** Red Night
 distribution. Installing its wheel with the matching NightRecon shared-runtime
 wheel supplies `red-night-app` without any other Night application. The existing

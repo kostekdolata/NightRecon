@@ -61,12 +61,14 @@ installations on Linux and Windows with Python 3.11 and 3.14. Complete engine
 isolation, optional dependency division, and composition with the four future
 Night applications remain open; the product is not finished or released.
 
-An offline directory-export bridge accepts only bounded, secret-free normalized
+An offline directory-export bridge, now exposed via `red-night identity import`,
+accepts only bounded normalized
 JSON with explicitly labeled users, groups, and group-member DNs. It maps
 present entries to deterministic graph identities and observed membership
 evidence; out-of-snapshot references are counted as unresolved and create no
 graph edge. Unexpected fields, including credentials, and malformed or
-over-budget exports are rejected. This is an internal parser, not a CLI or
+over-budget exports are rejected. The CLI returns a label-free summary by
+default and exposes full graph labels only on `--include-graph`. This is not a
 live AD/Entra collector; it needs authorized real-world integration and lab
 benchmarking before the identity gate can close.
 
