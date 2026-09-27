@@ -61,6 +61,23 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert imported["identities"] == 1
     assert "graph" not in imported
     assert imported["observed_memberships"] == 0
+    envelope = json.loads(check(
+        app, "identity", "import", str(snapshot),
+        "--source-id", "packaged-smoke",
+        "--engagement-id", "eng-packaged-smoke",
+        "--export-envelope",
+        cwd=directory,
+    ))
+    assert envelope["schema_version"] == 1
+    assert envelope["engagement_id"] == "eng-packaged-smoke"
+    assert len(envelope["records"]) == 1
+    record = envelope["records"][0]
+    assert record["source_night"] == "red"
+    assert record["evidence_type"] == "identity.directory-snapshot"
+    assert record["data"]["identity_count"] == 1
+    assert record["data"]["observed_membership_count"] == 0
+    assert "No live directory collection performed" in record["limitations"]
+
     denied = subprocess.run(
         [app, "unknown-command"], cwd=directory, capture_output=True,
         text=True, timeout=20, check=False,
