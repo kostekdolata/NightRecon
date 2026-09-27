@@ -39,12 +39,16 @@ class InfrastructureModelTests(unittest.TestCase):
             },
         )
         self.assertNotIn(
-            "password",
-            repr(reference).lower(),
+            "password_value",
+            names,
+        )
+        self.assertNotIn(
+            "secret",
+            names,
         )
         self.assertNotIn(
             "secret_value",
-            repr(reference).lower(),
+            names,
         )
 
     def test_infrastructure_action_has_no_command_field(self):
