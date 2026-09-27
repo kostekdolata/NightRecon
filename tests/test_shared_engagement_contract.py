@@ -86,6 +86,22 @@ class SharedEngagementContractTests(unittest.TestCase):
                 schema_version=2,
             )
 
+    def test_envelope_round_trip_preserves_records(self) -> None:
+        envelope = EngagementEnvelope(
+            engagement_id="eng-1",
+            records=(
+                self.record(evidence_id="red-1", source_night="red"),
+                self.record(evidence_id="blue-1", source_night="blue"),
+            ),
+        )
+        self.assertEqual(EngagementEnvelope.from_json(envelope.to_json()), envelope)
+
+    def test_deserializer_rejects_unknown_fields(self) -> None:
+        payload = json.loads(self.record().to_json())
+        payload["unexpected"] = True
+        with self.assertRaisesRegex(ValueError, "schema is not supported"):
+            EvidenceRecord.from_dict(payload)
+
 
 if __name__ == "__main__":
     unittest.main()
