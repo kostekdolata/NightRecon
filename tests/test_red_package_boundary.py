@@ -52,6 +52,12 @@ class RedPackageBoundaryTests(unittest.TestCase):
         self.assertIn(RED_LEGACY_BRIDGE_DEPENDENCY, dependencies)
         self.assertTrue(set(RED_BASE_DEPENDENCIES).issubset(dependencies))
 
+        package_includes = set(payload["tool"]["setuptools"]["packages"]["find"]["include"])
+        self.assertEqual(
+            package_includes,
+            {"red_night_app*", "nightrecon_red_engine*"},
+        )
+
         optional = payload["project"]["optional-dependencies"]
         for name, expected in RED_OPTIONAL_EXTRAS.items():
             with self.subTest(extra=name):

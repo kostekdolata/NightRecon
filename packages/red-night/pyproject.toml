@@ -37,4 +37,4 @@ all = [
 red-night-app = "red_night_app:main"
 
 [tool.setuptools.packages.find]
-include = ["red_night_app*"]
+include = ["red_night_app*", "nightrecon_red_engine*"]

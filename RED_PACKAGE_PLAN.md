@@ -77,9 +77,13 @@ module groups.
 
 ### Batch A — package namespace skeleton
 
-Create a dedicated Red engine namespace owned by the Red distribution. Do not
-move engines yet. Define compatibility rules and prove installing/uninstalling
-the Red package cannot damage the legacy package.
+Implemented in the v0.32.0 development branch.
+
+The Red distribution owns the separate `nightrecon_red_engine` namespace while
+existing implementations remain canonical under `nightrecon.*`. The namespace
+contains compatibility/ownership metadata only, no engine implementation.
+Install/uninstall and wheel-content tests enforce coexistence with the legacy
+package. See `RED_PACKAGE_NAMESPACE.md`.
 
 ### Batch B — leaf model/evidence modules
 

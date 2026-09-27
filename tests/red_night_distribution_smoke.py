@@ -207,6 +207,7 @@ def main() -> None:
         with zipfile.ZipFile(app_wheel) as archive:
             app_files = tuple(sorted(archive.namelist()))
         assert any(name.startswith("red_night_app/") for name in app_files)
+        assert any(name.startswith("nightrecon_red_engine/") for name in app_files)
         assert not any(name.startswith("nightrecon/") for name in app_files), app_files
 
         for mode in ("isolated", "combined"):
@@ -238,6 +239,16 @@ def main() -> None:
                 install_args.extend(("--find-links", str(wheels)))
             check(*install_args, str(app_wheel), cwd=directory)
             verify_app(bin_dir, directory)
+            check(
+                str(python), "-c",
+                "import nightrecon_red_engine as e; "
+                "import nightrecon.host_discovery as legacy; "
+                "assert e.NAMESPACE == 'nightrecon_red_engine'; "
+                "assert e.LEGACY_NAMESPACE == 'nightrecon'; "
+                "assert e.existing_module('host_discovery') is legacy; "
+                "assert not e.is_red_owned_module('authorization_policy')",
+                cwd=directory,
+            )
 
             metadata = check(
                 str(python), "-c",
@@ -267,6 +278,13 @@ def main() -> None:
                     command(bin_dir, "red-night"), "--help", cwd=directory,
                 )
                 assert not Path(command(bin_dir, "red-night-app")).exists()
+                check(
+                    str(python), "-c",
+                    "import importlib.util; import nightrecon; "
+                    "assert importlib.util.find_spec('nightrecon_red_engine') is None; "
+                    "assert nightrecon is not None",
+                    cwd=directory,
+                )
 
     print("Red Night separate-distribution installations: passed")
 

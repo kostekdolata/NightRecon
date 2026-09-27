@@ -37,3 +37,12 @@ features.
 
 Dedicated package separation and compatibility migration remain development
 work. This preview is not a completed Red Night release.
+
+
+## Red engine namespace skeleton
+
+The distribution now owns the `nightrecon_red_engine` namespace. It currently
+contains only migration metadata and a guarded resolver for existing declared
+Red-owned modules; it does not contain copied assessment implementations.
+Existing `nightrecon.*` imports remain canonical until each coherent module
+group is physically moved. See `RED_PACKAGE_NAMESPACE.md`.
