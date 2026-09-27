@@ -97,11 +97,19 @@ from nightrecon.infrastructure_registry import (
     get_infrastructure_action_definition,
 )
 from nightrecon.infrastructure_report import (
+    DatabaseInfrastructureAssessmentReport,
     InfrastructureActionRecord,
     InfrastructureAssessmentReport,
     SmbInfrastructureAssessmentReport,
     WinRmInfrastructureAssessmentReport,
 )
+from nightrecon.infrastructure_database import (
+    DatabaseConnectionProfile,
+    DatabaseEngine,
+)
+from nightrecon.infrastructure_database_adapter import DatabaseReadOnlyAdapter
+from nightrecon.infrastructure_database_mysql import MySqlRuntimeFactory
+from nightrecon.infrastructure_database_psycopg import PsycopgRuntimeFactory
 from nightrecon.infrastructure_smb import SmbConnectionProfile
 from nightrecon.infrastructure_smb_adapter import SmbReadOnlyAdapter
 from nightrecon.infrastructure_smb_impacket import ImpacketSmbRuntimeFactory
@@ -522,6 +530,119 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     infra_winrm_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
+    )
+
+    infra_database_parser = infra_subparsers.add_parser(
+        "database",
+        help=(
+            "Run fixed read-only database identity/schema actions "
+            "against one explicitly authorized target."
+        ),
+    )
+
+    infra_database_parser.add_argument(
+        "target",
+        help="Single authorized database hostname or IP address.",
+    )
+
+    infra_database_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help="Authorized scope rule. May be supplied multiple times.",
+    )
+
+    infra_database_parser.add_argument(
+        "--engine",
+        required=True,
+        choices=("postgresql", "mysql"),
+        help="Supported database engine.",
+    )
+
+    infra_database_parser.add_argument(
+        "--username",
+        required=True,
+        help="Database username. This is non-secret metadata.",
+    )
+
+    infra_database_parser.add_argument(
+        "--database-name",
+        required=True,
+        help="Database name. This is non-secret metadata.",
+    )
+
+    infra_database_parser.add_argument(
+        "--credential-id",
+        required=True,
+        help="Non-secret credential reference identifier.",
+    )
+
+    infra_database_parser.add_argument(
+        "--password-env",
+        required=True,
+        help=(
+            "Environment variable containing the database password. "
+            "The variable value and name are never printed or persisted."
+        ),
+    )
+
+    infra_database_parser.add_argument(
+        "--action",
+        action="append",
+        dest="infra_actions",
+        required=True,
+        choices=(
+            "database.server_identity",
+            "database.schema_inventory",
+        ),
+        help="Fixed read-only database action. May be repeated.",
+    )
+
+    infra_database_parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Database port. Defaults to 5432 for PostgreSQL or 3306 for MySQL.",
+    )
+
+    infra_database_parser.add_argument(
+        "--max-actions",
+        type=int,
+        default=4,
+        help="Maximum database action attempts. Default: 4",
+    )
+
+    infra_database_parser.add_argument(
+        "--connect-timeout",
+        type=float,
+        default=5.0,
+        help="Database connect/auth timeout in seconds. Default: 5.0",
+    )
+
+    infra_database_parser.add_argument(
+        "--operation-timeout",
+        type=float,
+        default=5.0,
+        help="Database metadata-operation timeout in seconds. Default: 5.0",
+    )
+
+    infra_database_parser.add_argument(
+        "--max-schemas",
+        type=int,
+        default=512,
+        help="Maximum schema observations retained. Default: 512",
+    )
+
+    infra_database_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    infra_database_parser.add_argument(
         "--logs-dir",
         default="logs",
         help="Directory for audit logs. Default: logs",
@@ -2138,6 +2259,249 @@ def main() -> None:
             print(
                 f"Infrastructure result file: {output_path}"
             )
+            return
+
+        if args.infra_command == "database":
+            try:
+                target = parse_target(args.target)
+
+                if target.target_type == TargetType.CIDR:
+                    raise ValueError(
+                        "Database infrastructure assessment requires a single host or IP target."
+                    )
+
+                scope = Scope.from_values(args.scope)
+
+                if args.max_actions < 1:
+                    raise ValueError("max_actions must be at least 1.")
+
+                if len(args.infra_actions) > args.max_actions:
+                    raise ValueError(
+                        "Selected database actions exceed max_actions."
+                    )
+
+                credential_id = args.credential_id.strip()
+
+                if (
+                    not credential_id
+                    or len(credential_id) > 128
+                    or not all(
+                        character.isalnum()
+                        or character in "._-"
+                        for character in credential_id
+                    )
+                ):
+                    raise ValueError(
+                        "credential_id must contain only letters, numbers, '.', '_', or '-'."
+                    )
+
+                engine = DatabaseEngine(args.engine)
+                port = args.port
+                if port is None:
+                    port = (
+                        5432
+                        if engine == DatabaseEngine.POSTGRESQL
+                        else 3306
+                    )
+
+                profile = DatabaseConnectionProfile(
+                    engine=engine,
+                    username=args.username,
+                    database_name=args.database_name,
+                    port=port,
+                    connect_timeout=args.connect_timeout,
+                    operation_timeout=args.operation_timeout,
+                    max_schemas=args.max_schemas,
+                    use_tls=True,
+                    validate_server_certificate=True,
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
+
+            logger = NightReconLogger(args.logs_dir)
+
+            if not scope.is_authorized(target):
+                logger.write(
+                    "infra.database.rejected",
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    scope=args.scope,
+                    reason="outside_authorized_scope",
+                )
+                parser.error(
+                    f"Target '{target.value}' is outside the authorized scope."
+                )
+
+            session = ScanSession.create(
+                target=target,
+                scope_rules=tuple(args.scope),
+            )
+            policy = InfrastructureAssessmentPolicy(
+                scope=scope,
+                allowed_transports=(
+                    InfrastructureTransport.DATABASE,
+                ),
+                max_actions=args.max_actions,
+            )
+            state = InfrastructureActionState(
+                actions_used=0,
+                max_actions=args.max_actions,
+            )
+            reference = CredentialReference(
+                credential_id=credential_id,
+                kind=CredentialKind.PASSWORD,
+                source_kind=CredentialSourceKind.ENVIRONMENT,
+            )
+            binding = CredentialBinding(
+                reference=reference,
+                source_name=args.password_env,
+            )
+            runtime_factory = (
+                PsycopgRuntimeFactory()
+                if engine == DatabaseEngine.POSTGRESQL
+                else MySqlRuntimeFactory()
+            )
+            adapter = DatabaseReadOnlyAdapter(
+                profile,
+                runtime_factory,
+            )
+            records = []
+
+            for action_id in args.infra_actions:
+                definition = get_infrastructure_action_definition(
+                    action_id
+                )
+                action = InfrastructureAction(
+                    target=target.value,
+                    transport=InfrastructureTransport.DATABASE,
+                    action_id=action_id,
+                    credential_id=credential_id,
+                )
+                decision = authorize_infrastructure_action(
+                    action=action,
+                    definition=definition,
+                    credential=reference,
+                    policy=policy,
+                    state=state,
+                )
+
+                if not decision.allowed:
+                    logger.write(
+                        "infra.database.action_rejected",
+                        session_id=session.session_id,
+                        target=target.value,
+                        transport="database",
+                        engine=engine.value,
+                        action_id=action_id,
+                        credential_id=credential_id,
+                        reason=decision.reason,
+                    )
+                    parser.error(
+                        "Database action was rejected by the infrastructure policy: "
+                        f"{decision.reason}"
+                    )
+
+                try:
+                    credential = resolve_credential(
+                        binding,
+                        ttl_seconds=max(
+                            30.0,
+                            args.connect_timeout
+                            + args.operation_timeout
+                            + 5.0,
+                        ),
+                    )
+                except CredentialResolutionError:
+                    logger.write(
+                        "infra.database.credential_resolution_failed",
+                        session_id=session.session_id,
+                        target=target.value,
+                        transport="database",
+                        engine=engine.value,
+                        action_id=action_id,
+                        credential_id=credential_id,
+                        reason="credential_resolution_failed",
+                    )
+                    parser.error(
+                        "Database credential could not be resolved from the configured "
+                        "environment source."
+                    )
+
+                result = execute_infrastructure_action(
+                    action=action,
+                    definition=definition,
+                    decision=decision,
+                    state=state,
+                    credential=credential,
+                    adapter=adapter,
+                )
+                state = result.state
+                records.append(
+                    InfrastructureActionRecord.from_result(result)
+                )
+
+            infra_report = DatabaseInfrastructureAssessmentReport.create(
+                session=session,
+                engine=engine.value,
+                username=profile.username,
+                database_name=profile.database_name,
+                port=profile.port,
+                max_actions=args.max_actions,
+                max_schemas=profile.max_schemas,
+                records=tuple(records),
+            )
+            output_path = ResultStore(
+                args.results_dir
+            ).save_infrastructure_assessment_report(infra_report)
+            summary = infra_report.to_dict()["summary"]
+
+            logger.write(
+                "infra.database.completed",
+                session_id=session.session_id,
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                transport="database",
+                engine=engine.value,
+                username=profile.username,
+                database_name=profile.database_name,
+                port=profile.port,
+                authentication="password",
+                tls_required=True,
+                certificate_validation="required",
+                credential_id=credential_id,
+                max_schemas=profile.max_schemas,
+                selected_actions=summary["selected_actions"],
+                attempted_actions=summary["attempted_actions"],
+                successful_actions=summary["successful_actions"],
+                failed_actions=summary["failed_actions"],
+                status=infra_report.status,
+            )
+
+            print(
+                "Database Assessment Summary: "
+                f"engine={engine.value} "
+                f"selected={summary['selected_actions']} "
+                f"attempted={summary['attempted_actions']} "
+                f"successful={summary['successful_actions']} "
+                f"failed={summary['failed_actions']}"
+            )
+
+            for record in infra_report.records:
+                print(
+                    "  DATABASE ACTION "
+                    f"{record.action_id} "
+                    f"success={'yes' if record.success else 'no'} "
+                    f"reason={record.reason}"
+                )
+                for fact in record.facts:
+                    print(
+                        "    FACT "
+                        f"{fact['key']}={fact['value']}"
+                    )
+
+            print(f"Session ID: {session.session_id}")
+            print(f"Infrastructure result file: {output_path}")
             return
 
         if args.infra_command != "ssh":
