@@ -100,10 +100,14 @@ from nightrecon.infrastructure_report import (
     InfrastructureActionRecord,
     InfrastructureAssessmentReport,
     SmbInfrastructureAssessmentReport,
+    WinRmInfrastructureAssessmentReport,
 )
 from nightrecon.infrastructure_smb import SmbConnectionProfile
 from nightrecon.infrastructure_smb_adapter import SmbReadOnlyAdapter
 from nightrecon.infrastructure_smb_impacket import ImpacketSmbRuntimeFactory
+from nightrecon.infrastructure_winrm import WinRmConnectionProfile
+from nightrecon.infrastructure_winrm_adapter import WinRmReadOnlyAdapter
+from nightrecon.infrastructure_winrm_pywinrm import PyWinRmRuntimeFactory
 from nightrecon.infrastructure_ssh import (
     SshConnectionProfile,
     SshReadOnlyAdapter,
@@ -412,6 +416,112 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     infra_smb_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
+    )
+
+    infra_winrm_parser = infra_subparsers.add_parser(
+        "winrm",
+        help=(
+            "Run fixed read-only WinRM system/patch inventory actions "
+            "against one explicitly authorized target."
+        ),
+    )
+
+    infra_winrm_parser.add_argument(
+        "target",
+        help="Single authorized hostname or IP address.",
+    )
+
+    infra_winrm_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help=(
+            "Authorized scope rule. May be supplied multiple times."
+        ),
+    )
+
+    infra_winrm_parser.add_argument(
+        "--username",
+        required=True,
+        help="WinRM username. This is non-secret metadata.",
+    )
+
+    infra_winrm_parser.add_argument(
+        "--credential-id",
+        required=True,
+        help=(
+            "Non-secret credential reference identifier used in audit/report data."
+        ),
+    )
+
+    infra_winrm_parser.add_argument(
+        "--password-env",
+        required=True,
+        help=(
+            "Environment variable containing the WinRM password. "
+            "The variable value and variable name are never printed or persisted."
+        ),
+    )
+
+    infra_winrm_parser.add_argument(
+        "--action",
+        action="append",
+        dest="infra_actions",
+        required=True,
+        choices=(
+            "winrm.system_identity",
+            "winrm.patch_inventory",
+        ),
+        help=(
+            "Fixed read-only WinRM action. May be repeated."
+        ),
+    )
+
+    infra_winrm_parser.add_argument(
+        "--port",
+        type=int,
+        default=5986,
+        help="HTTPS WinRM port. Default: 5986",
+    )
+
+    infra_winrm_parser.add_argument(
+        "--max-actions",
+        type=int,
+        default=4,
+        help="Maximum WinRM action attempts. Default: 4",
+    )
+
+    infra_winrm_parser.add_argument(
+        "--connect-timeout",
+        type=float,
+        default=5.0,
+        help="WinRM connect/read timeout basis in seconds. Default: 5.0",
+    )
+
+    infra_winrm_parser.add_argument(
+        "--operation-timeout",
+        type=float,
+        default=5.0,
+        help="WinRM WS-Man operation timeout in seconds. Default: 5.0",
+    )
+
+    infra_winrm_parser.add_argument(
+        "--max-patches",
+        type=int,
+        default=512,
+        help="Maximum WinRM patch observations retained. Default: 512",
+    )
+
+    infra_winrm_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    infra_winrm_parser.add_argument(
         "--logs-dir",
         default="logs",
         help="Directory for audit logs. Default: logs",
@@ -1746,6 +1856,271 @@ def main() -> None:
             for record in infra_report.records:
                 print(
                     "  SMB ACTION "
+                    f"{record.action_id} "
+                    f"success={'yes' if record.success else 'no'} "
+                    f"reason={record.reason}"
+                )
+
+                for fact in record.facts:
+                    print(
+                        "    FACT "
+                        f"{fact['key']}={fact['value']}"
+                    )
+
+            print(
+                f"Session ID: {session.session_id}"
+            )
+            print(
+                f"Infrastructure result file: {output_path}"
+            )
+            return
+
+        if args.infra_command == "winrm":
+            try:
+                target = parse_target(
+                    args.target
+                )
+
+                if target.target_type == TargetType.CIDR:
+                    raise ValueError(
+                        "WinRM infrastructure assessment requires a single host or IP target."
+                    )
+
+                scope = Scope.from_values(
+                    args.scope
+                )
+
+                if args.max_actions < 1:
+                    raise ValueError(
+                        "max_actions must be at least 1."
+                    )
+
+                if len(
+                    args.infra_actions
+                ) > args.max_actions:
+                    raise ValueError(
+                        "Selected WinRM actions exceed max_actions."
+                    )
+
+                credential_id = (
+                    args.credential_id.strip()
+                )
+
+                if (
+                    not credential_id
+                    or len(credential_id) > 128
+                    or not all(
+                        character.isalnum()
+                        or character in "._-"
+                        for character in credential_id
+                    )
+                ):
+                    raise ValueError(
+                        "credential_id must contain only letters, numbers, '.', '_', or '-'."
+                    )
+
+                profile = WinRmConnectionProfile(
+                    username=args.username,
+                    port=args.port,
+                    connect_timeout=args.connect_timeout,
+                    operation_timeout=args.operation_timeout,
+                    max_patches=args.max_patches,
+                    use_tls=True,
+                    validate_server_certificate=True,
+                )
+            except ValueError as exc:
+                parser.error(
+                    str(
+                        exc
+                    )
+                )
+
+            logger = NightReconLogger(
+                args.logs_dir
+            )
+
+            if not scope.is_authorized(
+                target
+            ):
+                logger.write(
+                    "infra.winrm.rejected",
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    scope=args.scope,
+                    reason="outside_authorized_scope",
+                )
+                parser.error(
+                    f"Target '{target.value}' is outside the authorized scope."
+                )
+
+            session = ScanSession.create(
+                target=target,
+                scope_rules=tuple(
+                    args.scope
+                ),
+            )
+            policy = InfrastructureAssessmentPolicy(
+                scope=scope,
+                allowed_transports=(
+                    InfrastructureTransport.WINRM,
+                ),
+                max_actions=args.max_actions,
+            )
+            state = InfrastructureActionState(
+                actions_used=0,
+                max_actions=args.max_actions,
+            )
+            reference = CredentialReference(
+                credential_id=credential_id,
+                kind=CredentialKind.PASSWORD,
+                source_kind=CredentialSourceKind.ENVIRONMENT,
+            )
+            binding = CredentialBinding(
+                reference=reference,
+                source_name=args.password_env,
+            )
+            adapter = WinRmReadOnlyAdapter(
+                profile,
+                PyWinRmRuntimeFactory(),
+            )
+            records = []
+
+            for action_id in args.infra_actions:
+                definition = (
+                    get_infrastructure_action_definition(
+                        action_id
+                    )
+                )
+                action = InfrastructureAction(
+                    target=target.value,
+                    transport=InfrastructureTransport.WINRM,
+                    action_id=action_id,
+                    credential_id=credential_id,
+                )
+                decision = authorize_infrastructure_action(
+                    action=action,
+                    definition=definition,
+                    credential=reference,
+                    policy=policy,
+                    state=state,
+                )
+
+                if not decision.allowed:
+                    logger.write(
+                        "infra.winrm.action_rejected",
+                        session_id=session.session_id,
+                        target=target.value,
+                        transport="winrm",
+                        action_id=action_id,
+                        credential_id=credential_id,
+                        reason=decision.reason,
+                    )
+                    parser.error(
+                        "WinRM action was rejected by the infrastructure policy: "
+                        f"{decision.reason}"
+                    )
+
+                try:
+                    credential = resolve_credential(
+                        binding,
+                        ttl_seconds=max(
+                            30.0,
+                            args.connect_timeout
+                            + args.operation_timeout
+                            + 5.0,
+                        ),
+                    )
+                except CredentialResolutionError:
+                    logger.write(
+                        "infra.winrm.credential_resolution_failed",
+                        session_id=session.session_id,
+                        target=target.value,
+                        transport="winrm",
+                        action_id=action_id,
+                        credential_id=credential_id,
+                        reason="credential_resolution_failed",
+                    )
+                    parser.error(
+                        "WinRM credential could not be resolved from the configured "
+                        "environment source."
+                    )
+
+                result = execute_infrastructure_action(
+                    action=action,
+                    definition=definition,
+                    decision=decision,
+                    state=state,
+                    credential=credential,
+                    adapter=adapter,
+                )
+                state = result.state
+                records.append(
+                    InfrastructureActionRecord.from_result(
+                        result
+                    )
+                )
+
+            infra_report = (
+                WinRmInfrastructureAssessmentReport.create(
+                    session=session,
+                    username=profile.username,
+                    port=profile.port,
+                    max_actions=args.max_actions,
+                    max_patches=profile.max_patches,
+                    records=tuple(
+                        records
+                    ),
+                )
+            )
+            output_path = ResultStore(
+                args.results_dir
+            ).save_infrastructure_assessment_report(
+                infra_report
+            )
+            summary = infra_report.to_dict()[
+                "summary"
+            ]
+
+            logger.write(
+                "infra.winrm.completed",
+                session_id=session.session_id,
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                transport="winrm",
+                username=profile.username,
+                port=profile.port,
+                authentication="ntlm",
+                tls_required=True,
+                certificate_validation="required",
+                credential_id=credential_id,
+                max_patches=profile.max_patches,
+                selected_actions=summary[
+                    "selected_actions"
+                ],
+                attempted_actions=summary[
+                    "attempted_actions"
+                ],
+                successful_actions=summary[
+                    "successful_actions"
+                ],
+                failed_actions=summary[
+                    "failed_actions"
+                ],
+                status=infra_report.status,
+            )
+
+            print(
+                "WinRM Assessment Summary: "
+                f"selected={summary['selected_actions']} "
+                f"attempted={summary['attempted_actions']} "
+                f"successful={summary['successful_actions']} "
+                f"failed={summary['failed_actions']}"
+            )
+
+            for record in infra_report.records:
+                print(
+                    "  WINRM ACTION "
                     f"{record.action_id} "
                     f"success={'yes' if record.success else 'no'} "
                     f"reason={record.reason}"
