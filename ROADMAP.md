@@ -151,7 +151,7 @@ Release gate: version/docs complete, exact-head six-job push + PR CI green, merg
 
 ### v0.29.0 — Read-Only SSH Credentialed Assessment
 
-Status: release candidate.
+Status: released, tagged, and verified stable.
 
 Delivered capabilities:
 
@@ -181,7 +181,7 @@ Release gate: version/docs complete, exact-head seven-job PR CI green, merge to 
 
 ### v0.30.0 — Broader Credentialed Infrastructure Assessment
 
-Status: release candidate.
+Status: released, tagged, and verified stable.
 
 Delivered capabilities:
 
@@ -207,11 +207,29 @@ Delivered capabilities:
 - dedicated Paramiko, Impacket, pywinrm, psycopg, and MySQL connector compatibility CI jobs
 - cross-platform Python 3.11/3.14 verification on Ubuntu and Windows
 
-Release gate: version/docs complete, exact-head eleven-job push + PR CI green, merge to `master`, verify post-merge eleven-job CI, add the verified release merge commit to the guarded release-tag allowlist, then create the annotated `v0.30.0` tag pointing to that release merge commit.
+Release gate: completed; exact-head eleven-job push + PR CI passed, release merged to `master`, post-merge verification completed, the release merge commit was added to the guarded release-tag allowlist, and annotated tag `v0.30.0` points to release commit `3f909117193c6394462df31472890d2405d5f01e`.
 
 ## Generation 2 — Identity and Attack-Path Intelligence
 
 Goal: move from isolated findings to graph-based exposure reasoning.
+
+### v0.31.0 — Identity Graph Foundation
+
+Status: next planned release.
+
+Initial scope:
+
+- immutable graph node and edge models with stable identifiers
+- explicit provenance on every observed relationship
+- clear separation of observed facts from inferred hypotheses
+- asset, service, identity, group, permission, vulnerability, and critical-asset node types
+- deterministic graph normalization and duplicate rejection
+- bounded in-memory graph construction from existing NightRecon evidence
+- no new credential collection or intrusive execution in the foundation release
+- structured graph export suitable for later attack-path search
+- unit tests covering graph determinism, provenance, deduplication, and observed-vs-inferred separation
+
+The first release is intentionally data-model-first so later Active Directory, Entra ID, cloud, repository, and privilege collectors can plug into one evidence contract without weakening the existing authorization boundary.
 
 Planned capabilities:
 
@@ -345,7 +363,8 @@ The engine will eventually require a production platform around it:
 
 The current locked execution order is:
 
-1. Finish and release v0.29.0 Read-Only SSH Credentialed Assessment.
-2. Verify the merged `master` commit with the full seven-job matrix and create the guarded `v0.29.0` annotated tag.
-3. Start v0.30.x Broader Credentialed Infrastructure Assessment in a fresh development branch.
-4. Extend the same secret-handling, allowlist, identity-verification, typed-evidence, and action-budget model to SMB, WinRM, supported databases, and selected network devices before beginning identity/attack-path intelligence.
+1. Close v0.30.0 documentation metadata so README, roadmap, package version, release commit, and guarded annotated tag agree.
+2. Start v0.31.0 Identity Graph Foundation in a fresh development branch from the verified `master` checkpoint.
+3. Implement immutable graph primitives, provenance, observed-vs-inferred semantics, deterministic normalization, and bounded construction from existing NightRecon evidence.
+4. Add structured graph export and comprehensive unit tests before introducing any new identity collectors.
+5. Only after the graph foundation is stable, begin Active Directory and Entra ID collection as separate authorization-first releases.
