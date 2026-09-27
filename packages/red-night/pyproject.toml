@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nightrecon-red-night"
+version = "0.32.0.dev0"
+description = "Red Night application launcher for authorized NightRecon assessment"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["nightrecon==0.31.0"]
+
+[project.scripts]
+red-night-app = "red_night_app:main"
+
+[tool.setuptools.packages.find]
+include = ["red_night_app*"]

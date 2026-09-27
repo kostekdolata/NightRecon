@@ -404,9 +404,9 @@ The current execution order is:
 2. Verify the internal fail-closed edition command gateway without changing
    the existing single-package CLI defaults.
 3. Complete the Red Night acceptance gates in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md).
-   Evidence-only path review and a shared-distribution `red-night` launcher
-   now exist; build a separately installable Red Night package with isolated
-   and combined install tests behind the verified gateway.
+   Evidence-only path review, a shared-distribution `red-night` launcher, and a
+   separately built `red-night-app` preview now exist. Split shared safety
+   core and Red-only engines, and verify isolation before production release.
 4. Build authorization-first live Active Directory and Entra ID collectors on
    the stable graph evidence contract; the offline normalized directory export
    bridge is an intermediate step, not a live collector.

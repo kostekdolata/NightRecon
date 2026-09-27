@@ -53,6 +53,14 @@ categories remain open even when a similar feature exists.
 
 ## Current batch
 
+`packages/red-night/` builds a separate development-preview Red Night
+distribution that depends on the existing NightRecon shared runtime. A distinct
+`red-night-app` command delegates to the already verified Red gateway. Wheel
+install/uninstall smoke tests cover isolated Red-app and combined legacy/Red-app
+installations on Linux and Windows with Python 3.11 and 3.14. Complete engine
+isolation, optional dependency division, and composition with the four future
+Night applications remain open; the product is not finished or released.
+
 An offline directory-export bridge accepts only bounded, secret-free normalized
 JSON with explicitly labeled users, groups, and group-member DNs. It maps
 present entries to deterministic graph identities and observed membership
@@ -75,6 +83,6 @@ source graph, retains truncation and provenance through the original path, and
 states explicitly that the order is neither risk nor exploitability. It does
 not execute an attack, assign an ATT&CK technique, or add a network collector.
 
-The next substantial product step is the separately installable Red Night
-package with isolated and combined installation tests, followed by
-authorization-first live identity collectors and deeper lab-backed assessment.
+The next substantial product step is splitting the mandatory shared safety core
+from Red-owned engine dependencies while preserving the legacy CLI, followed
+by authorization-first live identity collectors and lab-backed assessment.
