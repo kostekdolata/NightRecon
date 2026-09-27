@@ -25,6 +25,18 @@ command. For example, `red-night --help` lists its allowed commands and
 entry point inside the shared distribution, not a separately installable Red
 Night application. Existing target scope and assessment policies still apply.
 
+`packages/red-night/` is a separately built **development-preview** Red Night
+distribution. Installing its wheel with the matching NightRecon shared-runtime
+wheel supplies `red-night-app` without any other Night application. The existing
+`red-night` entry point remains in the shared package for compatibility; the
+distinct script names prevent package installation or removal from overwriting
+one another. Clean, local-wheel installations of the preview alone and alongside
+the legacy launcher are smoke-tested. Its shared runtime still contains the
+current integrated engines, and combined installation with the four future
+Nights cannot be verified before they exist. The catalog therefore continues
+to report `standalone_available: false` until isolation and functional release
+gates pass.
+
 An internal `edition_gateway` now denies unowned commands before calling the
 existing CLI. Red Night can route existing authorized assessment commands through this
 boundary. White Night, Blue Night, Purple Night, and Black Night expose only the informational
@@ -55,9 +67,9 @@ not a substitute for the core scope checks.
 ## Delivery gates
 
 1. Catalog and published boundaries (completed).
-2. Command ownership and fail-closed routing boundary (the Red Night launcher
-   uses the gateway; independently installed command routing still requires
-   separate distribution and isolation tests).
+2. Command ownership and fail-closed routing boundary (the shared and separate
+   Red Night launchers use the same gateway; complete engine isolation remains
+   an open gate).
 3. Separate installable edition entry points with optional dependencies and
    tests proving one edition cannot invoke another edition's active commands,
    including one edition, arbitrary combinations, and the full suite.
@@ -65,5 +77,5 @@ not a substitute for the core scope checks.
    capabilities in small CI-verified releases. Do not advertise a standalone
    edition as available until its isolation and functional acceptance tests pass.
 
-The next domain-capability batch remains authorization-first Active Directory
-identity collection on top of the v0.31 immutable graph evidence contract.
+The next Red Night domain-capability batch remains authorization-first Active
+Directory identity collection on top of the v0.31 immutable graph contract.
