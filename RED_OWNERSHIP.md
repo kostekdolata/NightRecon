@@ -105,3 +105,14 @@ They include:
 
 Before any future Red feature batch, check this document and
 `nightrecon.red_ownership` to avoid rebuilding existing functionality.
+
+
+## Packaging audit
+
+The current dependency audit is implemented in
+`nightrecon.red_package_boundary`. It parses imports from the existing source
+modules and classifies them as Red-owned, shared-core compatibility, runtime
+support, or unresolved. The release boundary test requires the unresolved set
+to remain empty.
+
+The exact bridge-removal sequence is maintained in `RED_PACKAGE_PLAN.md`.

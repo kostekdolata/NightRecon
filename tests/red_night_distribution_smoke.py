@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import venv
+import zipfile
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
@@ -203,6 +204,11 @@ def main() -> None:
         )
         app_wheel = next(wheels.glob("nightrecon_red_night-0.32.0.dev0-*.whl"))
 
+        with zipfile.ZipFile(app_wheel) as archive:
+            app_files = tuple(sorted(archive.namelist()))
+        assert any(name.startswith("red_night_app/") for name in app_files)
+        assert not any(name.startswith("nightrecon/") for name in app_files), app_files
+
         for mode in ("isolated", "combined"):
             env_root = directory / mode
             venv.create(env_root, with_pip=True, system_site_packages=True)
@@ -246,6 +252,12 @@ def main() -> None:
             assert metadata.count("0.32.0.dev0") >= 2
             assert "nightrecon==0.31.0" in metadata
             assert "nightrecon-shared-core==0.32.0.dev0" in metadata
+            assert "cryptography" in metadata
+            for extra_dependency in (
+                "playwright", "PyYAML", "paramiko", "impacket", "pywinrm",
+                "psycopg", "mysql-connector-python",
+            ):
+                assert extra_dependency in metadata
             check(str(python), "-m", "red_night_app", "--help", cwd=directory)
 
             if mode == "combined":

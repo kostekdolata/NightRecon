@@ -1,4 +1,4 @@
-"""Machine-readable ownership map for existing Red Night capabilities.
+"""Machine-readable ownership and packaging map for existing Red Night capabilities.
 
 This module assigns existing NightRecon capability modules to Red Night without
 duplicating their implementations. It is descriptive packaging metadata only.
@@ -56,6 +56,12 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+RED_BASE_DEPENDENCIES: tuple[str, ...] = (
+    "cryptography>=50.0.1,<51",
+    "nightrecon-shared-core==0.32.0.dev0",
+)
+RED_LEGACY_BRIDGE_DEPENDENCY = "nightrecon==0.31.0"
+
 RED_OPTIONAL_EXTRAS: dict[str, tuple[str, ...]] = {
     "browser": ("playwright>=1.63,<2",),
     "api": ("PyYAML>=6.0,<7",),
@@ -66,15 +72,45 @@ RED_OPTIONAL_EXTRAS: dict[str, tuple[str, ...]] = {
     "mysql": ("mysql-connector-python>=9.0,<10",),
 }
 
-RED_COMMANDS: tuple[str, ...] = (
-    "api", "assets", "checks", "crawl", "discover", "identity",
-    "infra", "scan", "workspace",
+RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
+    "api": RED_MODULE_GROUPS["api"],
+    "assets": ("asset_inventory", "asset_inventory_store", "discovery_report", "report", "storage"),
+    "checks": RED_MODULE_GROUPS["checks"],
+    "crawl": RED_MODULE_GROUPS["web"],
+    "discover": ("host_discovery", "discovery_report", "resolver", "ports"),
+    "editions": ("edition_catalog", "edition_policy"),
+    "identity": RED_MODULE_GROUPS["graph_identity"],
+    "infra": RED_MODULE_GROUPS["infrastructure"],
+    "scan": tuple(sorted(set(
+        RED_MODULE_GROUPS["discovery"]
+        + RED_MODULE_GROUPS["vulnerability"]
+        + RED_MODULE_GROUPS["checks"]
+    ))),
+    "workspace": ("red_workspace_cli",),
+}
+
+RED_COMMANDS: tuple[str, ...] = tuple(sorted(RED_COMMAND_MODULES))
+
+# Existing non-engine runtime surfaces needed while Red is still hosted inside the
+# monolithic nightrecon distribution. These are migration dependencies, not
+# reasons to duplicate their code.
+RED_RUNTIME_SUPPORT_MODULES: tuple[str, ...] = (
+    "__init__", "cli", "config", "edition_gateway", "logging", "red_night",
+    "red_workspace_cli",
 )
 
 SHARED_CORE_COMPATIBILITY_MODULES: tuple[str, ...] = (
     "authorization_policy", "edition_catalog", "edition_policy", "scope", "targets",
 )
 
+RED_ENGINE_FACADES: tuple[str, ...] = (
+    "red_host_discovery", "red_tcp_scanner", "red_service_detection",
+)
+
 
 def red_modules() -> tuple[str, ...]:
     return tuple(sorted({module for group in RED_MODULE_GROUPS.values() for module in group}))
+
+
+def red_package_modules() -> tuple[str, ...]:
+    return tuple(sorted(set(red_modules()) | set(RED_RUNTIME_SUPPORT_MODULES) | set(RED_ENGINE_FACADES)))

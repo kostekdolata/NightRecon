@@ -90,9 +90,10 @@ infrastructure assessment, vulnerability/check execution, asset inventory,
 reporting, and graph/path foundations already exist and are assigned to Red.
 
 The remaining boundary problem is package separation: `packages/red-night`
-still depends on the monolithic `nightrecon==0.31.0` distribution. The next
-packaging work should group existing Red-owned modules and their optional extras
-without reimplementing them.
+still depends on the monolithic `nightrecon==0.31.0` distribution. The audited
+dependency closure, existing optional extras, and ordered bridge-removal work are
+tracked in [RED_PACKAGE_PLAN.md](RED_PACKAGE_PLAN.md). Future packaging work must
+move coherent existing module groups without reimplementing them.
 
 ## Extraction rules
 

@@ -91,9 +91,11 @@ graph/path capabilities are assigned to Red Night and must not be rebuilt merely
 for edition separation. Their remaining work is package isolation, integration
 evidence, and the comparison/quality gates above.
 
-The next substantial product step is splitting the existing Red-owned engine
-modules and optional extras from the monolithic `nightrecon==0.31.0`
-dependency while preserving their proven implementations and legacy CLI.
+The next substantial product step is executing the dependency-verified package
+migration in [RED_PACKAGE_PLAN.md](RED_PACKAGE_PLAN.md): split the existing
+Red-owned engine modules and optional extras from the monolithic
+`nightrecon==0.31.0` dependency while preserving their proven implementations
+and legacy CLI.
 After that, genuinely new capability work should focus on authorization-first
 live identity collectors, controlled validation/emulation, and lab-backed
 acceptance.
