@@ -9,6 +9,11 @@ from nightrecon_shared_core.editions import (
     available_commands,
     edition_name,
 )
+from nightrecon_shared_core.store import (
+    EngagementStore,
+    EvidenceConflictError,
+    InMemoryEngagementStore,
+)
 
 __all__ = [
     "EDITIONS", "Edition", "EditionRouteError", "EngagementEnvelope", "EngagementStore",
@@ -16,9 +21,3 @@ __all__ = [
     "Scope", "Target", "TargetType",
     "available_commands", "edition_name", "parse_target",
 ]
-
-from nightrecon_shared_core.store import (
-    EngagementStore,
-    EvidenceConflictError,
-    InMemoryEngagementStore,
-)
