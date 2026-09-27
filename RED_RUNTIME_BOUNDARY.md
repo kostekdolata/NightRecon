@@ -74,6 +74,7 @@ modules:
 
 - `nightrecon.red_host_discovery`
 - `nightrecon.red_tcp_scanner`
+- `nightrecon.red_service_detection`
 
 The legacy `nightrecon.host_discovery` and `nightrecon.tcp_scanner` modules
 are compatibility re-exports only, and the compatibility CLI consumes the
@@ -115,8 +116,8 @@ Each isolation batch must:
 
 ## Next physical extraction target
 
-The next package-boundary work should continue from the extracted discovery/TCP
-seam into bounded service detection and evidence projection, keeping existing
+The next package-boundary work should continue from the extracted discovery/TCP/service
+seam into evidence projection and the remaining service helper modules, keeping existing
 scope checks and compatibility behavior intact. Once a coherent Red execution
 slice no longer depends on unrelated legacy modules, it can move into a
 separately versioned Red engine distribution.

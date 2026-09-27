@@ -131,7 +131,7 @@ from nightrecon.ports import parse_ports
 from nightrecon.report import TcpScanReport
 from nightrecon.resolver import resolve_target
 from nightrecon.scope import Scope
-from nightrecon.service_detection import detect_services
+from nightrecon.red_service_detection import detect_services
 from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
 from nightrecon.targets import TargetType, parse_target

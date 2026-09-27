@@ -151,12 +151,21 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
         self.assertNotIn("socket.socket", host_source)
         self.assertNotIn("socket.socket", tcp_source)
 
+    def test_legacy_service_detection_module_is_compatibility_reexport(self) -> None:
+        source = (ROOT / "nightrecon" / "service_detection.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("nightrecon.red_service_detection", source)
+        self.assertNotIn("socket.socket", source)
+
     def test_legacy_cli_consumes_red_discovery_engines_directly(self) -> None:
         source = (ROOT / "nightrecon" / "cli.py").read_text(encoding="utf-8")
         self.assertIn("from nightrecon.red_host_discovery import", source)
         self.assertIn("from nightrecon.red_tcp_scanner import", source)
         self.assertNotIn("from nightrecon.host_discovery import", source)
         self.assertNotIn("from nightrecon.tcp_scanner import", source)
+        self.assertIn("from nightrecon.red_service_detection import", source)
+        self.assertNotIn("from nightrecon.service_detection import", source)
 
     def test_shared_workspace_has_no_night_runtime_import(self) -> None:
         source = (
