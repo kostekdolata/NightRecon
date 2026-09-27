@@ -20,11 +20,20 @@ from nightrecon_shared_core.store import (
     InMemoryEngagementStore,
     MetadataConflictError,
 )
+from nightrecon_shared_core.workspace import (
+    EvidenceBreakdown,
+    LocalWorkspace,
+    MergeReport,
+    WorkspaceStore,
+    WorkspaceSummary,
+)
 
 __all__ = [
     "EDITIONS", "Edition", "EditionRouteError", "EngagementEnvelope",
-    "EngagementMetadata", "EngagementStore", "EvidenceConflictError",
-    "EvidenceRecord", "FileEngagementStore", "InMemoryEngagementStore",
+    "EngagementMetadata", "EngagementStore", "EvidenceBreakdown",
+    "EvidenceConflictError", "EvidenceRecord", "FileEngagementStore",
+    "InMemoryEngagementStore", "LocalWorkspace", "MergeReport",
     "MetadataConflictError", "Scope", "Target", "TargetType",
-    "available_commands", "edition_name", "parse_target",
+    "WorkspaceStore", "WorkspaceSummary", "available_commands",
+    "edition_name", "parse_target",
 ]

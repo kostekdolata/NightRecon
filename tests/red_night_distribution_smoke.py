@@ -137,6 +137,35 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert imported_envelope["metadata"]["authorization_reference"] == "approval://packaged-smoke"
     assert len(imported_envelope["records"]) == 1
 
+    workspace_root = directory / f"workspace-{bin_dir.parent.name}"
+    workspace_import = json.loads(check(
+        app, "workspace", "import", str(workspace_root), str(export_path),
+        cwd=directory,
+    ))
+    assert workspace_import["applied"] is True
+    workspace_list = json.loads(check(
+        app, "workspace", "list", str(workspace_root), cwd=directory,
+    ))
+    assert len(workspace_list) == 1
+    assert workspace_list[0]["engagement_id"] == "eng-packaged-smoke"
+    assert workspace_list[0]["source_nights"] == ["red"]
+    workspace_show = json.loads(check(
+        app, "workspace", "show", str(workspace_root),
+        "--engagement-id", "eng-packaged-smoke",
+        cwd=directory,
+    ))
+    assert workspace_show["summary"]["record_count"] == 1
+    assert workspace_show["breakdown"]["source_night_counts"] == [["red", 1]]
+    workspace_export_path = directory / f"workspace-export-{bin_dir.parent.name}.json"
+    workspace_export = json.loads(check(
+        app, "workspace", "export", str(workspace_root),
+        "--engagement-id", "eng-packaged-smoke",
+        "--output", str(workspace_export_path),
+        cwd=directory,
+    ))
+    assert workspace_export["source_nights"] == ["red"]
+    assert json.loads(workspace_export_path.read_text(encoding="utf-8"))["engagement_id"] == "eng-packaged-smoke"
+
     denied = subprocess.run(
         [app, "unknown-command"], cwd=directory, capture_output=True,
         text=True, timeout=20, check=False,

@@ -46,7 +46,7 @@ _COMMANDS = MappingProxyType({
     "blue": frozenset({"editions"}),
     "red": frozenset({
         "editions", "infra", "api", "assets", "checks", "discover",
-        "crawl", "scan", "identity",
+        "crawl", "scan", "identity", "workspace",
     }),
     "purple": frozenset({"editions"}),
     "black": frozenset({"editions"}),

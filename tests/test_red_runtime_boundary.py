@@ -60,6 +60,7 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
         self.assertEqual(commands, tuple(sorted(commands)))
         self.assertIn("scan", commands)
         self.assertIn("identity", commands)
+        self.assertIn("workspace", commands)
         self.assertNotIn("unknown-command", commands)
         with self.assertRaisesRegex(EditionRouteError, "Unknown NightRecon edition"):
             available_commands("not-a-night")
@@ -75,6 +76,7 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
         self.assertIn("from nightrecon.edition_policy import", source)
         self.assertIn("from nightrecon.cli import main as legacy_main", source)
         self.assertNotIn("_COMMANDS =", source)
+        self.assertIn("nightrecon.red_workspace_cli", source)
 
     def test_authorization_policy_has_no_execution_imports(self) -> None:
         source = (ROOT / "nightrecon" / "authorization_policy.py").read_text(
@@ -137,6 +139,16 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 2)
             self.assertIn("--engagement-id is required", completed.stderr)
 
+    def test_shared_workspace_has_no_night_runtime_import(self) -> None:
+        source = (
+            ROOT / "packages" / "shared-core" /
+            "nightrecon_shared_core" / "workspace.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("from nightrecon.", source)
+        self.assertNotIn("import nightrecon.", source)
+        for forbidden in ("socket", "requests", "playwright", "paramiko", "impacket"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, source)
 
 
 if __name__ == "__main__":

@@ -121,6 +121,26 @@ Evidence imported from another Night is never authorization. Any later active
 operation still requires the shared core's target scope, approvals, budgets,
 and stop controls.
 
+### Shared workspace coordination
+
+The shared core also defines a `WorkspaceStore` boundary and a
+`LocalWorkspace` implementation. A local workspace derives its engagement
+index from one canonical `engagements.json` store rather than maintaining a
+second database. Summaries expose engagement identity, name/status, source
+Nights present, record counts, and evidence types; evidence breakdowns are
+available by source Night and type.
+
+Red Night owns the first top-level workspace adapter:
+`workspace list`, `workspace show`, `workspace import`, and
+`workspace export`. These commands are evidence/coordination operations only
+and cannot scan or authorize targets.
+
+The current file-backed workspace supports standalone use and serialized local
+writers. A future composed service/database backend will provide concurrency
+control while preserving the same store/workspace contracts. No Night is
+permitted to import another Night's runtime just to participate in the shared
+workspace.
+
 ## Separation contract
 
 - The shared core owns existing scope and authorization checks, budgets, secret

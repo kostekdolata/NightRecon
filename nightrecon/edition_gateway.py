@@ -42,4 +42,10 @@ def run_edition_cli(edition: str, argv: Sequence[str]) -> None:
         identity_main(arguments[1:])
         return
 
+    if edition == "red" and arguments[0] == "workspace":
+        from nightrecon.red_workspace_cli import main as workspace_main
+
+        workspace_main(arguments[1:])
+        return
+
     legacy_main(arguments)
