@@ -29,6 +29,9 @@ ssh = [
 smb = [
     "impacket>=0.13.1,<0.14",
 ]
+winrm = [
+    "pywinrm>=0.5,<0.6",
+]
 keywords = [
     "security",
     "pentesting",
