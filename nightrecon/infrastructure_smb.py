@@ -38,6 +38,7 @@ class SmbConnectionProfile:
     """Non-secret SMB connection settings."""
 
     username: str
+    domain: str = ""
     port: int = 445
     connect_timeout: float = 5.0
     operation_timeout: float = 5.0
@@ -77,10 +78,24 @@ class SmbConnectionProfile:
                 "max_shares must be between 1 and 1024."
             )
 
+        domain = self.domain.strip()
+
+        if domain and not _NAME_PATTERN.fullmatch(
+            domain
+        ):
+            raise ValueError(
+                "SMB domain is invalid."
+            )
+
         object.__setattr__(
             self,
             "username",
             username,
+        )
+        object.__setattr__(
+            self,
+            "domain",
+            domain,
         )
 
 
@@ -177,10 +192,15 @@ def build_smb_server_identity_facts(
         server_name,
         field_name="server_name",
     )
-    domain = _normalize_fact_value(
-        domain_name,
-        field_name="domain_name",
-    )
+    domain = domain_name.strip()
+
+    if domain and not _NAME_PATTERN.fullmatch(
+        domain
+    ):
+        raise ValueError(
+            "domain_name is invalid."
+        )
+
     normalized_dialect = (
         _normalize_fact_value(
             dialect,
@@ -188,27 +208,40 @@ def build_smb_server_identity_facts(
         )
     )
 
-    return (
+    facts = [
         InfrastructureFact(
             key="smb.server_name",
             value=server,
         ),
-        InfrastructureFact(
-            key="smb.domain_name",
-            value=domain,
-        ),
-        InfrastructureFact(
-            key="smb.dialect",
-            value=normalized_dialect,
-        ),
-        InfrastructureFact(
-            key="smb.signing_required",
-            value=(
-                "true"
-                if signing_required
-                else "false"
+    ]
+
+    if domain:
+        facts.append(
+            InfrastructureFact(
+                key="smb.domain_name",
+                value=domain,
+            )
+        )
+
+    facts.extend(
+        (
+            InfrastructureFact(
+                key="smb.dialect",
+                value=normalized_dialect,
             ),
-        ),
+            InfrastructureFact(
+                key="smb.signing_required",
+                value=(
+                    "true"
+                    if signing_required
+                    else "false"
+                ),
+            ),
+        )
+    )
+
+    return tuple(
+        facts
     )
 
 
