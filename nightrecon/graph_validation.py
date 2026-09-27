@@ -139,6 +139,10 @@ def _validate_relationship(edge, source_kind, target_kind):
                 GraphNodeKind.CRITICAL_ASSET,
             },
         ),
+        "classified-as-critical": (
+            {GraphNodeKind.ASSET},
+            {GraphNodeKind.CRITICAL_ASSET},
+        ),
     }
     expected = allowed.get(edge.relationship)
 
