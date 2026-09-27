@@ -4,6 +4,22 @@ NightRecon is being developed as an authorization-first adversarial security val
 
 This roadmap is directional. Release scope may be split into smaller verified increments when that reduces risk. Every release must preserve the authorization boundary, avoid unrelated refactors, pass the full automated test matrix, and leave `master` at a stable checkpoint before the next development branch begins.
 
+## Product delivery order
+
+Red Night is the only active Night product track until it passes the complete
+[Red Night acceptance standard](RED_ACCEPTANCE.md) and documented, repeatable
+comparison labs. For each relevant specialist category, measure coverage,
+false positives, safety, repeatability, usability, and operational evidence.
+The goal is to exceed leading tools where Red Night can demonstrate a material
+advantage and meet their essential capability baseline elsewhere. Never claim
+universal superiority from a feature checklist or a passing unit-test count.
+
+After Red Night reaches that evidence-backed gate, choose the next Night using
+its own acceptance and comparison plan. Blue Night, White Night, Purple Night,
+and Black Night remain distinct future applications, not parallel delivery
+tracks. Maintenance of the shared authorization core continues throughout;
+it cannot wait for the separate White Night application.
+
 ## Operating Modes
 
 NightRecon will converge on five independently installable applications:
@@ -257,8 +273,11 @@ NightRecon continues to distinguish observed relationships from inferred hypothe
 Status: development in verified batches; no release tag yet.
 
 The measurable Red completion gates and specialist comparison are maintained
-in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md). The first evidence-only path-review
-primitive is under development. Red remains an integrated CLI capability until
+in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md). The evidence-only path-review
+primitive and shared-distribution launcher are implemented. An offline
+normalized directory-export importer now bridges observed user/group
+membership evidence into the graph without live queries. Red remains an
+integrated CLI capability until
 its independent installation, command isolation, and acceptance tests pass.
 
 ## Generation 3 — Red Validation Engine
@@ -331,7 +350,9 @@ Planned capabilities:
 - data-retention policy
 - evidence custody and export
 
-The White layer becomes the authority that decides what NightRecon is permitted to execute.
+The separate White Night application will provide engagement administration
+and exercise control. Mandatory shared-core authorization and safety remain
+available to Red Night before White Night exists as an application.
 
 ## Generation 6 — Black-Box / External Attack Surface
 
@@ -386,8 +407,9 @@ The current execution order is:
    Evidence-only path review and a shared-distribution `red-night` launcher
    now exist; build a separately installable Red Night package with isolated
    and combined install tests behind the verified gateway.
-4. Begin Active Directory identity collection as a separate authorization-first
-   Generation 2 release built on the stable graph evidence contract.
-5. Grow the remaining independently installable Nights as their real
-   workflows and isolation tests become available; add Entra ID and broader
-   privilege/trust collectors in subsequent verified releases.
+4. Build authorization-first live Active Directory and Entra ID collectors on
+   the stable graph evidence contract; the offline normalized directory export
+   bridge is an intermediate step, not a live collector.
+5. Finish Red Night's remaining controlled validation, engagement safety,
+   reporting, and repeatable specialist-comparison gates before beginning
+   product development of another Night.

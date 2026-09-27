@@ -19,6 +19,11 @@ Benchmark reviewed on 2026-09-27 against official product documentation:
 
 These references set evaluation categories, not a plan to copy every feature or
 to claim that a matching feature name means equivalent effectiveness.
+Red Night must have a repeatable lab result for every relevant category before
+any claim that it matches or exceeds a specialist tool. Measure detection
+coverage, false positives, runtime, operator steps, evidence quality, and
+authorization behavior under the same documented lab conditions. Unmeasured
+categories remain open even when a similar feature exists.
 
 ## Release gates
 
@@ -48,6 +53,15 @@ to claim that a matching feature name means equivalent effectiveness.
 
 ## Current batch
 
+An offline directory-export bridge accepts only bounded, secret-free normalized
+JSON with explicitly labeled users, groups, and group-member DNs. It maps
+present entries to deterministic graph identities and observed membership
+evidence; out-of-snapshot references are counted as unresolved and create no
+graph edge. Unexpected fields, including credentials, and malformed or
+over-budget exports are rejected. This is an internal parser, not a CLI or
+live AD/Entra collector; it needs authorized real-world integration and lab
+benchmarking before the identity gate can close.
+
 The `red-night` entry point routes existing assessment commands through the
 fail-closed Red gateway. Packaged-command smoke tests verify the installed
 launcher, the scope-aware scan help, catalog, and denied unknown commands on
@@ -63,4 +77,4 @@ not execute an attack, assign an ATT&CK technique, or add a network collector.
 
 The next substantial product step is the separately installable Red Night
 package with isolated and combined installation tests, followed by
-authorization-first identity collectors and deeper lab-backed assessment.
+authorization-first live identity collectors and deeper lab-backed assessment.
