@@ -6,6 +6,7 @@ from pathlib import Path
 import tomllib
 import unittest
 
+from nightrecon.authorization_policy import Scope, TargetType, parse_target
 from nightrecon.edition_policy import (
     EDITIONS,
     EditionRouteError,
@@ -68,6 +69,41 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
         self.assertIn("from nightrecon.edition_policy import", source)
         self.assertIn("from nightrecon.cli import main as legacy_main", source)
         self.assertNotIn("_COMMANDS =", source)
+
+    def test_authorization_policy_has_no_execution_imports(self) -> None:
+        source = (ROOT / "nightrecon" / "authorization_policy.py").read_text(
+            encoding="utf-8"
+        )
+        forbidden = (
+            "nightrecon.cli",
+            "socket",
+            "requests",
+            "playwright",
+            "paramiko",
+            "impacket",
+            "pywinrm",
+        )
+        for name in forbidden:
+            with self.subTest(name=name):
+                self.assertNotIn(name, source)
+
+    def test_legacy_target_and_scope_modules_reexport_shared_types(self) -> None:
+        from nightrecon.scope import Scope as LegacyScope
+        from nightrecon.targets import TargetType as LegacyTargetType
+        from nightrecon.targets import parse_target as legacy_parse_target
+
+        self.assertIs(LegacyScope, Scope)
+        self.assertIs(LegacyTargetType, TargetType)
+        self.assertIs(legacy_parse_target, parse_target)
+
+    def test_scope_remains_explicit_and_fail_closed(self) -> None:
+        scope = Scope.from_values(["192.0.2.0/24", "example.test"])
+        self.assertTrue(scope.is_authorized(parse_target("192.0.2.10")))
+        self.assertTrue(scope.is_authorized(parse_target("EXAMPLE.TEST")))
+        self.assertFalse(scope.is_authorized(parse_target("198.51.100.10")))
+        self.assertFalse(scope.is_authorized(parse_target("other.example.test")))
+        with self.assertRaisesRegex(ValueError, "At least one scope rule"):
+            Scope.from_values([])
 
 
 if __name__ == "__main__":
