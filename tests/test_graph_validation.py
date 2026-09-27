@@ -108,6 +108,57 @@ class GraphValidationTests(unittest.TestCase):
             ("invalid-relationship-kinds",),
         )
 
+    def test_identity_relationship_kinds_are_validated(self):
+        identity = GraphNode.create(
+            kind=GraphNodeKind.IDENTITY,
+            natural_key="user:alice",
+            label="Alice",
+            provenance=self.provenance,
+        )
+        permission = GraphNode.create(
+            kind=GraphNodeKind.PERMISSION,
+            natural_key="permission:alice",
+            label="Access",
+            provenance=self.provenance,
+        )
+        invalid = GraphEdge.create(
+            source_node_id=permission.node_id,
+            target_node_id=identity.node_id,
+            relationship="has-permission",
+            evidence_state=GraphEvidenceState.OBSERVED,
+            provenance=self.provenance,
+        )
+        graph = IdentityGraph(nodes=(identity, permission), edges=(invalid,))
+
+        self.assertEqual(
+            tuple(issue.code for issue in validate_identity_graph(graph)),
+            ("invalid-relationship-kinds",),
+        )
+
+    def test_identity_relationships_may_be_inferred(self):
+        identity = GraphNode.create(
+            kind=GraphNodeKind.IDENTITY,
+            natural_key="user:alice",
+            label="Alice",
+            provenance=self.provenance,
+        )
+        group = GraphNode.create(
+            kind=GraphNodeKind.GROUP,
+            natural_key="group:operators",
+            label="Operators",
+            provenance=self.provenance,
+        )
+        inferred = GraphEdge.create(
+            source_node_id=identity.node_id,
+            target_node_id=group.node_id,
+            relationship="member-of",
+            evidence_state=GraphEvidenceState.INFERRED,
+            provenance=self.provenance,
+        )
+        graph = IdentityGraph(nodes=(identity, group), edges=(inferred,))
+
+        self.assertEqual(validate_identity_graph(graph), ())
+
     def test_core_evidence_relationships_cannot_be_inferred(self):
         asset = GraphNode.create(
             kind=GraphNodeKind.ASSET,
