@@ -159,6 +159,30 @@ class GraphValidationTests(unittest.TestCase):
 
         self.assertEqual(validate_identity_graph(graph), ())
 
+    def test_critical_asset_relationship_kinds_are_validated(self):
+        asset = GraphNode.create(
+            kind=GraphNodeKind.ASSET,
+            natural_key="192.0.2.4",
+            label="asset",
+            provenance=self.provenance,
+        )
+        critical = GraphNode.create(
+            kind=GraphNodeKind.CRITICAL_ASSET,
+            natural_key="192.0.2.4",
+            label="critical",
+            provenance=self.provenance,
+        )
+        valid = GraphEdge.create(
+            source_node_id=asset.node_id,
+            target_node_id=critical.node_id,
+            relationship="classified-as-critical",
+            evidence_state=GraphEvidenceState.OBSERVED,
+            provenance=self.provenance,
+        )
+        graph = IdentityGraph(nodes=(asset, critical), edges=(valid,))
+
+        self.assertEqual(validate_identity_graph(graph), ())
+
     def test_core_evidence_relationships_cannot_be_inferred(self):
         asset = GraphNode.create(
             kind=GraphNodeKind.ASSET,
