@@ -537,9 +537,8 @@ The v0.30 credentialed infrastructure layer extends those boundaries to SMB, Win
 
 ## Roadmap
 
-The authoritative NightRecon development plan is maintained in [ROADMAP.md](ROADMAP.md). v0.30.0 Broader Credentialed Infrastructure Assessment and v0.31.0 Identity Graph Foundation are released, guarded, tagged, and verified. Generation 2 continues with authorization-first identity collection while the five-edition architecture is developed in separately verified batches.
+The authoritative NightRecon development plan is maintained in [ROADMAP.md](ROADMAP.md). v0.30.0 Broader Credentialed Infrastructure Assessment and v0.31.0 Identity Graph Foundation are released, guarded, tagged, and verified. [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md) defines the measured completion standard for a separate NightRecon Red application; the five-edition architecture is being developed in verified batches.
 
 ## License
 
 NightRecon is licensed under the MIT License.
-
