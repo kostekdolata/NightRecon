@@ -1,10 +1,13 @@
-"""Tests for the backend-neutral shared engagement store."""
+"""Tests for backend-neutral and portable shared engagement stores."""
 
 from __future__ import annotations
 
+from pathlib import Path
+import tempfile
 import unittest
 
 from nightrecon_shared_core.contracts import EngagementEnvelope, EvidenceRecord
+from nightrecon_shared_core.file_store import FileEngagementStore
 from nightrecon_shared_core.store import EvidenceConflictError, InMemoryEngagementStore
 
 
@@ -83,6 +86,62 @@ class EngagementStoreTests(unittest.TestCase):
     def test_blank_engagement_read_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "engagement_id"):
             InMemoryEngagementStore().records(" ")
+
+    def test_file_store_round_trips_and_filters(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nightrecon-store-") as directory:
+            path = Path(directory) / "engagements.json"
+            store = FileEngagementStore(path)
+            red = record("r-1", "red", "identity.directory-snapshot")
+            blue = record("b-1", "blue", "alert.observation")
+            store.append_envelope(EngagementEnvelope("eng-1", (red, blue)))
+
+            reloaded = FileEngagementStore(path)
+            self.assertEqual(reloaded.records("eng-1"), (blue, red))
+            self.assertEqual(
+                reloaded.records("eng-1", source_night="red"),
+                (red,),
+            )
+
+    def test_file_store_identical_append_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nightrecon-store-") as directory:
+            path = Path(directory) / "engagements.json"
+            item = record("r-1", "red", "identity.directory-snapshot")
+            store = FileEngagementStore(path)
+            store.append(item)
+            first = path.read_bytes()
+            store.append(item)
+            self.assertEqual(path.read_bytes(), first)
+
+    def test_file_store_rejects_conflicting_duplicate_after_reload(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nightrecon-store-") as directory:
+            path = Path(directory) / "engagements.json"
+            FileEngagementStore(path).append(record("r-1", "red", "asset.observation"))
+            reloaded = FileEngagementStore(path)
+            conflicting = EvidenceRecord(
+                engagement_id="eng-1",
+                evidence_id="r-1",
+                source_night="red",
+                evidence_type="asset.observation",
+                observed_at="2026-09-27T22:50:00+00:00",
+                provenance="fixture://changed",
+                data={"reference": "changed"},
+            )
+            with self.assertRaises(EvidenceConflictError):
+                reloaded.append(conflicting)
+
+    def test_file_store_rejects_corrupt_and_future_schema(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nightrecon-store-") as directory:
+            path = Path(directory) / "engagements.json"
+            path.write_text("{not-json", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "valid UTF-8 JSON"):
+                FileEngagementStore(path)
+
+            path.write_text(
+                '{"schema_version":2,"engagements":[]}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "schema version"):
+                FileEngagementStore(path)
 
 
 if __name__ == "__main__":
