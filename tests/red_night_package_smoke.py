@@ -46,12 +46,20 @@ def main() -> None:
         export.write_text(json.dumps({"schema_version": 1, "entries": [
             {"dn": "CN=Operator,DC=example,DC=test", "kind": "user",
              "name": "Operator"},
+            {"dn": "CN=Team,DC=example,DC=test", "kind": "group",
+             "name": "Team", "members": ["CN=Operator,DC=example,DC=test"]},
         ]}), encoding="utf-8")
         imported = run("identity", "import", str(export),
                        "--source-id", "launcher-smoke")
         assert imported.returncode == 0, imported.stderr
         assert json.loads(imported.stdout)["identities"] == 1
         assert "graph" not in json.loads(imported.stdout)
+        reviewed = run("identity", "import", str(export),
+                       "--source-id", "launcher-smoke", "--start-dn",
+                       "CN=Operator,DC=example,DC=test", "--target-dn",
+                       "CN=Team,DC=example,DC=test")
+        assert reviewed.returncode == 0, reviewed.stderr
+        assert json.loads(reviewed.stdout)["path_review"]["paths"] == 1
 
     print("Red Night installed launcher smoke: passed")
 
