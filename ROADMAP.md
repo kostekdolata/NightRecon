@@ -368,13 +368,14 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Establish the five-edition catalog and separation contract while fixing the
-   post-release v0.31 CLI version mismatch.
-2. Add tested, fail-closed command ownership and edition routing without
-   changing the existing single-package CLI defaults.
-3. Begin Active Directory identity collection as a separate authorization-first
+1. Keep the five-edition catalog, separation contract, and v0.31 CLI version
+   correction merged and verified.
+2. Verify the internal fail-closed edition command gateway without changing
+   the existing single-package CLI defaults.
+3. Package the first useful independently installable edition behind that
+   gateway, proving isolated installation and no cross-edition active commands.
+4. Begin Active Directory identity collection as a separate authorization-first
    Generation 2 release built on the stable graph evidence contract.
-4. Add Entra ID and broader privilege/trust collectors in subsequent
-   independently verified releases.
-5. Package each edition independently only after isolation tests prove one
-   edition cannot silently invoke another edition's active commands.
+5. Grow the remaining independently installable editions as their real
+   workflows and isolation tests become available; add Entra ID and broader
+   privilege/trust collectors in subsequent verified releases.

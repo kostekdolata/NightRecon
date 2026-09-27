@@ -17,6 +17,13 @@ of the scanners, evidence models, or safety rules.
 catalog. It is informational only: it does not select, install, enable, or
 authorize an edition. The existing `nightrecon` CLI continues to work as before.
 
+An internal `edition_gateway` now denies unowned commands before calling the
+existing CLI. Red can route existing authorized assessment commands through this
+boundary. White, Blue, Purple, and Black-box expose only the informational
+catalog there for now. In particular, the generic CIDR discovery command is not
+silently presented as a Black-box external-assessment workflow. The gateway is
+not yet an installed application or a substitute for the core scope checks.
+
 ## Separation contract
 
 - The shared core owns existing scope and authorization checks, budgets, secret
@@ -39,11 +46,13 @@ authorize an edition. The existing `nightrecon` CLI continues to work as before.
 
 ## Delivery gates
 
-1. Catalog and published boundaries (this development batch).
-2. Command ownership and fail-closed edition routing, including tests proving a
-   single-edition installation cannot invoke another edition's active commands.
+1. Catalog and published boundaries (completed).
+2. Command ownership and fail-closed routing boundary (internal gateway now
+   present; independently installed command routing still requires packaging
+   tests).
 3. Separate installable edition entry points with optional dependencies and
-   packaging tests for one edition, arbitrary combinations, and the full suite.
+   tests proving one edition cannot invoke another edition's active commands,
+   including one edition, arbitrary combinations, and the full suite.
 4. Add the missing Blue/White/Purple capabilities and further Red/Black-box
    capabilities in small CI-verified releases. Do not advertise a standalone
    edition as available until its isolation and functional acceptance tests pass.

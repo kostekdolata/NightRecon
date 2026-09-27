@@ -1740,9 +1740,9 @@ def _load_installed_check_pack_checks(
     return tuple(checks)
 
 
-def main() -> None:
+def main(argv: tuple[str, ...] | None = None) -> None:
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.command == "editions":
         if args.json:
