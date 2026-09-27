@@ -12,6 +12,7 @@ from nightrecon.graph_projection import (
     build_identity_graph_from_asset_inventory,
 )
 from nightrecon.graph_threat_context import add_threat_context_to_identity_graph
+from nightrecon.graph_validation import assert_valid_identity_graph
 from nightrecon.threat_context import ThreatContextResult
 from nightrecon.vulnerability_intelligence import ServiceVulnerabilityResult
 
@@ -51,4 +52,5 @@ def build_identity_graph(
         observed_at=assessment_observed_at,
         limits=limits,
     )
+    assert_valid_identity_graph(graph)
     return graph
