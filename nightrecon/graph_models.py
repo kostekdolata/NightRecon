@@ -17,6 +17,7 @@ class GraphNodeKind(str, Enum):
     PERMISSION = "permission"
     VULNERABILITY = "vulnerability"
     CRITICAL_ASSET = "critical-asset"
+    ASSESSMENT_FINDING = "assessment-finding"
 
 
 class GraphEvidenceState(str, Enum):
