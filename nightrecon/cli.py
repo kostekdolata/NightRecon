@@ -63,6 +63,12 @@ from nightrecon.check_pack_signing import (
 from nightrecon.config import NightReconConfig
 from nightrecon.cisa_kev_provider import CisaKevProvider
 from nightrecon.discovery_report import HostDiscoveryReport
+from nightrecon.dast_cors import assess_credentialed_cors
+from nightrecon.dast_policy import (
+    DastBudgetPolicy,
+    DastBudgetState,
+)
+from nightrecon.dast_report import DastAssessmentReport
 from nightrecon.epss_provider import FirstEpssProvider
 from nightrecon.host_discovery import (
     discover_hosts,
@@ -802,6 +808,51 @@ def build_parser() -> argparse.ArgumentParser:
             "Applies only with --assessment and "
             "--max-web-assessment-intrusiveness safe-active. "
             "Default: 10"
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--dast-cors",
+        action="store_true",
+        help=(
+            "Run the bounded credentialed-CORS reflection DAST check over "
+            "same-origin crawled pages. Requires --assessment and "
+            "--max-web-assessment-intrusiveness safe-active."
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--dast-max-total-requests",
+        type=int,
+        default=20,
+        help="Maximum requests across the v0.28 DAST run. Default: 20",
+    )
+
+    crawl_parser.add_argument(
+        "--dast-max-family-requests",
+        type=int,
+        default=10,
+        help="Maximum requests per DAST family. Default: 10",
+    )
+
+    crawl_parser.add_argument(
+        "--dast-cors-max-targets",
+        type=int,
+        default=3,
+        help=(
+            "Maximum same-origin crawl targets checked for credentialed "
+            "CORS reflection. Each target requires two OPTIONS requests. "
+            "Default: 3"
+        ),
+    )
+
+    crawl_parser.add_argument(
+        "--dast-max-response-bytes",
+        type=int,
+        default=65_536,
+        help=(
+            "Maximum response bytes read per DAST request. Response bodies "
+            "are fingerprinted and discarded. Default: 65536"
         ),
     )
 
@@ -2597,6 +2648,70 @@ def main() -> None:
                 raise ValueError(
                     "max_web_assessment_requests must be at least 1."
                 )
+
+            if args.dast_cors:
+                if not args.assessment:
+                    raise ValueError(
+                        "--dast-cors requires --assessment."
+                    )
+
+                if (
+                    args.max_web_assessment_intrusiveness
+                    != "safe-active"
+                ):
+                    raise ValueError(
+                        "--dast-cors requires "
+                        "--max-web-assessment-intrusiveness safe-active."
+                    )
+
+                if args.cookie_env:
+                    raise ValueError(
+                        "--dast-cors does not accept raw --cookie-env context; "
+                        "use --session-cookies for ephemeral cookie continuity."
+                    )
+
+                if not 1 <= args.dast_cors_max_targets <= 5:
+                    raise ValueError(
+                        "dast_cors_max_targets must be between 1 and 5."
+                    )
+
+                if args.dast_max_total_requests < 2:
+                    raise ValueError(
+                        "dast_max_total_requests must be at least 2."
+                    )
+
+                if args.dast_max_family_requests < 2:
+                    raise ValueError(
+                        "dast_max_family_requests must be at least 2."
+                    )
+
+                if args.dast_max_response_bytes < 1:
+                    raise ValueError(
+                        "dast_max_response_bytes must be at least 1."
+                    )
+
+                required_dast_requests = (
+                    args.dast_cors_max_targets
+                    * 2
+                )
+
+                if (
+                    required_dast_requests
+                    > args.dast_max_total_requests
+                ):
+                    raise ValueError(
+                        "Configured CORS targets exceed "
+                        "dast_max_total_requests."
+                    )
+
+                if (
+                    required_dast_requests
+                    > args.dast_max_family_requests
+                ):
+                    raise ValueError(
+                        "Configured CORS targets exceed "
+                        "dast_max_family_requests."
+                    )
         except ValueError as exc:
             parser.error(str(exc))
 
@@ -2698,6 +2813,83 @@ def main() -> None:
                 args.scope
             ),
         )
+
+        dast_report = None
+        dast_output_path = None
+
+        if args.dast_cors:
+            dast_policy = DastBudgetPolicy(
+                max_total_requests=(
+                    args.dast_max_total_requests
+                ),
+                default_family_requests=(
+                    args.dast_max_family_requests
+                ),
+                family_limits=(
+                    (
+                        "cors",
+                        args.dast_max_family_requests,
+                    ),
+                ),
+            )
+
+            try:
+                dast_result = assess_credentialed_cors(
+                    urls=tuple(
+                        page.url
+                        for page in crawl.pages
+                        if not page.error
+                    ),
+                    origin=crawl.origin,
+                    policy=dast_policy,
+                    state=DastBudgetState(),
+                    authorized=scope.is_authorized(
+                        target
+                    ),
+                    max_targets=(
+                        args.dast_cors_max_targets
+                    ),
+                    timeout=config.connect_timeout,
+                    max_response_bytes=(
+                        args.dast_max_response_bytes
+                    ),
+                    authorization=authorization,
+                    cookie_jar=session_cookie_jar,
+                )
+            except (
+                PermissionError,
+                ValueError,
+            ) as exc:
+                logger.write(
+                    "crawl.dast_failed",
+                    session_id=session.session_id,
+                    origin=crawl.origin,
+                    target=target.value,
+                    target_type=target.target_type.value,
+                    scope=args.scope,
+                    check=(
+                        "web.cors.credentialed-origin-reflection"
+                    ),
+                    reason=exc.__class__.__name__,
+                )
+                parser.error(
+                    "Safe-active DAST was rejected by its safety policy."
+                )
+
+            dast_report = DastAssessmentReport.create(
+                session=session,
+                origin=crawl.origin,
+                enabled_checks=(
+                    "web.cors.credentialed-origin-reflection",
+                ),
+                policy=dast_policy,
+                state=dast_result.state,
+                findings=dast_result.findings,
+                evidence_records=(
+                    dast_result.evidence_records
+                ),
+                errors=dast_result.errors,
+            )
 
         browser_report = None
         browser_output_path = None
@@ -2853,6 +3045,11 @@ def main() -> None:
                 workflow_report
             )
 
+        if dast_report is not None:
+            dast_output_path = store.save_dast_assessment_report(
+                dast_report
+            )
+
         if browser_report is not None:
             browser_output_path = store.save_browser_discovery_report(
                 browser_report
@@ -2905,6 +3102,22 @@ def main() -> None:
             workflow_executions=(
                 len(workflow_report.executions)
                 if workflow_report is not None
+                else 0
+            ),
+            dast_enabled=args.dast_cors,
+            dast_requests_used=(
+                dast_report.requests_used
+                if dast_report is not None
+                else 0
+            ),
+            dast_findings=(
+                len(dast_report.findings)
+                if dast_report is not None
+                else 0
+            ),
+            dast_errors=(
+                len(dast_report.errors)
+                if dast_report is not None
                 else 0
             ),
             browser_discovery_enabled=args.browser_discovery,
@@ -3064,6 +3277,50 @@ def main() -> None:
                 print(
                     f"    Evidence: {finding.evidence}"
                 )
+
+        if dast_report is not None:
+            dast_summary = dast_report.to_dict()[
+                "summary"
+            ]
+            print(
+                "DAST Summary: "
+                f"checks={dast_summary['enabled_checks']} "
+                f"requests={dast_summary['requests_used']} "
+                f"findings={dast_summary['findings']} "
+                f"evidence={dast_summary['evidence_records']} "
+                f"errors={dast_summary['errors']}"
+            )
+            print(
+                "DAST limits: "
+                f"total={dast_report.max_total_requests} "
+                f"family={dast_report.default_family_requests}"
+            )
+
+            for finding in dast_report.findings:
+                print(
+                    "  DAST FINDING "
+                    f"{finding.check_id} "
+                    f"severity={finding.severity} "
+                    f"target={finding.target_url}"
+                )
+                print(
+                    f"    {finding.title}"
+                )
+
+                for evidence in finding.evidence:
+                    print(
+                        f"    Evidence: {evidence}"
+                    )
+
+                if finding.retest is not None:
+                    print(
+                        "    Retest ID: "
+                        f"{finding.retest.retest_id}"
+                    )
+
+            print(
+                f"DAST result file: {dast_output_path}"
+            )
 
         if workflow_report is not None:
             print(
