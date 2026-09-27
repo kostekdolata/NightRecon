@@ -28,6 +28,7 @@ class InfrastructureTransport(str, Enum):
     SMB = "smb"
     WINRM = "winrm"
     DATABASE = "database"
+    NETWORK_DEVICE = "network-device"
 
 
 class InfrastructureActionCategory(str, Enum):

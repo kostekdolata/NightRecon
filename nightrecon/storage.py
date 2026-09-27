@@ -11,7 +11,12 @@ from nightrecon.browser_report import BrowserDiscoveryReport
 from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.dast_report import DastAssessmentReport
 from nightrecon.graphql_report import GraphQLSchemaReport
-from nightrecon.infrastructure_report import InfrastructureAssessmentReport
+from nightrecon.infrastructure_report import (
+    DatabaseInfrastructureAssessmentReport,
+    InfrastructureAssessmentReport,
+    SmbInfrastructureAssessmentReport,
+    WinRmInfrastructureAssessmentReport,
+)
 from nightrecon.report import TcpScanReport
 from nightrecon.session import ScanSession
 from nightrecon.web_report import WebCrawlReport
@@ -164,7 +169,12 @@ class ResultStore:
 
     def save_infrastructure_assessment_report(
         self,
-        report: InfrastructureAssessmentReport,
+        report: (
+            DatabaseInfrastructureAssessmentReport
+            | InfrastructureAssessmentReport
+            | SmbInfrastructureAssessmentReport
+            | WinRmInfrastructureAssessmentReport
+        ),
     ) -> Path:
         """Save credentialed infrastructure evidence without secret material."""
 

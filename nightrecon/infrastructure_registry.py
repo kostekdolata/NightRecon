@@ -58,6 +58,18 @@ _BUILTIN_ACTIONS = (
         category=InfrastructureActionCategory.INVENTORY,
         description="Observe database schema inventory metadata.",
     ),
+    InfrastructureActionDefinition(
+        action_id="network_device.system_identity",
+        transport=InfrastructureTransport.NETWORK_DEVICE,
+        category=InfrastructureActionCategory.IDENTITY,
+        description="Observe network-device system identity metadata.",
+    ),
+    InfrastructureActionDefinition(
+        action_id="network_device.interface_inventory",
+        transport=InfrastructureTransport.NETWORK_DEVICE,
+        category=InfrastructureActionCategory.INVENTORY,
+        description="Observe network-device interface state metadata.",
+    ),
 )
 
 

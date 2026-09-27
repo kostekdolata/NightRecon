@@ -179,28 +179,35 @@ Delivered capabilities:
 
 Release gate: version/docs complete, exact-head seven-job PR CI green, merge to `master`, verify post-merge seven-job CI, then add the verified merge commit to the guarded release-tag allowlist.
 
-### v0.30.x — Broader Credentialed Infrastructure Assessment
+### v0.30.0 — Broader Credentialed Infrastructure Assessment
 
-Goal: extend the same authorization-first credentialed model beyond SSH.
+Status: release candidate.
 
-Planned targets:
+Delivered capabilities:
 
-- SMB
-- WinRM
-- supported databases
-- selected network devices
+- authorization-first credentialed assessment extended beyond SSH
+- SMB server identity and bounded share inventory
+- Impacket SMB runtime with NTLMv1 disabled and no file/remote-execution surface
+- WinRM system identity and bounded patch inventory
+- pywinrm HTTPS/NTLM runtime with mandatory certificate validation
+- PostgreSQL server identity and bounded schema inventory through psycopg
+- MySQL server identity and bounded schema inventory through mysql-connector
+- database TLS and server-identity verification required with no CLI bypass
+- selected network-device evidence contract for NETCONF-over-SSH metadata
+- fixed network-device identity and interface-inventory actions
+- mandatory network-device host-identity verification represented in policy
+- exact symbolic read-only action allowlists for every protocol
+- immutable per-run action budgets and pre-resolution budget validation
+- fresh one-action ephemeral credential leases
+- secret-free typed evidence and separate infrastructure reports
+- deterministic bounded inventory normalization and duplicate rejection
+- sanitized failure reasons with no credential or exception-detail leakage
+- explicit single-host scope enforcement and CIDR rejection
+- no arbitrary shell, PowerShell, SQL, device command, RPC payload, file access, configuration mutation, remote execution, or general-purpose query surface
+- dedicated Paramiko, Impacket, pywinrm, psycopg, and MySQL connector compatibility CI jobs
+- cross-platform Python 3.11/3.14 verification on Ubuntu and Windows
 
-Controls:
-
-- explicit credential/provider source
-- least-privilege guidance
-- read-only/configuration-audit defaults
-- protocol-specific action allowlists
-- strict endpoint/server identity verification where available
-- secret redaction and ephemeral credential handling
-- bounded typed evidence only
-- capability-specific request/action ceilings
-- no arbitrary command/query surface
+Release gate: version/docs complete, exact-head eleven-job push + PR CI green, merge to `master`, verify post-merge eleven-job CI, add the verified release merge commit to the guarded release-tag allowlist, then create the annotated `v0.30.0` tag pointing to that release merge commit.
 
 ## Generation 2 — Identity and Attack-Path Intelligence
 
