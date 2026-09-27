@@ -67,39 +67,32 @@ Red Night exposes the first workspace adapter:
 These commands read, summarize, import, or export evidence only. They do not
 scan, collect, approve, or authorize targets.
 
-## Red-owned execution extraction
+## Red-owned existing capability assignment
 
-Bounded host discovery and TCP connect scanning now have canonical Red-owned
-modules:
+Existing NightRecon assessment engines remain canonical in their proven modules.
+Red ownership is recorded in [RED_OWNERSHIP.md](RED_OWNERSHIP.md) and
+`nightrecon.red_ownership` rather than by copying implementations.
 
-- `nightrecon.red_host_discovery`
-- `nightrecon.red_tcp_scanner`
-- `nightrecon.red_service_detection`
+`nightrecon.red_host_discovery`, `red_tcp_scanner`, and
+`red_service_detection` are thin ownership facades over the original modules.
+They contain no duplicate network implementation. The Red/legacy CLI may import
+through those facades while the original modules and established test patch
+points remain stable.
 
-The legacy `nightrecon.host_discovery` and `nightrecon.tcp_scanner` modules
-are compatibility re-exports only, and the compatibility CLI consumes the
-canonical Red modules directly. This establishes ownership without changing the
-public API or bypassing existing CLI scope checks.
+This is an ownership and packaging seam, not a feature rewrite. Physical module
+moves should happen only when a coherent Red engine package can be built without
+duplicating code or changing behavior.
 
-These engines are still physically inside the legacy `nightrecon` distribution,
-so this is an ownership/runtime seam rather than complete package isolation.
-Moving them into a separately versioned Red engine package remains a later
-packaging gate.
+## Existing Red engines awaiting package separation
 
-## Red-owned engines still to extract
+Discovery/scanning, service/TLS/OS evidence, web/DAST, API, credentialed
+infrastructure assessment, vulnerability/check execution, asset inventory,
+reporting, and graph/path foundations already exist and are assigned to Red.
 
-The remaining Red runtime boundary includes:
-
-- service/version and OS evidence beyond the extracted TCP primitives;
-- web/API assessment and bounded browser workflows;
-- infrastructure assessment adapters;
-- vulnerability/check execution for authorized Red assessment;
-- identity graph construction/path review and future authorized collectors;
-- Red reporting and controlled validation surfaces.
-
-Representative legacy modules include `host_discovery.py`, `tcp_scanner.py`,
-`service_detection.py`, `web_*.py`, `api_*.py`,
-`infrastructure_*.py`, `red_directory_*.py`, and `graph_*.py`.
+The remaining boundary problem is package separation: `packages/red-night`
+still depends on the monolithic `nightrecon==0.31.0` distribution. The next
+packaging work should group existing Red-owned modules and their optional extras
+without reimplementing them.
 
 ## Extraction rules
 

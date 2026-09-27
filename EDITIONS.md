@@ -54,11 +54,13 @@ catalog there for now. In particular, the generic CIDR discovery command is not
 silently presented as a Black Night external-assessment workflow. The gateway is
 not a substitute for the core scope checks.
 
-Bounded host discovery, TCP connect scanning, and service-detection orchestration now have canonical Red-owned
-runtime modules (`red_host_discovery`, `red_tcp_scanner`, and `red_service_detection`). The legacy module
-names remain compatibility re-exports, and the legacy CLI imports the Red-owned
-implementations directly. This is an execution-ownership seam, not yet a fully
-separate Red engine package; existing authorization/scope behavior is unchanged.
+Existing host discovery, TCP scanning, service detection, web/API assessment,
+credentialed infrastructure assessment, vulnerability intelligence, checks,
+inventory, reporting, and graph/path capabilities are assigned to Red Night.
+The `red_host_discovery`, `red_tcp_scanner`, and `red_service_detection`
+modules are thin ownership facades over the existing proven implementations;
+they do not duplicate engine code. The detailed ownership map is maintained in
+`RED_OWNERSHIP.md`. Existing authorization/scope behavior is unchanged.
 
 ## Stack composition contract
 

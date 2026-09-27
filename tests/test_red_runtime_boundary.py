@@ -139,24 +139,17 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 2)
             self.assertIn("--engagement-id is required", completed.stderr)
 
-    def test_legacy_discovery_modules_are_compatibility_reexports(self) -> None:
-        host_source = (ROOT / "nightrecon" / "host_discovery.py").read_text(
-            encoding="utf-8"
-        )
-        tcp_source = (ROOT / "nightrecon" / "tcp_scanner.py").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("nightrecon.red_host_discovery", host_source)
-        self.assertIn("nightrecon.red_tcp_scanner", tcp_source)
-        self.assertNotIn("socket.socket", host_source)
-        self.assertNotIn("socket.socket", tcp_source)
-
-    def test_legacy_service_detection_module_is_compatibility_reexport(self) -> None:
-        source = (ROOT / "nightrecon" / "service_detection.py").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("nightrecon.red_service_detection", source)
-        self.assertNotIn("socket.socket", source)
+    def test_red_engine_facades_do_not_duplicate_existing_engines(self) -> None:
+        expectations = {
+            "red_host_discovery.py": "from nightrecon.host_discovery import",
+            "red_tcp_scanner.py": "from nightrecon.tcp_scanner import",
+            "red_service_detection.py": "from nightrecon.service_detection import",
+        }
+        for filename, expected_import in expectations.items():
+            source = (ROOT / "nightrecon" / filename).read_text(encoding="utf-8")
+            self.assertIn(expected_import, source)
+            self.assertNotIn("socket.socket", source)
+            self.assertNotIn("ThreadPoolExecutor", source)
 
     def test_legacy_cli_consumes_red_discovery_engines_directly(self) -> None:
         source = (ROOT / "nightrecon" / "cli.py").read_text(encoding="utf-8")

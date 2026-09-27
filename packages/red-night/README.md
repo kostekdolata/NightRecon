@@ -11,3 +11,9 @@ These distinct script names keep installation and removal of either package
 from changing the other command. Dedicated core/engine separation, optional
 extras, and arbitrary combinations of all five Nights remain future work.
 This development preview is not a completed Red Night release.
+
+
+Existing NightRecon assessment modules are treated as Red-owned capabilities.
+The separation work must package those existing implementations rather than
+copying or rebuilding them. See `RED_OWNERSHIP.md` for the current ownership
+map and remaining genuine product gaps.

@@ -51,11 +51,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -101,11 +101,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -142,11 +142,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -189,11 +189,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -241,7 +241,7 @@ class ServiceDetectionTests(unittest.TestCase):
         )
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             result = detect_service(
@@ -281,11 +281,11 @@ class ServiceDetectionTests(unittest.TestCase):
         )
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tcp_service",
+                "nightrecon.service_detection.probe_tcp_service",
                 return_value=active_fingerprint,
             ) as active_probe:
                 result = detect_service(
@@ -321,11 +321,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tcp_service"
+                "nightrecon.service_detection.probe_tcp_service"
             ) as active_probe:
                 detect_service(
                     address="127.0.0.1",
@@ -340,11 +340,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -379,11 +379,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -421,11 +421,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -464,11 +464,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -496,11 +496,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -548,14 +548,14 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_http_service"
+                "nightrecon.service_detection.probe_http_service"
             ) as http_probe:
                 with patch(
-                    "nightrecon.red_service_detection.probe_tls_service"
+                    "nightrecon.service_detection.probe_tls_service"
                 ) as tls_probe:
                     tls_probe.return_value.tls_version = "TLSv1.3"
                     tls_probe.return_value.cipher = (
@@ -590,11 +590,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -651,11 +651,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_tls_service"
+                "nightrecon.service_detection.probe_tls_service"
             ) as tls_probe:
                 tls_probe.return_value.tls_version = "TLSv1.3"
                 tls_probe.return_value.cipher = (
@@ -691,11 +691,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_http_service"
+                "nightrecon.service_detection.probe_http_service"
             ) as http_probe:
                 http_probe.return_value.status_line = ""
                 http_probe.return_value.server = ""
@@ -715,11 +715,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_http_service"
+                "nightrecon.service_detection.probe_http_service"
             ) as http_probe:
                 http_probe.return_value.status_line = "HTTP/1.1 200 OK"
                 http_probe.return_value.server = "nginx"
@@ -759,11 +759,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_http_service"
+                "nightrecon.service_detection.probe_http_service"
             ) as http_probe:
                 http_probe.return_value.status_line = "HTTP/1.1 200 OK"
                 http_probe.return_value.server = "nginx"
@@ -797,11 +797,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_http_service"
+                "nightrecon.service_detection.probe_http_service"
             ) as http_probe:
                 http_probe.return_value.status_line = "HTTP/1.1 200 OK"
                 http_probe.return_value.server = "nginx/1.24.0"
@@ -827,11 +827,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_http_service"
+                "nightrecon.service_detection.probe_http_service"
             ) as http_probe:
                 http_probe.return_value.status_line = "HTTP/1.1 200 OK"
                 http_probe.return_value.server = "nginx/1.24.0"
@@ -881,7 +881,7 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.return_value = b"SSH-2.0-OpenSSH_9.6\r\n"
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ) as socket_factory:
             result = detect_service(
@@ -923,7 +923,7 @@ class ServiceDetectionTests(unittest.TestCase):
         )
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             result = detect_service(
@@ -944,11 +944,11 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.side_effect = socket.timeout()
 
         with patch(
-             "nightrecon.red_service_detection.socket.socket",
+             "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             with patch(
-                "nightrecon.red_service_detection.probe_http_service"
+                "nightrecon.service_detection.probe_http_service"
         ) as http_probe:
                 http_probe.return_value.status_line = ""
                 http_probe.return_value.server = ""
@@ -979,7 +979,7 @@ class ServiceDetectionTests(unittest.TestCase):
         fake_socket.recv.return_value = b"SSH-2.0-OpenSSH_9.6\r\n"
 
         with patch(
-            "nightrecon.red_service_detection.socket.socket",
+            "nightrecon.service_detection.socket.socket",
             return_value=fake_socket,
         ):
             result = detect_service(

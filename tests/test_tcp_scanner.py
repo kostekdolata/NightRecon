@@ -23,7 +23,7 @@ class TcpScannerTests(unittest.TestCase):
         fake_socket.connect_ex.return_value = 0
 
         with patch(
-            "nightrecon.red_tcp_scanner.socket.socket",
+            "nightrecon.tcp_scanner.socket.socket",
             return_value=fake_socket,
         ) as socket_factory:
             result = scan_tcp_port(
@@ -52,7 +52,7 @@ class TcpScannerTests(unittest.TestCase):
         fake_socket.connect_ex.return_value = 10061
 
         with patch(
-            "nightrecon.red_tcp_scanner.socket.socket",
+            "nightrecon.tcp_scanner.socket.socket",
             return_value=fake_socket,
         ):
             result = scan_tcp_port(
@@ -70,7 +70,7 @@ class TcpScannerTests(unittest.TestCase):
         fake_socket.connect_ex.return_value = 0
 
         with patch(
-            "nightrecon.red_tcp_scanner.socket.socket",
+            "nightrecon.tcp_scanner.socket.socket",
             return_value=fake_socket,
         ) as socket_factory:
             result = scan_tcp_port(
@@ -100,7 +100,7 @@ class TcpScannerTests(unittest.TestCase):
             )
 
         with patch(
-            "nightrecon.red_tcp_scanner.scan_tcp_port",
+            "nightrecon.tcp_scanner.scan_tcp_port",
             side_effect=fake_scan,
         ) as scan_port:
             results = scan_tcp_ports(
@@ -126,7 +126,7 @@ class TcpScannerTests(unittest.TestCase):
             )
 
         with patch(
-            "nightrecon.red_tcp_scanner.scan_tcp_port",
+            "nightrecon.tcp_scanner.scan_tcp_port",
             side_effect=fake_scan,
         ):
             results = scan_tcp_ports(
@@ -152,7 +152,7 @@ class TcpScannerTests(unittest.TestCase):
             )
 
         with patch(
-            "nightrecon.red_tcp_scanner.scan_tcp_port",
+            "nightrecon.tcp_scanner.scan_tcp_port",
             side_effect=fake_scan,
         ):
             results = scan_tcp_ports(
