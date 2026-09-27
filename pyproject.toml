@@ -26,6 +26,9 @@ api = [
 ssh = [
     "paramiko>=5.0,<6",
 ]
+smb = [
+    "impacket>=0.13.1,<0.14",
+]
 keywords = [
     "security",
     "pentesting",
