@@ -1,7 +1,7 @@
 """Shared, network-free policy surface for independently installable Night apps."""
 
-from nightrecon.authorization_policy import Scope, Target, TargetType, parse_target
-from nightrecon.edition_policy import (
+from nightrecon_shared_core.authorization import Scope, Target, TargetType, parse_target
+from nightrecon_shared_core.editions import (
     EDITIONS,
     Edition,
     EditionRouteError,
@@ -10,13 +10,6 @@ from nightrecon.edition_policy import (
 )
 
 __all__ = [
-    "EDITIONS",
-    "Edition",
-    "EditionRouteError",
-    "Scope",
-    "Target",
-    "TargetType",
-    "available_commands",
-    "edition_name",
-    "parse_target",
+    "EDITIONS", "Edition", "EditionRouteError", "Scope", "Target", "TargetType",
+    "available_commands", "edition_name", "parse_target",
 ]
