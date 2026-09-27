@@ -12,6 +12,7 @@ from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.dast_report import DastAssessmentReport
 from nightrecon.graphql_report import GraphQLSchemaReport
 from nightrecon.infrastructure_report import (
+    DatabaseInfrastructureAssessmentReport,
     InfrastructureAssessmentReport,
     SmbInfrastructureAssessmentReport,
     WinRmInfrastructureAssessmentReport,
@@ -169,7 +170,8 @@ class ResultStore:
     def save_infrastructure_assessment_report(
         self,
         report: (
-            InfrastructureAssessmentReport
+            DatabaseInfrastructureAssessmentReport
+            | InfrastructureAssessmentReport
             | SmbInfrastructureAssessmentReport
             | WinRmInfrastructureAssessmentReport
         ),
