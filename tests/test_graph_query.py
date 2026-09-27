@@ -67,7 +67,14 @@ class GraphQueryTests(unittest.TestCase):
             node_kinds=(GraphNodeKind.ASSET, GraphNodeKind.SERVICE),
         )
 
-        self.assertEqual(result.nodes, (asset, service))
+        self.assertEqual(
+            result.nodes,
+            tuple(
+                node
+                for node in graph.nodes
+                if node.kind in {GraphNodeKind.ASSET, GraphNodeKind.SERVICE}
+            ),
+        )
         self.assertEqual(
             tuple(edge.relationship for edge in result.edges),
             ("exposes",),
@@ -94,7 +101,14 @@ class GraphQueryTests(unittest.TestCase):
             target_node_id=service.node_id,
         )
 
-        self.assertEqual(result.nodes, (asset, service))
+        self.assertEqual(
+            result.nodes,
+            tuple(
+                node
+                for node in graph.nodes
+                if node.node_id in {asset.node_id, service.node_id}
+            ),
+        )
         self.assertEqual(
             tuple(edge.relationship for edge in result.edges),
             ("exposes",),
