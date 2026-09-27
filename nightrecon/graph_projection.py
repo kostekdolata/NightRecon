@@ -12,6 +12,7 @@ from nightrecon.graph_models import (
     GraphProvenance,
     IdentityGraph,
 )
+from nightrecon.vulnerability_intelligence import ServiceVulnerabilityResult
 
 
 def build_identity_graph_from_asset_inventory(
@@ -137,3 +138,88 @@ def _asset_provenance(asset: AssetRecord) -> tuple[GraphProvenance, ...]:
             observed_at=observed_at,
         ),
     )
+
+
+def add_vulnerability_evidence_to_identity_graph(
+    graph: IdentityGraph,
+    vulnerabilities: tuple[ServiceVulnerabilityResult, ...],
+    *,
+    observed_at: str = "",
+    limits: GraphBuildLimits | None = None,
+) -> IdentityGraph:
+    """Add provider-returned vulnerability matches without claiming exploitability."""
+
+    builder = IdentityGraphBuilder(limits)
+    service_nodes_by_key: dict[str, GraphNode] = {}
+
+    for node in graph.nodes:
+        builder.add_node(node)
+        if node.kind is GraphNodeKind.SERVICE:
+            service_nodes_by_key[node.natural_key] = node
+
+    for edge in graph.edges:
+        builder.add_edge(edge)
+
+    for result in vulnerabilities:
+        service_key = f"{result.address}:{result.port}/tcp"
+        service_node = service_nodes_by_key.get(service_key)
+        if service_node is None:
+            raise ValueError(
+                f"vulnerability result service is missing from graph: {service_key}"
+            )
+
+        if result.lookup.error:
+            continue
+
+        for finding in result.lookup.findings:
+            provenance = (
+                GraphProvenance(
+                    source_type="vulnerability-intelligence",
+                    source_id=(
+                        f"{result.lookup.provider}:"
+                        f"{finding.vulnerability_id.strip().upper()}"
+                    ),
+                    observed_at=observed_at.strip(),
+                ),
+            )
+            properties: list[tuple[str, str]] = [
+                ("source", finding.source),
+                ("provider", result.lookup.provider),
+                ("summary", finding.summary),
+            ]
+            if finding.severity:
+                properties.append(("severity", finding.severity))
+            if finding.cvss_score is not None:
+                properties.append(("cvss_score", str(finding.cvss_score)))
+            if finding.match_basis:
+                properties.append(("match_basis", finding.match_basis))
+            if finding.matched_identifier:
+                properties.append(
+                    ("matched_identifier", finding.matched_identifier)
+                )
+
+            vulnerability_node = GraphNode.create(
+                kind=GraphNodeKind.VULNERABILITY,
+                natural_key=(
+                    f"{result.lookup.provider}:"
+                    f"{finding.vulnerability_id.strip().upper()}"
+                ),
+                label=finding.vulnerability_id.strip().upper(),
+                provenance=provenance,
+                properties=tuple(properties),
+            )
+            builder.add_node(vulnerability_node)
+            builder.add_edge(
+                GraphEdge.create(
+                    source_node_id=service_node.node_id,
+                    target_node_id=vulnerability_node.node_id,
+                    relationship="matched-vulnerability",
+                    evidence_state=GraphEvidenceState.OBSERVED,
+                    provenance=provenance,
+                    properties=(
+                        ("claim", "provider-match-only"),
+                    ),
+                )
+            )
+
+    return builder.build()
