@@ -6,6 +6,8 @@ from nightrecon.assessment_engine import ServiceAssessmentResult
 from nightrecon.asset_inventory import AssetInventory
 from nightrecon.graph_assessment import add_assessment_findings_to_identity_graph
 from nightrecon.graph_builder import GraphBuildLimits
+from nightrecon.graph_identity_evidence import IdentityEvidenceBundle
+from nightrecon.graph_identity_projection import add_identity_evidence_to_identity_graph
 from nightrecon.graph_models import IdentityGraph
 from nightrecon.graph_projection import (
     add_vulnerability_evidence_to_identity_graph,
@@ -23,9 +25,11 @@ def build_identity_graph(
     vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = (),
     threat_context: tuple[ThreatContextResult, ...] = (),
     assessments: tuple[ServiceAssessmentResult, ...] = (),
+    identity_evidence: IdentityEvidenceBundle | None = None,
     vulnerability_observed_at: str = "",
     threat_context_observed_at: str = "",
     assessment_observed_at: str = "",
+    identity_observed_at: str = "",
     limits: GraphBuildLimits | None = None,
 ) -> IdentityGraph:
     """Build one graph snapshot from existing NightRecon evidence only."""
@@ -50,6 +54,12 @@ def build_identity_graph(
         graph,
         assessments,
         observed_at=assessment_observed_at,
+        limits=limits,
+    )
+    graph = add_identity_evidence_to_identity_graph(
+        graph,
+        identity_evidence or IdentityEvidenceBundle.empty(),
+        observed_at=identity_observed_at,
         limits=limits,
     )
     assert_valid_identity_graph(graph)
