@@ -11,6 +11,7 @@ from nightrecon.browser_report import BrowserDiscoveryReport
 from nightrecon.discovery_report import HostDiscoveryReport
 from nightrecon.dast_report import DastAssessmentReport
 from nightrecon.graphql_report import GraphQLSchemaReport
+from nightrecon.infrastructure_report import InfrastructureAssessmentReport
 from nightrecon.report import TcpScanReport
 from nightrecon.session import ScanSession
 from nightrecon.web_report import WebCrawlReport
@@ -149,6 +150,26 @@ class ResultStore:
 
         self.root.mkdir(parents=True, exist_ok=True)
         output_path = self.root / f"{report.session_id}-dast.json"
+
+        with output_path.open("w", encoding="utf-8") as file:
+            json.dump(
+                report.to_dict(),
+                file,
+                indent=2,
+                sort_keys=True,
+            )
+            file.write("\n")
+
+        return output_path
+
+    def save_infrastructure_assessment_report(
+        self,
+        report: InfrastructureAssessmentReport,
+    ) -> Path:
+        """Save credentialed infrastructure evidence without secret material."""
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        output_path = self.root / f"{report.session_id}-infrastructure.json"
 
         with output_path.open("w", encoding="utf-8") as file:
             json.dump(
