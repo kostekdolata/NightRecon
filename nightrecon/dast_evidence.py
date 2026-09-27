@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from hashlib import sha256
 from urllib.parse import urlsplit, urlunsplit
 
+from nightrecon.dast_policy import DastCheckDefinition
+
 
 @dataclass(frozen=True)
 class DastResponseFingerprint:
