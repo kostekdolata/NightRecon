@@ -2,6 +2,9 @@
 
 import unittest
 from dataclasses import fields
+from pathlib import Path
+
+import nightrecon.infrastructure_smb as infrastructure_smb
 
 from nightrecon.infrastructure_smb import (
     SmbConnectionProfile,
@@ -14,6 +17,28 @@ from nightrecon.infrastructure_smb import (
 
 
 class SmbEvidenceContractTests(unittest.TestCase):
+    def test_module_source_contains_no_embedded_control_bytes(self):
+        source = Path(
+            infrastructure_smb.__file__
+        ).read_bytes()
+
+        for value in (
+            0,
+            31,
+            127,
+        ):
+            with self.subTest(
+                value=value
+            ):
+                self.assertNotIn(
+                    bytes(
+                        [
+                            value,
+                        ]
+                    ),
+                    source,
+                )
+
     def test_profile_contains_non_secret_metadata_only(self):
         profile = SmbConnectionProfile(
             username="audit-user",
