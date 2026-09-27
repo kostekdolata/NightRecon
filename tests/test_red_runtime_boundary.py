@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import tomllib
 import unittest
 
@@ -107,6 +110,33 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
         self.assertFalse(scope.is_authorized(parse_target("other.example.test")))
         with self.assertRaisesRegex(ValueError, "At least one scope rule"):
             Scope.from_values([])
+
+    def test_identity_envelope_requires_explicit_engagement_id(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="red-identity-envelope-") as directory:
+            snapshot = Path(directory) / "directory.json"
+            snapshot.write_text(
+                '{"schema_version":1,"entries":[]}',
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "nightrecon.red_night",
+                    "identity",
+                    "import",
+                    str(snapshot),
+                    "--source-id",
+                    "fixture",
+                    "--export-envelope",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("--engagement-id is required", completed.stderr)
+
 
 
 if __name__ == "__main__":
