@@ -215,36 +215,38 @@ Goal: move from isolated findings to graph-based exposure reasoning.
 
 ### v0.31.0 — Identity Graph Foundation
 
-Status: next planned release.
+Status: implementation complete; release verification in progress.
 
-Initial scope:
+Delivered foundation:
 
 - immutable graph node and edge models with stable identifiers
-- explicit provenance on every observed relationship
+- explicit provenance on graph nodes and relationships
 - clear separation of observed facts from inferred hypotheses
-- asset, service, identity, group, permission, vulnerability, and critical-asset node types
-- deterministic graph normalization and duplicate rejection
-- bounded in-memory graph construction from existing NightRecon evidence
-- no new credential collection or intrusive execution in the foundation release
-- structured graph export suitable for later attack-path search
-- unit tests covering graph determinism, provenance, deduplication, and observed-vs-inferred separation
+- asset, service, identity, group, permission, vulnerability, assessment-finding, and critical-asset node types
+- deterministic graph normalization, duplicate rejection, and bounded in-memory construction
+- deterministic graph assembly from existing asset, service, vulnerability, threat-context, assessment, identity, permission, and critical-asset evidence
+- graph consistency validation with fail-closed pipeline enforcement
+- canonical structured graph export and reproducible SHA-256 snapshot manifests
+- deterministic read-only graph indexing, structural querying, descriptive summaries, and bounded traversal
+- generic offline identity/group/permission evidence contracts with nested-group relationships
+- critical-asset classification evidence
+- bounded directed evidence-backed path discovery with depth/path ceilings and no ranking or exploitability claim
+- comprehensive cross-platform unit/integration coverage across the existing CI matrix
+- no new credential collection, network identity collectors, or intrusive execution in the foundation release
 
-The first release is intentionally data-model-first so later Active Directory, Entra ID, cloud, repository, and privilege collectors can plug into one evidence contract without weakening the existing authorization boundary.
+The foundation remains intentionally data-model-first so later Active Directory, Entra ID, cloud, repository, certificate/trust, and privilege collectors can plug into one evidence contract without weakening the existing authorization boundary.
 
-Planned capabilities:
+Deferred to subsequent Generation 2 releases:
 
-- unified asset/service/identity/permission/vulnerability graph
 - Active Directory and Entra ID collection
-- group and nested-group relationships
-- local-admin and delegated privilege relationships
-- service accounts and machine identities
+- local-admin and delegated privilege collectors
+- service-account and machine-identity collectors
 - certificate and trust relationships
 - cloud and repository identities
-- critical-asset classification
 - choke-point and blast-radius analysis
-- evidence-backed attack-path search
+- higher-level attack-path ranking or validation
 
-NightRecon must distinguish observed relationships from inferred hypotheses and keep path reasoning reproducible.
+NightRecon continues to distinguish observed relationships from inferred hypotheses and keeps path reasoning reproducible and evidence-backed.
 
 ## Generation 3 — Red Validation Engine
 
@@ -363,8 +365,8 @@ The engine will eventually require a production platform around it:
 
 The current locked execution order is:
 
-1. Close v0.30.0 documentation metadata so README, roadmap, package version, release commit, and guarded annotated tag agree.
-2. Start v0.31.0 Identity Graph Foundation in a fresh development branch from the verified `master` checkpoint.
-3. Implement immutable graph primitives, provenance, observed-vs-inferred semantics, deterministic normalization, and bounded construction from existing NightRecon evidence.
-4. Add structured graph export and comprehensive unit tests before introducing any new identity collectors.
-5. Only after the graph foundation is stable, begin Active Directory and Entra ID collection as separate authorization-first releases.
+1. Complete v0.31.0 release metadata and exact-head CI verification.
+2. Merge the verified v0.31.0 release commit to `master` and verify the post-merge CI matrix.
+3. Add that exact verified release merge commit to the guarded release-tag allowlist and create the annotated `v0.31.0` tag.
+4. Begin Active Directory identity collection as a separate authorization-first Generation 2 release built on the stable graph evidence contract.
+5. Add Entra ID and broader privilege/trust collectors in subsequent independently verified releases rather than expanding v0.31.0 scope.
