@@ -14,6 +14,7 @@ from nightrecon.graphql_report import GraphQLSchemaReport
 from nightrecon.infrastructure_report import (
     InfrastructureAssessmentReport,
     SmbInfrastructureAssessmentReport,
+    WinRmInfrastructureAssessmentReport,
 )
 from nightrecon.report import TcpScanReport
 from nightrecon.session import ScanSession
@@ -170,6 +171,7 @@ class ResultStore:
         report: (
             InfrastructureAssessmentReport
             | SmbInfrastructureAssessmentReport
+            | WinRmInfrastructureAssessmentReport
         ),
     ) -> Path:
         """Save credentialed infrastructure evidence without secret material."""
