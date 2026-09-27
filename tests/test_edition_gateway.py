@@ -71,6 +71,7 @@ class EditionGatewayTests(unittest.TestCase):
         self.assertNotIn("discover", output.getvalue())
         self.assertNotIn("infra", output.getvalue())
         self.assertIn("not yet available", output.getvalue())
+        self.assertIn("Black Night command boundary", output.getvalue())
 
 
 if __name__ == "__main__":

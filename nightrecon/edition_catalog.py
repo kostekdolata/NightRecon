@@ -20,31 +20,31 @@ class Edition:
 EDITIONS: tuple[Edition, ...] = (
     Edition(
         "white",
-        "White",
+        "White Night",
         "Engagement authorization, scope, approvals, audit, and exercise control.",
         "partial foundation",
     ),
     Edition(
         "blue",
-        "Blue",
+        "Blue Night",
         "Defensive telemetry, detection, prevention, and remediation validation.",
         "planned",
     ),
     Edition(
         "red",
-        "Red",
+        "Red Night",
         "Authorized reconnaissance and bounded adversarial validation.",
         "partial foundation",
     ),
     Edition(
         "purple",
-        "Purple",
-        "Correlate approved Red activity with Blue defensive evidence.",
+        "Purple Night",
+        "Correlate approved Red Night activity with Blue Night defensive evidence.",
         "planned",
     ),
     Edition(
         "black",
-        "Black-box",
+        "Black Night",
         "Authorized, knowledge-limited external assessment.",
         "partial foundation",
     ),

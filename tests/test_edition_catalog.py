@@ -18,6 +18,10 @@ class EditionCatalogTests(unittest.TestCase):
             ("white", "blue", "red", "purple", "black"),
         )
         self.assertEqual(len({edition.slug for edition in EDITIONS}), 5)
+        self.assertEqual(
+            tuple(edition.name for edition in EDITIONS),
+            ("White Night", "Blue Night", "Red Night", "Purple Night", "Black Night"),
+        )
 
     def test_no_unshipped_standalone_edition_claim(self):
         self.assertTrue(all(not edition.standalone_available for edition in EDITIONS))
@@ -33,6 +37,9 @@ class EditionCatalogTests(unittest.TestCase):
             "white", "blue", "red", "purple", "black",
         ])
         self.assertTrue(all(not record["standalone_available"] for record in records))
+        self.assertEqual([record["name"] for record in records], [
+            "White Night", "Blue Night", "Red Night", "Purple Night", "Black Night",
+        ])
 
 
 if __name__ == "__main__":
