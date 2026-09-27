@@ -8,6 +8,8 @@ from nightrecon.credential_resolution import (
     resolve_credential,
 )
 from nightrecon.infrastructure_execution import (
+    InfrastructureAdapterOutcome,
+    InfrastructureFact,
     execute_infrastructure_action,
 )
 from nightrecon.infrastructure_models import (
@@ -67,7 +69,20 @@ class _FakeSshAdapter:
                     f"adapter failure with {_SECRET}"
                 )
 
-            return self.success
+            return InfrastructureAdapterOutcome(
+                success=self.success,
+                reason=(
+                    "completed"
+                    if self.success
+                    else "adapter_reported_failure"
+                ),
+                facts=(
+                    InfrastructureFact(
+                        key="test.identity",
+                        value="example",
+                    ),
+                ),
+            )
 
 
 class _FakeSmbAdapter(
@@ -174,6 +189,15 @@ class InfrastructureExecutionTests(unittest.TestCase):
         self.assertEqual(
             result.state.actions_used,
             1,
+        )
+        self.assertEqual(
+            result.facts,
+            (
+                InfrastructureFact(
+                    key="test.identity",
+                    value="example",
+                ),
+            ),
         )
         self.assertEqual(
             adapter.calls,
@@ -429,6 +453,48 @@ class InfrastructureExecutionTests(unittest.TestCase):
             credential.material.cleared
         )
 
+
+    def test_typed_fact_validation_rejects_unbounded_or_duplicate_data(self):
+        with self.assertRaises(
+            ValueError
+        ):
+            InfrastructureFact(
+                key="Bad Key",
+                value="value",
+            )
+
+        with self.assertRaises(
+            ValueError
+        ):
+            InfrastructureFact(
+                key="identity.value",
+                value="X" * 513,
+            )
+
+        fact = InfrastructureFact(
+            key="identity.value",
+            value="example",
+        )
+
+        with self.assertRaises(
+            ValueError
+        ):
+            InfrastructureAdapterOutcome(
+                success=True,
+                reason="completed",
+                facts=(
+                    fact,
+                    fact,
+                ),
+            )
+
+        with self.assertRaises(
+            ValueError
+        ):
+            InfrastructureAdapterOutcome(
+                success=False,
+                reason="contains spaces",
+            )
 
 if __name__ == "__main__":
     unittest.main()
