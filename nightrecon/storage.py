@@ -9,6 +9,7 @@ from nightrecon.api_report import ApiInventoryReport
 from nightrecon.api_validation_report import ApiValidationReport
 from nightrecon.browser_report import BrowserDiscoveryReport
 from nightrecon.discovery_report import HostDiscoveryReport
+from nightrecon.dast_report import DastAssessmentReport
 from nightrecon.graphql_report import GraphQLSchemaReport
 from nightrecon.report import TcpScanReport
 from nightrecon.session import ScanSession
@@ -128,6 +129,26 @@ class ResultStore:
 
         self.root.mkdir(parents=True, exist_ok=True)
         output_path = self.root / f"{report.session_id}-graphql.json"
+
+        with output_path.open("w", encoding="utf-8") as file:
+            json.dump(
+                report.to_dict(),
+                file,
+                indent=2,
+                sort_keys=True,
+            )
+            file.write("\n")
+
+        return output_path
+
+    def save_dast_assessment_report(
+        self,
+        report: DastAssessmentReport,
+    ) -> Path:
+        """Save safe-active DAST evidence separately from crawl data."""
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        output_path = self.root / f"{report.session_id}-dast.json"
 
         with output_path.open("w", encoding="utf-8") as file:
             json.dump(
