@@ -292,7 +292,7 @@ class CredentialResolutionTests(unittest.TestCase):
 
         with self.assertRaisesRegex(
             CredentialResolutionError,
-            "not available",
+            "could not be resolved",
         ):
             resolve_credential(
                 binding,
