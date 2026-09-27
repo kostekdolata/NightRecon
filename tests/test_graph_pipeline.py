@@ -143,6 +143,25 @@ class GraphPipelineTests(unittest.TestCase):
 
         self.assertEqual(first, second)
 
+    def test_pipeline_validates_snapshot_before_returning(self):
+        graph = build_identity_graph(
+            inventory=AssetInventory(
+                assets=(
+                    AssetRecord(
+                        address="192.0.2.72",
+                        first_seen="2026-09-27T12:00:00+00:00",
+                        last_seen="2026-09-27T12:00:00+00:00",
+                        last_checked_at="2026-09-27T12:00:00+00:00",
+                        services=(AssetServiceRecord(port=80, service="http"),),
+                        source_session_ids=("scan-valid",),
+                    ),
+                ),
+            )
+        )
+
+        self.assertEqual(len(graph.nodes), 2)
+        self.assertEqual(len(graph.edges), 1)
+
     def test_pipeline_does_not_require_optional_evidence_sources(self):
         graph = build_identity_graph(inventory=AssetInventory.empty())
 
