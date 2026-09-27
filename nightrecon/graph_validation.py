@@ -111,32 +111,57 @@ def _validate_relationship(edge, source_kind, target_kind):
     issues: list[GraphValidationIssue] = []
 
     allowed = {
-        "exposes": (GraphNodeKind.ASSET, GraphNodeKind.SERVICE),
+        "exposes": (
+            {GraphNodeKind.ASSET},
+            {GraphNodeKind.SERVICE},
+        ),
         "matched-vulnerability": (
-            GraphNodeKind.SERVICE,
-            GraphNodeKind.VULNERABILITY,
+            {GraphNodeKind.SERVICE},
+            {GraphNodeKind.VULNERABILITY},
         ),
         "has-assessment-finding": (
-            GraphNodeKind.SERVICE,
-            GraphNodeKind.ASSESSMENT_FINDING,
+            {GraphNodeKind.SERVICE},
+            {GraphNodeKind.ASSESSMENT_FINDING},
+        ),
+        "member-of": (
+            {GraphNodeKind.IDENTITY, GraphNodeKind.GROUP},
+            {GraphNodeKind.GROUP},
+        ),
+        "has-permission": (
+            {GraphNodeKind.IDENTITY, GraphNodeKind.GROUP},
+            {GraphNodeKind.PERMISSION},
+        ),
+        "applies-to": (
+            {GraphNodeKind.PERMISSION},
+            {
+                GraphNodeKind.ASSET,
+                GraphNodeKind.SERVICE,
+                GraphNodeKind.CRITICAL_ASSET,
+            },
         ),
     }
     expected = allowed.get(edge.relationship)
 
-    if expected is not None and (source_kind, target_kind) != expected:
+    if expected is not None and (
+        source_kind not in expected[0]
+        or target_kind not in expected[1]
+    ):
         issues.append(
             GraphValidationIssue(
                 code="invalid-relationship-kinds",
                 subject_id=edge.edge_id,
                 message=(
-                    f"{edge.relationship} requires "
-                    f"{expected[0].value}->{expected[1].value}."
+                    f"{edge.relationship} has invalid source/target node kinds."
                 ),
             )
         )
 
     if (
-        edge.relationship in allowed
+        edge.relationship in {
+            "exposes",
+            "matched-vulnerability",
+            "has-assessment-finding",
+        }
         and edge.evidence_state is not GraphEvidenceState.OBSERVED
     ):
         issues.append(
