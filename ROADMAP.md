@@ -88,7 +88,7 @@ Release gate: version/docs complete, exact-head standard + Chromium CI green, me
 
 ### v0.27.0 — API Intelligence
 
-Status: release candidate.
+Status: released and verified stable.
 
 Delivered capabilities:
 
@@ -116,19 +116,38 @@ Delivered capabilities:
 
 Release gate: version/docs complete, exact-head six-job push + PR CI green, merge to `master`, then post-merge six-job verification.
 
-### v0.28.x — Expanded Safe-Active DAST
+### v0.28.0 — Expanded Safe-Active DAST
 
-Goal: broaden evidence-backed web and API validation without turning routine assessment into exploitation.
+Status: release candidate.
 
-Planned capabilities:
+Delivered capabilities:
 
-- larger deterministic check library
-- request budgets per check/family
-- response-difference analysis
-- explicit intrusiveness metadata
-- reproducible evidence
-- false-positive reduction
-- safe re-test support
+- reusable safe-active DAST check definitions restricted to GET/HEAD/OPTIONS
+- independent global, family, and per-check request ceilings
+- immutable request accounting with stale-decision and inconsistent-state rejection
+- bounded non-secret response fingerprints using SHA-256 samples instead of body retention
+- conservative response-difference analysis with strong and weak signals
+- hash-only body changes treated as weak evidence to reduce dynamic-content false positives
+- URL credential/query/fragment redaction before DAST persistence
+- stable retest identifiers and deterministic retest descriptors
+- generic exact-origin safe-active HTTP transport with redirect refusal and hard timeout/response ceilings
+- budget reservation before every attempted request, including failed attempts
+- transient Authorization and in-memory CookieJar reuse without report persistence
+- raw Cookie-header mode excluded from the v0.28 DAST path
+- strict synthetic-request-header allowlist limited to CORS preflight metadata
+- first deterministic check family for credentialed CORS origin reflection
+- fixed synthetic origin `https://nightrecon.invalid` with no external callback dependency
+- baseline + synthetic-origin OPTIONS comparison per same-origin target
+- finding requires explicit synthetic-origin reflection plus credential allowance
+- wildcard origin, reflection without credentials, cross-origin targets, duplicate targets, and incomplete pairs do not generate the credentialed-reflection finding
+- conservative finding language that does not equate configuration evidence with exploitability
+- explicit `--dast-cors` integration into the existing authorized crawl flow
+- DAST requires explicit safe-active assessment mode and rejects raw cookie-header mode
+- configured target counts must fit total/family budgets before network activity begins
+- separate structured `<session>-dast.json` reports with findings, fingerprints, differences, budgets, and retest IDs
+- real loopback coverage for transport limits, CORS positive/negative cases, secret non-retention, and cross-platform behavior
+
+Release gate: version/docs complete, exact-head six-job push + PR CI green, merge to `master`, verify post-merge six-job CI, then add the verified merge commit to the guarded release-tag allowlist.
 
 ### v0.29–v0.30 — Credentialed Infrastructure Assessment
 
@@ -287,7 +306,7 @@ The engine will eventually require a production platform around it:
 
 The current locked execution order is:
 
-1. Finish and release v0.27.0 API Intelligence.
-2. Verify the merged `master` commit and post-merge standard + Chromium + API YAML CI as a stable checkpoint.
-3. Start v0.28.x Expanded Safe-Active DAST in a fresh development branch.
-4. Keep active validation bounded, explicit, non-destructive, evidence-based, and independently budgeted before credentialed infrastructure assessment.
+1. Finish and release v0.28.0 Expanded Safe-Active DAST.
+2. Verify the merged `master` commit with the full six-job matrix and create the guarded `v0.28.0` annotated tag.
+3. Start v0.29.x Credentialed Infrastructure Assessment in a fresh development branch.
+4. Begin credentialed infrastructure with explicit credential sources, read-only defaults, command allowlists, secret redaction, and independent action budgets before broader protocol coverage.
