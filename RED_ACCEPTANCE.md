@@ -48,13 +48,19 @@ to claim that a matching feature name means equivalent effectiveness.
 
 ## Current batch
 
-The first Red path-review primitive orders a bounded query's existing paths
+The `red-night` entry point routes existing assessment commands through the
+fail-closed Red gateway. Packaged-command smoke tests verify the installed
+launcher, the scope-aware scan help, catalog, and denied unknown commands on
+the Python/OS CI matrix. This is a shared NightRecon distribution, so the
+independent installation gate remains open.
+
+The earlier Red path-review primitive orders a bounded query's existing paths
 for **analyst inspection** using only the count of inferred relationships, hop
 count, and stable identifiers. It validates every node and edge against the
 source graph, retains truncation and provenance through the original path, and
 states explicitly that the order is neither risk nor exploitability. It does
 not execute an attack, assign an ATT&CK technique, or add a network collector.
 
-The next substantial product step is the separately installable Red launcher
-and package with isolated and combined installation tests, followed by
+The next substantial product step is the separately installable Red Night
+package with isolated and combined installation tests, followed by
 authorization-first identity collectors and deeper lab-backed assessment.

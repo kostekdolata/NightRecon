@@ -19,13 +19,18 @@ and `black` for CLI routing and future evidence contracts.
 `nightrecon editions` (or `nightrecon editions --json`) exposes the current
 catalog. It is informational only: it does not select, install, enable, or
 authorize an edition. The existing `nightrecon` CLI continues to work as before.
+Installing the current NightRecon distribution also creates a `red-night`
+command. For example, `red-night --help` lists its allowed commands and
+`red-night scan --help` displays the existing scan options. This is a Red Night
+entry point inside the shared distribution, not a separately installable Red
+Night application. Existing target scope and assessment policies still apply.
 
 An internal `edition_gateway` now denies unowned commands before calling the
 existing CLI. Red Night can route existing authorized assessment commands through this
 boundary. White Night, Blue Night, Purple Night, and Black Night expose only the informational
 catalog there for now. In particular, the generic CIDR discovery command is not
 silently presented as a Black Night external-assessment workflow. The gateway is
-not yet an installed application or a substitute for the core scope checks.
+not a substitute for the core scope checks.
 
 ## Separation contract
 
@@ -50,9 +55,9 @@ not yet an installed application or a substitute for the core scope checks.
 ## Delivery gates
 
 1. Catalog and published boundaries (completed).
-2. Command ownership and fail-closed routing boundary (internal gateway now
-   present; independently installed command routing still requires packaging
-   tests).
+2. Command ownership and fail-closed routing boundary (the Red Night launcher
+   uses the gateway; independently installed command routing still requires
+   separate distribution and isolation tests).
 3. Separate installable edition entry points with optional dependencies and
    tests proving one edition cannot invoke another edition's active commands,
    including one edition, arbitrary combinations, and the full suite.
