@@ -25,7 +25,10 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
             (ROOT / "packages" / "red-night" / "pyproject.toml").read_text(encoding="utf-8")
         )
         dependencies = payload["project"]["dependencies"]
-        self.assertEqual(dependencies, ["nightrecon==0.31.0"])
+        self.assertEqual(
+            dependencies,
+            ["nightrecon==0.31.0", "nightrecon-shared-core==0.32.0.dev0"],
+        )
 
     def test_red_app_entrypoint_is_a_thin_adapter(self) -> None:
         source = (
