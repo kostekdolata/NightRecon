@@ -54,6 +54,51 @@ catalog there for now. In particular, the generic CIDR discovery command is not
 silently presented as a Black Night external-assessment workflow. The gateway is
 not a substitute for the core scope checks.
 
+## Stack composition contract
+
+NightRecon is a software stack, not a collection of mutually exclusive editions.
+
+Each Night must be able to run as a complete standalone application for its own
+responsibility, with the mandatory shared safety core installed beneath it.
+Installing another Night must never be required just to use that application's
+normal workflows.
+
+When two or more Nights are installed together, they form one composable
+NightRecon stack. Composition must add interoperability, not create hidden
+runtime dependencies between applications. The required dependency direction is:
+
+`Night application -> shared core`
+
+No Night application may become a mandatory dependency of another Night.
+
+Cross-Night cooperation uses versioned, secret-free evidence and engagement
+contracts. Standalone applications can export/import those contracts. A composed
+installation may additionally use a shared engagement data layer so Red, Blue,
+White, Purple, and Black can contribute to and consume the same authorized
+engagement state without duplicating databases.
+
+The shared engagement layer must preserve source Night, evidence provenance,
+schema version, authorization context, timestamps, and confidence/limitations.
+It must not turn data observed by one Night into automatic authorization for
+another Night. Shared state is evidence and coordination context; each active
+operation still passes the shared core's scope, approval, budget, and stop
+controls.
+
+Examples of intended composition:
+
+- Red Night can publish assessment findings and action evidence.
+- Blue Night can publish telemetry, prevention, alert, and remediation evidence.
+- Purple Night can correlate Red and Blue evidence whether those Nights are
+  installed locally or their versioned exports are imported.
+- White Night can manage engagement authorization, approvals, evidence custody,
+  and exercise control without becoming a required runtime for the safety core.
+- Black Night can contribute outside-in discovery evidence while retaining its
+  deliberately limited-knowledge operating model.
+
+The full-suite installation should therefore feel like one integrated NightRecon
+workspace while preserving the ability to install, upgrade, run, and remove each
+Night independently.
+
 ## Separation contract
 
 - The shared core owns existing scope and authorization checks, budgets, secret
