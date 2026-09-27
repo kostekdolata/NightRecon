@@ -9,14 +9,16 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
-import os
 import re
 import time
 from typing import Iterator, Mapping
 
+from nightrecon.credential_providers import (
+    CredentialProviderRegistry,
+    default_credential_provider_registry,
+)
 from nightrecon.infrastructure_models import (
     CredentialReference,
-    CredentialSourceKind,
 )
 
 
@@ -282,37 +284,45 @@ def resolve_credential(
     binding: CredentialBinding,
     *,
     environment: Mapping[str, str] | None = None,
+    provider_registry: CredentialProviderRegistry | None = None,
     ttl_seconds: float = 60.0,
     max_secret_bytes: int = 16_384,
 ) -> ResolvedCredential:
     """Resolve one credential into ephemeral memory.
 
-    v0.29 Batch 2 intentionally resolves environment-backed credentials only.
-    Other source kinds fail closed until dedicated provider adapters exist.
+    The default registry resolves environment-backed credentials only.
+    Callers may explicitly supply provider objects for other source kinds.
+    All provider output is wrapped in the same ephemeral/redaction contract.
     """
 
     if (
-        binding.reference.source_kind
-        != CredentialSourceKind.ENVIRONMENT
+        environment is not None
+        and provider_registry is not None
     ):
-        raise CredentialResolutionError(
-            "Credential source kind is not available in this release batch."
+        raise ValueError(
+            "environment and provider_registry are mutually exclusive."
         )
 
-    source = (
-        os.environ
-        if environment is None
-        else environment
-    )
-    value = source.get(
-        binding.source_name
+    registry = (
+        provider_registry
+        if provider_registry is not None
+        else default_credential_provider_registry(
+            environment=environment
+        )
     )
 
-    if value is None or not value:
+    try:
+        provider = registry.provider_for(
+            binding.reference.source_kind
+        )
+        value = provider.resolve(
+            binding.source_name
+        )
+    except Exception:
         raise CredentialResolutionError(
-            "Credential source is missing or empty: "
+            "Credential source could not be resolved: "
             f"{binding.source_name}"
-        )
+        ) from None
 
     try:
         material = EphemeralSecret(
@@ -323,11 +333,13 @@ def resolve_credential(
     except (
         TypeError,
         ValueError,
-    ) as exc:
+    ):
         raise CredentialResolutionError(
             "Credential source could not be resolved within safety limits: "
             f"{binding.source_name}"
-        ) from exc
+        ) from None
+    finally:
+        value = ""
 
     return ResolvedCredential(
         reference=binding.reference,
