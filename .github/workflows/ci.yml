@@ -75,6 +75,30 @@ jobs:
         run: python tests/api_schema_runtime.py
 
 
+  ssh-runtime-integration:
+    name: Paramiko SSH runtime compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon SSH extra
+        run: python -m pip install -e ".[ssh]"
+
+      - name: Run Paramiko SSH runtime compatibility
+        run: python tests/ssh_paramiko_runtime.py
+
+
   browser-integration:
     name: Playwright Chromium loopback integration
     runs-on: ubuntu-latest

@@ -75,6 +75,35 @@ from nightrecon.host_discovery import (
     enrich_reverse_dns,
 )
 from nightrecon.graphql_report import GraphQLSchemaReport
+from nightrecon.credential_resolution import (
+    CredentialBinding,
+    CredentialResolutionError,
+    resolve_credential,
+)
+from nightrecon.infrastructure_execution import execute_infrastructure_action
+from nightrecon.infrastructure_models import (
+    CredentialKind,
+    CredentialReference,
+    CredentialSourceKind,
+    InfrastructureAction,
+    InfrastructureActionState,
+    InfrastructureTransport,
+)
+from nightrecon.infrastructure_policy import (
+    InfrastructureAssessmentPolicy,
+    authorize_infrastructure_action,
+)
+from nightrecon.infrastructure_registry import (
+    get_infrastructure_action_definition,
+)
+from nightrecon.infrastructure_report import (
+    InfrastructureActionRecord,
+    InfrastructureAssessmentReport,
+)
+from nightrecon.infrastructure_ssh import (
+    SshConnectionProfile,
+    SshReadOnlyAdapter,
+)
 from nightrecon.logging import NightReconLogger
 from nightrecon.nvd_provider import NvdVulnerabilityProvider
 from nightrecon.os_fingerprint import (
@@ -144,6 +173,132 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(
         dest="command",
         title="commands",
+    )
+
+    infra_parser = subparsers.add_parser(
+        "infra",
+        help="Run bounded credentialed infrastructure assessment.",
+    )
+
+    infra_subparsers = infra_parser.add_subparsers(
+        dest="infra_command",
+        title="infrastructure commands",
+    )
+
+    infra_ssh_parser = infra_subparsers.add_parser(
+        "ssh",
+        help=(
+            "Run fixed read-only SSH identity/inventory actions "
+            "against one explicitly authorized target."
+        ),
+    )
+
+    infra_ssh_parser.add_argument(
+        "target",
+        help="Single authorized hostname or IP address.",
+    )
+
+    infra_ssh_parser.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help=(
+            "Authorized scope rule. May be supplied multiple times."
+        ),
+    )
+
+    infra_ssh_parser.add_argument(
+        "--username",
+        required=True,
+        help="SSH username. This is non-secret metadata.",
+    )
+
+    infra_ssh_parser.add_argument(
+        "--known-hosts",
+        required=True,
+        help=(
+            "Explicit known_hosts file. Unknown host keys are rejected."
+        ),
+    )
+
+    infra_ssh_parser.add_argument(
+        "--credential-id",
+        required=True,
+        help=(
+            "Non-secret credential reference identifier used in audit/report data."
+        ),
+    )
+
+    infra_ssh_parser.add_argument(
+        "--password-env",
+        required=True,
+        help=(
+            "Environment variable containing the SSH password. "
+            "The variable value is never printed or persisted."
+        ),
+    )
+
+    infra_ssh_parser.add_argument(
+        "--action",
+        action="append",
+        dest="infra_actions",
+        required=True,
+        choices=(
+            "ssh.system_identity",
+            "ssh.os_inventory",
+        ),
+        help=(
+            "Fixed read-only SSH action. May be repeated."
+        ),
+    )
+
+    infra_ssh_parser.add_argument(
+        "--port",
+        type=int,
+        default=22,
+        help="SSH port. Default: 22",
+    )
+
+    infra_ssh_parser.add_argument(
+        "--max-actions",
+        type=int,
+        default=4,
+        help="Maximum SSH action attempts. Default: 4",
+    )
+
+    infra_ssh_parser.add_argument(
+        "--connect-timeout",
+        type=float,
+        default=5.0,
+        help="SSH connect/auth timeout in seconds. Default: 5.0",
+    )
+
+    infra_ssh_parser.add_argument(
+        "--command-timeout",
+        type=float,
+        default=5.0,
+        help="Per-command timeout in seconds. Default: 5.0",
+    )
+
+    infra_ssh_parser.add_argument(
+        "--max-output-bytes",
+        type=int,
+        default=65_536,
+        help=(
+            "Maximum combined stdout/stderr bytes per action. Default: 65536"
+        ),
+    )
+
+    infra_ssh_parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Directory for result files. Default: results",
+    )
+
+    infra_ssh_parser.add_argument(
+        "--logs-dir",
+        default="logs",
+        help="Directory for audit logs. Default: logs",
     )
 
     api_parser = subparsers.add_parser(
@@ -1229,6 +1384,271 @@ def _load_installed_check_pack_checks(
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "infra":
+        if args.infra_command != "ssh":
+            parser.error(
+                "The infra command requires a supported subcommand."
+            )
+
+        try:
+            target = parse_target(
+                args.target
+            )
+
+            if target.target_type == TargetType.CIDR:
+                raise ValueError(
+                    "SSH infrastructure assessment requires a single host or IP target."
+                )
+
+            scope = Scope.from_values(
+                args.scope
+            )
+
+            if args.max_actions < 1:
+                raise ValueError(
+                    "max_actions must be at least 1."
+                )
+
+            if len(
+                args.infra_actions
+            ) > args.max_actions:
+                raise ValueError(
+                    "Selected SSH actions exceed max_actions."
+                )
+
+            credential_id = (
+                args.credential_id.strip()
+            )
+
+            if (
+                not credential_id
+                or len(credential_id) > 128
+                or not all(
+                    character.isalnum()
+                    or character in "._-"
+                    for character in credential_id
+                )
+            ):
+                raise ValueError(
+                    "credential_id must contain only letters, numbers, '.', '_', or '-'."
+                )
+
+            profile = SshConnectionProfile(
+                username=args.username,
+                known_hosts_file=args.known_hosts,
+                port=args.port,
+                connect_timeout=args.connect_timeout,
+                command_timeout=args.command_timeout,
+                max_output_bytes=args.max_output_bytes,
+            )
+        except ValueError as exc:
+            parser.error(
+                str(
+                    exc
+                )
+            )
+
+        logger = NightReconLogger(
+            args.logs_dir
+        )
+
+        if not scope.is_authorized(
+            target
+        ):
+            logger.write(
+                "infra.ssh.rejected",
+                target=target.value,
+                target_type=target.target_type.value,
+                scope=args.scope,
+                reason="outside_authorized_scope",
+            )
+            parser.error(
+                f"Target '{target.value}' is outside the authorized scope."
+            )
+
+        session = ScanSession.create(
+            target=target,
+            scope_rules=tuple(
+                args.scope
+            ),
+        )
+        policy = InfrastructureAssessmentPolicy(
+            scope=scope,
+            allowed_transports=(
+                InfrastructureTransport.SSH,
+            ),
+            max_actions=args.max_actions,
+        )
+        state = InfrastructureActionState(
+            actions_used=0,
+            max_actions=args.max_actions,
+        )
+        reference = CredentialReference(
+            credential_id=credential_id,
+            kind=CredentialKind.PASSWORD,
+            source_kind=CredentialSourceKind.ENVIRONMENT,
+        )
+        binding = CredentialBinding(
+            reference=reference,
+            source_name=args.password_env,
+        )
+        adapter = SshReadOnlyAdapter(
+            profile
+        )
+        records = []
+
+        for action_id in args.infra_actions:
+            definition = (
+                get_infrastructure_action_definition(
+                    action_id
+                )
+            )
+            action = InfrastructureAction(
+                target=target.value,
+                transport=InfrastructureTransport.SSH,
+                action_id=action_id,
+                credential_id=credential_id,
+            )
+            decision = authorize_infrastructure_action(
+                action=action,
+                definition=definition,
+                credential=reference,
+                policy=policy,
+                state=state,
+            )
+
+            if not decision.allowed:
+                logger.write(
+                    "infra.ssh.action_rejected",
+                    session_id=session.session_id,
+                    target=target.value,
+                    transport="ssh",
+                    action_id=action_id,
+                    credential_id=credential_id,
+                    reason=decision.reason,
+                )
+                parser.error(
+                    "SSH action was rejected by the infrastructure policy: "
+                    f"{decision.reason}"
+                )
+
+            try:
+                credential = resolve_credential(
+                    binding,
+                    ttl_seconds=max(
+                        30.0,
+                        args.connect_timeout
+                        + args.command_timeout
+                        + 5.0,
+                    ),
+                )
+            except CredentialResolutionError:
+                logger.write(
+                    "infra.ssh.credential_resolution_failed",
+                    session_id=session.session_id,
+                    target=target.value,
+                    transport="ssh",
+                    action_id=action_id,
+                    credential_id=credential_id,
+                    reason="credential_resolution_failed",
+                )
+                parser.error(
+                    "SSH credential could not be resolved from the configured "
+                    "environment source."
+                )
+
+            result = execute_infrastructure_action(
+                action=action,
+                definition=definition,
+                decision=decision,
+                state=state,
+                credential=credential,
+                adapter=adapter,
+            )
+            state = result.state
+            records.append(
+                InfrastructureActionRecord.from_result(
+                    result
+                )
+            )
+
+        infra_report = (
+            InfrastructureAssessmentReport.create(
+                session=session,
+                transport="ssh",
+                username=profile.username,
+                port=profile.port,
+                max_actions=args.max_actions,
+                records=tuple(
+                    records
+                ),
+            )
+        )
+        output_path = ResultStore(
+            args.results_dir
+        ).save_infrastructure_assessment_report(
+            infra_report
+        )
+        summary = infra_report.to_dict()[
+            "summary"
+        ]
+
+        logger.write(
+            "infra.ssh.completed",
+            session_id=session.session_id,
+            target=target.value,
+            target_type=target.target_type.value,
+            scope=args.scope,
+            transport="ssh",
+            username=profile.username,
+            port=profile.port,
+            host_key_policy="reject",
+            credential_id=credential_id,
+            selected_actions=summary[
+                "selected_actions"
+            ],
+            attempted_actions=summary[
+                "attempted_actions"
+            ],
+            successful_actions=summary[
+                "successful_actions"
+            ],
+            failed_actions=summary[
+                "failed_actions"
+            ],
+            status=infra_report.status,
+        )
+
+        print(
+            "SSH Assessment Summary: "
+            f"selected={summary['selected_actions']} "
+            f"attempted={summary['attempted_actions']} "
+            f"successful={summary['successful_actions']} "
+            f"failed={summary['failed_actions']}"
+        )
+
+        for record in infra_report.records:
+            print(
+                "  SSH ACTION "
+                f"{record.action_id} "
+                f"success={'yes' if record.success else 'no'} "
+                f"reason={record.reason}"
+            )
+
+            for fact in record.facts:
+                print(
+                    "    FACT "
+                    f"{fact['key']}={fact['value']}"
+                )
+
+        print(
+            f"Session ID: {session.session_id}"
+        )
+        print(
+            f"Infrastructure result file: {output_path}"
+        )
+        return
 
     if args.command == "api":
         if args.api_command in {

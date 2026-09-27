@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nightrecon"
-version = "0.28.0"
+version = "0.29.0"
 description = "A modular penetration testing and reconnaissance platform for authorized security assessments."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -22,6 +22,9 @@ browser = [
 ]
 api = [
     "PyYAML>=6.0,<7",
+]
+ssh = [
+    "paramiko>=5.0,<6",
 ]
 keywords = [
     "security",
