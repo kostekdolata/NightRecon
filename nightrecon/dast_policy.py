@@ -180,18 +180,43 @@ class DastBudgetState:
                 "total_used cannot be negative."
             )
 
-        for label, usage in (
-            *self.check_usage,
-            *self.family_usage,
+        for entries, label_name in (
+            (
+                self.check_usage,
+                "check",
+            ),
+            (
+                self.family_usage,
+                "family",
+            ),
         ):
-            if not label.strip():
-                raise ValueError(
-                    "budget usage labels must not be empty."
-                )
+            seen: set[str] = set()
+            usage_total = 0
 
-            if usage < 0:
+            for label, usage in entries:
+                if not label.strip():
+                    raise ValueError(
+                        "budget usage labels must not be empty."
+                    )
+
+                if label in seen:
+                    raise ValueError(
+                        f"Duplicate {label_name} usage entry: {label}"
+                    )
+
+                if usage < 0:
+                    raise ValueError(
+                        "budget usage cannot be negative."
+                    )
+
+                seen.add(
+                    label
+                )
+                usage_total += usage
+
+            if usage_total != self.total_used:
                 raise ValueError(
-                    "budget usage cannot be negative."
+                    f"{label_name}_usage must sum to total_used."
                 )
 
 
