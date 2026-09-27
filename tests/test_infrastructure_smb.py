@@ -200,10 +200,6 @@ class SmbEvidenceContractTests(unittest.TestCase):
                 "FILE\n01",
             ),
             (
-                "domain_name",
-                "",
-            ),
-            (
                 "dialect",
                 "3.1.1\x00bad",
             ),
@@ -228,6 +224,32 @@ class SmbEvidenceContractTests(unittest.TestCase):
                     build_smb_server_identity_facts(
                         **kwargs
                     )
+
+    def test_empty_domain_is_valid_and_omitted_from_identity_facts(self):
+        facts = build_smb_server_identity_facts(
+            server_name="FILE01",
+            domain_name="",
+            dialect="3.1.1",
+            signing_required=False,
+        )
+
+        fact_keys = tuple(
+            fact.key
+            for fact in facts
+        )
+
+        self.assertNotIn(
+            "smb.domain_name",
+            fact_keys,
+        )
+        self.assertIn(
+            "smb.server_name",
+            fact_keys,
+        )
+        self.assertIn(
+            "smb.dialect",
+            fact_keys,
+        )
 
     def test_share_inventory_is_sorted_bounded_and_typed(self):
         facts = build_smb_share_inventory_facts(
