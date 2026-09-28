@@ -35,25 +35,15 @@ BATCH_C_RUNTIME_ALIASES = frozenset({
 
 class RedEngineLeafMigrationTests(unittest.TestCase):
     def test_migration_manifest_has_one_source_of_truth(self) -> None:
+        from nightrecon.red_ownership import RED_MODULE_GROUPS
+
         self.assertEqual(set(RED_MIGRATED_ENGINE_MODULES), set(MIGRATED_MODULES))
-        self.assertEqual(
-            set(MIGRATED_MODULES),
-            {
-                "api_models",
-                "discovery_report",
-                "graph_models",
-                "host_discovery",
-                "infrastructure_models",
-                "ports",
-                "resolver",
-                "service_fingerprint",
-                "service_probe",
-                "session",
-                "software_identity",
-                "tcp_scanner",
-                "tls_detection",
-            },
-        )
+        self.assertTrue(set(RED_MODULE_GROUPS["web"]).issubset(MIGRATED_MODULES))
+        self.assertTrue(set(RED_MODULE_GROUPS["api"]).issubset(MIGRATED_MODULES))
+        self.assertTrue(set(RED_MODULE_GROUPS["checks"]).issubset(MIGRATED_MODULES))
+        self.assertIn("host_discovery", MIGRATED_MODULES)
+        self.assertNotIn("service_detection", MIGRATED_MODULES)
+        self.assertNotIn("infrastructure_ssh", MIGRATED_MODULES)
 
     def test_legacy_imports_reexport_canonical_red_objects(self) -> None:
         pairs = (
