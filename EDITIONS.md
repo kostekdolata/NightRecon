@@ -12,18 +12,18 @@ and `black` for CLI routing and future evidence contracts.
 | --- | --- | --- |
 | White Night | Engagement scope, rules of engagement, approvals, audit, evidence custody, exercise control, and emergency stop | Shared scope/audit foundations exist; standalone application not available |
 | Blue Night | Defensive telemetry, control validation, detection coverage, and remediation retests | Planned; standalone application not available |
-| Red Night | Authorized reconnaissance, exposure and attack-path analysis, bounded validation, and controlled emulation | Reconnaissance/assessment/graph foundations exist; standalone application not available |
+| Red Night | Authorized reconnaissance, exposure and attack-path analysis, bounded validation, and controlled emulation | Stable v0.40.0 standalone application available with mandatory shared safety core |
 | Purple Night | Match approved Red Night actions to Blue Night prevention, alerts, telemetry, and detection gaps | Planned; standalone application not available |
 | Black Night | Authorized outside-in assessment from a deliberately limited starting knowledge set | External reconnaissance foundations exist; standalone application not available |
 
 `nightrecon editions` (or `nightrecon editions --json`) exposes the current
 catalog. It is informational only: it does not select, install, enable, or
 authorize an edition. The existing `nightrecon` CLI continues to work as before.
-Installing the current NightRecon distribution also creates a `red-night`
-command. For example, `red-night --help` lists its allowed commands and
-`red-night scan --help` displays the existing scan options. This is a Red Night
-entry point inside the shared distribution, not a separately installable Red
-Night application. Existing target scope and assessment policies still apply.
+Installing the legacy NightRecon compatibility distribution creates a
+`red-night` command. The stable Red Night v0.40.0 application is also
+independently installable and exposes `red-night-app`. Both routes preserve the
+same fail-closed Red command boundary and shared authorization policy. Existing
+target scope and assessment policies still apply.
 
 Red Night can review a local, normalized directory snapshot using
 `red-night identity import snapshot.json --source-id approved-export-1` (also
@@ -35,17 +35,16 @@ and a reproducible graph fingerprint without listing people. Add
 this can disclose identity data. The command reads at most 1 MB, makes no
 directory connection, and never treats an absent member as an observed edge.
 
-`packages/red-night/` is a separately built **development-preview** Red Night
-distribution. Installing its wheel with the matching NightRecon shared-runtime
-wheel supplies `red-night-app` without any other Night application. The existing
-`red-night` entry point remains in the shared package for compatibility; the
-distinct script names prevent package installation or removal from overwriting
-one another. Clean, local-wheel installations of the preview alone and alongside
-the legacy launcher are smoke-tested. Its shared runtime still contains the
-current integrated engines, and combined installation with the four future
-Nights cannot be verified before they exist. The catalog therefore continues
-to report `standalone_available: false` until isolation and functional release
-gates pass.
+`packages/red-night/` is the separately built stable Red Night v0.40.0
+application distribution. Installing its wheel with matching v0.40.0 Red-engine
+and shared-core wheels supplies `red-night-app` without any other Night
+application. The existing `red-night` entry point remains in the legacy package
+for compatibility; the distinct script names prevent package installation or
+removal from overwriting one another. Clean local-wheel installations of Red
+alone and alongside the legacy launcher are smoke-tested across the supported
+CI matrix. The catalog reports Red Night as standalone available. Combined
+installation with the four future Nights cannot be verified before those
+applications exist.
 
 An internal `edition_gateway` now denies unowned commands before calling the
 existing CLI. Red Night can route existing authorized assessment commands through this
@@ -172,15 +171,17 @@ workspace.
 ## Delivery gates
 
 1. Catalog and published boundaries (completed).
-2. Command ownership and fail-closed routing boundary (the shared and separate
-   Red Night launchers use the same gateway; complete engine isolation remains
-   an open gate).
+2. Command ownership and fail-closed routing boundary (completed for the legacy
+   and standalone Red launchers).
 3. Separate installable edition entry points with optional dependencies and
-   tests proving one edition cannot invoke another edition's active commands,
-   including one edition, arbitrary combinations, and the full suite.
+   tests proving one edition cannot invoke another edition's active commands.
+   Completed for Red Night v0.40.0; arbitrary multi-Night/full-suite composition
+   remains future work because the other standalone applications do not yet exist.
 4. Add the missing Blue Night/White Night/Purple Night capabilities and further Red Night/Black Night
    capabilities in small CI-verified releases. Do not advertise a standalone
    edition as available until its isolation and functional acceptance tests pass.
 
-The next Red Night domain-capability batch remains authorization-first Active
-Directory identity collection on top of the v0.31 immutable graph contract.
+The next Red Night product-development milestone should close measured
+acceptance gaps rather than duplicate existing foundations: concrete authorized
+provider adapters, repeatable comparison labs, controlled technique coverage,
+and professional operator/reporting workflows.
