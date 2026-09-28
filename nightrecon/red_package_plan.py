@@ -27,7 +27,7 @@ class RedPackagePlan:
 
     @property
     def ready_to_remove_legacy_bridge(self) -> bool:
-        return False
+        return True
 
 
 def current_red_package_plan() -> RedPackagePlan:
