@@ -98,7 +98,7 @@ RED_COMMANDS: tuple[str, ...] = tuple(sorted(RED_COMMAND_MODULES))
 # monolithic nightrecon distribution. These are migration dependencies, not
 # reasons to duplicate their code.
 RED_RUNTIME_SUPPORT_MODULES: tuple[str, ...] = (
-    "__init__", "cli", "config", "edition_gateway", "logging", "red_night",
+    "__init__", "cli", "config", "edition_gateway", "logging", "red_cli", "red_night",
     "red_workspace_cli",
 )
 
