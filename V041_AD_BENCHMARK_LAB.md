@@ -1,0 +1,90 @@
+# v0.41.0 Active Directory Benchmark Lab
+
+Red Night's v0.41 identity work includes a deterministic, no-network benchmark
+for the read-only Active Directory provider.
+
+The benchmark measures evidence collection quality. It does **not** score risk,
+exploitability, operator skill, or overall product superiority.
+
+## What is measured
+
+For one explicit expected identity topology, the benchmark records:
+
+- expected identities discovered
+- expected groups discovered
+- expected membership relationships discovered
+- missed identities, groups, and memberships
+- unexpected/invented identities, groups, and memberships
+- unresolved membership references
+- provider request/page count
+- provider runtime in milliseconds
+- provider truncation state and limitations
+- deterministic normalized graph SHA-256
+- deterministic benchmark SHA-256
+
+The benchmark fingerprint excludes provider runtime because runtime varies across
+machines and runs. It includes the expected and observed opaque natural keys,
+relationship topology, request count, completeness metadata, and normalized
+graph fingerprint.
+
+## Privacy boundary
+
+Benchmark output is label-free. It contains counts, booleans, limitations, and
+hashes only. Raw Active Directory DNs and human-readable user/group labels are
+not emitted by the benchmark result.
+
+## Deterministic CI fixture
+
+`tests/ad_identity_benchmark_runtime.py` exercises the complete pipeline:
+
+1. an active authorized engagement with `identity.collect`
+2. the concrete Active Directory provider
+3. a no-network fixed LDAP transport fixture
+4. identity normalization
+5. graph projection
+6. benchmark comparison
+
+The fixture models:
+
+- 1 user
+- 1 group
+- 1 observed membership
+- 2 LDAP page requests
+
+Its acceptance conditions are:
+
+- 0 missed identities
+- 0 missed groups
+- 0 missed memberships
+- 0 invented memberships
+- no unexpected evidence
+- no unresolved references
+- no truncation
+- 64-character graph and benchmark SHA-256 fingerprints
+- no user label or raw DN in serialized benchmark output
+
+The same fixture runs in CI on Python 3.11 and Python 3.14 through the existing
+optional Active Directory dependency job.
+
+## Incomplete collection cases
+
+Unit coverage also verifies that benchmark results preserve and explain:
+
+- provider page/runtime/entry/membership truncation
+- unresolved directory references
+- missed expected topology
+- unexpected/invented topology
+
+When expected evidence is missing and the provider supplies no explicit
+limitation, the benchmark records that the expected evidence was absent without
+a provider-reported truncation reason rather than inventing an explanation.
+
+## Current limitation
+
+This is a deterministic provider-quality baseline, not yet a live-domain
+comparison against external specialist products. Live authorized lab work will
+be added separately once reproducible test infrastructure is available.
+
+The current Active Directory provider still focuses on users, groups, and
+membership relationships. Computer/service identities and broader
+authorization/trust relationships remain subsequent v0.41 work.
