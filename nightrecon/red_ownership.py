@@ -60,10 +60,10 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
 
 RED_BASE_DEPENDENCIES: tuple[str, ...] = (
     "cryptography>=50.0.1,<51",
-    "nightrecon-shared-core==0.33.0.dev0",
+    "nightrecon-shared-core==0.34.0.dev0",
 )
 RED_LEGACY_BRIDGE_DEPENDENCY = "nightrecon==0.31.0"
-RED_ENGINE_DISTRIBUTION_DEPENDENCY = "nightrecon-red-engine==0.33.0.dev0"
+RED_ENGINE_DISTRIBUTION_DEPENDENCY = "nightrecon-red-engine==0.34.0.dev0"
 
 RED_OPTIONAL_EXTRAS: dict[str, tuple[str, ...]] = {
     "browser": ("playwright>=1.63,<2",),
