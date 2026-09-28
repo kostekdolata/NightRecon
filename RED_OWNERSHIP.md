@@ -138,8 +138,8 @@ The canonical implementation for the following existing modules now lives under
 - `discovery_report`
 
 The Batch C1/C2 discovery/runtime modules, all web/browser/DAST, API/GraphQL,
-assessment/check modules, the complete infrastructure group, and vulnerability/threat-intelligence modules are now canonical
-in the Red engine. The remaining
+assessment/check modules, the complete infrastructure group, vulnerability/threat-intelligence modules,
+and the full discovery/reporting/inventory group are now canonical in the Red engine. The remaining
 discovery modules are the dependency-blocked portion of the larger discovery group. Modules that currently depend on web, check,
 vulnerability, API, or infrastructure report surfaces remain in the legacy
 package until those dependencies migrate.
