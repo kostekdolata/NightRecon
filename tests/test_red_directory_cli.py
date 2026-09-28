@@ -85,6 +85,29 @@ class RedDirectoryCliTests(unittest.TestCase):
         self.assertEqual(len(review["node_ids"]), 3)
         self.assertIn("Alice", json.dumps(detailed["graph"]))
 
+    def test_enriched_identity_can_start_membership_review(self):
+        service_dn = "CN=WebSvc,DC=example,DC=test"
+        self.path.write_text(json.dumps({
+            "schema_version": 1,
+            "entries": [
+                {"dn": service_dn, "kind": "service", "name": "Web Service"},
+                {"dn": GROUP_DN, "kind": "group", "name": "Operators",
+                 "members": [service_dn]},
+            ],
+        }), encoding="utf-8")
+
+        summary = self.command(
+            "--start-dn",
+            service_dn,
+            "--target-dn",
+            GROUP_DN,
+        )
+
+        self.assertEqual(summary["path_review"]["paths"], 1)
+        self.assertFalse(summary["path_review"]["truncated"])
+        self.assertNotIn("Web Service", json.dumps(summary))
+        self.assertNotIn(service_dn, json.dumps(summary))
+
     def test_unknown_or_same_path_endpoints_fail_without_emitting_graph(self):
         for start, target in (
             ("CN=Missing,DC=example,DC=test", GROUP_DN),
