@@ -128,7 +128,20 @@ The canonical implementation for the following existing modules now lives under
 - `api_models`
 - `infrastructure_models`
 - `graph_models`
+- `host_discovery`
+- `ports`
+- `tcp_scanner`
+- `tls_detection`
+- `service_probe`
+- `resolver`
+- `session`
+- `discovery_report`
 
-Their old `nightrecon.*` files are compatibility re-exports only. The migrated
+The Batch C1 discovery/runtime modules are the dependency-closed portion of the
+larger discovery group. Modules that currently depend on web, check,
+vulnerability, API, or infrastructure report surfaces remain in the legacy
+package until those dependencies migrate.
+
+Their old `nightrecon.*` files are compatibility re-exports or module aliases only. The migrated
 set is canonically published by `nightrecon_red_engine.MIGRATED_MODULES` and
 consumed by `nightrecon.red_ownership`.
