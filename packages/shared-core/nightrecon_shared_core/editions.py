@@ -27,7 +27,7 @@ EDITIONS: tuple[Edition, ...] = (
             "planned"),
     Edition("red", "Red Night",
             "Authorized reconnaissance and bounded adversarial validation.",
-            "partial foundation"),
+            "partial foundation", standalone_available=True),
     Edition("purple", "Purple Night",
             "Correlate approved Red Night activity with Blue Night defensive evidence.",
             "planned"),
