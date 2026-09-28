@@ -131,6 +131,79 @@ class ActiveDirectoryIdentityProviderTests(unittest.TestCase):
                             for call in transport.calls))
         self.assertEqual(transport.close_calls, 1)
 
+    def test_identity_page_classifies_users_services_and_computers(self):
+        user_dn = "CN=Alice,OU=People,DC=example,DC=test"
+        service_dn = "CN=WebSvc,OU=Services,DC=example,DC=test"
+        computer_dn = "CN=WS01,OU=Computers,DC=example,DC=test"
+        group_dn = "CN=Operators,OU=Groups,DC=example,DC=test"
+        transport = FakeTransport((
+            LdapSearchPage(entries=(
+                {
+                    "type": "searchResEntry",
+                    "dn": user_dn,
+                    "attributes": {
+                        "objectClass": ["top", "person", "user"],
+                        "displayName": "Alice",
+                        "sAMAccountName": "alice",
+                    },
+                },
+                {
+                    "type": "searchResEntry",
+                    "dn": service_dn,
+                    "attributes": {
+                        "objectClass": ["top", "person", "user"],
+                        "displayName": "Web Service",
+                        "sAMAccountName": "websvc",
+                        "servicePrincipalName": ["HTTP/app.example.test"],
+                    },
+                },
+                {
+                    "type": "searchResEntry",
+                    "dn": computer_dn,
+                    "attributes": {
+                        "objectClass": ["top", "person", "user", "computer"],
+                        "sAMAccountName": "WS01$",
+                        "dNSHostName": "ws01.example.test",
+                        "servicePrincipalName": [
+                            "HOST/ws01.example.test",
+                            "RestrictedKrbHost/ws01.example.test",
+                        ],
+                    },
+                },
+            )),
+            LdapSearchPage(entries=(
+                {
+                    "type": "searchResEntry",
+                    "dn": group_dn,
+                    "attributes": {
+                        "cn": "Operators",
+                        "member": [user_dn, service_dn, computer_dn],
+                    },
+                },
+            )),
+        ))
+        provider = ActiveDirectoryIdentityProvider(
+            transport=transport,
+            base_dn="DC=example,DC=test",
+        )
+
+        result = provider.collect(request())
+
+        self.assertEqual(result.request_count, 2)
+        self.assertEqual(
+            {entry.kind for entry in result.entries},
+            {"user", "service", "computer", "group"},
+        )
+        by_kind = {entry.kind: entry for entry in result.entries}
+        self.assertEqual(by_kind["user"].name, "Alice")
+        self.assertEqual(by_kind["service"].name, "Web Service")
+        self.assertEqual(by_kind["computer"].name, "ws01.example.test")
+        self.assertEqual(
+            set(by_kind["group"].members),
+            {user_dn, service_dn, computer_dn},
+        )
+        self.assertFalse(hasattr(by_kind["service"], "service_principal_names"))
+
     def test_page_ceiling_marks_collection_incomplete_without_overfetch(self):
         transport = FakeTransport((
             LdapSearchPage(
