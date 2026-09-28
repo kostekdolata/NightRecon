@@ -1,121 +1,88 @@
 # Red Night Runtime Boundary
 
-This document records the current v0.32.0 development-preview boundary after
-shared-core extraction and workspace composition work.
+This document records the stable v0.40.0 Red Night package boundary.
 
 ## Current package boundary
 
-`packages/red-night/` is a separately installable Red Night application
-distribution, but Red's assessment engines are not yet isolated from the legacy
-runtime.
+Red Night is independently installable through three coordinated distributions:
 
-The application currently depends on:
+- `nightrecon-red-night==0.40.0` — application launcher and Red command surface
+- `nightrecon-red-engine==0.40.0` — Red-owned assessment, evidence, graph,
+  validation, planning, remediation, checks, identity, and cloud/hybrid logic
+- `nightrecon-shared-core==0.40.0` — mandatory network-free authorization,
+  edition policy, evidence contracts, engagement policy, storage, and workspace
+  coordination
 
-- `nightrecon==0.31.0` for the legacy Red CLI/runtime bridge still being migrated;
-- `nightrecon-red-engine==0.32.0.dev0` for physically separated Red engine modules;
-- `nightrecon-shared-core==0.32.0.dev0` for canonical cross-Night policy,
-  authorization primitives, evidence contracts, engagement storage, and
-  workspace coordination.
+The standalone Red application does not require the legacy
+`nightrecon==0.31.0` package. The legacy package remains an explicit
+compatibility distribution and depends on the stable Red engine/shared core
+during the migration window.
 
-The launcher path remains:
+The standalone launcher path is:
 
-`red-night-app -> red_night_app.main -> nightrecon.red_night.main -> nightrecon.edition_gateway.run_edition_cli`
+`red-night-app -> red_night_app.main -> nightrecon_red_engine.red_cli.main`
 
-The gateway fail-closes commands that are not explicitly assigned to Red Night.
-The dedicated `identity` and `workspace` commands route to Red-specific
-adapters; other approved Red commands still use the legacy CLI until their
-engines are physically extracted.
+The legacy compatibility launcher remains:
 
-## Shared core now owns
+`red-night -> legacy compatibility CLI -> Red engine/shared-core boundaries`
+
+Both paths preserve fail-closed command ownership, target scope, authorization
+windows, action budgets, approval requirements, and non-secret audit evidence.
+
+## Shared core ownership
 
 The independently installable, network-free shared core is canonical for:
 
-- Night identity and fail-closed command ownership policy;
-- target parsing and explicit scope authorization;
-- versioned, secret-free evidence records and engagement envelopes;
-- engagement coordination metadata;
-- backend-neutral engagement-store semantics;
-- deterministic local file storage for standalone applications;
-- shared workspace summaries, evidence breakdowns, conflict-safe merges, and
-  portable import/export.
+- Night identity and fail-closed command ownership policy
+- target parsing and explicit scope authorization
+- engagement status, validity windows, capability allowlists, approval rules,
+  action budgets, revocation, and authorization audit
+- versioned secret-free evidence records and engagement envelopes
+- engagement coordination metadata
+- backend-neutral engagement-store semantics
+- deterministic local storage and workspace coordination
+- portable import/export contracts
 
-The legacy `nightrecon.edition_policy`, `authorization_policy`, `scope`,
-and `targets` surfaces are compatibility re-exports. Shared core must not
-import the legacy application runtime or any Night application.
+Evidence or metadata imported from another Night is coordination context only.
+It never grants authorization for active activity.
 
-Workspace evidence and metadata are coordination context only. An
-`authorization_reference` is a reference to separately enforced authorization;
-it is never an approval flag and never grants permission for an active action.
+## Red engine ownership
 
-## Workspace composition boundary
+The Red engine owns the Red assessment/runtime surface used by the standalone
+application, including the migrated discovery/service foundations plus the
+v0.33-v0.40 engagement, identity, controlled-validation, graph, planning,
+remediation/retest, check-ecosystem, and cloud/hybrid boundaries.
 
-`LocalWorkspace` uses one canonical `engagements.json` store under a workspace
-root. Multiple independently installed Nights can use the same contracts and
-workspace abstraction without importing each other.
+The stable v0.40 package boundary does not imply unrestricted offensive
+execution. The current operator is plan-only, validation adapters are
+capability-gated, and the release does not add exploit payloads, credential
+harvesting, arbitrary command execution, cloud writes, persistence, privilege
+changes, or autonomous execution.
 
-The current file-backed workspace is intended for standalone use and serialized
-local writers. It does not claim safe concurrent multi-process writes. A future
-composed desktop/service/database backend must implement the same workspace/store
-semantics while providing appropriate locking or transactions.
+## Standalone and compatibility verification
 
-Red Night exposes the first workspace adapter:
+CI builds the Red application, Red engine, shared core, and legacy compatibility
+wheel separately. It verifies:
 
-- `red-night workspace list <root>`
-- `red-night workspace show <root> --engagement-id <id>`
-- `red-night workspace import <root> <envelope.json>`
-- `red-night workspace export <root> --engagement-id <id> --output <path>`
+1. isolated Red installation without the legacy `nightrecon` package
+2. combined Red + legacy installation
+3. uninstall separation between `red-night-app` and `red-night`
+4. stable package metadata and dependency pins
+5. cross-platform Python 3.11 and 3.14 Red distribution smoke tests
+6. the full NightRecon test matrix and specialist runtime compatibility jobs
 
-These commands read, summarize, import, or export evidence only. They do not
-scan, collect, approve, or authorize targets.
+## Remaining boundary work
 
-## Red-owned existing capability assignment
+The compatibility window remains open while the legacy NightRecon distribution
+continues to exist. Future package work should remove only proven compatibility
+seams and must not rewrite stable Red engines merely for namespace purity.
 
-Existing NightRecon assessment engines remain canonical in their proven modules.
-Red ownership is recorded in [RED_OWNERSHIP.md](RED_OWNERSHIP.md) and
-`nightrecon.red_ownership` rather than by copying implementations.
+Every later extraction or composition batch must preserve:
 
-`nightrecon.red_host_discovery`, `red_tcp_scanner`, and
-`red_service_detection` are thin ownership facades over the original modules.
-They contain no duplicate network implementation. The Red/legacy CLI may import
-through those facades while the original modules and established test patch
-points remain stable.
-
-This is an ownership and packaging seam, not a feature rewrite. Physical module
-moves should happen only when a coherent Red engine package can be built without
-duplicating code or changing behavior.
-
-## Existing Red engines awaiting package separation
-
-Discovery/scanning, service/TLS/OS evidence, web/DAST, API, credentialed
-infrastructure assessment, vulnerability/check execution, asset inventory,
-reporting, and graph/path foundations already exist and are assigned to Red.
-
-Package separation is now active through the independent
-`nightrecon-red-engine` distribution. The first migrated leaf modules are
-`software_identity`, `service_fingerprint`, `api_models`,
-`infrastructure_models`, and `graph_models`; their legacy paths are
-compatibility re-exports. The remaining boundary problem is removing the
-monolithic `nightrecon==0.31.0` CLI/runtime bridge after the remaining coherent
-engine groups move. The ordered work is tracked in
-[RED_PACKAGE_PLAN.md](RED_PACKAGE_PLAN.md).
-
-## Extraction rules
-
-Each isolation batch must:
-
-1. preserve the existing `nightrecon` CLI;
-2. preserve fail-closed Red command ownership;
-3. keep shared authorization/scope checks authoritative;
-4. keep network-capable and Night-specific execution out of shared core;
-5. preserve standalone and combined package-install smoke coverage;
-6. maintain deterministic, versioned evidence/workspace contracts;
-7. avoid Night-to-Night runtime imports;
-8. keep imported/shared evidence non-authoritative for active operations.
-
-## Next physical extraction target
-
-The next package-boundary work should continue from the extracted discovery/TCP/service
-seam into evidence projection and the remaining service helper modules, keeping existing
-scope checks and compatibility behavior intact. Once a coherent Red execution
-slice no longer depends on unrelated legacy modules, it can move into a
-separately versioned Red engine distribution.
+- shared-core authorization as authoritative
+- fail-closed Red command ownership
+- standalone Red installation
+- no Night-to-Night runtime dependency
+- deterministic versioned evidence/workspace contracts
+- secret non-retention
+- existing negative-authorization and distribution smoke coverage
