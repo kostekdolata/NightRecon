@@ -129,8 +129,14 @@ API optional extras. No assessment algorithms were rewritten.
 
 ### Batch E — infrastructure group
 
-Move existing credentialed infrastructure models/policies/adapters and preserve
-the current SSH/SMB/WinRM/database runtime extras and safety behavior.
+Implemented in the v0.32.0 development branch.
+
+All existing credentialed infrastructure providers, policies, execution models,
+database adapters, network-device logic, reporting, SSH, SMB, and WinRM modules
+now live canonically in `nightrecon_red_engine`. Shared scope/target policy
+imports resolve directly through shared core. The existing SSH/SMB/WinRM,
+PostgreSQL, and MySQL runtimes remain optional Red-engine extras. No execution
+semantics or safety policy were rewritten.
 
 ### Batch F — graph/identity/vulnerability group
 
