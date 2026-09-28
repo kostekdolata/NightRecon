@@ -2,10 +2,14 @@
 
 import contextlib
 import io
+import tempfile
 import unittest
 from unittest.mock import patch
 
 from nightrecon.red_night import main
+from nightrecon_shared_core.contracts import EngagementMetadata
+from nightrecon_shared_core.engagement_policy import EngagementExecutionPolicy
+from nightrecon_shared_core.workspace import LocalWorkspace
 
 
 class RedNightLauncherTests(unittest.TestCase):
@@ -24,6 +28,42 @@ class RedNightLauncherTests(unittest.TestCase):
         self.assertEqual(exit_status.exception.code, 2)
         self.assertIn("requires --workspace-root and --engagement-id", error.getvalue())
         command_main.assert_not_called()
+
+    def test_active_command_runs_only_after_authorized_guard(self):
+        with tempfile.TemporaryDirectory(prefix="red-night-guard-") as directory:
+            workspace = LocalWorkspace(directory)
+            workspace.create_engagement(EngagementMetadata(
+                engagement_id="eng-guard",
+                name="Guarded execution",
+                created_at="2026-09-28T00:00:00+00:00",
+                authorization_reference="approval://eng-guard",
+                status="active",
+            ))
+            workspace.set_execution_policy(EngagementExecutionPolicy(
+                engagement_id="eng-guard",
+                scope=("127.0.0.1",),
+                valid_from="2026-01-01T00:00:00+00:00",
+                valid_until="2030-01-01T00:00:00+00:00",
+                max_actions=2,
+                permitted_capabilities=("scan",),
+            ))
+            arguments = (
+                "scan", "127.0.0.1", "--scope", "127.0.0.1",
+                "--workspace-root", directory,
+                "--engagement-id", "eng-guard",
+            )
+            with patch("nightrecon_red_engine.red_cli._command_main") as command_main:
+                main(arguments)
+            command_main.assert_called_once_with(
+                ("scan", "127.0.0.1", "--scope", "127.0.0.1")
+            )
+            self.assertEqual(
+                workspace.execution_policy("eng-guard").actions_used, 1
+            )
+            self.assertEqual(
+                workspace.authorization_audit("eng-guard")[-1].reason_code,
+                "authorized",
+            )
 
     def test_process_arguments_are_used_by_default(self):
         output = io.StringIO()
