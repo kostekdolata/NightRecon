@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nightrecon-red-engine"
+version = "0.32.0.dev0"
+description = "Red Night engine package for existing authorized NightRecon assessment capabilities"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "nightrecon-shared-core==0.32.0.dev0",
+    "cryptography>=50.0.1,<51",
+]
+
+[tool.setuptools.packages.find]
+include = ["nightrecon_red_engine*"]
+
+[project.optional-dependencies]
+browser = [
+    "playwright>=1.63,<2",
+]
+api = [
+    "PyYAML>=6.0,<7",
+]
+
+ssh = [
+    "paramiko>=5.0,<6",
+]
+smb = [
+    "impacket>=0.13.1,<0.14",
+]
+winrm = [
+    "pywinrm>=0.5,<0.6",
+]
+postgres = [
+    "psycopg[binary]>=3.2,<4",
+]
+mysql = [
+    "mysql-connector-python>=9.0,<10",
+]

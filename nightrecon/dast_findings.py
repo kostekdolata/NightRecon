@@ -1,23 +1,7 @@
-"""Structured non-secret findings for NightRecon DAST."""
+"""Compatibility alias for migrated Red Night dast findings module."""
 
-from __future__ import annotations
+from importlib import import_module as _import_module
+import sys as _sys
 
-from dataclasses import dataclass
-
-from nightrecon.dast_evidence import (
-    DastRetestDescriptor,
-)
-
-
-@dataclass(frozen=True)
-class DastFinding:
-    """One deterministic safe-active DAST finding."""
-
-    check_id: str
-    title: str
-    severity: str
-    target_url: str
-    summary: str
-    evidence: tuple[str, ...] = ()
-    remediation: str = ""
-    retest: DastRetestDescriptor | None = None
+_module = _import_module("nightrecon_red_engine.dast_findings")
+_sys.modules[__name__] = _module

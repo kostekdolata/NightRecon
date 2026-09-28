@@ -54,6 +54,101 @@ catalog there for now. In particular, the generic CIDR discovery command is not
 silently presented as a Black Night external-assessment workflow. The gateway is
 not a substitute for the core scope checks.
 
+Existing host discovery, TCP scanning, service detection, web/API assessment,
+credentialed infrastructure assessment, vulnerability intelligence, checks,
+inventory, reporting, and graph/path capabilities are assigned to Red Night.
+The `red_host_discovery`, `red_tcp_scanner`, and `red_service_detection`
+modules are thin ownership facades over the existing proven implementations;
+they do not duplicate engine code. The detailed ownership map is maintained in
+`RED_OWNERSHIP.md`. Existing authorization/scope behavior is unchanged.
+
+## Stack composition contract
+
+NightRecon is a software stack, not a collection of mutually exclusive editions.
+
+Each Night must be able to run as a complete standalone application for its own
+responsibility, with the mandatory shared safety core installed beneath it.
+Installing another Night must never be required just to use that application's
+normal workflows.
+
+When two or more Nights are installed together, they form one composable
+NightRecon stack. Composition must add interoperability, not create hidden
+runtime dependencies between applications. The required dependency direction is:
+
+`Night application -> shared core`
+
+No Night application may become a mandatory dependency of another Night.
+
+Cross-Night cooperation uses versioned, secret-free evidence and engagement
+contracts. Standalone applications can export/import those contracts. A composed
+installation may additionally use a shared engagement data layer so Red, Blue,
+White, Purple, and Black can contribute to and consume the same authorized
+engagement state without duplicating databases.
+
+The shared engagement layer must preserve source Night, evidence provenance,
+schema version, authorization context, timestamps, and confidence/limitations.
+It must not turn data observed by one Night into automatic authorization for
+another Night. Shared state is evidence and coordination context; each active
+operation still passes the shared core's scope, approval, budget, and stop
+controls.
+
+Examples of intended composition:
+
+- Red Night can publish assessment findings and action evidence.
+- Blue Night can publish telemetry, prevention, alert, and remediation evidence.
+- Purple Night can correlate Red and Blue evidence whether those Nights are
+  installed locally or their versioned exports are imported.
+- White Night can manage engagement authorization, approvals, evidence custody,
+  and exercise control without becoming a required runtime for the safety core.
+- Black Night can contribute outside-in discovery evidence while retaining its
+  deliberately limited-knowledge operating model.
+
+The full-suite installation should therefore feel like one integrated NightRecon
+workspace while preserving the ability to install, upgrade, run, and remove each
+Night independently.
+
+### Shared engagement storage
+
+The shared core now defines a backend-neutral `EngagementStore` contract plus a
+portable `FileEngagementStore` for standalone applications. The file store is
+strictly versioned, deterministic, conflict-safe, and written by atomic replace.
+A future full-stack workspace may use SQLite, PostgreSQL, a local service, or
+another backend, but it must implement the same store semantics.
+
+Red Night is the first producer wired into this layer. Its offline identity
+import can persist evidence with `--store <path> --engagement-id <id>` and can
+read it back with `identity store-list`. Engagement coordination metadata can be
+created with `identity store-metadata`; its authorization reference is only a
+pointer to separately enforced authorization state and never grants permission.
+Standalone stores can export one engagement with `identity store-export` and
+import it into another compatible store with `identity store-import`, preserving
+source Night, provenance, limitations, metadata, and evidence IDs. These are
+explicit local data operations; the default identity-import output remains unchanged.
+
+Evidence imported from another Night is never authorization. Any later active
+operation still requires the shared core's target scope, approvals, budgets,
+and stop controls.
+
+### Shared workspace coordination
+
+The shared core also defines a `WorkspaceStore` boundary and a
+`LocalWorkspace` implementation. A local workspace derives its engagement
+index from one canonical `engagements.json` store rather than maintaining a
+second database. Summaries expose engagement identity, name/status, source
+Nights present, record counts, and evidence types; evidence breakdowns are
+available by source Night and type.
+
+Red Night owns the first top-level workspace adapter:
+`workspace list`, `workspace show`, `workspace import`, and
+`workspace export`. These commands are evidence/coordination operations only
+and cannot scan or authorize targets.
+
+The current file-backed workspace supports standalone use and serialized local
+writers. A future composed service/database backend will provide concurrency
+control while preserving the same store/workspace contracts. No Night is
+permitted to import another Night's runtime just to participate in the shared
+workspace.
+
 ## Separation contract
 
 - The shared core owns existing scope and authorization checks, budgets, secret

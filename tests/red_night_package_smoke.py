@@ -21,6 +21,16 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def main() -> None:
+    import nightrecon_red_engine
+    from nightrecon import software_identity as legacy_software_identity
+    from nightrecon_red_engine import software_identity as canonical_software_identity
+
+    assert nightrecon_red_engine.is_migrated_module("software_identity")
+    assert (
+        legacy_software_identity.SoftwareIdentity
+        is canonical_software_identity.SoftwareIdentity
+    )
+
     catalog = run("editions", "--json")
     assert catalog.returncode == 0, catalog.stderr
     entries = json.loads(catalog.stdout)

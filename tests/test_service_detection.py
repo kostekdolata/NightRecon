@@ -10,11 +10,18 @@ from nightrecon.service_detection import (
     identify_service,
     parse_http_response,
 )
+from nightrecon import red_service_detection
 from nightrecon.service_fingerprint import ServiceFingerprint
 from nightrecon.software_identity import SoftwareIdentity
 
 
 class ServiceDetectionTests(unittest.TestCase):
+    def test_legacy_module_reexports_red_orchestrator(self):
+        self.assertIs(ServiceDetectionResult, red_service_detection.ServiceDetectionResult)
+        self.assertIs(detect_service, red_service_detection.detect_service)
+        self.assertIs(identify_service, red_service_detection.identify_service)
+        self.assertIs(parse_http_response, red_service_detection.parse_http_response)
+
 
     def test_http_response_parser_captures_response_headers(self):
         response = (

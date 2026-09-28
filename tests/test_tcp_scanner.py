@@ -9,9 +9,15 @@ from nightrecon.tcp_scanner import (
     scan_tcp_port,
     scan_tcp_ports,
 )
+from nightrecon import red_tcp_scanner
 
 
 class TcpScannerTests(unittest.TestCase):
+    def test_legacy_module_reexports_red_engine(self):
+        self.assertIs(TcpPortResult, red_tcp_scanner.TcpPortResult)
+        self.assertIs(scan_tcp_port, red_tcp_scanner.scan_tcp_port)
+        self.assertIs(scan_tcp_ports, red_tcp_scanner.scan_tcp_ports)
+
     def test_open_ipv4_port(self):
         fake_socket = MagicMock()
         fake_socket.connect_ex.return_value = 0

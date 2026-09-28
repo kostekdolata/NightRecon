@@ -10,27 +10,27 @@ from nightrecon.red_night import main
 
 class RedNightLauncherTests(unittest.TestCase):
     def test_explicit_allowed_command_routes_to_red(self):
-        with patch("nightrecon.red_night.run_edition_cli") as gateway:
-            main(("scan", "127.0.0.1", "--scope", "127.0.0.1"))
-        gateway.assert_called_once_with(
-            "red", ("scan", "127.0.0.1", "--scope", "127.0.0.1")
-        )
+        arguments = ("scan", "127.0.0.1", "--scope", "127.0.0.1")
+        with patch("nightrecon_red_engine.red_cli._command_main") as command_main:
+            main(arguments)
+        command_main.assert_called_once_with(arguments)
 
     def test_process_arguments_are_used_by_default(self):
+        output = io.StringIO()
         with patch("sys.argv", ["red-night", "--help"]):
-            with patch("nightrecon.red_night.run_edition_cli") as gateway:
+            with contextlib.redirect_stdout(output):
                 main()
-        gateway.assert_called_once_with("red", ["--help"])
+        self.assertIn("NightRecon Red Night command boundary", output.getvalue())
 
-    def test_unowned_commands_fail_before_reaching_legacy_cli(self):
+    def test_unowned_commands_fail_before_command_execution(self):
         error = io.StringIO()
-        with patch("nightrecon.edition_gateway.legacy_main") as legacy:
+        with patch("nightrecon_red_engine.red_cli._command_main") as command_main:
             with contextlib.redirect_stderr(error):
                 with self.assertRaises(SystemExit) as exit_status:
                     main(("unknown-command",))
         self.assertEqual(exit_status.exception.code, 2)
         self.assertIn("Command is not available in this edition", error.getvalue())
-        legacy.assert_not_called()
+        command_main.assert_not_called()
 
     def test_no_arguments_show_only_red_owned_commands(self):
         output = io.StringIO()

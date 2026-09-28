@@ -11,9 +11,16 @@ from nightrecon.host_discovery import (
     enrich_reverse_dns,
     probe_host,
 )
+from nightrecon import red_host_discovery
 
 
 class HostDiscoveryTests(unittest.TestCase):
+    def test_legacy_module_reexports_red_engine(self):
+        self.assertIs(HostDiscoveryResult, red_host_discovery.HostDiscoveryResult)
+        self.assertIs(discover_hosts, red_host_discovery.discover_hosts)
+        self.assertIs(enrich_reverse_dns, red_host_discovery.enrich_reverse_dns)
+        self.assertIs(probe_host, red_host_discovery.probe_host)
+
     def test_open_tcp_port_marks_host_responsive(self):
         fake_socket = MagicMock()
         fake_socket.connect_ex.return_value = 0

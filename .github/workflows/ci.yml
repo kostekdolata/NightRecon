@@ -44,6 +44,12 @@ jobs:
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools
 
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
       - name: Install NightRecon
         run: python -m pip install -e .
 
@@ -101,6 +107,12 @@ jobs:
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools
 
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
       - name: Install NightRecon API extra
         run: python -m pip install -e ".[api]"
 
@@ -124,6 +136,12 @@ jobs:
 
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
 
       - name: Install NightRecon SSH extra
         run: python -m pip install -e ".[ssh]"
@@ -149,6 +167,12 @@ jobs:
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools
 
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
       - name: Install NightRecon SMB extra
         run: python -m pip install -e ".[smb]"
 
@@ -172,6 +196,12 @@ jobs:
 
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
 
       - name: Install NightRecon WinRM extra
         run: python -m pip install -e ".[winrm]"
@@ -197,6 +227,12 @@ jobs:
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools
 
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
       - name: Install NightRecon PostgreSQL extra
         run: python -m pip install -e ".[postgres]"
 
@@ -221,6 +257,12 @@ jobs:
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools
 
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
       - name: Install NightRecon MySQL extra
         run: python -m pip install -e ".[mysql]"
 
@@ -244,6 +286,12 @@ jobs:
 
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
 
       - name: Install NightRecon browser extra
         run: python -m pip install -e ".[browser]"

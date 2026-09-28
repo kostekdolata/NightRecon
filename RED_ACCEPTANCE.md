@@ -85,6 +85,19 @@ source graph, retains truncation and provenance through the original path, and
 states explicitly that the order is neither risk nor exploitability. It does
 not execute an attack, assign an ATT&CK technique, or add a network collector.
 
-The next substantial product step is splitting the mandatory shared safety core
-from Red-owned engine dependencies while preserving the legacy CLI, followed
-by authorization-first live identity collectors and lab-backed assessment.
+The existing reconnaissance, service/TLS, web/DAST, API, credentialed
+infrastructure, vulnerability-intelligence, checks, inventory, reporting, and
+graph/path capabilities are assigned to Red Night and must not be rebuilt merely
+for edition separation. Their remaining work is package isolation, integration
+evidence, and the comparison/quality gates above.
+
+The dependency-verified package migration in
+[RED_PACKAGE_PLAN.md](RED_PACKAGE_PLAN.md) is underway. A separate
+`nightrecon-red-engine` distribution now owns the first migrated low-coupling
+modules while legacy imports remain compatible. The next packaging work should
+continue moving coherent existing engine groups until the monolithic
+`nightrecon==0.31.0` CLI/runtime bridge can be removed, without rewriting the
+proven implementations.
+After that, genuinely new capability work should focus on authorization-first
+live identity collectors, controlled validation/emulation, and lab-backed
+acceptance.
