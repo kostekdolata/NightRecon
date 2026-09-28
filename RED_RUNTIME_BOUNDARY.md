@@ -11,7 +11,8 @@ runtime.
 
 The application currently depends on:
 
-- `nightrecon==0.31.0` for the legacy Red execution engines still being migrated;
+- `nightrecon==0.31.0` for the legacy Red CLI/runtime bridge still being migrated;
+- `nightrecon-red-engine==0.32.0.dev0` for physically separated Red engine modules;
 - `nightrecon-shared-core==0.32.0.dev0` for canonical cross-Night policy,
   authorization primitives, evidence contracts, engagement storage, and
   workspace coordination.
@@ -89,11 +90,14 @@ Discovery/scanning, service/TLS/OS evidence, web/DAST, API, credentialed
 infrastructure assessment, vulnerability/check execution, asset inventory,
 reporting, and graph/path foundations already exist and are assigned to Red.
 
-The remaining boundary problem is package separation: `packages/red-night`
-still depends on the monolithic `nightrecon==0.31.0` distribution. The audited
-dependency closure, existing optional extras, and ordered bridge-removal work are
-tracked in [RED_PACKAGE_PLAN.md](RED_PACKAGE_PLAN.md). Future packaging work must
-move coherent existing module groups without reimplementing them.
+Package separation is now active through the independent
+`nightrecon-red-engine` distribution. The first migrated leaf modules are
+`software_identity`, `service_fingerprint`, `api_models`,
+`infrastructure_models`, and `graph_models`; their legacy paths are
+compatibility re-exports. The remaining boundary problem is removing the
+monolithic `nightrecon==0.31.0` CLI/runtime bridge after the remaining coherent
+engine groups move. The ordered work is tracked in
+[RED_PACKAGE_PLAN.md](RED_PACKAGE_PLAN.md).
 
 ## Extraction rules
 

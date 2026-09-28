@@ -54,8 +54,9 @@ These are existing capabilities and dependencies, not new feature work.
 
 for these concrete reasons:
 
-1. the Red wheel currently ships only `red_night_app`, not the existing Red
-   engine modules;
+1. the Red app wheel remains launcher-only; the Red engine wheel currently
+   contains only the first migrated leaf modules while most existing engines
+   and the CLI still live in the legacy/root distribution;
 2. `red_night_app` imports `nightrecon.red_night`;
 3. `red_night` imports `edition_gateway`;
 4. the gateway delegates established Red commands to the existing
@@ -79,16 +80,21 @@ module groups.
 
 Implemented in the v0.32.0 development branch.
 
-The Red distribution owns the separate `nightrecon_red_engine` namespace while
-existing implementations remain canonical under `nightrecon.*`. The namespace
-contains compatibility/ownership metadata only, no engine implementation.
-Install/uninstall and wheel-content tests enforce coexistence with the legacy
-package. See `RED_PACKAGE_NAMESPACE.md`.
+The Red engine distribution owns the separate `nightrecon_red_engine`
+namespace. Batch A established compatibility/ownership metadata only and proved
+install/uninstall coexistence. See `RED_PACKAGE_NAMESPACE.md`.
 
 ### Batch B — leaf model/evidence modules
 
-Move low-coupling Red modules that have no network execution and update imports
-atomically. Leave thin legacy compatibility re-exports at the old module paths.
+Implemented in the v0.32.0 development branch.
+
+A new `nightrecon-red-engine` distribution breaks the dependency cycle:
+legacy/root and Red app depend on the engine; the engine depends only on
+shared-core/base libraries. Five existing low-coupling modules are physically
+moved without rewriting behavior: `software_identity`,
+`service_fingerprint`, `api_models`, `infrastructure_models`, and
+`graph_models`. Their established `nightrecon.*` paths remain thin
+compatibility re-exports.
 
 ### Batch C — discovery/service group
 

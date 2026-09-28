@@ -91,11 +91,13 @@ graph/path capabilities are assigned to Red Night and must not be rebuilt merely
 for edition separation. Their remaining work is package isolation, integration
 evidence, and the comparison/quality gates above.
 
-The next substantial product step is executing the dependency-verified package
-migration in [RED_PACKAGE_PLAN.md](RED_PACKAGE_PLAN.md): split the existing
-Red-owned engine modules and optional extras from the monolithic
-`nightrecon==0.31.0` dependency while preserving their proven implementations
-and legacy CLI.
+The dependency-verified package migration in
+[RED_PACKAGE_PLAN.md](RED_PACKAGE_PLAN.md) is underway. A separate
+`nightrecon-red-engine` distribution now owns the first migrated low-coupling
+modules while legacy imports remain compatible. The next packaging work should
+continue moving coherent existing engine groups until the monolithic
+`nightrecon==0.31.0` CLI/runtime bridge can be removed, without rewriting the
+proven implementations.
 After that, genuinely new capability work should focus on authorization-first
 live identity collectors, controlled validation/emulation, and lab-backed
 acceptance.

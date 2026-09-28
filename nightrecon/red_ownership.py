@@ -6,6 +6,8 @@ duplicating their implementations. It is descriptive packaging metadata only.
 
 from __future__ import annotations
 
+from nightrecon_red_engine import MIGRATED_MODULES
+
 RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
     "discovery": (
         "asset_inventory", "asset_inventory_store", "discovery_report",
@@ -61,6 +63,7 @@ RED_BASE_DEPENDENCIES: tuple[str, ...] = (
     "nightrecon-shared-core==0.32.0.dev0",
 )
 RED_LEGACY_BRIDGE_DEPENDENCY = "nightrecon==0.31.0"
+RED_ENGINE_DISTRIBUTION_DEPENDENCY = "nightrecon-red-engine==0.32.0.dev0"
 
 RED_OPTIONAL_EXTRAS: dict[str, tuple[str, ...]] = {
     "browser": ("playwright>=1.63,<2",),
@@ -107,6 +110,8 @@ RED_ENGINE_FACADES: tuple[str, ...] = (
     "red_host_discovery", "red_tcp_scanner", "red_service_detection",
 )
 
+RED_MIGRATED_ENGINE_MODULES: tuple[str, ...] = tuple(sorted(MIGRATED_MODULES))
+
 
 def red_modules() -> tuple[str, ...]:
     return tuple(sorted({module for group in RED_MODULE_GROUPS.values() for module in group}))
@@ -114,3 +119,7 @@ def red_modules() -> tuple[str, ...]:
 
 def red_package_modules() -> tuple[str, ...]:
     return tuple(sorted(set(red_modules()) | set(RED_RUNTIME_SUPPORT_MODULES) | set(RED_ENGINE_FACADES)))
+
+
+def legacy_red_modules() -> tuple[str, ...]:
+    return tuple(sorted(set(red_modules()) - set(RED_MIGRATED_ENGINE_MODULES)))

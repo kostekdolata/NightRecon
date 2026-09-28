@@ -12,6 +12,7 @@ license = "MIT"
 dependencies = [
     "nightrecon==0.31.0",
     "nightrecon-shared-core==0.32.0.dev0",
+    "nightrecon-red-engine==0.32.0.dev0",
     "cryptography>=50.0.1,<51",
 ]
 
@@ -37,4 +38,4 @@ all = [
 red-night-app = "red_night_app:main"
 
 [tool.setuptools.packages.find]
-include = ["red_night_app*", "nightrecon_red_engine*"]
+include = ["red_night_app*"]

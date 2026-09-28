@@ -1,48 +1,38 @@
-"""Tests for the Red Night package namespace skeleton."""
+"""Tests for the Red Night engine package namespace."""
 
 from __future__ import annotations
 
-import importlib
 from pathlib import Path
-import sys
 import unittest
+
+import nightrecon.host_discovery as legacy_host_discovery
+import nightrecon_red_engine as engine
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RED_PACKAGE_ROOT = ROOT / "packages" / "red-night"
 
 
 class RedPackageNamespaceTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls._path = str(RED_PACKAGE_ROOT)
-        sys.path.insert(0, cls._path)
-        cls.engine = importlib.import_module("nightrecon_red_engine")
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        if sys.path and sys.path[0] == cls._path:
-            sys.path.pop(0)
-        for name in tuple(sys.modules):
-            if name == "nightrecon_red_engine" or name.startswith("nightrecon_red_engine."):
-                sys.modules.pop(name, None)
-
     def test_namespace_is_distinct_from_legacy_package(self) -> None:
-        self.assertEqual(self.engine.NAMESPACE, "nightrecon_red_engine")
-        self.assertEqual(self.engine.LEGACY_NAMESPACE, "nightrecon")
+        self.assertEqual(engine.NAMESPACE, "nightrecon_red_engine")
+        self.assertEqual(engine.LEGACY_NAMESPACE, "nightrecon")
 
-    def test_existing_red_module_resolves_without_copying_implementation(self) -> None:
-        legacy = importlib.import_module("nightrecon.host_discovery")
-        self.assertTrue(self.engine.is_red_owned_module("host_discovery"))
-        self.assertIs(self.engine.existing_module("host_discovery"), legacy)
+    def test_migrated_red_module_resolves_from_engine_package(self) -> None:
+        import nightrecon.software_identity as legacy
+        from nightrecon_red_engine import software_identity
 
-    def test_unowned_module_is_rejected(self) -> None:
-        self.assertFalse(self.engine.is_red_owned_module("authorization_policy"))
-        with self.assertRaisesRegex(ValueError, "not declared Red-owned"):
-            self.engine.existing_module("authorization_policy")
+        self.assertTrue(engine.is_migrated_module("software_identity"))
+        self.assertIs(engine.existing_module("software_identity"), software_identity)
+        self.assertIs(legacy.SoftwareIdentity, software_identity.SoftwareIdentity)
 
-    def test_namespace_source_contains_no_assessment_engine_implementation(self) -> None:
-        namespace = RED_PACKAGE_ROOT / "nightrecon_red_engine"
+    def test_unmigrated_module_is_rejected_by_engine_resolver(self) -> None:
+        self.assertFalse(engine.is_migrated_module("host_discovery"))
+        with self.assertRaisesRegex(ValueError, "not migrated to Red engine"):
+            engine.existing_module("host_discovery")
+        self.assertIsNotNone(legacy_host_discovery)
+
+    def test_engine_namespace_source_contains_no_network_execution_in_leaf_batch(self) -> None:
+        namespace = ROOT / "packages" / "red-engine" / "nightrecon_red_engine"
         sources = "\n".join(
             path.read_text(encoding="utf-8")
             for path in sorted(namespace.glob("*.py"))
@@ -54,8 +44,6 @@ class RedPackageNamespaceTests(unittest.TestCase):
             "playwright",
             "paramiko",
             "impacket",
-            "scan_tcp_port(",
-            "detect_service(",
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, sources)

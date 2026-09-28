@@ -1,4 +1,4 @@
-"""Build two wheels and exercise separate and combined Red Night installations."""
+"""Build four wheels and exercise separate and combined Red Night installations."""
 
 from __future__ import annotations
 
@@ -191,6 +191,7 @@ def main() -> None:
         for package in (
             REPOSITORY,
             REPOSITORY / "packages" / "shared-core",
+            REPOSITORY / "packages" / "red-engine",
             REPOSITORY / "packages" / "red-night",
         ):
             check(
@@ -202,23 +203,46 @@ def main() -> None:
         shared_core_wheel = next(
             wheels.glob("nightrecon_shared_core-0.32.0.dev0-*.whl")
         )
+        red_engine_wheel = next(
+            wheels.glob("nightrecon_red_engine-0.32.0.dev0-*.whl")
+        )
         app_wheel = next(wheels.glob("nightrecon_red_night-0.32.0.dev0-*.whl"))
 
         with zipfile.ZipFile(app_wheel) as archive:
             app_files = tuple(sorted(archive.namelist()))
         assert any(name.startswith("red_night_app/") for name in app_files)
-        assert any(name.startswith("nightrecon_red_engine/") for name in app_files)
+        assert not any(name.startswith("nightrecon_red_engine/") for name in app_files)
         assert not any(name.startswith("nightrecon/") for name in app_files), app_files
+
+        with zipfile.ZipFile(red_engine_wheel) as archive:
+            engine_files = tuple(sorted(archive.namelist()))
+        assert any(name.startswith("nightrecon_red_engine/") for name in engine_files)
+        assert not any(name.startswith("nightrecon/") for name in engine_files), engine_files
 
         for mode in ("isolated", "combined"):
             env_root = directory / mode
             venv.create(env_root, with_pip=True, system_site_packages=True)
             bin_dir, python = scripts(env_root)
+            check(str(python), "-m", "pip", "install", "--no-index",
+                  "--no-deps", str(shared_core_wheel), cwd=directory)
+            check(str(python), "-m", "pip", "install", "--no-index",
+                  "--no-deps", str(red_engine_wheel), cwd=directory)
+            check(
+                str(python), "-c",
+                "from nightrecon_red_engine import software_identity; "
+                "assert software_identity.SoftwareIdentity.__name__ == 'SoftwareIdentity'",
+                cwd=directory,
+            )
+            if mode == "isolated":
+                check(
+                    str(python), "-c",
+                    "import importlib.util; "
+                    "assert importlib.util.find_spec('nightrecon') is None",
+                    cwd=directory,
+                )
             if mode == "combined" or arguments.offline_host_dependencies:
                 check(str(python), "-m", "pip", "install", "--no-index",
                       "--no-deps", str(core_wheel), cwd=directory)
-            check(str(python), "-m", "pip", "install", "--no-index",
-                  "--no-deps", str(shared_core_wheel), cwd=directory)
             check(
                 str(python), "-c",
                 "import nightrecon_shared_core as c; "
@@ -242,11 +266,13 @@ def main() -> None:
             check(
                 str(python), "-c",
                 "import nightrecon_red_engine as e; "
-                "import nightrecon.host_discovery as legacy; "
+                "import nightrecon.software_identity as legacy; "
+                "from nightrecon_red_engine import software_identity as canonical; "
                 "assert e.NAMESPACE == 'nightrecon_red_engine'; "
                 "assert e.LEGACY_NAMESPACE == 'nightrecon'; "
-                "assert e.existing_module('host_discovery') is legacy; "
-                "assert not e.is_red_owned_module('authorization_policy')",
+                "assert e.existing_module('software_identity') is canonical; "
+                "assert legacy.SoftwareIdentity is canonical.SoftwareIdentity; "
+                "assert not e.is_migrated_module('host_discovery')",
                 cwd=directory,
             )
 
@@ -255,13 +281,15 @@ def main() -> None:
                 "import importlib.metadata as m; "
                 "print(m.version('nightrecon')); "
                 "print(m.version('nightrecon-red-night')); "
+                "print(m.version('nightrecon-red-engine')); "
                 "print(m.version('nightrecon-shared-core')); "
                 "print(m.requires('nightrecon-red-night'))",
                 cwd=directory,
             )
             assert "0.31.0" in metadata
-            assert metadata.count("0.32.0.dev0") >= 2
+            assert metadata.count("0.32.0.dev0") >= 3
             assert "nightrecon==0.31.0" in metadata
+            assert "nightrecon-red-engine==0.32.0.dev0" in metadata
             assert "nightrecon-shared-core==0.32.0.dev0" in metadata
             assert "cryptography" in metadata
             for extra_dependency in (
@@ -280,9 +308,9 @@ def main() -> None:
                 assert not Path(command(bin_dir, "red-night-app")).exists()
                 check(
                     str(python), "-c",
-                    "import importlib.util; import nightrecon; "
-                    "assert importlib.util.find_spec('nightrecon_red_engine') is None; "
-                    "assert nightrecon is not None",
+                    "import nightrecon; import nightrecon_red_engine; "
+                    "assert nightrecon is not None; "
+                    "assert nightrecon_red_engine is not None",
                     cwd=directory,
                 )
 

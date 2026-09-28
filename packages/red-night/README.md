@@ -41,8 +41,8 @@ work. This preview is not a completed Red Night release.
 
 ## Red engine namespace skeleton
 
-The distribution now owns the `nightrecon_red_engine` namespace. It currently
-contains only migration metadata and a guarded resolver for existing declared
-Red-owned modules; it does not contain copied assessment implementations.
-Existing `nightrecon.*` imports remain canonical until each coherent module
-group is physically moved. See `RED_PACKAGE_NAMESPACE.md`.
+The separate `nightrecon-red-engine` distribution now owns the
+`nightrecon_red_engine` namespace. The Red app depends on that engine package
+and temporarily on the legacy root package for the existing CLI bridge. Engine
+modules are moved into the engine distribution in dependency-coherent batches;
+they are not copied or rebuilt. See `RED_PACKAGE_NAMESPACE.md`.

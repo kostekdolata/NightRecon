@@ -18,6 +18,7 @@ from nightrecon.edition_policy import (
 )
 from nightrecon.red_ownership import (
     RED_BASE_DEPENDENCIES,
+    RED_ENGINE_DISTRIBUTION_DEPENDENCY,
     RED_LEGACY_BRIDGE_DEPENDENCY,
 )
 
@@ -34,7 +35,17 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
         dependencies = set(payload["project"]["dependencies"])
         self.assertEqual(
             dependencies,
-            set(RED_BASE_DEPENDENCIES) | {RED_LEGACY_BRIDGE_DEPENDENCY},
+            set(RED_BASE_DEPENDENCIES)
+            | {RED_LEGACY_BRIDGE_DEPENDENCY, RED_ENGINE_DISTRIBUTION_DEPENDENCY},
+        )
+
+    def test_root_distribution_declares_red_engine_dependency(self) -> None:
+        payload = tomllib.loads(
+            (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            RED_ENGINE_DISTRIBUTION_DEPENDENCY,
+            payload["project"]["dependencies"],
         )
 
     def test_red_app_entrypoint_is_a_thin_adapter(self) -> None:

@@ -116,3 +116,19 @@ support, or unresolved. The release boundary test requires the unresolved set
 to remain empty.
 
 The exact bridge-removal sequence is maintained in `RED_PACKAGE_PLAN.md`.
+
+
+## Physically migrated to the Red engine distribution
+
+The canonical implementation for the following existing modules now lives under
+`nightrecon_red_engine`:
+
+- `software_identity`
+- `service_fingerprint`
+- `api_models`
+- `infrastructure_models`
+- `graph_models`
+
+Their old `nightrecon.*` files are compatibility re-exports only. The migrated
+set is canonically published by `nightrecon_red_engine.MIGRATED_MODULES` and
+consumed by `nightrecon.red_ownership`.
