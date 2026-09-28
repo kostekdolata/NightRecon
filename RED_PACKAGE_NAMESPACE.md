@@ -46,6 +46,24 @@ modules:
 The old module files become compatibility re-exports. Their existing behavior is
 unchanged.
 
+## Batch C1
+
+The first dependency-closed discovery/runtime slice moves:
+
+- `host_discovery`
+- `ports`
+- `tcp_scanner`
+- `tls_detection`
+- `service_probe`
+- `resolver`
+- `session`
+- `discovery_report`
+
+For network-capable modules, the established `nightrecon.*` path aliases the
+canonical module object so existing test and integration patch points remain
+effective. The Red-engine copies import only Red-engine or shared-core
+dependencies and remain importable without the legacy distribution installed.
+
 ## Verification
 
 The contract is enforced by:
