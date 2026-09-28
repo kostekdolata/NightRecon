@@ -264,39 +264,51 @@ def main() -> None:
                 )
 
             install_args = [str(python), "-m", "pip", "install", "--no-index"]
-            if arguments.offline_host_dependencies:
+            if mode == "isolated" or arguments.offline_host_dependencies:
                 install_args.append("--no-deps")
             else:
                 install_args.extend(("--find-links", str(wheels)))
             check(*install_args, str(app_wheel), cwd=directory)
             verify_app(bin_dir, directory)
-            check(
-                str(python), "-c",
-                "import nightrecon_red_engine as e; "
-                "import nightrecon.software_identity as legacy; "
-                "from nightrecon_red_engine import software_identity as canonical; "
-                "assert e.NAMESPACE == 'nightrecon_red_engine'; "
-                "assert e.LEGACY_NAMESPACE == 'nightrecon'; "
-                "assert e.existing_module('software_identity') is canonical; "
-                "assert legacy.SoftwareIdentity is canonical.SoftwareIdentity; "
-                "import nightrecon.host_discovery as legacy_hd; "
-                "from nightrecon_red_engine import host_discovery as canonical_hd; "
-                "assert e.is_migrated_module('host_discovery'); "
-                "assert legacy_hd is canonical_hd",
-                cwd=directory,
-            )
 
-            metadata = check(
-                str(python), "-c",
+            if mode == "isolated":
+                check(
+                    str(python), "-c",
+                    "import importlib.util; "
+                    "assert importlib.util.find_spec('nightrecon') is None; "
+                    "from nightrecon_red_engine.red_cli import main; "
+                    "assert callable(main)",
+                    cwd=directory,
+                )
+            else:
+                check(
+                    str(python), "-c",
+                    "import nightrecon_red_engine as e; "
+                    "import nightrecon.software_identity as legacy; "
+                    "from nightrecon_red_engine import software_identity as canonical; "
+                    "assert e.NAMESPACE == 'nightrecon_red_engine'; "
+                    "assert e.LEGACY_NAMESPACE == 'nightrecon'; "
+                    "assert e.existing_module('software_identity') is canonical; "
+                    "assert legacy.SoftwareIdentity is canonical.SoftwareIdentity; "
+                    "import nightrecon.host_discovery as legacy_hd; "
+                    "from nightrecon_red_engine import host_discovery as canonical_hd; "
+                    "assert e.is_migrated_module('host_discovery'); "
+                    "assert legacy_hd is canonical_hd",
+                    cwd=directory,
+                )
+
+            metadata_script = (
                 "import importlib.metadata as m; "
-                "print(m.version('nightrecon')); "
                 "print(m.version('nightrecon-red-night')); "
                 "print(m.version('nightrecon-red-engine')); "
                 "print(m.version('nightrecon-shared-core')); "
-                "print(m.requires('nightrecon-red-night'))",
-                cwd=directory,
+                "print(m.requires('nightrecon-red-night')); "
             )
-            assert "0.31.0" in metadata
+            if mode == "combined":
+                metadata_script += "print(m.version('nightrecon')); "
+            metadata = check(str(python), "-c", metadata_script, cwd=directory)
+            if mode == "combined":
+                assert "0.31.0" in metadata
             assert metadata.count("0.32.0.dev0") >= 3
             assert "nightrecon==0.31.0" in metadata
             assert "nightrecon-red-engine==0.32.0.dev0" in metadata
