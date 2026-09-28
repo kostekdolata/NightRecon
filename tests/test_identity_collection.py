@@ -94,6 +94,7 @@ class IdentityCollectionTests(unittest.TestCase):
                 ),
                 truncated=True,
                 request_count=3,
+                duration_ms=125,
                 limitations=("Provider page ceiling reached.",),
             ))
 
@@ -111,6 +112,7 @@ class IdentityCollectionTests(unittest.TestCase):
 
             self.assertTrue(result.truncated)
             self.assertEqual(result.provider_requests, 3)
+            self.assertEqual(result.provider_duration_ms, 125)
             self.assertEqual(
                 result.limitations,
                 ("Provider page ceiling reached.",),
@@ -161,6 +163,8 @@ class IdentityCollectionTests(unittest.TestCase):
     def test_provider_metadata_rejects_invalid_values(self):
         with self.assertRaisesRegex(ValueError, "request_count"):
             IdentityProviderCollection(entries=(), request_count=-1)
+        with self.assertRaisesRegex(ValueError, "duration_ms"):
+            IdentityProviderCollection(entries=(), duration_ms=-1)
         with self.assertRaisesRegex(ValueError, "limitations"):
             IdentityProviderCollection(entries=(), limitations=("",))
 
