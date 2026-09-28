@@ -106,11 +106,13 @@ Batch C1 physically migrates `host_discovery`, `ports`, `tcp_scanner`,
 `discovery_report`. The network-capable legacy paths are true module aliases
 to preserve established patch points and object identity.
 
+Batch C2 follows Batch D and migrates `service_detection` and `os_fingerprint`,
+whose former web dependency is now canonical in the Red engine.
+
 The remaining discovery-owned modules are intentionally not moved yet:
-`service_detection` imports the web-owned `security_headers`; `report`
-imports check/vulnerability modules; `storage` imports report types from the
-web/API/infrastructure groups; `asset_inventory`, `asset_inventory_store`,
-and `os_fingerprint` depend on those blocked modules. They move only when the
+`report` imports vulnerability modules; `storage` imports report types from the
+infrastructure group as well as `report`; `asset_inventory` and
+`asset_inventory_store` depend on those blocked modules. They move only when the
 required dependency group is canonical in the Red engine. No algorithms are
 rewritten.
 
