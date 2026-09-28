@@ -197,6 +197,24 @@ class ActiveDirectoryIdentityProviderTests(unittest.TestCase):
         )
         self.assertIn("membership ceiling", result.limitations[0].lower())
 
+    def test_unfollowed_referrals_are_explicitly_incomplete(self):
+        transport = FakeTransport((
+            LdapSearchPage(entries=(), referral_count=1),
+            LdapSearchPage(entries=()),
+        ))
+        provider = ActiveDirectoryIdentityProvider(
+            transport=transport,
+            base_dn="DC=example,DC=test",
+        )
+
+        result = provider.collect(request())
+
+        self.assertTrue(result.truncated)
+        self.assertTrue(
+            any("referrals" in item.lower() for item in result.limitations)
+        )
+        self.assertEqual(result.request_count, 2)
+
     def test_ranged_group_membership_is_preserved_but_marked_incomplete(self):
         transport = FakeTransport((
             LdapSearchPage(entries=()),
