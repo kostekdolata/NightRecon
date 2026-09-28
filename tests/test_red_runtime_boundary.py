@@ -53,7 +53,8 @@ class RedRuntimeBoundaryTests(unittest.TestCase):
             ROOT / "packages" / "red-night" / "red_night_app" / "__init__.py"
         ).read_text(encoding="utf-8")
         self.assertIn("from nightrecon_red_engine.red_cli import main as run_red_night", source)
-        self.assertNotIn("nightrecon.red_night", source)\n        self.assertNotIn("nightrecon.cli", source)
+        self.assertNotIn("nightrecon.red_night", source)
+        self.assertNotIn("nightrecon.cli", source)
 
     def test_red_engine_cli_has_no_legacy_runtime_imports(self) -> None:
         source = (
