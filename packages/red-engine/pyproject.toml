@@ -16,3 +16,11 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 include = ["nightrecon_red_engine*"]
+
+[project.optional-dependencies]
+browser = [
+    "playwright>=1.63,<2",
+]
+api = [
+    "PyYAML>=6.0,<7",
+]
