@@ -79,6 +79,7 @@ class LdapSearchPage:
 
     entries: tuple[Mapping[str, object], ...]
     cookie: bytes | str | None = None
+    referral_count: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.entries, tuple) or any(
@@ -87,6 +88,8 @@ class LdapSearchPage:
             raise ValueError("LDAP page entries must be a tuple of mappings")
         if not isinstance(self.cookie, (bytes, str, type(None))):
             raise ValueError("LDAP page cookie has an unsupported type")
+        if type(self.referral_count) is not int or self.referral_count < 0:
+            raise ValueError("LDAP page referral_count must be a nonnegative integer")
 
 
 class ActiveDirectorySearchTransport(Protocol):
@@ -293,14 +296,23 @@ class Ldap3ActiveDirectoryTransport:
             )
             raise RuntimeError(f"LDAP read-only search failed: {description}")
 
+        response_items = connection.response
+        if not isinstance(response_items, (list, tuple)):
+            raise RuntimeError("LDAP search response has an unsupported shape")
         response = tuple(
             dict(item)
-            for item in connection.response
+            for item in response_items
             if isinstance(item, Mapping) and item.get("type") == "searchResEntry"
+        )
+        referral_count = sum(
+            1
+            for item in response_items
+            if isinstance(item, Mapping) and item.get("type") == "searchResRef"
         )
         return LdapSearchPage(
             entries=response,
             cookie=self._page_cookie(connection.result),
+            referral_count=referral_count,
         )
 
     def close(self) -> None:
@@ -462,6 +474,11 @@ class ActiveDirectoryIdentityProvider:
                     if not isinstance(page, LdapSearchPage):
                         raise ValueError("Active Directory transport returned an invalid page")
                     page_count += 1
+                    if page.referral_count:
+                        mark_truncated(
+                            "Active Directory returned LDAP referrals; referrals were "
+                            "not followed outside the configured target."
+                        )
 
                     for raw in page.entries:
                         entry, ranged_membership = _directory_entry(raw, kind=kind)
