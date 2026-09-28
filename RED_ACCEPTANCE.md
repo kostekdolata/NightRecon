@@ -51,63 +51,32 @@ categories remain open even when a similar feature exists.
    authorization tests, packaged-install smoke tests, performance baselines,
    and the full cross-platform CI matrix pass before a release is tagged.
 
-## Current batch
+## v0.40 release state
 
-Red Night is now independently installable through its dedicated Red engine and
-mandatory shared-core safety layer. v0.33.0 is building Engagement Intelligence
-and Operator Workspace foundations. The first workspace slice adds explicit
-engagement lifecycle state, evidence timelines, and a persistent fail-closed
-execution policy with target scope, authorization windows, capability allowlists,
-action budgets, approval requirements, revocation, and append-only authorization
-decision audit records. Network-capable Red CLI commands are bound to the same
-preflight through --guard-workspace-root/--guard-engagement-id guard options and fail closed
-before their existing execution handler when authorization is missing or denied.
+Red Night v0.40.0 is a separately installable, stable versioned milestone built
+from three coordinated distributions: `nightrecon-red-night`,
+`nightrecon-red-engine`, and the mandatory
+`nightrecon-shared-core`. The legacy `nightrecon==0.31.0` distribution
+remains a compatibility bridge and is not the Red application package version.
 
-`packages/red-night/` builds a separate development-preview Red Night
-distribution that uses the dedicated Red engine and shared core. A distinct
-`red-night-app` command delegates to the already verified Red gateway. Wheel
-install/uninstall smoke tests cover isolated Red-app and combined legacy/Red-app
-installations on Linux and Windows with Python 3.11 and 3.14. Complete engine
-isolation, optional dependency division, and composition with the four future
-Night applications remain open; the product is not finished or released.
+The v0.40 stack-wide acceptance scenario verifies one coherent authorization-
+bound engagement across workspace policy, read-only identity evidence,
+normalized cloud/hybrid evidence, controlled validation, the unified graph,
+plan-only operator decisions, signed-check policy, remediation, retest, audit,
+action-budget persistence, and workspace reopening. The acceptance is
+deterministic and network-free; provider adapters are fakes while the production
+policy, persistence, evidence, graph, planning, remediation, and ecosystem
+boundaries are exercised.
 
-An offline directory-export bridge, now exposed via `red-night identity import`,
-accepts only bounded normalized
-JSON with explicitly labeled users, groups, and group-member DNs. It maps
-present entries to deterministic graph identities and observed membership
-evidence; out-of-snapshot references are counted as unresolved and create no
-graph edge. Unexpected fields, including credentials, and malformed or
-over-budget exports are rejected. The CLI returns a label-free summary by
-default and exposes full graph labels only on `--include-graph`. This is not a
-live AD/Entra collector; it needs authorized real-world integration and lab
-benchmarking before the identity gate can close.
+The stable v0.40 milestone still does **not** mean every Red completion gate above
+is closed. The remaining evidence-backed product work includes specialist
+comparison labs, concrete authorized live AD/Entra and cloud adapters behind the
+tested read-only contracts, a reviewed controlled-validation technique library,
+broader professional reporting/collaboration workflows, and continued removal of
+legacy compatibility seams where they remain. Unmeasured categories remain open.
 
-The `red-night` entry point routes existing assessment commands through the
-fail-closed Red gateway. Packaged-command smoke tests verify the installed
-launcher, the scope-aware scan help, catalog, and denied unknown commands on
-the Python/OS CI matrix. This is a shared NightRecon distribution, so the
-independent installation gate remains open.
-
-The earlier Red path-review primitive orders a bounded query's existing paths
-for **analyst inspection** using only the count of inferred relationships, hop
-count, and stable identifiers. It validates every node and edge against the
-source graph, retains truncation and provenance through the original path, and
-states explicitly that the order is neither risk nor exploitability. It does
-not execute an attack, assign an ATT&CK technique, or add a network collector.
-
-The existing reconnaissance, service/TLS, web/DAST, API, credentialed
-infrastructure, vulnerability-intelligence, checks, inventory, reporting, and
-graph/path capabilities are assigned to Red Night and must not be rebuilt merely
-for edition separation. Their remaining work is package isolation, integration
-evidence, and the comparison/quality gates above.
-
-The dependency-verified package migration in
-[RED_PACKAGE_PLAN.md](RED_PACKAGE_PLAN.md) is underway. A separate
-`nightrecon-red-engine` distribution now owns the first migrated low-coupling
-modules while legacy imports remain compatible. The next packaging work should
-continue moving coherent existing engine groups until the monolithic
-`nightrecon==0.31.0` CLI/runtime bridge can be removed, without rewriting the
-proven implementations.
-After that, genuinely new capability work should focus on authorization-first
-live identity collectors, controlled validation/emulation, and lab-backed
-acceptance.
+v0.40 does not add exploit payloads, credential harvesting, arbitrary command
+execution, cloud write operations, persistence mechanisms, privilege changes, or
+autonomous execution. Higher-impact future validation remains subject to the
+same explicit authorization, approval, budget, isolation, evidence, cleanup, and
+operator-stop requirements.
