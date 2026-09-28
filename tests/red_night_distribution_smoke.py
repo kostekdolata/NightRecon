@@ -160,6 +160,44 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     ))
     assert active_workspace["status"] == "active"
 
+    policy = json.loads(check(
+        app, "workspace", "policy-set", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        "--scope", "192.0.2.0/24",
+        "--valid-from", "2026-01-01T00:00:00+00:00",
+        "--valid-until", "2030-01-01T00:00:00+00:00",
+        "--max-actions", "2",
+        "--capability", "discovery",
+        "--capability", "validation",
+        "--approval-required", "validation",
+        cwd=directory,
+    ))
+    assert policy["max_actions"] == 2
+    denied_policy = json.loads(check(
+        app, "workspace", "authorize", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        "--capability", "discovery", "--target", "198.51.100.1",
+        cwd=directory,
+    ))
+    assert denied_policy["allowed"] is False
+    assert denied_policy["reason_code"] == "target_out_of_scope"
+    allowed_policy = json.loads(check(
+        app, "workspace", "authorize", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        "--capability", "discovery", "--target", "192.0.2.10", "--consume",
+        cwd=directory,
+    ))
+    assert allowed_policy["allowed"] is True
+    assert allowed_policy["actions_used"] == 1
+    audit_policy = json.loads(check(
+        app, "workspace", "audit", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        cwd=directory,
+    ))
+    assert [item["reason_code"] for item in audit_policy] == [
+        "target_out_of_scope", "authorized",
+    ]
+
     workspace_import = json.loads(check(
         app, "workspace", "import", str(workspace_root), str(export_path),
         cwd=directory,
