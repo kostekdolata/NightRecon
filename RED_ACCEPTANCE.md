@@ -59,7 +59,9 @@ and Operator Workspace foundations. The first workspace slice adds explicit
 engagement lifecycle state, evidence timelines, and a persistent fail-closed
 execution policy with target scope, authorization windows, capability allowlists,
 action budgets, approval requirements, revocation, and append-only authorization
-decision audit records.
+decision audit records. Network-capable Red CLI commands are bound to the same
+preflight through --workspace-root/--engagement-id guard options and fail closed
+before their existing execution handler when authorization is missing or denied.
 
 `packages/red-night/` builds a separate development-preview Red Night
 distribution that uses the dedicated Red engine and shared core. A distinct
