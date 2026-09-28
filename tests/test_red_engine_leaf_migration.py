@@ -42,7 +42,8 @@ class RedEngineLeafMigrationTests(unittest.TestCase):
         self.assertTrue(set(RED_MODULE_GROUPS["api"]).issubset(MIGRATED_MODULES))
         self.assertTrue(set(RED_MODULE_GROUPS["checks"]).issubset(MIGRATED_MODULES))
         self.assertIn("host_discovery", MIGRATED_MODULES)
-        self.assertNotIn("service_detection", MIGRATED_MODULES)
+        self.assertIn("service_detection", MIGRATED_MODULES)
+        self.assertIn("os_fingerprint", MIGRATED_MODULES)
         self.assertNotIn("infrastructure_ssh", MIGRATED_MODULES)
 
     def test_legacy_imports_reexport_canonical_red_objects(self) -> None:
