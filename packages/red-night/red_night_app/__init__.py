@@ -1,7 +1,7 @@
-"""Separate Red Night application distribution, backed by shared NightRecon."""
+"""Separate Red Night application distribution backed directly by the Red engine."""
 
 
 def main() -> None:
-    from nightrecon.red_night import main as run_red_night
+    from nightrecon_red_engine.red_cli import main as run_red_night
 
     run_red_night()
