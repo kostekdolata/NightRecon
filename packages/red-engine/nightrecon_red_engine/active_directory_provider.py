@@ -202,10 +202,10 @@ class Ldap3ActiveDirectoryTransport:
                 auto_referrals=False,
                 raise_exceptions=True,
             )
-            if not connection.open():
-                raise RuntimeError("LDAP connection could not be opened")
-            if self._mode == "starttls" and not connection.start_tls():
-                raise RuntimeError("LDAP StartTLS negotiation failed")
+            if self._mode == "starttls":
+                connection.open()
+                if not connection.start_tls():
+                    raise RuntimeError("LDAP StartTLS negotiation failed")
             if not connection.bind():
                 raise RuntimeError("LDAP bind failed")
         finally:
