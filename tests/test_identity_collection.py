@@ -11,6 +11,7 @@ from nightrecon_red_engine.identity_collection import (
     IdentityCollectionDenied,
     IdentityCollectionLimits,
     IdentityCollectionRequest,
+    IdentityProviderCollection,
     collect_authorized_identity_intelligence,
 )
 from nightrecon_shared_core.contracts import EngagementMetadata
@@ -74,8 +75,45 @@ class IdentityCollectionTests(unittest.TestCase):
             self.assertEqual(len(result.evidence.identities), 1)
             self.assertEqual(len(result.evidence.groups), 1)
             self.assertEqual(len(result.evidence.memberships), 1)
+            self.assertFalse(result.truncated)
+            self.assertEqual(result.provider_requests, 0)
+            self.assertEqual(result.limitations, ())
             self.assertEqual(
                 LocalWorkspace(root).execution_policy("eng-identity").actions_used, 1
+            )
+
+    def test_provider_completeness_metadata_is_preserved(self):
+        with tempfile.TemporaryDirectory() as root:
+            provider = FakeProvider(IdentityProviderCollection(
+                entries=(
+                    DirectoryEntry(
+                        "CN=Alice,DC=example,DC=test",
+                        "user",
+                        "Alice",
+                    ),
+                ),
+                truncated=True,
+                request_count=3,
+                limitations=("Provider page ceiling reached.",),
+            ))
+
+            result = collect_authorized_identity_intelligence(
+                workspace(root),
+                provider,
+                IdentityCollectionRequest(
+                    engagement_id="eng-identity",
+                    source_id="ldap-readonly-1",
+                    source_type="active-directory",
+                    target="dc.example.test",
+                ),
+                now=datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc),
+            )
+
+            self.assertTrue(result.truncated)
+            self.assertEqual(result.provider_requests, 3)
+            self.assertEqual(
+                result.limitations,
+                ("Provider page ceiling reached.",),
             )
 
     def test_denied_collection_never_calls_provider(self):
@@ -119,6 +157,12 @@ class IdentityCollectionTests(unittest.TestCase):
             DirectoryEntry("CN=A", "user", "A", ("CN=B",))
         with self.assertRaises(ValueError):
             DirectoryEntry("CN=G", "group", "G", ("CN=A", "CN=A"))
+
+    def test_provider_metadata_rejects_invalid_values(self):
+        with self.assertRaisesRegex(ValueError, "request_count"):
+            IdentityProviderCollection(entries=(), request_count=-1)
+        with self.assertRaisesRegex(ValueError, "limitations"):
+            IdentityProviderCollection(entries=(), limitations=("",))
 
 
 if __name__ == "__main__":
