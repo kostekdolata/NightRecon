@@ -48,6 +48,8 @@ class RedEngineLeafMigrationTests(unittest.TestCase):
         self.assertIn("infrastructure_report", MIGRATED_MODULES)
         self.assertIn("vulnerability_intelligence", MIGRATED_MODULES)
         self.assertIn("threat_context", MIGRATED_MODULES)
+        self.assertIn("asset_inventory", MIGRATED_MODULES)
+        self.assertIn("storage", MIGRATED_MODULES)
 
     def test_legacy_imports_reexport_canonical_red_objects(self) -> None:
         pairs = (
