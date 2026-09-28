@@ -34,7 +34,7 @@ class RedOwnershipTests(unittest.TestCase):
     def test_optional_runtime_dependencies_are_red_extras(self) -> None:
         self.assertEqual(
             set(RED_OPTIONAL_EXTRAS),
-            {"browser", "api", "ssh", "smb", "winrm", "postgres", "mysql"},
+            {"browser", "api", "ad", "ssh", "smb", "winrm", "postgres", "mysql"},
         )
 
     def test_red_commands_cover_existing_assessment_surfaces(self) -> None:

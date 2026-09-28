@@ -68,6 +68,7 @@ RED_ENGINE_DISTRIBUTION_DEPENDENCY = "nightrecon-red-engine==0.40.0"
 RED_OPTIONAL_EXTRAS: dict[str, tuple[str, ...]] = {
     "browser": ("playwright>=1.63,<2",),
     "api": ("PyYAML>=6.0,<7",),
+    "ad": ("ldap3>=2.9.1,<3",),
     "ssh": ("paramiko>=5.0,<6",),
     "smb": ("impacket>=0.13.1,<0.14",),
     "winrm": ("pywinrm>=0.5,<0.6",),

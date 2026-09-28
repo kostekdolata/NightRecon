@@ -11,6 +11,11 @@ unresolved-reference accounting.
 
 This milestone intentionally does not implement credential harvesting,
 directory writes, persistence, lateral movement, password operations, or an
-unrestricted LDAP/Graph client. Concrete AD/Entra transport adapters can be
-added behind the tested provider contract without weakening the shared-core
-authorization boundary.
+unrestricted LDAP/Graph client.
+
+v0.41 development now adds the first concrete adapter behind this boundary: a
+bounded read-only Active Directory provider using encrypted LDAP transport,
+fixed filters and attributes, explicit truncation metadata, and zero provider
+calls when engagement authorization fails. See
+[V041_ACTIVE_DIRECTORY_PROVIDER.md](V041_ACTIVE_DIRECTORY_PROVIDER.md).
+The Entra adapter remains a later v0.41 batch.

@@ -79,8 +79,38 @@ class IdentityCollectionRequest:
             raise ValueError("source_type must be active-directory or entra-id")
 
 
+@dataclass(frozen=True)
+class IdentityProviderCollection:
+    """Provider output plus bounded-completeness metadata."""
+
+    entries: tuple[DirectoryEntry, ...]
+    truncated: bool = False
+    request_count: int = 0
+    limitations: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.entries, tuple) or any(
+            not isinstance(entry, DirectoryEntry) for entry in self.entries
+        ):
+            raise ValueError(
+                "identity provider entries must be a tuple of DirectoryEntry records"
+            )
+        if type(self.truncated) is not bool:
+            raise ValueError("identity provider truncated must be a boolean")
+        if type(self.request_count) is not int or self.request_count < 0:
+            raise ValueError("identity provider request_count must be a nonnegative integer")
+        if any(
+            not isinstance(item, str) or not item or item != item.strip()
+            for item in self.limitations
+        ):
+            raise ValueError("identity provider limitations must be nonblank strings")
+
+
 class ReadOnlyIdentityProvider(Protocol):
-    def collect(self, request: IdentityCollectionRequest) -> tuple[DirectoryEntry, ...]: ...
+    def collect(
+        self,
+        request: IdentityCollectionRequest,
+    ) -> IdentityProviderCollection | tuple[DirectoryEntry, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -90,6 +120,9 @@ class IdentityCollectionResult:
     entry_count: int
     unresolved_members: int
     evidence: IdentityEvidenceBundle
+    truncated: bool = False
+    provider_requests: int = 0
+    limitations: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -119,6 +152,19 @@ def _snapshot(entries: tuple[DirectoryEntry, ...]) -> bytes:
     ).encode("utf-8")
 
 
+def _provider_collection(
+    output: IdentityProviderCollection | tuple[DirectoryEntry, ...],
+) -> IdentityProviderCollection:
+    if isinstance(output, IdentityProviderCollection):
+        return output
+    if isinstance(output, tuple):
+        return IdentityProviderCollection(entries=output)
+    raise ValueError(
+        "identity provider must return IdentityProviderCollection or "
+        "a tuple of DirectoryEntry records"
+    )
+
+
 def collect_authorized_identity_intelligence(
     workspace: LocalWorkspace,
     provider: ReadOnlyIdentityProvider,
@@ -138,9 +184,9 @@ def collect_authorized_identity_intelligence(
     if not decision.allowed:
         raise IdentityCollectionDenied(decision.reason_code, decision.reason)
 
-    entries = provider.collect(request)
-    if not isinstance(entries, tuple):
-        raise ValueError("identity provider must return a tuple of DirectoryEntry records")
+    provider_output = _provider_collection(provider.collect(request))
+    entries = provider_output.entries
+
     if len(entries) > request.limits.max_entries:
         raise ValueError("identity collection exceeds max_entries")
     membership_count = sum(len(entry.members) for entry in entries)
@@ -165,4 +211,7 @@ def collect_authorized_identity_intelligence(
         entry_count=len(entries),
         unresolved_members=imported.unresolved_members,
         evidence=imported.evidence,
+        truncated=provider_output.truncated,
+        provider_requests=provider_output.request_count,
+        limitations=provider_output.limitations,
     )
