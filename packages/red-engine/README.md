@@ -20,3 +20,19 @@ The package depends only on shared-core/base libraries, never on the legacy
 `nightrecon` distribution. This prevents a circular dependency while allowing
 both the legacy compatibility package and the Red Night application to consume
 the same canonical Red engine implementation.
+
+Batch C1 adds the dependency-closed discovery/runtime core without changing its
+algorithms:
+
+- `host_discovery`
+- `ports`
+- `tcp_scanner`
+- `tls_detection`
+- `service_probe`
+- `resolver`
+- `session`
+- `discovery_report`
+
+Network-capable legacy module paths are module aliases to the canonical Red
+engine modules so established monkeypatch/test seams continue to target the
+actual implementation.
