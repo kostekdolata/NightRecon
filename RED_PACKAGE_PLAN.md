@@ -116,8 +116,14 @@ rewritten.
 
 ### Batch D — web/API/check groups
 
-Move the existing web/browser/DAST, API/GraphQL, and assessment/check modules
-with their current tests and optional extras.
+Implemented in the v0.32.0 development branch.
+
+The complete existing web/browser/DAST, API/GraphQL, and assessment/check groups
+now live canonically in `nightrecon_red_engine`. Internal imports point only to
+the Red-engine namespace or already-separated shared dependencies, while legacy
+`nightrecon.*` paths remain module aliases for compatibility and monkeypatch
+identity. The Red-engine distribution now also declares the existing browser and
+API optional extras. No assessment algorithms were rewritten.
 
 ### Batch E — infrastructure group
 
