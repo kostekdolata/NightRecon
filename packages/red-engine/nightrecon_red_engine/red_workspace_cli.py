@@ -8,7 +8,9 @@ from pathlib import Path
 import sys
 from collections.abc import Sequence
 from dataclasses import asdict
+from datetime import datetime, timezone
 
+from nightrecon_shared_core.contracts import EngagementMetadata
 from nightrecon_shared_core.workspace import LocalWorkspace
 
 
@@ -20,6 +22,23 @@ def _error(exc: Exception) -> None:
 def main(argv: Sequence[str]) -> None:
     parser = argparse.ArgumentParser(prog="red-night workspace")
     operations = parser.add_subparsers(dest="operation", required=True)
+
+    creating = operations.add_parser("create", help="Create an engagement workspace record.")
+    creating.add_argument("root")
+    creating.add_argument("--engagement-id", required=True)
+    creating.add_argument("--name", required=True)
+    creating.add_argument("--authorization-reference", required=True)
+    creating.add_argument("--status", default="planned")
+    creating.add_argument("--description")
+
+    status = operations.add_parser("status", help="Advance an engagement lifecycle status.")
+    status.add_argument("root")
+    status.add_argument("--engagement-id", required=True)
+    status.add_argument("--set", required=True, dest="new_status")
+
+    timeline = operations.add_parser("timeline", help="Show chronological engagement evidence.")
+    timeline.add_argument("root")
+    timeline.add_argument("--engagement-id", required=True)
 
     listing = operations.add_parser("list", help="List engagements in a workspace.")
     listing.add_argument("root")
@@ -41,6 +60,32 @@ def main(argv: Sequence[str]) -> None:
 
     try:
         workspace = LocalWorkspace(args.root)
+
+        if args.operation == "create":
+            summary = workspace.create_engagement(EngagementMetadata(
+                engagement_id=args.engagement_id,
+                name=args.name,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                authorization_reference=args.authorization_reference,
+                status=args.status,
+                description=args.description,
+            ))
+            print(json.dumps(asdict(summary), sort_keys=True))
+            return
+
+        if args.operation == "status":
+            print(json.dumps(
+                asdict(workspace.update_status(args.engagement_id, args.new_status)),
+                sort_keys=True,
+            ))
+            return
+
+        if args.operation == "timeline":
+            print(json.dumps(
+                [asdict(item) for item in workspace.timeline(args.engagement_id)],
+                sort_keys=True,
+            ))
+            return
 
         if args.operation == "list":
             print(json.dumps(

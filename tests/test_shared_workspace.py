@@ -38,6 +38,61 @@ def evidence(evidence_id: str, night: str, evidence_type: str) -> EvidenceRecord
 
 
 class WorkspaceTests(unittest.TestCase):
+    def test_engagement_lifecycle_create_status_and_timeline(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nightrecon-workspace-") as directory:
+            workspace = LocalWorkspace(directory)
+            created = workspace.create_engagement(EngagementMetadata(
+                engagement_id="eng-life",
+                name="Lifecycle lab",
+                created_at="2026-09-27T23:00:00+00:00",
+                authorization_reference="approval://eng-life",
+                status="planned",
+            ))
+            self.assertEqual(created.status, "planned")
+            self.assertEqual(workspace.update_status("eng-life", "active").status, "active")
+            self.assertEqual(workspace.update_status("eng-life", "paused").status, "paused")
+            self.assertEqual(workspace.update_status("eng-life", "active").status, "active")
+            self.assertEqual(workspace.update_status("eng-life", "completed").status, "completed")
+            self.assertEqual(workspace.update_status("eng-life", "archived").status, "archived")
+
+    def test_invalid_status_transition_is_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nightrecon-workspace-") as directory:
+            workspace = LocalWorkspace(directory)
+            workspace.create_engagement(EngagementMetadata(
+                engagement_id="eng-life",
+                name="Lifecycle lab",
+                created_at="2026-09-27T23:00:00+00:00",
+                authorization_reference="approval://eng-life",
+                status="planned",
+            ))
+            with self.assertRaisesRegex(ValueError, "planned -> completed"):
+                workspace.update_status("eng-life", "completed")
+            self.assertEqual(workspace.summary("eng-life").status, "planned")
+
+    def test_timeline_is_chronological_and_metadata_only(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nightrecon-workspace-") as directory:
+            workspace = LocalWorkspace(directory)
+            first = evidence("z-later-id", "red", "asset.observation")
+            second = EvidenceRecord(
+                engagement_id="eng-1",
+                evidence_id="a-earlier-id",
+                source_night="red",
+                evidence_type="service.observation",
+                observed_at="2026-09-27T22:59:00+00:00",
+                provenance="fixture://red/a-earlier-id",
+                data={"reference": "a-earlier-id"},
+                limitations=("fixture only",),
+            )
+            workspace.merge_envelope(EngagementEnvelope(
+                "eng-1", (first, second), metadata()
+            ))
+            timeline = workspace.timeline("eng-1")
+            self.assertEqual(
+                tuple(item.evidence_id for item in timeline),
+                ("a-earlier-id", "z-later-id"),
+            )
+            self.assertEqual(timeline[0].provenance, "fixture://red/a-earlier-id")
+
     def test_two_night_producers_compose_in_one_workspace(self) -> None:
         with tempfile.TemporaryDirectory(prefix="nightrecon-workspace-") as directory:
             workspace = LocalWorkspace(directory)

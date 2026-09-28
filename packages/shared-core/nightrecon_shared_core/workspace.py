@@ -9,11 +9,11 @@ multi-process service/database backend must provide its own concurrency control.
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
-from nightrecon_shared_core.contracts import EngagementEnvelope
+from nightrecon_shared_core.contracts import EngagementEnvelope, EngagementMetadata
 from nightrecon_shared_core.file_store import FileEngagementStore
 
 
@@ -31,6 +31,16 @@ class WorkspaceSummary:
 class EvidenceBreakdown:
     source_night_counts: tuple[tuple[str, int], ...]
     evidence_type_counts: tuple[tuple[str, int], ...]
+
+
+@dataclass(frozen=True)
+class WorkspaceTimelineItem:
+    evidence_id: str
+    source_night: str
+    evidence_type: str
+    observed_at: str
+    provenance: str
+    limitations: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -56,6 +66,13 @@ class LocalWorkspace:
     """Local workspace root shared by independently installed Night apps."""
 
     STORE_FILENAME = "engagements.json"
+    _STATUS_TRANSITIONS = {
+        "planned": frozenset({"active", "archived"}),
+        "active": frozenset({"paused", "completed"}),
+        "paused": frozenset({"active", "completed"}),
+        "completed": frozenset({"archived"}),
+        "archived": frozenset(),
+    }
 
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
@@ -66,10 +83,48 @@ class LocalWorkspace:
     def _exists(self, engagement_id: str) -> bool:
         return engagement_id in self.store.engagements()
 
+    def create_engagement(self, metadata: EngagementMetadata) -> WorkspaceSummary:
+        if self._exists(metadata.engagement_id):
+            raise ValueError(f"engagement already exists: {metadata.engagement_id}")
+        self.store.set_metadata(metadata)
+        return self.summary(metadata.engagement_id)
+
+    def update_status(self, engagement_id: str, status: str) -> WorkspaceSummary:
+        envelope = self.envelope(engagement_id)
+        metadata = envelope.metadata
+        if metadata is None:
+            raise ValueError("engagement metadata is required to update status")
+        if status == metadata.status:
+            return self.summary(engagement_id)
+        allowed = self._STATUS_TRANSITIONS.get(metadata.status, frozenset())
+        if status not in allowed:
+            raise ValueError(
+                f"invalid engagement status transition: {metadata.status} -> {status}"
+            )
+        self.store.replace_metadata(replace(metadata, status=status))
+        return self.summary(engagement_id)
+
     def envelope(self, engagement_id: str) -> EngagementEnvelope:
         if not self._exists(engagement_id):
             raise ValueError(f"engagement not found: {engagement_id}")
         return self.store.export_envelope(engagement_id)
+
+    def timeline(self, engagement_id: str) -> tuple[WorkspaceTimelineItem, ...]:
+        records = self.envelope(engagement_id).records
+        return tuple(
+            WorkspaceTimelineItem(
+                evidence_id=record.evidence_id,
+                source_night=record.source_night,
+                evidence_type=record.evidence_type,
+                observed_at=record.observed_at,
+                provenance=record.provenance,
+                limitations=record.limitations,
+            )
+            for record in sorted(
+                records,
+                key=lambda item: (item.observed_at, item.evidence_id),
+            )
+        )
 
     def summary(self, engagement_id: str) -> WorkspaceSummary:
         envelope = self.envelope(engagement_id)

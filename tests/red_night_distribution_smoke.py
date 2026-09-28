@@ -145,6 +145,21 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert len(imported_envelope["records"]) == 1
 
     workspace_root = directory / f"workspace-{bin_dir.parent.name}"
+    created_workspace = json.loads(check(
+        app, "workspace", "create", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        "--name", "Packaged workspace lifecycle",
+        "--authorization-reference", "approval://workspace-life",
+        cwd=directory,
+    ))
+    assert created_workspace["status"] == "planned"
+    active_workspace = json.loads(check(
+        app, "workspace", "status", str(workspace_root),
+        "--engagement-id", "eng-workspace-life", "--set", "active",
+        cwd=directory,
+    ))
+    assert active_workspace["status"] == "active"
+
     workspace_import = json.loads(check(
         app, "workspace", "import", str(workspace_root), str(export_path),
         cwd=directory,
@@ -163,6 +178,12 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     ))
     assert workspace_show["summary"]["record_count"] == 1
     assert workspace_show["breakdown"]["source_night_counts"] == [["red", 1]]
+    workspace_timeline = json.loads(check(
+        app, "workspace", "timeline", str(workspace_root),
+        "--engagement-id", "eng-packaged-smoke", cwd=directory,
+    ))
+    assert len(workspace_timeline) == 1
+    assert workspace_timeline[0]["evidence_type"] == "identity.directory-snapshot"
     workspace_export_path = directory / f"workspace-export-{bin_dir.parent.name}.json"
     workspace_export = json.loads(check(
         app, "workspace", "export", str(workspace_root),
