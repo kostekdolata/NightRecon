@@ -270,16 +270,37 @@ NightRecon continues to distinguish observed relationships from inferred hypothe
 
 ### v0.32.0 — Red Product Readiness
 
-Status: development in verified batches; no release tag yet.
+Status: integrated into the v0.40.0 Red release train; not separately tagged.
 
-The measurable Red completion gates and specialist comparison are maintained
-in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md). The evidence-only path-review
-primitive and shared-distribution launcher are implemented. An offline
-normalized directory-export importer now bridges observed user/group
-membership evidence into the graph without live queries, with a Red-only
-offline CLI command and opt-in graph export. Red remains an
-integrated CLI capability until
-its independent installation, command isolation, and acceptance tests pass.
+The v0.32 work established the Red product boundary, dedicated launcher,
+package-isolation path, offline identity evidence bridge, and evidence-only
+path review used by the later Red release train.
+
+### v0.33.0-v0.40.0 — Red Night Product Integration Release Train
+
+Status: v0.40.0 release finalization.
+
+Delivered in the integrated Red train:
+
+- v0.33 engagement lifecycle workspace and fail-closed execution policy
+- v0.34 authorization-first read-only identity collection boundary
+- v0.35 approval-gated controlled validation runtime
+- v0.36 unified evidence-backed attack graph
+- v0.37 policy-constrained plan-only Red operator
+- v0.38 persistent remediation and controlled retest lifecycle
+- v0.39 signed Red Checks ecosystem policy and catalog
+- v0.40 authorization-first cloud/hybrid evidence boundary
+- deterministic stack-wide v0.40 release acceptance across policy, persistence,
+  identity, cloud, validation, graph, planning, checks, remediation, and retest
+
+The dedicated `nightrecon-red-night`, `nightrecon-red-engine`, and
+`nightrecon-shared-core` packages are versioned together at 0.40.0. The
+legacy `nightrecon` compatibility distribution remains 0.31.0 while the
+migration window is open.
+
+The measurable specialist comparison and broader product-completion gates remain
+in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md); a stable v0.40 milestone does not
+claim universal parity with specialist tools.
 
 ## Generation 3 — Red Validation Engine
 
