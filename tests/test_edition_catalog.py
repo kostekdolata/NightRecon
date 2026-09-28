@@ -1,4 +1,4 @@
-"""Edition boundaries are explicit without claiming separate executables exist."""
+"""Edition boundaries expose the current standalone-package availability."""
 
 import contextlib
 import io
@@ -23,8 +23,15 @@ class EditionCatalogTests(unittest.TestCase):
             ("White Night", "Blue Night", "Red Night", "Purple Night", "Black Night"),
         )
 
-    def test_no_unshipped_standalone_edition_claim(self):
-        self.assertTrue(all(not edition.standalone_available for edition in EDITIONS))
+    def test_only_red_is_currently_standalone(self):
+        availability = {
+            edition.slug: edition.standalone_available
+            for edition in EDITIONS
+        }
+        self.assertTrue(availability["red"])
+        for slug in ("white", "blue", "purple", "black"):
+            with self.subTest(slug=slug):
+                self.assertFalse(availability[slug])
 
     def test_json_cli_catalog_is_machine_readable(self):
         output = io.StringIO()
@@ -36,7 +43,14 @@ class EditionCatalogTests(unittest.TestCase):
         self.assertEqual([record["slug"] for record in records], [
             "white", "blue", "red", "purple", "black",
         ])
-        self.assertTrue(all(not record["standalone_available"] for record in records))
+        availability = {
+            record["slug"]: record["standalone_available"]
+            for record in records
+        }
+        self.assertTrue(availability["red"])
+        for slug in ("white", "blue", "purple", "black"):
+            with self.subTest(slug=slug):
+                self.assertFalse(availability[slug])
         self.assertEqual([record["name"] for record in records], [
             "White Night", "Blue Night", "Red Night", "Purple Night", "Black Night",
         ])
