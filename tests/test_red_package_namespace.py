@@ -25,22 +25,27 @@ class RedPackageNamespaceTests(unittest.TestCase):
         self.assertIs(engine.existing_module("software_identity"), software_identity)
         self.assertIs(legacy.SoftwareIdentity, software_identity.SoftwareIdentity)
 
-    def test_unmigrated_module_is_rejected_by_engine_resolver(self) -> None:
-        self.assertFalse(engine.is_migrated_module("host_discovery"))
-        with self.assertRaisesRegex(ValueError, "not migrated to Red engine"):
-            engine.existing_module("host_discovery")
-        self.assertIsNotNone(legacy_host_discovery)
+    def test_migrated_runtime_module_preserves_legacy_module_identity(self) -> None:
+        from nightrecon_red_engine import host_discovery
 
-    def test_engine_namespace_source_contains_no_network_execution_in_leaf_batch(self) -> None:
+        self.assertTrue(engine.is_migrated_module("host_discovery"))
+        self.assertIs(engine.existing_module("host_discovery"), host_discovery)
+        self.assertIs(legacy_host_discovery, host_discovery)
+
+    def test_unmigrated_module_is_rejected_by_engine_resolver(self) -> None:
+        self.assertFalse(engine.is_migrated_module("service_detection"))
+        with self.assertRaisesRegex(ValueError, "not migrated to Red engine"):
+            engine.existing_module("service_detection")
+
+    def test_engine_namespace_has_no_legacy_runtime_dependency(self) -> None:
         namespace = ROOT / "packages" / "red-engine" / "nightrecon_red_engine"
         sources = "\n".join(
             path.read_text(encoding="utf-8")
             for path in sorted(namespace.glob("*.py"))
         )
         for forbidden in (
-            "socket.socket",
-            "ThreadPoolExecutor",
-            "requests.",
+            "from nightrecon.",
+            "import nightrecon.",
             "playwright",
             "paramiko",
             "impacket",
