@@ -58,7 +58,7 @@ class RedPackageBoundaryTests(unittest.TestCase):
             )
         )
         dependencies = set(payload["project"]["dependencies"])
-        self.assertIn(RED_LEGACY_BRIDGE_DEPENDENCY, dependencies)
+        self.assertNotIn(RED_LEGACY_BRIDGE_DEPENDENCY, dependencies)
         self.assertIn(RED_ENGINE_DISTRIBUTION_DEPENDENCY, dependencies)
         self.assertTrue(set(RED_BASE_DEPENDENCIES).issubset(dependencies))
 
