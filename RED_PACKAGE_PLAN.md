@@ -140,8 +140,15 @@ semantics or safety policy were rewritten.
 
 ### Batch F — graph/identity/vulnerability group
 
-Move the existing graph/path, offline identity import, vulnerability, and threat
-intelligence modules without changing their evidence semantics.
+Batch F is staged by dependency closure.
+
+Batch F1 physically migrates vulnerability identity/providers, vulnerability
+intelligence, and threat-context modules. This removes the vulnerability
+dependency blocking the remaining discovery report/inventory slice.
+
+The graph/identity modules follow only after `asset_inventory` is canonical in
+the Red engine, because `graph_projection` and `graph_pipeline` depend on it.
+Evidence semantics are unchanged.
 
 ### Batch G — Red CLI composition
 
