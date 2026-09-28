@@ -57,11 +57,12 @@ class RedNightLauncherTests(unittest.TestCase):
             command_main.assert_called_once_with(
                 ("scan", "127.0.0.1", "--scope", "127.0.0.1")
             )
+            persisted = LocalWorkspace(directory)
             self.assertEqual(
-                workspace.execution_policy("eng-guard").actions_used, 1
+                persisted.execution_policy("eng-guard").actions_used, 1
             )
             self.assertEqual(
-                workspace.authorization_audit("eng-guard")[-1].reason_code,
+                persisted.authorization_audit("eng-guard")[-1].reason_code,
                 "authorized",
             )
 
