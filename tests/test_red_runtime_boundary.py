@@ -27,17 +27,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class RedRuntimeBoundaryTests(unittest.TestCase):
-    def test_red_distribution_declares_current_legacy_runtime_dependency(self) -> None:
-        """Keep the temporary coupling explicit until package extraction replaces it."""
+    def test_red_distribution_has_no_legacy_runtime_dependency(self) -> None:
         payload = tomllib.loads(
             (ROOT / "packages" / "red-night" / "pyproject.toml").read_text(encoding="utf-8")
         )
         dependencies = set(payload["project"]["dependencies"])
         self.assertEqual(
             dependencies,
-            set(RED_BASE_DEPENDENCIES)
-            | {RED_LEGACY_BRIDGE_DEPENDENCY, RED_ENGINE_DISTRIBUTION_DEPENDENCY},
+            set(RED_BASE_DEPENDENCIES) | {RED_ENGINE_DISTRIBUTION_DEPENDENCY},
         )
+        self.assertNotIn(RED_LEGACY_BRIDGE_DEPENDENCY, dependencies)
 
     def test_root_distribution_declares_red_engine_dependency(self) -> None:
         payload = tomllib.loads(
