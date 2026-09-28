@@ -551,6 +551,10 @@ class ActiveDirectoryIdentityProvider:
         finally:
             self._transport.close()
 
+        duration_ms = max(
+            0,
+            int(round((self._clock() - started) * 1_000)),
+        )
         return IdentityProviderCollection(
             entries=tuple(
                 sorted(
@@ -563,5 +567,6 @@ class ActiveDirectoryIdentityProvider:
             ),
             truncated=truncated,
             request_count=page_count,
+            duration_ms=duration_ms,
             limitations=tuple(limitations),
         )
