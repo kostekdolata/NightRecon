@@ -168,9 +168,10 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     workspace_list = json.loads(check(
         app, "workspace", "list", str(workspace_root), cwd=directory,
     ))
-    assert len(workspace_list) == 1
-    assert workspace_list[0]["engagement_id"] == "eng-packaged-smoke"
-    assert workspace_list[0]["source_nights"] == ["red"]
+    by_engagement = {item["engagement_id"]: item for item in workspace_list}
+    assert set(by_engagement) == {"eng-workspace-life", "eng-packaged-smoke"}
+    assert by_engagement["eng-workspace-life"]["status"] == "active"
+    assert by_engagement["eng-packaged-smoke"]["source_nights"] == ["red"]
     workspace_show = json.loads(check(
         app, "workspace", "show", str(workspace_root),
         "--engagement-id", "eng-packaged-smoke",
