@@ -6,12 +6,13 @@ the engines.
 
 ## Current verified state
 
-The Red application wheel is currently a launcher-only package:
+Red Night now has an independently installable application and engine boundary:
 
-`red-night-app -> nightrecon.red_night -> edition_gateway -> existing NightRecon CLI`
+`red-night-app -> nightrecon_red_engine.red_cli -> canonical Red engine modules`
 
-It still depends on `nightrecon==0.31.0`. The current wheel intentionally does
-not contain duplicated `nightrecon/` engine files.
+The Red application no longer declares or requires `nightrecon==0.31.0`.
+The legacy root distribution remains available for compatibility, but it is not
+part of the Red app runtime dependency chain.
 
 The existing Red-owned modules and optional runtime dependencies are defined in
 `nightrecon.red_ownership` and documented in `RED_OWNERSHIP.md`.
@@ -46,30 +47,13 @@ The future standalone package already mirrors the existing runtime versions:
 
 These are existing capabilities and dependencies, not new feature work.
 
-## Why the monolith dependency still exists
+## Legacy compatibility status
 
-`nightrecon-red-night` cannot yet remove:
-
-`nightrecon==0.31.0`
-
-for these concrete reasons:
-
-1. the Red app wheel remains launcher-only; the Red engine wheel currently
-   contains only the first migrated leaf modules while most existing engines
-   and the CLI still live in the legacy/root distribution;
-2. `red_night_app` imports `nightrecon.red_night`;
-3. `red_night` imports `edition_gateway`;
-4. the gateway delegates established Red commands to the existing
-   `nightrecon.cli`;
-5. the legacy CLI eagerly imports the existing Red capability modules;
-6. the root distribution currently owns the `nightrecon` package namespace
-   and its `__init__.py`;
-7. existing tests and third-party compatibility imports use the established
-   `nightrecon.*` module paths;
-8. uninstall/install behavior must remain safe while the namespace is split;
-9. optional Red runtimes are still declared by the root distribution as well as
-   the new Red package metadata;
-10. the legacy `nightrecon` command must continue working during migration.
+The monolithic `nightrecon` distribution remains installable so existing
+imports and the legacy console script continue to work. It depends on the Red
+engine for migrated implementations, but the standalone Red app does not depend
+on the monolith. Compatibility aliases remain intentionally in place during the
+v0.32.0 transition.
 
 ## Migration sequence
 
@@ -149,7 +133,7 @@ and existing safety behavior are unchanged.
 
 ### Batch G — Red CLI composition
 
-Implemented in the v0.32.0 development branch and awaiting final CI verification.
+Implemented and verified in the v0.32.0 development branch.
 
 `nightrecon_red_engine.red_cli` is composed from the existing CLI behavior with
 imports redirected to canonical Red-engine modules and shared-core policy.
@@ -161,14 +145,12 @@ package installed before the metadata bridge is removed in Batch H.
 
 ### Batch H — remove bridge dependency
 
-Only after isolated and combined wheel smoke tests pass across the supported
-Python/OS matrix:
+Implemented in the v0.32.0 development branch.
 
-1. remove `nightrecon==0.31.0` from `packages/red-night/pyproject.toml`;
-2. verify all Red commands in a clean environment;
-3. verify shared-core authorization remains mandatory;
-4. verify legacy compatibility imports where promised;
-5. verify uninstalling Red leaves other Night/shared packages intact.
+The Red app no longer declares `nightrecon==0.31.0`. Isolated and combined
+distribution smoke tests verify direct Red-engine execution, shared-core
+authorization, compatibility imports in combined installs, and safe app
+uninstallation without removing the legacy/root or Red engine packages.
 
 ## Stop rule
 
