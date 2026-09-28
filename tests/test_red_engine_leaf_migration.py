@@ -50,6 +50,10 @@ class RedEngineLeafMigrationTests(unittest.TestCase):
         self.assertIn("threat_context", MIGRATED_MODULES)
         self.assertIn("asset_inventory", MIGRATED_MODULES)
         self.assertIn("storage", MIGRATED_MODULES)
+        self.assertTrue(set(RED_MODULE_GROUPS["graph_identity"]).issubset(MIGRATED_MODULES))
+        self.assertTrue(set(RED_MODULE_GROUPS["vulnerability"]).issubset(MIGRATED_MODULES))
+        self.assertTrue(set(RED_MODULE_GROUPS["discovery"]).issubset(MIGRATED_MODULES))
+        self.assertTrue(set(RED_MODULE_GROUPS["infrastructure"]).issubset(MIGRATED_MODULES))
 
     def test_legacy_imports_reexport_canonical_red_objects(self) -> None:
         pairs = (
