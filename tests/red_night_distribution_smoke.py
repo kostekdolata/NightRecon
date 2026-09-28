@@ -229,8 +229,15 @@ def main() -> None:
                   "--no-deps", str(red_engine_wheel), cwd=directory)
             check(
                 str(python), "-c",
-                "from nightrecon_red_engine import software_identity; "
-                "assert software_identity.SoftwareIdentity.__name__ == 'SoftwareIdentity'",
+                "from nightrecon_red_engine import host_discovery, resolver, service_probe, "
+                "session, software_identity, tcp_scanner, tls_detection; "
+                "assert software_identity.SoftwareIdentity.__name__ == 'SoftwareIdentity'; "
+                "assert host_discovery.HostDiscoveryResult.__name__ == 'HostDiscoveryResult'; "
+                "assert resolver.ResolutionResult.__name__ == 'ResolutionResult'; "
+                "assert service_probe.ServiceProbeDefinition.__name__ == 'ServiceProbeDefinition'; "
+                "assert session.ScanSession.__name__ == 'ScanSession'; "
+                "assert tcp_scanner.TcpPortResult.__name__ == 'TcpPortResult'; "
+                "assert tls_detection.TlsMetadata.__name__ == 'TlsMetadata'",
                 cwd=directory,
             )
             if mode == "isolated":
@@ -272,7 +279,10 @@ def main() -> None:
                 "assert e.LEGACY_NAMESPACE == 'nightrecon'; "
                 "assert e.existing_module('software_identity') is canonical; "
                 "assert legacy.SoftwareIdentity is canonical.SoftwareIdentity; "
-                "assert not e.is_migrated_module('host_discovery')",
+                "import nightrecon.host_discovery as legacy_hd; "
+                "from nightrecon_red_engine import host_discovery as canonical_hd; "
+                "assert e.is_migrated_module('host_discovery'); "
+                "assert legacy_hd is canonical_hd",
                 cwd=directory,
             )
 
