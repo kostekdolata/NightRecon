@@ -14,6 +14,7 @@ from nightrecon.cli import main
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_VERSION = "0.31.0"
+RED_EXPECTED_VERSION = "0.40.0"
 
 
 class ReleaseMetadataTests(unittest.TestCase):
@@ -23,6 +24,29 @@ class ReleaseMetadataTests(unittest.TestCase):
 
         self.assertEqual(project["version"], EXPECTED_VERSION)
         self.assertEqual(__version__, EXPECTED_VERSION)
+
+    def test_red_distribution_versions_match_release(self):
+        package_paths = (
+            ROOT / "packages" / "shared-core" / "pyproject.toml",
+            ROOT / "packages" / "red-engine" / "pyproject.toml",
+            ROOT / "packages" / "red-night" / "pyproject.toml",
+        )
+        for package_path in package_paths:
+            with package_path.open("rb") as handle:
+                project = tomllib.load(handle)["project"]
+            self.assertEqual(project["version"], RED_EXPECTED_VERSION)
+            self.assertNotIn(".dev", project["version"])
+
+        with (ROOT / "pyproject.toml").open("rb") as handle:
+            root_project = tomllib.load(handle)["project"]
+        self.assertIn(
+            f"nightrecon-shared-core=={RED_EXPECTED_VERSION}",
+            root_project["dependencies"],
+        )
+        self.assertIn(
+            f"nightrecon-red-engine=={RED_EXPECTED_VERSION}",
+            root_project["dependencies"],
+        )
 
     def test_cli_reports_package_version(self):
         output = io.StringIO()
