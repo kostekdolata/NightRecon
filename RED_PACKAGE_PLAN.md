@@ -98,9 +98,21 @@ compatibility re-exports.
 
 ### Batch C — discovery/service group
 
-Move the existing discovery, TCP, service/TLS, OS fingerprint, report/session,
-storage, and inventory modules as one dependency-coherent group. No algorithms
-are rewritten.
+Batch C is being executed in dependency-closed stages rather than forcing a
+Red-engine-to-legacy dependency.
+
+Batch C1 physically migrates `host_discovery`, `ports`, `tcp_scanner`,
+`tls_detection`, `service_probe`, `resolver`, `session`, and
+`discovery_report`. The network-capable legacy paths are true module aliases
+to preserve established patch points and object identity.
+
+The remaining discovery-owned modules are intentionally not moved yet:
+`service_detection` imports the web-owned `security_headers`; `report`
+imports check/vulnerability modules; `storage` imports report types from the
+web/API/infrastructure groups; `asset_inventory`, `asset_inventory_store`,
+and `os_fingerprint` depend on those blocked modules. They move only when the
+required dependency group is canonical in the Red engine. No algorithms are
+rewritten.
 
 ### Batch D — web/API/check groups
 
