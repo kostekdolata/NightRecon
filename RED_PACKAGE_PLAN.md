@@ -140,21 +140,24 @@ semantics or safety policy were rewritten.
 
 ### Batch F — graph/identity/vulnerability group
 
-Batch F is staged by dependency closure.
+Implemented in the v0.32.0 development branch.
 
-Batch F1 physically migrates vulnerability identity/providers, vulnerability
-intelligence, and threat-context modules. This removes the vulnerability
-dependency blocking the remaining discovery report/inventory slice.
-
-The graph/identity modules follow only after `asset_inventory` is canonical in
-the Red engine, because `graph_projection` and `graph_pipeline` depend on it.
-Evidence semantics are unchanged.
+The vulnerability/threat-intelligence and graph/identity groups now live
+canonically in `nightrecon_red_engine`, including the offline Red directory
+import/CLI. Their legacy paths are compatibility aliases. Evidence semantics
+and existing safety behavior are unchanged.
 
 ### Batch G — Red CLI composition
 
-Replace the dependency on the monolithic legacy CLI with a Red-owned CLI
-composition layer that invokes the same moved implementations and keeps command
-syntax/output compatible.
+Implemented in the v0.32.0 development branch and awaiting final CI verification.
+
+`nightrecon_red_engine.red_cli` is composed from the existing CLI behavior with
+imports redirected to canonical Red-engine modules and shared-core policy.
+`identity` and `workspace` route directly to Red-owned implementations.
+Both the separate Red app entrypoint and the legacy `red-night` compatibility
+launcher now call this Red-owned CLI instead of `nightrecon.cli`. The
+distribution smoke verifies the Red app can run with no legacy `nightrecon`
+package installed before the metadata bridge is removed in Batch H.
 
 ### Batch H — remove bridge dependency
 
