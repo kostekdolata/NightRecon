@@ -335,3 +335,6 @@ jobs:
       - name: Run ldap3 Active Directory runtime compatibility
         run: python tests/ad_ldap3_runtime.py
 
+      - name: Run deterministic Active Directory benchmark lab
+        run: python tests/ad_identity_benchmark_runtime.py
+
