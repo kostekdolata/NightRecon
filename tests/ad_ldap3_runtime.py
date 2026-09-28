@@ -33,6 +33,9 @@ def main() -> None:
     assert transport.target == "dc.example.test"
     assert "runtime-only-secret" not in repr(transport)
     assert AD_USER_FILTER.startswith("(|")
+    assert "(objectClass=user)" in AD_USER_FILTER
+    assert "(!(objectClass=computer))" in AD_USER_FILTER
+    assert "(objectCategory=computer)" in AD_USER_FILTER
     assert AD_GROUP_FILTER == "(objectClass=group)"
     assert "distinguishedName" in AD_USER_ATTRIBUTES
     assert "objectClass" in AD_USER_ATTRIBUTES
