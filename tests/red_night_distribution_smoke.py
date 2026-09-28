@@ -45,7 +45,13 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert "scan" in help_text
     catalog = json.loads(check(app, "editions", "--json", cwd=directory))
     assert len(catalog) == 5
-    assert all(not item["standalone_available"] for item in catalog)
+    standalone = {item["name"]: item["standalone_available"] for item in catalog}
+    assert standalone["Red Night"] is True
+    assert all(
+        available is False
+        for name, available in standalone.items()
+        if name != "Red Night"
+    )
     assert "--scope" in check(app, "scan", "--help", cwd=directory)
     snapshot = directory / "directory-export.json"
     snapshot.write_text(json.dumps({
@@ -310,7 +316,7 @@ def main() -> None:
             if mode == "combined":
                 assert "0.31.0" in metadata
             assert metadata.count("0.32.0.dev0") >= 3
-            assert "nightrecon==0.31.0" in metadata
+            assert "nightrecon==0.31.0" not in metadata
             assert "nightrecon-red-engine==0.32.0.dev0" in metadata
             assert "nightrecon-shared-core==0.32.0.dev0" in metadata
             assert "cryptography" in metadata
