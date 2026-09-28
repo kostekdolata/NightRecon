@@ -46,3 +46,11 @@ The separate `nightrecon-red-engine` distribution now owns the
 and temporarily on the legacy root package for the existing CLI bridge. Engine
 modules are moved into the engine distribution in dependency-coherent batches;
 they are not copied or rebuilt. See `RED_PACKAGE_NAMESPACE.md`.
+
+
+## Direct Red engine runtime
+
+The application entrypoint now calls `nightrecon_red_engine.red_cli` directly.
+The legacy `nightrecon==0.31.0` dependency remains declared temporarily until
+the isolated distribution matrix verifies that the app runs without that
+package installed. Removal of that metadata bridge is the final packaging step.
