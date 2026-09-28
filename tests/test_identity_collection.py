@@ -82,6 +82,41 @@ class IdentityCollectionTests(unittest.TestCase):
                 LocalWorkspace(root).execution_policy("eng-identity").actions_used, 1
             )
 
+    def test_computer_and_service_entries_normalize_as_identity_types(self):
+        with tempfile.TemporaryDirectory() as root:
+            computer_dn = "CN=WS01,OU=Computers,DC=example,DC=test"
+            service_dn = "CN=WebSvc,OU=Services,DC=example,DC=test"
+            group_dn = "CN=Operators,OU=Groups,DC=example,DC=test"
+            provider = FakeProvider((
+                DirectoryEntry(computer_dn, "computer", "ws01.example.test"),
+                DirectoryEntry(service_dn, "service", "Web Service"),
+                DirectoryEntry(
+                    group_dn,
+                    "group",
+                    "Operators",
+                    (computer_dn, service_dn),
+                ),
+            ))
+
+            result = collect_authorized_identity_intelligence(
+                workspace(root),
+                provider,
+                IdentityCollectionRequest(
+                    engagement_id="eng-identity",
+                    source_id="ldap-readonly-1",
+                    source_type="active-directory",
+                    target="dc.example.test",
+                ),
+                now=datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc),
+            )
+
+            self.assertEqual(
+                {item.identity_type for item in result.evidence.identities},
+                {"ad-computer", "ad-service"},
+            )
+            self.assertEqual(len(result.evidence.memberships), 2)
+            self.assertEqual(result.unresolved_members, 0)
+
     def test_provider_completeness_metadata_is_preserved(self):
         with tempfile.TemporaryDirectory() as root:
             provider = FakeProvider(IdentityProviderCollection(
@@ -154,11 +189,15 @@ class IdentityCollectionTests(unittest.TestCase):
                     now=datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc),
                 )
 
-    def test_provider_entries_reject_user_members_and_duplicate_members(self):
-        with self.assertRaises(ValueError):
-            DirectoryEntry("CN=A", "user", "A", ("CN=B",))
+    def test_provider_entries_reject_non_group_members_and_duplicate_members(self):
+        for kind in ("user", "computer", "service"):
+            with self.subTest(kind=kind):
+                with self.assertRaises(ValueError):
+                    DirectoryEntry("CN=A", kind, "A", ("CN=B",))
         with self.assertRaises(ValueError):
             DirectoryEntry("CN=G", "group", "G", ("CN=A", "CN=A"))
+        with self.assertRaises(ValueError):
+            DirectoryEntry("CN=X", "unknown", "X")
 
     def test_provider_metadata_rejects_invalid_values(self):
         with self.assertRaisesRegex(ValueError, "request_count"):
