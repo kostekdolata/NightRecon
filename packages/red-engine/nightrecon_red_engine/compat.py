@@ -87,6 +87,7 @@ MIGRATED_MODULES = frozenset({
     "nvd_provider",
     "os_fingerprint",
     "ports",
+    "red_cli",
     "red_directory_cli",
     "red_directory_import",
     "red_workspace_cli",
