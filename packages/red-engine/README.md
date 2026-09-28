@@ -36,3 +36,8 @@ algorithms:
 Network-capable legacy module paths are module aliases to the canonical Red
 engine modules so established monkeypatch/test seams continue to target the
 actual implementation.
+
+Batch D migrates the complete existing web/browser/DAST, API/GraphQL, and
+assessment/check groups. Compatibility module aliases preserve legacy import and
+mock/patch identity; the canonical sources do not import the legacy
+`nightrecon` package.
