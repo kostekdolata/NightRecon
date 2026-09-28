@@ -5746,7 +5746,7 @@ def _command_main(argv: tuple[str, ...] | None = None) -> None:
 
 
 
-_GUARD_VALUE_OPTIONS = frozenset({"--workspace-root", "--engagement-id"})
+_GUARD_VALUE_OPTIONS = frozenset({"--guard-workspace-root", "--guard-engagement-id"})
 
 
 def _pop_guard_options(arguments: tuple[str, ...]) -> tuple[tuple[str, ...], str | None, str | None, bool]:
@@ -5762,13 +5762,13 @@ def _pop_guard_options(arguments: tuple[str, ...]) -> tuple[tuple[str, ...], str
                 print(f"red-night: {item} requires a value.", file=sys.stderr)
                 raise SystemExit(2)
             value = arguments[index + 1]
-            if item == "--workspace-root":
+            if item == "--guard-workspace-root":
                 workspace_root = value
             else:
                 engagement_id = value
             index += 2
             continue
-        if item == "--approved":
+        if item == "--guard-approved":
             approved = True
             index += 1
             continue
@@ -5839,7 +5839,7 @@ def _authorize_guarded_execution(
         return
     if workspace_root is None or engagement_id is None:
         print(
-            "red-night: active command requires --workspace-root and --engagement-id.",
+            "red-night: active command requires --guard-workspace-root and --guard-engagement-id.",
             file=sys.stderr,
         )
         raise SystemExit(2)
