@@ -10,10 +10,18 @@ LEGACY_NAMESPACE = "nightrecon"
 
 MIGRATED_MODULES = frozenset({
     "api_models",
+    "discovery_report",
     "graph_models",
+    "host_discovery",
     "infrastructure_models",
+    "ports",
+    "resolver",
     "service_fingerprint",
+    "service_probe",
+    "session",
     "software_identity",
+    "tcp_scanner",
+    "tls_detection",
 })
 
 
