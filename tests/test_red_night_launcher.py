@@ -26,7 +26,7 @@ class RedNightLauncherTests(unittest.TestCase):
                 with self.assertRaises(SystemExit) as exit_status:
                     main(("scan", "127.0.0.1", "--scope", "127.0.0.1"))
         self.assertEqual(exit_status.exception.code, 2)
-        self.assertIn("requires --workspace-root and --engagement-id", error.getvalue())
+        self.assertIn("requires --guard-workspace-root and --guard-engagement-id", error.getvalue())
         command_main.assert_not_called()
 
     def test_active_command_runs_only_after_authorized_guard(self):
@@ -49,8 +49,8 @@ class RedNightLauncherTests(unittest.TestCase):
             ))
             arguments = (
                 "scan", "127.0.0.1", "--scope", "127.0.0.1",
-                "--workspace-root", directory,
-                "--engagement-id", "eng-guard",
+                "--guard-workspace-root", directory,
+                "--guard-engagement-id", "eng-guard",
             )
             with patch("nightrecon_red_engine.red_cli._command_main") as command_main:
                 main(arguments)
