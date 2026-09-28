@@ -72,6 +72,15 @@ engine modules, preserving object and patch-target identity. Browser and API
 optional dependencies remain extras rather than unconditional engine
 dependencies.
 
+## Batch G
+
+The Red application runtime now enters through
+`nightrecon_red_engine.red_cli`, not the legacy monolithic CLI. Generic Red CLI
+support (`config`, structured logging, and workspace CLI) is canonical in the
+engine. The isolated distribution smoke installs the Red app without
+dependencies after shared-core and the Red engine, then proves the legacy
+`nightrecon` package is absent while Red commands still execute.
+
 ## Verification
 
 The contract is enforced by:
