@@ -137,8 +137,9 @@ The canonical implementation for the following existing modules now lives under
 - `session`
 - `discovery_report`
 
-The Batch C1/C2 discovery/runtime modules plus all web/browser/DAST, API/GraphQL,
-and assessment/check modules are now canonical in the Red engine. The remaining
+The Batch C1/C2 discovery/runtime modules, all web/browser/DAST, API/GraphQL,
+assessment/check modules, and the complete infrastructure group are now canonical
+in the Red engine. The remaining
 discovery modules are the dependency-blocked portion of the larger discovery group. Modules that currently depend on web, check,
 vulnerability, API, or infrastructure report surfaces remain in the legacy
 package until those dependencies migrate.
