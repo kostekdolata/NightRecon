@@ -267,12 +267,12 @@ def main() -> None:
             )
         core_wheel = next(wheels.glob("nightrecon-0.31.0-*.whl"))
         shared_core_wheel = next(
-            wheels.glob("nightrecon_shared_core-0.39.0.dev0-*.whl")
+            wheels.glob("nightrecon_shared_core-0.40.0.dev0-*.whl")
         )
         red_engine_wheel = next(
-            wheels.glob("nightrecon_red_engine-0.39.0.dev0-*.whl")
+            wheels.glob("nightrecon_red_engine-0.40.0.dev0-*.whl")
         )
-        app_wheel = next(wheels.glob("nightrecon_red_night-0.39.0.dev0-*.whl"))
+        app_wheel = next(wheels.glob("nightrecon_red_night-0.40.0.dev0-*.whl"))
 
         with zipfile.ZipFile(app_wheel) as archive:
             app_files = tuple(sorted(archive.namelist()))
@@ -375,10 +375,10 @@ def main() -> None:
             metadata = check(str(python), "-c", metadata_script, cwd=directory)
             if mode == "combined":
                 assert "0.31.0" in metadata
-            assert metadata.count("0.39.0.dev0") >= 3
+            assert metadata.count("0.40.0.dev0") >= 3
             assert "nightrecon==0.31.0" not in metadata
-            assert "nightrecon-red-engine==0.39.0.dev0" in metadata
-            assert "nightrecon-shared-core==0.39.0.dev0" in metadata
+            assert "nightrecon-red-engine==0.40.0.dev0" in metadata
+            assert "nightrecon-shared-core==0.40.0.dev0" in metadata
             assert "cryptography" in metadata
             for extra_dependency in (
                 "playwright", "PyYAML", "paramiko", "impacket", "pywinrm",

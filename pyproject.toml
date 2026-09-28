@@ -14,8 +14,8 @@ authors = [
 ]
 dependencies = [
     "cryptography>=50.0.1,<51",
-    "nightrecon-shared-core==0.39.0.dev0",
-    "nightrecon-red-engine==0.39.0.dev0",
+    "nightrecon-shared-core==0.40.0.dev0",
+    "nightrecon-red-engine==0.40.0.dev0",
 ]
 
 [project.optional-dependencies]
