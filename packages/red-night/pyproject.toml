@@ -10,7 +10,6 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
-    "nightrecon==0.31.0",
     "nightrecon-shared-core==0.32.0.dev0",
     "nightrecon-red-engine==0.32.0.dev0",
     "cryptography>=50.0.1,<51",
