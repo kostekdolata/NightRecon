@@ -1,7 +1,7 @@
 """Bounded read-only Active Directory identity provider.
 
-The provider has a fixed collection plan for users, groups, and observed group
-memberships. It never accepts an operator-supplied LDAP filter or attribute
+The provider has a fixed collection plan for directory identities, groups, and
+observed group memberships. It never accepts an operator-supplied LDAP filter or attribute
 list. The concrete ldap3 transport supports encrypted LDAPS or LDAP+StartTLS,
 validates server certificates, disables referrals, and resolves bind secrets
 only when the authorized collection is actually executed.
@@ -408,9 +408,12 @@ def _directory_entry(
         raise ValueError("LDAP entry attributes must be a mapping")
 
     if kind == "user":
+        object_class_values = _attribute_values(attributes, "objectClass")
+        if not object_class_values:
+            raise ValueError("LDAP identity entry requires objectClass")
         object_classes = {
             value.casefold()
-            for value in _attribute_values(attributes, "objectClass")
+            for value in object_class_values
         }
         service_principals = _attribute_values(
             attributes,
