@@ -1,53 +1,7 @@
-"""Combined built-in and installed assessment-check catalog."""
+"""Compatibility alias for migrated Red Night check catalog module."""
 
-from __future__ import annotations
+from importlib import import_module as _import_module
+import sys as _sys
 
-from dataclasses import dataclass
-
-from nightrecon.assessment_engine import (
-    AssessmentCheck,
-    CheckRegistry,
-)
-from nightrecon.builtin_checks import builtin_checks
-from nightrecon.check_plugins import discover_installed_checks
-
-
-@dataclass(frozen=True)
-class CheckCatalogResult:
-    """Available assessment checks plus isolated catalog errors."""
-
-    checks: tuple[AssessmentCheck, ...] = ()
-    errors: tuple[str, ...] = ()
-
-
-def load_check_catalog(
-    *,
-    additional_checks: tuple[AssessmentCheck, ...] = (),
-) -> CheckCatalogResult:
-    """Load built-ins, installed plugins, and additional checks."""
-
-    registry = CheckRegistry()
-    errors: list[str] = []
-
-    for check in builtin_checks():
-        registry.register(check)
-
-    discovery = discover_installed_checks()
-    errors.extend(discovery.errors)
-
-    for check in discovery.checks:
-        try:
-            registry.register(check)
-        except ValueError as exc:
-            errors.append(str(exc))
-
-    for check in additional_checks:
-        try:
-            registry.register(check)
-        except ValueError as exc:
-            errors.append(str(exc))
-
-    return CheckCatalogResult(
-        checks=registry.all(),
-        errors=tuple(errors),
-    )
+_module = _import_module("nightrecon_red_engine.check_catalog")
+_sys.modules[__name__] = _module
