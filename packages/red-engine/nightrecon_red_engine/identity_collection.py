@@ -86,6 +86,7 @@ class IdentityProviderCollection:
     entries: tuple[DirectoryEntry, ...]
     truncated: bool = False
     request_count: int = 0
+    duration_ms: int = 0
     limitations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -99,6 +100,8 @@ class IdentityProviderCollection:
             raise ValueError("identity provider truncated must be a boolean")
         if type(self.request_count) is not int or self.request_count < 0:
             raise ValueError("identity provider request_count must be a nonnegative integer")
+        if type(self.duration_ms) is not int or self.duration_ms < 0:
+            raise ValueError("identity provider duration_ms must be a nonnegative integer")
         if any(
             not isinstance(item, str) or not item or item != item.strip()
             for item in self.limitations
@@ -122,6 +125,7 @@ class IdentityCollectionResult:
     evidence: IdentityEvidenceBundle
     truncated: bool = False
     provider_requests: int = 0
+    provider_duration_ms: int = 0
     limitations: tuple[str, ...] = ()
 
 
@@ -213,5 +217,6 @@ def collect_authorized_identity_intelligence(
         evidence=imported.evidence,
         truncated=provider_output.truncated,
         provider_requests=provider_output.request_count,
+        provider_duration_ms=provider_output.duration_ms,
         limitations=provider_output.limitations,
     )
