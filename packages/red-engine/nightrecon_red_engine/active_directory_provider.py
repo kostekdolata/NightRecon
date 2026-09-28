@@ -317,30 +317,45 @@ def _attribute_text(attributes: Mapping[str, object], *names: str) -> str:
     return ""
 
 
-def _attribute_members(attributes: Mapping[str, object]) -> tuple[str, ...]:
-    value = attributes.get("member")
-    if value in (None, ""):
-        return ()
-    if isinstance(value, str):
-        values = (value,)
-    elif isinstance(value, (list, tuple)):
-        values = tuple(value)
-    else:
-        raise ValueError("LDAP group member attribute has an unsupported type")
+def _attribute_members(
+    attributes: Mapping[str, object],
+) -> tuple[tuple[str, ...], bool]:
+    values: list[object] = []
+    ranged = False
+
+    for key, value in attributes.items():
+        if not isinstance(key, str):
+            continue
+        normalized = key.casefold()
+        if normalized == "member":
+            pass
+        elif normalized.startswith("member;range="):
+            ranged = True
+        else:
+            continue
+
+        if value in (None, ""):
+            continue
+        if isinstance(value, str):
+            values.append(value)
+        elif isinstance(value, (list, tuple)):
+            values.extend(value)
+        else:
+            raise ValueError("LDAP group member attribute has an unsupported type")
 
     members: set[str] = set()
     for item in values:
         if not isinstance(item, str) or not item.strip():
             raise ValueError("LDAP group member values must be nonblank strings")
         members.add(item.strip())
-    return tuple(sorted(members, key=str.casefold))
+    return tuple(sorted(members, key=str.casefold)), ranged
 
 
 def _directory_entry(
     raw: Mapping[str, object],
     *,
     kind: str,
-) -> DirectoryEntry:
+) -> tuple[DirectoryEntry, bool]:
     dn = _required_text(raw.get("dn"), "LDAP entry DN")
     attributes = raw.get("attributes")
     if not isinstance(attributes, Mapping):
@@ -353,16 +368,17 @@ def _directory_entry(
             "sAMAccountName",
             "name",
         ) or dn
-        return DirectoryEntry(dn, "user", name)
+        return DirectoryEntry(dn, "user", name), False
 
     if kind == "group":
         name = _attribute_text(attributes, "cn", "name") or dn
+        members, ranged = _attribute_members(attributes)
         return DirectoryEntry(
             dn,
             "group",
             name,
-            _attribute_members(attributes),
-        )
+            members,
+        ), ranged
 
     raise ValueError("unsupported Active Directory entry kind")
 
@@ -440,7 +456,12 @@ class ActiveDirectoryIdentityProvider:
                     page_count += 1
 
                     for raw in page.entries:
-                        entry = _directory_entry(raw, kind=kind)
+                        entry, ranged_membership = _directory_entry(raw, kind=kind)
+                        if ranged_membership:
+                            mark_truncated(
+                                "Active Directory returned ranged group membership; "
+                                "additional members may be omitted."
+                            )
                         normalized_dn = entry.distinguished_name.casefold()
                         if normalized_dn in seen_dns:
                             continue
