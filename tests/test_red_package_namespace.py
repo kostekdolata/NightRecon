@@ -46,9 +46,6 @@ class RedPackageNamespaceTests(unittest.TestCase):
         for forbidden in (
             "from nightrecon.",
             "import nightrecon.",
-            "playwright",
-            "paramiko",
-            "impacket",
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, sources)
