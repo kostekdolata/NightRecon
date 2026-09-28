@@ -51,7 +51,12 @@ def _required_text(value: object, field: str) -> str:
     return value
 
 
-def _key(kind: str, dn: str) -> str:
+def directory_natural_key(kind: str, dn: str) -> str:
+    """Return the opaque graph key for an exact imported directory DN."""
+
+    if kind not in ("user", "group"):
+        raise ValueError("directory node kind must be user or group")
+    _required_text(dn, "dn")
     return f"ad:{kind}:{sha256(dn.encode('utf-8')).hexdigest()}"
 
 
@@ -117,7 +122,7 @@ def import_directory_snapshot(
         if any(not isinstance(member, str) or not member or member != member.strip()
                for member in members) or len(set(members)) != len(members):
             raise ValueError("group members must be unique, trimmed DNs")
-        key = _key(kind, dn)
+        key = directory_natural_key(kind, dn)
         by_dn[dn] = (kind, key)
         provenance = f"{source_id}#entry-{index}"
         if kind == "user":
