@@ -192,6 +192,7 @@ class Ldap3ActiveDirectoryTransport:
             connect_timeout=self._connect_timeout_seconds,
         )
         secret = self._secret_resolver()
+        connection = None
         try:
             _required_text(secret, "resolved bind secret")
             connection = Connection(
@@ -208,6 +209,13 @@ class Ldap3ActiveDirectoryTransport:
                     raise RuntimeError("LDAP StartTLS negotiation failed")
             if not connection.bind():
                 raise RuntimeError("LDAP bind failed")
+        except Exception:
+            if connection is not None:
+                try:
+                    connection.unbind()
+                except Exception:
+                    pass
+            raise
         finally:
             secret = ""
 
