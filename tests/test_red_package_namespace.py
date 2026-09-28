@@ -33,9 +33,9 @@ class RedPackageNamespaceTests(unittest.TestCase):
         self.assertIs(legacy_host_discovery, host_discovery)
 
     def test_unmigrated_module_is_rejected_by_engine_resolver(self) -> None:
-        self.assertFalse(engine.is_migrated_module("graph_pipeline"))
+        self.assertFalse(engine.is_migrated_module("red_workspace_cli"))
         with self.assertRaisesRegex(ValueError, "not migrated to Red engine"):
-            engine.existing_module("graph_pipeline")
+            engine.existing_module("red_workspace_cli")
 
     def test_engine_namespace_has_no_legacy_runtime_dependency(self) -> None:
         namespace = ROOT / "packages" / "red-engine" / "nightrecon_red_engine"
