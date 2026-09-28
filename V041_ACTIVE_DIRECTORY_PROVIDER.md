@@ -75,5 +75,9 @@ This provider does not implement:
 - persistence or lateral movement
 - autonomous exploitation
 
+The deterministic provider-quality benchmark is documented in
+[V041_AD_BENCHMARK_LAB.md](V041_AD_BENCHMARK_LAB.md).
+
 Computer/service-identity enrichment, broader privilege relationships, live
-benchmark-lab measurements, and the Entra provider remain later v0.41 batches.
+external comparison measurements, and the Entra provider remain later v0.41
+batches.
