@@ -12,8 +12,7 @@ from nightrecon_red_engine.infrastructure_models import (
     InfrastructureActionState,
     InfrastructureTransport,
 )
-from nightrecon_shared_core.authorization import Scope
-from nightrecon_red_engine.targets import parse_target
+from nightrecon_shared_core.authorization import Scope, parse_target
 
 
 @dataclass(frozen=True)
