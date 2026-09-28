@@ -197,6 +197,43 @@ class ActiveDirectoryIdentityProviderTests(unittest.TestCase):
         )
         self.assertIn("membership ceiling", result.limitations[0].lower())
 
+    def test_ranged_group_membership_is_preserved_but_marked_incomplete(self):
+        transport = FakeTransport((
+            LdapSearchPage(entries=()),
+            LdapSearchPage(entries=(
+                {
+                    "type": "searchResEntry",
+                    "dn": "CN=Large,DC=example,DC=test",
+                    "attributes": {
+                        "cn": "Large",
+                        "member;range=0-1499": [
+                            "CN=Alice,DC=example,DC=test",
+                            "CN=Bob,DC=example,DC=test",
+                        ],
+                    },
+                },
+            )),
+        ))
+        provider = ActiveDirectoryIdentityProvider(
+            transport=transport,
+            base_dn="DC=example,DC=test",
+        )
+
+        result = provider.collect(request())
+
+        self.assertTrue(result.truncated)
+        self.assertEqual(
+            result.entries[0].members,
+            (
+                "CN=Alice,DC=example,DC=test",
+                "CN=Bob,DC=example,DC=test",
+            ),
+        )
+        self.assertTrue(
+            any("ranged group membership" in item.lower()
+                for item in result.limitations)
+        )
+
     def test_wrong_source_or_target_fails_before_transport_call(self):
         for item in (
             request(source_type="entra-id"),
