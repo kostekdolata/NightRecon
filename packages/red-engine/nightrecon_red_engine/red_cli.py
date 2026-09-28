@@ -11,7 +11,7 @@ try:
     from importlib.metadata import version as _distribution_version
     __version__ = _distribution_version("nightrecon-red-night")
 except Exception:
-    __version__ = "0.35.0.dev0"
+    __version__ = "0.36.0.dev0"
 from nightrecon_red_engine import report
 from nightrecon_red_engine import config
 from nightrecon_shared_core.editions import EDITIONS, EditionRouteError, available_commands, edition_name
