@@ -51,6 +51,36 @@ class EngagementStoreTests(unittest.TestCase):
         with self.assertRaises(MetadataConflictError):
             store.set_metadata(metadata("Changed"))
 
+    def test_metadata_can_be_replaced_only_after_creation(self) -> None:
+        store = InMemoryEngagementStore()
+        with self.assertRaisesRegex(ValueError, "metadata not found"):
+            store.replace_metadata(metadata())
+        store.set_metadata(metadata())
+        updated = EngagementMetadata(
+            engagement_id="eng-1",
+            name="Engagement One",
+            created_at="2026-09-27T22:40:00+00:00",
+            authorization_reference="approval://eng-1",
+            status="completed",
+        )
+        store.replace_metadata(updated)
+        self.assertEqual(store.metadata("eng-1"), updated)
+
+    def test_file_store_metadata_replacement_persists(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nightrecon-store-") as directory:
+            path = Path(directory) / "engagements.json"
+            store = FileEngagementStore(path)
+            store.set_metadata(metadata())
+            updated = EngagementMetadata(
+                engagement_id="eng-1",
+                name="Engagement One",
+                created_at="2026-09-27T22:40:00+00:00",
+                authorization_reference="approval://eng-1",
+                status="paused",
+            )
+            store.replace_metadata(updated)
+            self.assertEqual(FileEngagementStore(path).metadata("eng-1"), updated)
+
     def test_envelope_append_is_atomic_for_metadata_and_evidence_conflicts(self) -> None:
         store = InMemoryEngagementStore()
         original = record("ev-1", "red", "asset.observation")

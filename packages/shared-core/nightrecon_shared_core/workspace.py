@@ -9,12 +9,20 @@ multi-process service/database backend must provide its own concurrency control.
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
-from nightrecon_shared_core.contracts import EngagementEnvelope
+from nightrecon_shared_core.contracts import EngagementEnvelope, EngagementMetadata
 from nightrecon_shared_core.file_store import FileEngagementStore
+from nightrecon_shared_core.engagement_policy import (
+    AuthorizationDecision,
+    EngagementExecutionPolicy,
+    FileEngagementPolicyStore,
+    append_authorization_audit,
+    evaluate_action,
+    read_authorization_audit,
+)
 
 
 @dataclass(frozen=True)
@@ -31,6 +39,16 @@ class WorkspaceSummary:
 class EvidenceBreakdown:
     source_night_counts: tuple[tuple[str, int], ...]
     evidence_type_counts: tuple[tuple[str, int], ...]
+
+
+@dataclass(frozen=True)
+class WorkspaceTimelineItem:
+    evidence_id: str
+    source_night: str
+    evidence_type: str
+    observed_at: str
+    provenance: str
+    limitations: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -56,20 +74,145 @@ class LocalWorkspace:
     """Local workspace root shared by independently installed Night apps."""
 
     STORE_FILENAME = "engagements.json"
+    POLICY_FILENAME = "authorization.json"
+    AUTHORIZATION_AUDIT_FILENAME = "authorization-audit.jsonl"
+    _STATUS_TRANSITIONS = {
+        "planned": frozenset({"active", "archived"}),
+        "active": frozenset({"paused", "completed"}),
+        "paused": frozenset({"active", "completed"}),
+        "completed": frozenset({"archived"}),
+        "archived": frozenset(),
+    }
 
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
         if self.root.exists() and not self.root.is_dir():
             raise ValueError("workspace root must be a directory")
         self.store = FileEngagementStore(self.root / self.STORE_FILENAME)
+        self.policy_store = FileEngagementPolicyStore(self.root / self.POLICY_FILENAME)
 
     def _exists(self, engagement_id: str) -> bool:
         return engagement_id in self.store.engagements()
+
+    def set_execution_policy(
+        self, policy: EngagementExecutionPolicy
+    ) -> EngagementExecutionPolicy:
+        if not self._exists(policy.engagement_id):
+            raise ValueError(f"engagement not found: {policy.engagement_id}")
+        self.policy_store.set_policy(policy)
+        return policy
+
+    def execution_policy(self, engagement_id: str) -> EngagementExecutionPolicy:
+        if not self._exists(engagement_id):
+            raise ValueError(f"engagement not found: {engagement_id}")
+        policy = self.policy_store.policy(engagement_id)
+        if policy is None:
+            raise ValueError(f"engagement authorization policy not found: {engagement_id}")
+        return policy
+
+    def revoke_execution(self, engagement_id: str) -> EngagementExecutionPolicy:
+        if not self._exists(engagement_id):
+            raise ValueError(f"engagement not found: {engagement_id}")
+        return self.policy_store.revoke(engagement_id)
+
+    def authorize_action(
+        self,
+        engagement_id: str,
+        *,
+        capability: str,
+        target: str,
+        impact: str = "standard",
+        approval_present: bool = False,
+        consume: bool = False,
+        now=None,
+    ) -> AuthorizationDecision:
+        policy = self.execution_policy(engagement_id)
+        metadata = self.envelope(engagement_id).metadata
+        status = None if metadata is None else metadata.status
+        decision = evaluate_action(
+            policy,
+            engagement_status=status,
+            capability=capability,
+            target=target,
+            impact=impact,
+            approval_present=approval_present,
+            now=now,
+        )
+        append_authorization_audit(
+            self.root / self.AUTHORIZATION_AUDIT_FILENAME,
+            decision,
+            occurred_at=now,
+        )
+        if decision.allowed and consume:
+            updated = self.policy_store.consume_action(engagement_id)
+            decision = AuthorizationDecision(
+                engagement_id=decision.engagement_id,
+                allowed=True,
+                reason_code=decision.reason_code,
+                reason=decision.reason,
+                capability=decision.capability,
+                target=decision.target,
+                impact=decision.impact,
+                approval_present=decision.approval_present,
+                actions_used=updated.actions_used,
+                max_actions=updated.max_actions,
+                remaining_actions=updated.max_actions - updated.actions_used,
+            )
+        return decision
+
+    def authorization_audit(self, engagement_id: str):
+        if not self._exists(engagement_id):
+            raise ValueError(f"engagement not found: {engagement_id}")
+        return tuple(
+            item
+            for item in read_authorization_audit(
+                self.root / self.AUTHORIZATION_AUDIT_FILENAME
+            )
+            if item.engagement_id == engagement_id
+        )
+
+    def create_engagement(self, metadata: EngagementMetadata) -> WorkspaceSummary:
+        if self._exists(metadata.engagement_id):
+            raise ValueError(f"engagement already exists: {metadata.engagement_id}")
+        self.store.set_metadata(metadata)
+        return self.summary(metadata.engagement_id)
+
+    def update_status(self, engagement_id: str, status: str) -> WorkspaceSummary:
+        envelope = self.envelope(engagement_id)
+        metadata = envelope.metadata
+        if metadata is None:
+            raise ValueError("engagement metadata is required to update status")
+        if status == metadata.status:
+            return self.summary(engagement_id)
+        allowed = self._STATUS_TRANSITIONS.get(metadata.status, frozenset())
+        if status not in allowed:
+            raise ValueError(
+                f"invalid engagement status transition: {metadata.status} -> {status}"
+            )
+        self.store.replace_metadata(replace(metadata, status=status))
+        return self.summary(engagement_id)
 
     def envelope(self, engagement_id: str) -> EngagementEnvelope:
         if not self._exists(engagement_id):
             raise ValueError(f"engagement not found: {engagement_id}")
         return self.store.export_envelope(engagement_id)
+
+    def timeline(self, engagement_id: str) -> tuple[WorkspaceTimelineItem, ...]:
+        records = self.envelope(engagement_id).records
+        return tuple(
+            WorkspaceTimelineItem(
+                evidence_id=record.evidence_id,
+                source_night=record.source_night,
+                evidence_type=record.evidence_type,
+                observed_at=record.observed_at,
+                provenance=record.provenance,
+                limitations=record.limitations,
+            )
+            for record in sorted(
+                records,
+                key=lambda item: (item.observed_at, item.evidence_id),
+            )
+        )
 
     def summary(self, engagement_id: str) -> WorkspaceSummary:
         envelope = self.envelope(engagement_id)

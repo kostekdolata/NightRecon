@@ -16,6 +16,7 @@ from nightrecon_shared_core.contracts import (
 class EngagementStore(Protocol):
     def set_metadata(self, metadata: EngagementMetadata) -> None: ...
     def metadata(self, engagement_id: str) -> EngagementMetadata | None: ...
+    def replace_metadata(self, metadata: EngagementMetadata) -> None: ...
     def append(self, record: EvidenceRecord) -> None: ...
     def append_envelope(self, envelope: EngagementEnvelope) -> None: ...
     def export_envelope(self, engagement_id: str) -> EngagementEnvelope: ...
@@ -61,6 +62,11 @@ class InMemoryEngagementStore:
         if not isinstance(engagement_id, str) or not engagement_id.strip():
             raise ValueError("engagement_id must be a nonblank string")
         return self._metadata.get(engagement_id)
+
+    def replace_metadata(self, metadata: EngagementMetadata) -> None:
+        if metadata.engagement_id not in self._metadata:
+            raise ValueError(f"engagement metadata not found: {metadata.engagement_id}")
+        self._metadata[metadata.engagement_id] = metadata
 
     def append(self, record: EvidenceRecord) -> None:
         key = (record.engagement_id, record.evidence_id)

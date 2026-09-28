@@ -6,6 +6,13 @@ from nightrecon_shared_core.contracts import (
     EngagementMetadata,
     EvidenceRecord,
 )
+from nightrecon_shared_core.engagement_policy import (
+    AuthorizationAuditRecord,
+    AuthorizationDecision,
+    EngagementExecutionPolicy,
+    FileEngagementPolicyStore,
+    evaluate_action,
+)
 from nightrecon_shared_core.editions import (
     EDITIONS,
     Edition,
@@ -29,11 +36,15 @@ from nightrecon_shared_core.workspace import (
 )
 
 __all__ = [
-    "EDITIONS", "Edition", "EditionRouteError", "EngagementEnvelope",
+    "EDITIONS", "AuthorizationAuditRecord", "AuthorizationDecision",
+    "Edition", "EditionRouteError", "EngagementEnvelope",
+    "EngagementExecutionPolicy",
     "EngagementMetadata", "EngagementStore", "EvidenceBreakdown",
-    "EvidenceConflictError", "EvidenceRecord", "FileEngagementStore",
+    "EvidenceConflictError", "EvidenceRecord", "FileEngagementPolicyStore",
+    "FileEngagementStore",
     "InMemoryEngagementStore", "LocalWorkspace", "MergeReport",
     "MetadataConflictError", "Scope", "Target", "TargetType",
     "WorkspaceStore", "WorkspaceSummary", "available_commands",
+    "evaluate_action",
     "edition_name", "parse_target",
 ]

@@ -53,8 +53,18 @@ categories remain open even when a similar feature exists.
 
 ## Current batch
 
+Red Night is now independently installable through its dedicated Red engine and
+mandatory shared-core safety layer. v0.33.0 is building Engagement Intelligence
+and Operator Workspace foundations. The first workspace slice adds explicit
+engagement lifecycle state, evidence timelines, and a persistent fail-closed
+execution policy with target scope, authorization windows, capability allowlists,
+action budgets, approval requirements, revocation, and append-only authorization
+decision audit records. Network-capable Red CLI commands are bound to the same
+preflight through --guard-workspace-root/--guard-engagement-id guard options and fail closed
+before their existing execution handler when authorization is missing or denied.
+
 `packages/red-night/` builds a separate development-preview Red Night
-distribution that depends on the existing NightRecon shared runtime. A distinct
+distribution that uses the dedicated Red engine and shared core. A distinct
 `red-night-app` command delegates to the already verified Red gateway. Wheel
 install/uninstall smoke tests cover isolated Red-app and combined legacy/Red-app
 installations on Linux and Windows with Python 3.11 and 3.14. Complete engine

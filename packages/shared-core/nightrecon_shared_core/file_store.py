@@ -88,6 +88,12 @@ class FileEngagementStore:
     def metadata(self, engagement_id: str) -> EngagementMetadata | None:
         return self._memory.metadata(engagement_id)
 
+    def replace_metadata(self, metadata: EngagementMetadata) -> None:
+        before = self._memory.metadata(metadata.engagement_id)
+        self._memory.replace_metadata(metadata)
+        if before != metadata:
+            self._persist()
+
     def append(self, record: EvidenceRecord) -> None:
         before = self._memory.records(record.engagement_id)
         self._memory.append(record)

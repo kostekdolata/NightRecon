@@ -11,7 +11,7 @@ try:
     from importlib.metadata import version as _distribution_version
     __version__ = _distribution_version("nightrecon-red-night")
 except Exception:
-    __version__ = "0.32.0.dev0"
+    __version__ = "0.33.0.dev0"
 from nightrecon_red_engine import report
 from nightrecon_red_engine import config
 from nightrecon_shared_core.editions import EDITIONS, EditionRouteError, available_commands, edition_name
@@ -139,6 +139,7 @@ from nightrecon_red_engine.service_detection import detect_services
 from nightrecon_red_engine.session import ScanSession
 from nightrecon_red_engine.storage import ResultStore
 from nightrecon_shared_core.authorization import TargetType, parse_target
+from nightrecon_shared_core.workspace import LocalWorkspace
 from nightrecon_red_engine.tcp_scanner import scan_tcp_ports
 from nightrecon_red_engine.threat_context import (
     enrich_threat_context,
@@ -5744,9 +5745,129 @@ def _command_main(argv: tuple[str, ...] | None = None) -> None:
         main()
 
 
+
+_GUARD_VALUE_OPTIONS = frozenset({"--guard-workspace-root", "--guard-engagement-id"})
+
+
+def _pop_guard_options(arguments: tuple[str, ...]) -> tuple[tuple[str, ...], str | None, str | None, bool]:
+    remaining: list[str] = []
+    workspace_root: str | None = None
+    engagement_id: str | None = None
+    approved = False
+    index = 0
+    while index < len(arguments):
+        item = arguments[index]
+        if item in _GUARD_VALUE_OPTIONS:
+            if index + 1 >= len(arguments):
+                print(f"red-night: {item} requires a value.", file=sys.stderr)
+                raise SystemExit(2)
+            value = arguments[index + 1]
+            if item == "--guard-workspace-root":
+                workspace_root = value
+            else:
+                engagement_id = value
+            index += 2
+            continue
+        if item == "--guard-approved":
+            approved = True
+            index += 1
+            continue
+        remaining.append(item)
+        index += 1
+    return tuple(remaining), workspace_root, engagement_id, approved
+
+
+def _flag_value(arguments: tuple[str, ...], name: str) -> str | None:
+    try:
+        index = arguments.index(name)
+    except ValueError:
+        return None
+    if index + 1 >= len(arguments):
+        return None
+    return arguments[index + 1]
+
+
+def _guard_subject(arguments: tuple[str, ...]) -> tuple[str, str, str] | None:
+    if not arguments:
+        return None
+    command = arguments[0]
+
+    if command == "discover" and len(arguments) >= 2:
+        return "discovery", arguments[1], "standard"
+    if command == "scan" and len(arguments) >= 2:
+        impact = "high" if _flag_value(arguments, "--max-check-intrusiveness") == "intrusive" else "standard"
+        return "scan", arguments[1], impact
+    if command == "crawl" and len(arguments) >= 2:
+        host = urlsplit(arguments[1]).hostname
+        if host is None:
+            return None
+        return "web.crawl", host, "standard"
+    if command == "infra" and len(arguments) >= 3:
+        return f"infrastructure.{arguments[1]}", arguments[2], "standard"
+    if command == "api" and len(arguments) >= 2:
+        operation = arguments[1]
+        if operation == "probe":
+            base_url = _flag_value(arguments, "--base-url")
+            host = None if base_url is None else urlsplit(base_url).hostname
+            return None if host is None else ("api.probe", host, "standard")
+        if operation == "graphql-introspect":
+            endpoint = _flag_value(arguments, "--endpoint-url")
+            host = None if endpoint is None else urlsplit(endpoint).hostname
+            return None if host is None else ("api.graphql-introspection", host, "standard")
+        return None
+    if command == "checks" and len(arguments) >= 2 and arguments[1] == "feed":
+        url = _flag_value(arguments, "--url")
+        if url:
+            host = urlsplit(url).hostname
+            if host is not None:
+                return "checks.feed", host, "low"
+        return None
+    return None
+
+
+def _authorize_guarded_execution(
+    arguments: tuple[str, ...],
+    *,
+    workspace_root: str | None,
+    engagement_id: str | None,
+    approved: bool,
+) -> None:
+    if "-h" in arguments or "--help" in arguments:
+        return
+    subject = _guard_subject(arguments)
+    if subject is None:
+        return
+    if workspace_root is None or engagement_id is None:
+        print(
+            "red-night: active command requires --guard-workspace-root and --guard-engagement-id.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    capability, target, impact = subject
+    try:
+        decision = LocalWorkspace(workspace_root).authorize_action(
+            engagement_id,
+            capability=capability,
+            target=target,
+            impact=impact,
+            approval_present=approved,
+            consume=True,
+        )
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        print(f"red-night: engagement authorization failed: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
+    if not decision.allowed:
+        print(
+            f"red-night: engagement authorization denied "
+            f"[{decision.reason_code}]: {decision.reason}",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
 def main(argv: tuple[str, ...] | None = None) -> None:
     """Run the Red-owned CLI composition without the legacy NightRecon package."""
-    arguments = tuple(sys.argv[1:] if argv is None else argv)
+    raw_arguments = tuple(sys.argv[1:] if argv is None else argv)
+    arguments, workspace_root, engagement_id, approved = _pop_guard_options(raw_arguments)
     allowed = available_commands("red")
 
     if not arguments or arguments[0] in {"-h", "--help"}:
@@ -5773,4 +5894,10 @@ def main(argv: tuple[str, ...] | None = None) -> None:
         workspace_main(arguments[1:])
         return
 
+    _authorize_guarded_execution(
+        arguments,
+        workspace_root=workspace_root,
+        engagement_id=engagement_id,
+        approved=approved,
+    )
     _command_main(arguments)

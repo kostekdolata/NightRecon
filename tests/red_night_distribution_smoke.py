@@ -145,6 +145,59 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert len(imported_envelope["records"]) == 1
 
     workspace_root = directory / f"workspace-{bin_dir.parent.name}"
+    created_workspace = json.loads(check(
+        app, "workspace", "create", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        "--name", "Packaged workspace lifecycle",
+        "--authorization-reference", "approval://workspace-life",
+        cwd=directory,
+    ))
+    assert created_workspace["status"] == "planned"
+    active_workspace = json.loads(check(
+        app, "workspace", "status", str(workspace_root),
+        "--engagement-id", "eng-workspace-life", "--set", "active",
+        cwd=directory,
+    ))
+    assert active_workspace["status"] == "active"
+
+    policy = json.loads(check(
+        app, "workspace", "policy-set", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        "--scope", "192.0.2.0/24",
+        "--valid-from", "2026-01-01T00:00:00+00:00",
+        "--valid-until", "2030-01-01T00:00:00+00:00",
+        "--max-actions", "2",
+        "--capability", "discovery",
+        "--capability", "validation",
+        "--approval-required", "validation",
+        cwd=directory,
+    ))
+    assert policy["max_actions"] == 2
+    denied_policy = json.loads(check(
+        app, "workspace", "authorize", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        "--capability", "discovery", "--target", "198.51.100.1",
+        cwd=directory,
+    ))
+    assert denied_policy["allowed"] is False
+    assert denied_policy["reason_code"] == "target_out_of_scope"
+    allowed_policy = json.loads(check(
+        app, "workspace", "authorize", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        "--capability", "discovery", "--target", "192.0.2.10", "--consume",
+        cwd=directory,
+    ))
+    assert allowed_policy["allowed"] is True
+    assert allowed_policy["actions_used"] == 1
+    audit_policy = json.loads(check(
+        app, "workspace", "audit", str(workspace_root),
+        "--engagement-id", "eng-workspace-life",
+        cwd=directory,
+    ))
+    assert [item["reason_code"] for item in audit_policy] == [
+        "target_out_of_scope", "authorized",
+    ]
+
     workspace_import = json.loads(check(
         app, "workspace", "import", str(workspace_root), str(export_path),
         cwd=directory,
@@ -153,9 +206,10 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     workspace_list = json.loads(check(
         app, "workspace", "list", str(workspace_root), cwd=directory,
     ))
-    assert len(workspace_list) == 1
-    assert workspace_list[0]["engagement_id"] == "eng-packaged-smoke"
-    assert workspace_list[0]["source_nights"] == ["red"]
+    by_engagement = {item["engagement_id"]: item for item in workspace_list}
+    assert set(by_engagement) == {"eng-workspace-life", "eng-packaged-smoke"}
+    assert by_engagement["eng-workspace-life"]["status"] == "active"
+    assert by_engagement["eng-packaged-smoke"]["source_nights"] == ["red"]
     workspace_show = json.loads(check(
         app, "workspace", "show", str(workspace_root),
         "--engagement-id", "eng-packaged-smoke",
@@ -163,6 +217,12 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     ))
     assert workspace_show["summary"]["record_count"] == 1
     assert workspace_show["breakdown"]["source_night_counts"] == [["red", 1]]
+    workspace_timeline = json.loads(check(
+        app, "workspace", "timeline", str(workspace_root),
+        "--engagement-id", "eng-packaged-smoke", cwd=directory,
+    ))
+    assert len(workspace_timeline) == 1
+    assert workspace_timeline[0]["evidence_type"] == "identity.directory-snapshot"
     workspace_export_path = directory / f"workspace-export-{bin_dir.parent.name}.json"
     workspace_export = json.loads(check(
         app, "workspace", "export", str(workspace_root),
@@ -207,12 +267,12 @@ def main() -> None:
             )
         core_wheel = next(wheels.glob("nightrecon-0.31.0-*.whl"))
         shared_core_wheel = next(
-            wheels.glob("nightrecon_shared_core-0.32.0.dev0-*.whl")
+            wheels.glob("nightrecon_shared_core-0.33.0.dev0-*.whl")
         )
         red_engine_wheel = next(
-            wheels.glob("nightrecon_red_engine-0.32.0.dev0-*.whl")
+            wheels.glob("nightrecon_red_engine-0.33.0.dev0-*.whl")
         )
-        app_wheel = next(wheels.glob("nightrecon_red_night-0.32.0.dev0-*.whl"))
+        app_wheel = next(wheels.glob("nightrecon_red_night-0.33.0.dev0-*.whl"))
 
         with zipfile.ZipFile(app_wheel) as archive:
             app_files = tuple(sorted(archive.namelist()))
@@ -315,10 +375,10 @@ def main() -> None:
             metadata = check(str(python), "-c", metadata_script, cwd=directory)
             if mode == "combined":
                 assert "0.31.0" in metadata
-            assert metadata.count("0.32.0.dev0") >= 3
+            assert metadata.count("0.33.0.dev0") >= 3
             assert "nightrecon==0.31.0" not in metadata
-            assert "nightrecon-red-engine==0.32.0.dev0" in metadata
-            assert "nightrecon-shared-core==0.32.0.dev0" in metadata
+            assert "nightrecon-red-engine==0.33.0.dev0" in metadata
+            assert "nightrecon-shared-core==0.33.0.dev0" in metadata
             assert "cryptography" in metadata
             for extra_dependency in (
                 "playwright", "PyYAML", "paramiko", "impacket", "pywinrm",
