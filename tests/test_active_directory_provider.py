@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+import tempfile
 import unittest
 
 from nightrecon_red_engine.active_directory_provider import (
@@ -15,9 +17,14 @@ from nightrecon_red_engine.active_directory_provider import (
     LdapSearchPage,
 )
 from nightrecon_red_engine.identity_collection import (
+    IdentityCollectionDenied,
     IdentityCollectionLimits,
     IdentityCollectionRequest,
+    collect_authorized_identity_intelligence,
 )
+from nightrecon_shared_core.contracts import EngagementMetadata
+from nightrecon_shared_core.engagement_policy import EngagementExecutionPolicy
+from nightrecon_shared_core.workspace import LocalWorkspace
 
 
 class FakeTransport:
@@ -50,6 +57,26 @@ def request(**kwargs):
     }
     values.update(kwargs)
     return IdentityCollectionRequest(**values)
+
+
+def workspace(root, *, scope=("dc.example.test",)):
+    item = LocalWorkspace(root)
+    item.create_engagement(EngagementMetadata(
+        engagement_id="eng-ad",
+        name="AD lab",
+        created_at="2026-09-28T00:00:00+00:00",
+        authorization_reference="approval://eng-ad",
+        status="active",
+    ))
+    item.set_execution_policy(EngagementExecutionPolicy(
+        engagement_id="eng-ad",
+        scope=scope,
+        valid_from="2026-09-28T00:00:00+00:00",
+        valid_until="2026-09-29T00:00:00+00:00",
+        max_actions=2,
+        permitted_capabilities=("identity.collect",),
+    ))
+    return item
 
 
 class ActiveDirectoryIdentityProviderTests(unittest.TestCase):
@@ -184,6 +211,28 @@ class ActiveDirectoryIdentityProviderTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     provider.collect(item)
                 self.assertEqual(transport.calls, [])
+
+    def test_denied_engagement_never_reaches_active_directory_transport(self):
+        with tempfile.TemporaryDirectory() as root:
+            transport = FakeTransport((
+                LdapSearchPage(entries=()),
+            ))
+            provider = ActiveDirectoryIdentityProvider(
+                transport=transport,
+                base_dn="DC=example,DC=test",
+            )
+
+            with self.assertRaises(IdentityCollectionDenied) as denied:
+                collect_authorized_identity_intelligence(
+                    workspace(root, scope=("approved.example.test",)),
+                    provider,
+                    request(),
+                    now=datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc),
+                )
+
+            self.assertEqual(denied.exception.reason_code, "target_out_of_scope")
+            self.assertEqual(transport.calls, [])
+            self.assertEqual(transport.close_calls, 0)
 
     def test_invalid_response_fails_closed_and_transport_is_closed(self):
         transport = FakeTransport((
