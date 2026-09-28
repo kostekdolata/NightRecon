@@ -87,6 +87,7 @@ class ActiveDirectoryIdentityProviderTests(unittest.TestCase):
                     "type": "searchResEntry",
                     "dn": "CN=Alice,DC=example,DC=test",
                     "attributes": {
+                        "objectClass": ["top", "person", "user"],
                         "displayName": "Alice",
                         "sAMAccountName": "alice",
                     },
@@ -211,7 +212,10 @@ class ActiveDirectoryIdentityProviderTests(unittest.TestCase):
                     {
                         "type": "searchResEntry",
                         "dn": "CN=Alice,DC=example,DC=test",
-                        "attributes": {"displayName": "Alice"},
+                        "attributes": {
+                            "objectClass": ["top", "person", "user"],
+                            "displayName": "Alice",
+                        },
                     },
                 ),
                 cookie=b"more",
@@ -324,6 +328,28 @@ class ActiveDirectoryIdentityProviderTests(unittest.TestCase):
             any("ranged group membership" in item.lower()
                 for item in result.limitations)
         )
+
+    def test_missing_identity_object_class_fails_closed(self):
+        transport = FakeTransport((
+            LdapSearchPage(entries=(
+                {
+                    "type": "searchResEntry",
+                    "dn": "CN=Alice,DC=example,DC=test",
+                    "attributes": {
+                        "displayName": "Alice",
+                    },
+                },
+            )),
+        ))
+        provider = ActiveDirectoryIdentityProvider(
+            transport=transport,
+            base_dn="DC=example,DC=test",
+        )
+
+        with self.assertRaisesRegex(ValueError, "objectClass"):
+            provider.collect(request())
+
+        self.assertEqual(transport.close_calls, 1)
 
     def test_wrong_source_or_target_fails_before_transport_call(self):
         for item in (
