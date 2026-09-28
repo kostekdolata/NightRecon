@@ -109,10 +109,10 @@ to preserve established patch points and object identity.
 Batch C2 follows Batch D and migrates `service_detection` and `os_fingerprint`,
 whose former web dependency is now canonical in the Red engine.
 
-The remaining discovery-owned modules are intentionally not moved yet:
-`report` imports vulnerability modules; `storage` imports report types from the
-infrastructure group as well as `report`; `asset_inventory` and
-`asset_inventory_store` depend on those blocked modules. They move only when the
+Batch C3 follows Batches E and F1 and migrates `report`, `storage`,
+`asset_inventory`, and `asset_inventory_store`. All of their former
+infrastructure/vulnerability/report-type dependencies are now canonical in the
+Red engine, completing the discovery/service/reporting/inventory group. They move only when the
 required dependency group is canonical in the Red engine. No algorithms are
 rewritten.
 
