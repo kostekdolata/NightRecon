@@ -83,7 +83,7 @@ def main(argv: Sequence[str]) -> None:
     importer.add_argument("--export-envelope", action="store_true")
     importer.add_argument("--store", help="Optional portable engagement-store JSON path.")
     importer.add_argument("--include-graph", action="store_true")
-    importer.add_argument("--start-dn", help="Imported user or group DN to review from.")
+    importer.add_argument("--start-dn", help="Imported identity or group DN to review from.")
     importer.add_argument("--target-dn", help="Imported group DN to review membership paths to.")
 
     listing = operations.add_parser("store-list", help="Read portable shared evidence.")
@@ -233,6 +233,8 @@ def main(argv: Sequence[str]) -> None:
             nodes_by_key = {node.natural_key: node for node in graph.nodes}
             start = (
                 nodes_by_key.get(directory_natural_key("user", args.start_dn))
+                or nodes_by_key.get(directory_natural_key("computer", args.start_dn))
+                or nodes_by_key.get(directory_natural_key("service", args.start_dn))
                 or nodes_by_key.get(directory_natural_key("group", args.start_dn))
             )
             target = nodes_by_key.get(directory_natural_key("group", args.target_dn))
