@@ -23,7 +23,7 @@ from nightrecon_red_engine.identity_collection import (
 
 
 AD_USER_FILTER = (
-    "(|(&(objectCategory=person)(objectClass=user))"
+    "(|(&(objectClass=user)(!(objectClass=computer)))"
     "(&(objectCategory=computer)(objectClass=computer)))"
 )
 AD_GROUP_FILTER = "(objectClass=group)"
