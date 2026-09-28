@@ -46,9 +46,11 @@ not emitted by the benchmark result.
 
 The fixture models:
 
-- 1 user
+- 1 regular user identity
+- 1 service identity
+- 1 computer identity
 - 1 group
-- 1 observed membership
+- 3 observed memberships
 - 2 LDAP page requests
 
 Its acceptance conditions are:
@@ -61,7 +63,7 @@ Its acceptance conditions are:
 - no unresolved references
 - no truncation
 - 64-character graph and benchmark SHA-256 fingerprints
-- no user label or raw DN in serialized benchmark output
+- no user/service/computer label or raw DN in serialized benchmark output
 
 The same fixture runs in CI on Python 3.11 and Python 3.14 through the existing
 optional Active Directory dependency job.
@@ -85,6 +87,6 @@ This is a deterministic provider-quality baseline, not yet a live-domain
 comparison against external specialist products. Live authorized lab work will
 be added separately once reproducible test infrastructure is available.
 
-The current Active Directory provider still focuses on users, groups, and
-membership relationships. Computer/service identities and broader
-authorization/trust relationships remain subsequent v0.41 work.
+The deterministic fixture now covers user, service, computer, group, and
+membership normalization. Broader authorization/trust relationships remain
+subsequent v0.41 work.

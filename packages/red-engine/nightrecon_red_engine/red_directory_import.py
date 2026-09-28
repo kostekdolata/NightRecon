@@ -54,8 +54,10 @@ def _required_text(value: object, field: str) -> str:
 def directory_natural_key(kind: str, dn: str) -> str:
     """Return the opaque graph key for an exact imported directory DN."""
 
-    if kind not in ("user", "group"):
-        raise ValueError("directory node kind must be user or group")
+    if kind not in ("user", "computer", "service", "group"):
+        raise ValueError(
+            "directory node kind must be user, computer, service, or group"
+        )
     _required_text(dn, "dn")
     return f"ad:{kind}:{sha256(dn.encode('utf-8')).hexdigest()}"
 
@@ -68,8 +70,9 @@ def import_directory_snapshot(
 ) -> DirectoryImportResult:
     """Import a secret-free JSON snapshot; reject extra fields and over-budget data.
 
-    Schema: {"schema_version": 1, "entries": [{"dn": str, "kind": "user"
-    or "group", "name": str, "members": [str, ...] (groups only)}]}.
+    Schema: {"schema_version": 1, "entries": [{"dn": str, "kind": "user",
+    "computer", "service", or "group", "name": str,
+    "members": [str, ...] (groups only)}]}.
     References must match a DN exactly in the same snapshot. Absent references
     are counted, never materialized as an observed membership.
     """
@@ -107,12 +110,14 @@ def import_directory_snapshot(
         dn = _required_text(entry["dn"], "dn")
         name = _required_text(entry["name"], "name")
         kind = entry["kind"]
-        if kind not in ("user", "group"):
-            raise ValueError("directory entry kind must be user or group")
+        if kind not in ("user", "computer", "service", "group"):
+            raise ValueError(
+                "directory entry kind must be user, computer, service, or group"
+            )
         if dn in by_dn:
             raise ValueError("directory export contains a duplicate DN")
-        if kind == "user" and "members" in entry:
-            raise ValueError("user entries cannot declare group members")
+        if kind != "group" and "members" in entry:
+            raise ValueError("only group entries can declare group members")
         members = entry.get("members", [])
         if not isinstance(members, list):
             raise ValueError("group members must be a list")
@@ -125,8 +130,20 @@ def import_directory_snapshot(
         key = directory_natural_key(kind, dn)
         by_dn[dn] = (kind, key)
         provenance = f"{source_id}#entry-{index}"
-        if kind == "user":
-            identities.append(IdentityEvidence(key, name, provenance, "ad-user"))
+        identity_types = {
+            "user": "ad-user",
+            "computer": "ad-computer",
+            "service": "ad-service",
+        }
+        if kind in identity_types:
+            identities.append(
+                IdentityEvidence(
+                    key,
+                    name,
+                    provenance,
+                    identity_types[kind],
+                )
+            )
         else:
             groups.append(GroupEvidence(key, name, provenance))
 
@@ -143,8 +160,11 @@ def import_directory_snapshot(
                 continue
             kind, member_key = found
             memberships.append(GroupMembershipEvidence(
-                member_kind=(GraphNodeKind.IDENTITY if kind == "user"
-                             else GraphNodeKind.GROUP),
+                member_kind=(
+                    GraphNodeKind.GROUP
+                    if kind == "group"
+                    else GraphNodeKind.IDENTITY
+                ),
                 member_key=member_key,
                 group_key=group_key,
                 source_id=f"{source_id}#entry-{index}",

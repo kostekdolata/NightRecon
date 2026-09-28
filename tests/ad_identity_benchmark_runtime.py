@@ -22,6 +22,8 @@ from nightrecon_shared_core.workspace import LocalWorkspace
 
 
 USER_DN = "CN=Alice,DC=example,DC=test"
+SERVICE_DN = "CN=WebSvc,DC=example,DC=test"
+COMPUTER_DN = "CN=WS01,DC=example,DC=test"
 GROUP_DN = "CN=Ops,DC=example,DC=test"
 
 
@@ -37,8 +39,29 @@ class FixtureTransport:
                     "type": "searchResEntry",
                     "dn": USER_DN,
                     "attributes": {
+                        "objectClass": ["top", "person", "user"],
                         "displayName": "Alice",
                         "sAMAccountName": "alice",
+                    },
+                },
+                {
+                    "type": "searchResEntry",
+                    "dn": SERVICE_DN,
+                    "attributes": {
+                        "objectClass": ["top", "person", "user"],
+                        "displayName": "Web Service",
+                        "sAMAccountName": "websvc",
+                        "servicePrincipalName": ["HTTP/app.example.test"],
+                    },
+                },
+                {
+                    "type": "searchResEntry",
+                    "dn": COMPUTER_DN,
+                    "attributes": {
+                        "objectClass": ["top", "person", "user", "computer"],
+                        "sAMAccountName": "WS01$",
+                        "dNSHostName": "ws01.example.test",
+                        "servicePrincipalName": ["HOST/ws01.example.test"],
                     },
                 },
             )),
@@ -48,7 +71,7 @@ class FixtureTransport:
                     "dn": GROUP_DN,
                     "attributes": {
                         "cn": "Ops",
-                        "member": [USER_DN],
+                        "member": [USER_DN, SERVICE_DN, COMPUTER_DN],
                     },
                 },
             )),
@@ -87,8 +110,10 @@ def main() -> None:
         (
             '{"schema_version":1,"entries":['
             f'{{"dn":"{USER_DN}","kind":"user","name":"Alice"}},'
+            f'{{"dn":"{SERVICE_DN}","kind":"service","name":"Web Service"}},'
+            f'{{"dn":"{COMPUTER_DN}","kind":"computer","name":"ws01.example.test"}},'
             f'{{"dn":"{GROUP_DN}","kind":"group","name":"Ops",'
-            f'"members":["{USER_DN}"]}}'
+            f'"members":["{USER_DN}","{SERVICE_DN}","{COMPUTER_DN}"]}}'
             ']}'
         ).encode("utf-8"),
         source_id="benchmark-expected",
@@ -122,6 +147,10 @@ def main() -> None:
     assert benchmark.provider_duration_ms == 0
     assert benchmark.expected_coverage_complete
     assert not benchmark.unexpected_evidence_present
+    assert benchmark.expected_identities == 3
+    assert benchmark.discovered_expected_identities == 3
+    assert benchmark.expected_groups == 1
+    assert benchmark.expected_memberships == 3
     assert benchmark.missed_identities == 0
     assert benchmark.missed_groups == 0
     assert benchmark.missed_memberships == 0
@@ -131,7 +160,11 @@ def main() -> None:
 
     rendered = json.dumps(record, sort_keys=True)
     assert "Alice" not in rendered
+    assert "Web Service" not in rendered
+    assert "ws01.example.test" not in rendered
     assert USER_DN not in rendered
+    assert SERVICE_DN not in rendered
+    assert COMPUTER_DN not in rendered
     assert "Ops" not in rendered
 
     print(rendered)

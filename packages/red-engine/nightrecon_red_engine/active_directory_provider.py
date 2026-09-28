@@ -1,7 +1,7 @@
 """Bounded read-only Active Directory identity provider.
 
-The provider has a fixed collection plan for users, groups, and observed group
-memberships. It never accepts an operator-supplied LDAP filter or attribute
+The provider has a fixed collection plan for directory identities, groups, and
+observed group memberships. It never accepts an operator-supplied LDAP filter or attribute
 list. The concrete ldap3 transport supports encrypted LDAPS or LDAP+StartTLS,
 validates server certificates, disables referrals, and resolves bind secrets
 only when the authorized collection is actually executed.
@@ -23,7 +23,8 @@ from nightrecon_red_engine.identity_collection import (
 
 
 AD_USER_FILTER = (
-    "(&(objectCategory=person)(objectClass=user)(!(objectClass=computer)))"
+    "(|(&(objectClass=user)(!(objectClass=computer)))"
+    "(&(objectCategory=computer)(objectClass=computer)))"
 )
 AD_GROUP_FILTER = "(objectClass=group)"
 AD_USER_ATTRIBUTES = (
@@ -31,6 +32,9 @@ AD_USER_ATTRIBUTES = (
     "displayName",
     "sAMAccountName",
     "name",
+    "objectClass",
+    "servicePrincipalName",
+    "dNSHostName",
 )
 AD_GROUP_ATTRIBUTES = (
     "distinguishedName",
@@ -337,6 +341,28 @@ def _attribute_text(attributes: Mapping[str, object], *names: str) -> str:
     return ""
 
 
+def _attribute_values(
+    attributes: Mapping[str, object],
+    name: str,
+) -> tuple[str, ...]:
+    value = attributes.get(name)
+    if value in (None, ""):
+        return ()
+    if isinstance(value, str):
+        values = (value,)
+    elif isinstance(value, (list, tuple)):
+        values = tuple(value)
+    else:
+        raise ValueError(f"LDAP {name} attribute has an unsupported type")
+
+    normalized: list[str] = []
+    for item in values:
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError(f"LDAP {name} values must be nonblank strings")
+        normalized.append(item.strip())
+    return tuple(normalized)
+
+
 def _attribute_members(
     attributes: Mapping[str, object],
 ) -> tuple[tuple[str, ...], bool]:
@@ -382,13 +408,44 @@ def _directory_entry(
         raise ValueError("LDAP entry attributes must be a mapping")
 
     if kind == "user":
-        name = _attribute_text(
+        object_class_values = _attribute_values(attributes, "objectClass")
+        if not object_class_values:
+            raise ValueError("LDAP identity entry requires objectClass")
+        object_classes = {
+            value.casefold()
+            for value in object_class_values
+        }
+        service_principals = _attribute_values(
             attributes,
-            "displayName",
-            "sAMAccountName",
-            "name",
-        ) or dn
-        return DirectoryEntry(dn, "user", name), False
+            "servicePrincipalName",
+        )
+
+        if "computer" in object_classes:
+            identity_kind = "computer"
+            name = _attribute_text(
+                attributes,
+                "dNSHostName",
+                "sAMAccountName",
+                "name",
+            ) or dn
+        elif service_principals:
+            identity_kind = "service"
+            name = _attribute_text(
+                attributes,
+                "displayName",
+                "sAMAccountName",
+                "name",
+            ) or dn
+        else:
+            identity_kind = "user"
+            name = _attribute_text(
+                attributes,
+                "displayName",
+                "sAMAccountName",
+                "name",
+            ) or dn
+
+        return DirectoryEntry(dn, identity_kind, name), False
 
     if kind == "group":
         name = _attribute_text(attributes, "cn", "name") or dn

@@ -22,7 +22,7 @@ from nightrecon_shared_core.workspace import LocalWorkspace
 
 
 _VALID_SOURCE_TYPES = frozenset({"active-directory", "entra-id"})
-_VALID_ENTRY_KINDS = frozenset({"user", "group"})
+_VALID_ENTRY_KINDS = frozenset({"user", "computer", "service", "group"})
 
 
 def _required(value: str, field: str) -> str:
@@ -42,9 +42,9 @@ class DirectoryEntry:
         _required(self.distinguished_name, "distinguished_name")
         _required(self.name, "name")
         if self.kind not in _VALID_ENTRY_KINDS:
-            raise ValueError("kind must be user or group")
-        if self.kind == "user" and self.members:
-            raise ValueError("user entries cannot contain members")
+            raise ValueError("kind must be user, computer, service, or group")
+        if self.kind != "group" and self.members:
+            raise ValueError("only group entries can contain members")
         if len(self.members) != len(set(self.members)):
             raise ValueError("members must be unique")
         for member in self.members:

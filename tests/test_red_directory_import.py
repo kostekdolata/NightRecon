@@ -13,6 +13,8 @@ from nightrecon.red_directory_import import (
 
 
 USER_DN = "CN=Alice,OU=People,DC=example,DC=test"
+COMPUTER_DN = "CN=WS01,OU=Computers,DC=example,DC=test"
+SERVICE_DN = "CN=WebSvc,OU=Services,DC=example,DC=test"
 GROUP_DN = "CN=Operators,OU=Groups,DC=example,DC=test"
 PARENT_DN = "CN=Admins,OU=Groups,DC=example,DC=test"
 
@@ -48,6 +50,44 @@ class DirectoryImportTests(unittest.TestCase):
             {GraphNodeKind.IDENTITY, GraphNodeKind.GROUP},
         )
 
+    def test_computer_and_service_identities_project_as_observed_members(self):
+        data = snapshot([
+            {"dn": COMPUTER_DN, "kind": "computer", "name": "ws01.example.test"},
+            {"dn": SERVICE_DN, "kind": "service", "name": "Web Service"},
+            {"dn": GROUP_DN, "kind": "group", "name": "Operators",
+             "members": [COMPUTER_DN, SERVICE_DN]},
+        ])
+
+        result = import_directory_snapshot(data, source_id="approved-export-2")
+        graph = add_identity_evidence_to_identity_graph(
+            IdentityGraphBuilder().build(), result.evidence,
+        )
+
+        self.assertEqual(
+            {item.identity_type for item in result.evidence.identities},
+            {"ad-computer", "ad-service"},
+        )
+        self.assertEqual(len(result.evidence.memberships), 2)
+        self.assertTrue(all(
+            item.member_kind is GraphNodeKind.IDENTITY
+            for item in result.evidence.memberships
+        ))
+        self.assertEqual(len(graph.nodes), 3)
+        self.assertEqual(len(graph.edges), 2)
+        self.assertTrue(all(
+            edge.evidence_state is GraphEvidenceState.OBSERVED
+            for edge in graph.edges
+        ))
+        identity_type_properties = {
+            dict(node.properties).get("identity_type")
+            for node in graph.nodes
+            if node.kind is GraphNodeKind.IDENTITY
+        }
+        self.assertEqual(
+            identity_type_properties,
+            {"ad-computer", "ad-service"},
+        )
+
     def test_out_of_snapshot_membership_is_unresolved_not_observed(self):
         result = import_directory_snapshot(snapshot([
             {"dn": GROUP_DN, "kind": "group", "name": "Operators",
@@ -73,6 +113,10 @@ class DirectoryImportTests(unittest.TestCase):
                        "password": "secret"}]),
             b'{"schema_version":1,"schema_version":1,"entries":[]}',
             snapshot([{"dn": USER_DN, "kind": "user", "name": "Alice",
+                       "members": []}]),
+            snapshot([{"dn": COMPUTER_DN, "kind": "computer", "name": "WS01",
+                       "members": []}]),
+            snapshot([{"dn": SERVICE_DN, "kind": "service", "name": "WebSvc",
                        "members": []}]),
             snapshot([{"dn": USER_DN, "kind": "user", "name": "Alice"},
                       {"dn": USER_DN, "kind": "user", "name": "Alice"}]),

@@ -8,13 +8,23 @@ collection contract.
 
 The provider performs a fixed collection plan for:
 
-- directory users
+- regular directory users
+- computer identities
+- SPN-bearing user-derived service identities
 - directory groups
 - observed direct and nested group-membership evidence returned by Active Directory
 
 It does not accept an operator-supplied LDAP filter or arbitrary attribute
-list. The provider normalizes observations through the existing identity
-collection and graph evidence pipeline.
+list. The fixed identity query includes non-computer `user` objects plus
+computer objects. Returned object classes are used locally to identify
+computers; a non-computer user-derived object with one or more
+`servicePrincipalName` values is classified as a service identity. SPN values
+are used only for classification and are not copied into normalized identity
+evidence.
+
+The provider normalizes observations through the existing identity collection
+and graph evidence pipeline as `ad-user`, `ad-computer`, or `ad-service`
+identities.
 
 ## Authorization boundary
 
@@ -78,6 +88,5 @@ This provider does not implement:
 The deterministic provider-quality benchmark is documented in
 [V041_AD_BENCHMARK_LAB.md](V041_AD_BENCHMARK_LAB.md).
 
-Computer/service-identity enrichment, broader privilege relationships, live
-external comparison measurements, and the Entra provider remain later v0.41
-batches.
+Broader privilege/trust relationships, live external comparison measurements,
+and the Entra provider remain later v0.41 batches.
