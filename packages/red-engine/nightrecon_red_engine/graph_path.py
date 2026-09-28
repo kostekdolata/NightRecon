@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 
 from nightrecon_red_engine.graph_index import IdentityGraphIndex
@@ -14,12 +15,15 @@ class GraphPathLimits:
 
     max_depth: int = 6
     max_paths: int = 128
+    max_expansions: int = 10_000
 
     def __post_init__(self) -> None:
         if self.max_depth < 1:
             raise ValueError("max_depth must be at least 1")
         if self.max_paths < 1:
             raise ValueError("max_paths must be at least 1")
+        if self.max_expansions < 1:
+            raise ValueError("max_expansions must be at least 1")
 
 
 @dataclass(frozen=True)
@@ -73,16 +77,20 @@ def find_identity_graph_paths(
 
     allowed = {item.strip().lower() for item in relationships if item.strip()}
     paths: list[GraphPath] = []
-    queue: list[tuple[tuple[GraphNode, ...], tuple[GraphEdge, ...]]] = [
+    queue: deque[tuple[tuple[GraphNode, ...], tuple[GraphEdge, ...]]] = deque([
         ((start,), ())
-    ]
+    ])
     truncated = False
+    expanded = 0
 
     while queue:
-        nodes, edges = queue.pop(0)
+        if expanded >= active_limits.max_expansions:
+            truncated = True
+            break
+
+        nodes, edges = queue.popleft()
+        expanded += 1
         current = nodes[-1]
-        if len(edges) >= active_limits.max_depth:
-            continue
 
         for edge in index.outgoing_edges(current.node_id):
             if allowed and edge.relationship not in allowed:
@@ -91,6 +99,9 @@ def find_identity_graph_paths(
             if next_node is None:
                 continue
             if any(node.node_id == next_node.node_id for node in nodes):
+                continue
+            if len(edges) >= active_limits.max_depth:
+                truncated = True
                 continue
 
             next_nodes = nodes + (next_node,)
@@ -108,6 +119,9 @@ def find_identity_graph_paths(
                 paths.append(GraphPath(nodes=next_nodes, edges=next_edges))
                 continue
 
+            if expanded + len(queue) >= active_limits.max_expansions:
+                truncated = True
+                continue
             queue.append((next_nodes, next_edges))
 
     return GraphPathQueryResult(
