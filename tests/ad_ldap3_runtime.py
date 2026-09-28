@@ -32,9 +32,12 @@ def main() -> None:
     )
     assert transport.target == "dc.example.test"
     assert "runtime-only-secret" not in repr(transport)
-    assert AD_USER_FILTER.startswith("(&")
+    assert AD_USER_FILTER.startswith("(|")
     assert AD_GROUP_FILTER == "(objectClass=group)"
     assert "distinguishedName" in AD_USER_ATTRIBUTES
+    assert "objectClass" in AD_USER_ATTRIBUTES
+    assert "servicePrincipalName" in AD_USER_ATTRIBUTES
+    assert "dNSHostName" in AD_USER_ATTRIBUTES
     assert "member" in AD_GROUP_ATTRIBUTES
 
     print(f"ldap3 Active Directory runtime compatibility: passed ({version})")
