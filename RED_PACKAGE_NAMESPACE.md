@@ -64,6 +64,14 @@ canonical module object so existing test and integration patch points remain
 effective. The Red-engine copies import only Red-engine or shared-core
 dependencies and remain importable without the legacy distribution installed.
 
+## Batch D
+
+Batch D migrates the full web/browser/DAST, API/GraphQL, and check-framework
+module groups. Their established legacy import paths alias the canonical Red
+engine modules, preserving object and patch-target identity. Browser and API
+optional dependencies remain extras rather than unconditional engine
+dependencies.
+
 ## Verification
 
 The contract is enforced by:
