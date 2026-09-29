@@ -12,7 +12,7 @@ and `black` for CLI routing and future evidence contracts.
 | --- | --- | --- |
 | White Night | Engagement scope, rules of engagement, approvals, audit, evidence custody, exercise control, and emergency stop | Shared scope/audit foundations exist; standalone application not available |
 | Blue Night | Defensive telemetry, control validation, detection coverage, and remediation retests | Planned; standalone application not available |
-| Red Night | Authorized reconnaissance, exposure and attack-path analysis, bounded validation, and controlled emulation | Stable v0.40.0 standalone application available with mandatory shared safety core |
+| Red Night | Authorized reconnaissance, exposure and attack-path analysis, bounded validation, and controlled emulation | Stable v0.41.0 standalone application available with mandatory shared safety core |
 | Purple Night | Match approved Red Night actions to Blue Night prevention, alerts, telemetry, and detection gaps | Planned; standalone application not available |
 | Black Night | Authorized outside-in assessment from a deliberately limited starting knowledge set | External reconnaissance foundations exist; standalone application not available |
 
@@ -20,7 +20,7 @@ and `black` for CLI routing and future evidence contracts.
 catalog. It is informational only: it does not select, install, enable, or
 authorize an edition. The existing `nightrecon` CLI continues to work as before.
 Installing the legacy NightRecon compatibility distribution creates a
-`red-night` command. The stable Red Night v0.40.0 application is also
+`red-night` command. The stable Red Night v0.41.0 application is also
 independently installable and exposes `red-night-app`. Both routes preserve the
 same fail-closed Red command boundary and shared authorization policy. Existing
 target scope and assessment policies still apply.
@@ -35,8 +35,8 @@ and a reproducible graph fingerprint without listing people. Add
 this can disclose identity data. The command reads at most 1 MB, makes no
 directory connection, and never treats an absent member as an observed edge.
 
-`packages/red-night/` is the separately built stable Red Night v0.40.0
-application distribution. Installing its wheel with matching v0.40.0 Red-engine
+`packages/red-night/` is the separately built stable Red Night v0.41.0
+application distribution. Installing its wheel with matching v0.41.0 Red-engine
 and shared-core wheels supplies `red-night-app` without any other Night
 application. The existing `red-night` entry point remains in the legacy package
 for compatibility; the distinct script names prevent package installation or
@@ -175,7 +175,7 @@ workspace.
    and standalone Red launchers).
 3. Separate installable edition entry points with optional dependencies and
    tests proving one edition cannot invoke another edition's active commands.
-   Completed for Red Night v0.40.0; arbitrary multi-Night/full-suite composition
+   Completed for Red Night v0.41.0; arbitrary multi-Night/full-suite composition
    remains future work because the other standalone applications do not yet exist.
 4. Add the missing Blue Night/White Night/Purple Night capabilities and further Red Night/Black Night
    capabilities in small CI-verified releases. Do not advertise a standalone

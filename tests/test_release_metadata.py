@@ -14,7 +14,7 @@ from nightrecon.cli import main
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_VERSION = "0.31.0"
-RED_EXPECTED_VERSION = "0.40.0"
+RED_EXPECTED_VERSION = "0.41.0"
 
 
 class ReleaseMetadataTests(unittest.TestCase):
@@ -46,6 +46,31 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertIn(
             f"nightrecon-red-engine=={RED_EXPECTED_VERSION}",
             root_project["dependencies"],
+        )
+
+    def test_red_release_docs_match_distribution_version(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+        changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        runtime = (ROOT / "RED_RUNTIME_BOUNDARY.md").read_text(encoding="utf-8")
+
+        self.assertIn(f"**Red Night v{RED_EXPECTED_VERSION}**", readme)
+        self.assertIn(
+            f"### v{RED_EXPECTED_VERSION} — Live Identity Intelligence",
+            roadmap,
+        )
+        self.assertIn(f"## [{RED_EXPECTED_VERSION}]", changelog)
+        self.assertIn(
+            f"nightrecon-red-night=={RED_EXPECTED_VERSION}",
+            runtime,
+        )
+        self.assertIn(
+            f"nightrecon-red-engine=={RED_EXPECTED_VERSION}",
+            runtime,
+        )
+        self.assertIn(
+            f"nightrecon-shared-core=={RED_EXPECTED_VERSION}",
+            runtime,
         )
 
     def test_cli_reports_package_version(self):

@@ -14,6 +14,8 @@ import zipfile
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
+LEGACY_VERSION = "0.31.0"
+RED_VERSION = "0.41.0"
 
 
 def check(*args: str, cwd: Path, env: dict[str, str] | None = None) -> str:
@@ -53,6 +55,13 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
         if name != "Red Night"
     )
     assert "--scope" in check(app, "scan", "--help", cwd=directory)
+    live_identity_help = check(
+        app, "identity", "collect", "--help", cwd=directory,
+    )
+    assert "ad" in live_identity_help
+    assert "entra" in live_identity_help
+    assert "red-night identity collect" in live_identity_help
+
     snapshot = directory / "directory-export.json"
     snapshot.write_text(json.dumps({
         "schema_version": 1,
@@ -265,14 +274,14 @@ def main() -> None:
                 "--no-deps", "--no-build-isolation", "--wheel-dir", str(wheels),
                 str(package), cwd=directory,
             )
-        core_wheel = next(wheels.glob("nightrecon-0.31.0-*.whl"))
+        core_wheel = next(wheels.glob(f"nightrecon-{LEGACY_VERSION}-*.whl"))
         shared_core_wheel = next(
-            wheels.glob("nightrecon_shared_core-0.40.0-*.whl")
+            wheels.glob(f"nightrecon_shared_core-{RED_VERSION}-*.whl")
         )
         red_engine_wheel = next(
-            wheels.glob("nightrecon_red_engine-0.40.0-*.whl")
+            wheels.glob(f"nightrecon_red_engine-{RED_VERSION}-*.whl")
         )
-        app_wheel = next(wheels.glob("nightrecon_red_night-0.40.0-*.whl"))
+        app_wheel = next(wheels.glob(f"nightrecon_red_night-{RED_VERSION}-*.whl"))
 
         with zipfile.ZipFile(app_wheel) as archive:
             app_files = tuple(sorted(archive.namelist()))
@@ -374,16 +383,16 @@ def main() -> None:
                 metadata_script += "print(m.version('nightrecon')); "
             metadata = check(str(python), "-c", metadata_script, cwd=directory)
             if mode == "combined":
-                assert "0.31.0" in metadata
-            assert metadata.count("0.40.0") >= 3
-            assert "0.40.0.dev0" not in metadata
-            assert "nightrecon==0.31.0" not in metadata
-            assert "nightrecon-red-engine==0.40.0" in metadata
-            assert "nightrecon-shared-core==0.40.0" in metadata
+                assert LEGACY_VERSION in metadata
+            assert metadata.count(RED_VERSION) >= 3
+            assert ".dev0" not in metadata
+            assert f"nightrecon=={LEGACY_VERSION}" not in metadata
+            assert f"nightrecon-red-engine=={RED_VERSION}" in metadata
+            assert f"nightrecon-shared-core=={RED_VERSION}" in metadata
             assert "cryptography" in metadata
             for extra_dependency in (
-                "playwright", "PyYAML", "paramiko", "impacket", "pywinrm",
-                "psycopg", "mysql-connector-python",
+                "playwright", "PyYAML", "ldap3", "paramiko", "impacket",
+                "pywinrm", "psycopg", "mysql-connector-python",
             ):
                 assert extra_dependency in metadata
             check(str(python), "-m", "red_night_app", "--help", cwd=directory)

@@ -1,43 +1,35 @@
 # NightRecon Red Engine
 
-This development-preview distribution owns the `nightrecon_red_engine`
-namespace used to physically separate existing Red Night capabilities from the
-legacy monolithic `nightrecon` package.
+`nightrecon-red-engine` is the canonical engine distribution for Red Night.
 
-It does not recreate assessment functionality. Modules are moved here from their
-existing proven implementations, and the old `nightrecon.<module>` paths remain
-thin compatibility re-exports during migration.
+The stable v0.41.0 package owns the `nightrecon_red_engine` namespace and is
+used directly by the standalone Red Night application. The legacy
+`nightrecon` package keeps thin compatibility aliases during the migration
+window; canonical Red implementations live in this package.
 
-Batch B initially migrates five low-coupling, network-free modules:
+The engine includes Red-owned discovery, web/API, credentialed-infrastructure,
+assessment/check, identity, graph, validation, planning, remediation/retest,
+cloud/hybrid, and operator components.
 
-- `software_identity`
-- `service_fingerprint`
-- `api_models`
-- `infrastructure_models`
-- `graph_models`
+v0.41 adds the concrete authorization-first identity layer:
 
-The package depends only on shared-core/base libraries, never on the legacy
-`nightrecon` distribution. This prevents a circular dependency while allowing
-both the legacy compatibility package and the Red Night application to consume
-the same canonical Red engine implementation.
+- bounded read-only Active Directory collection over LDAPS/StartTLS
+- bounded read-only Microsoft Entra collection over fixed Microsoft Graph v1.0 surfaces
+- identity-safe live operator commands
+- deterministic AD/Entra benchmark fixtures
+- user, service, computer, application, group, role, and domain evidence
+- group membership and primary-group relationships
+- Entra ownership and scoped directory-role relationships
+- selected AD privilege, management, constrained-delegation, and domain-trust evidence
 
-Batch C1 adds the dependency-closed discovery/runtime core without changing its
-algorithms:
+The engine does not depend on the legacy `nightrecon` distribution. Its
+mandatory application-level dependency direction is:
 
-- `host_discovery`
-- `ports`
-- `tcp_scanner`
-- `tls_detection`
-- `service_probe`
-- `resolver`
-- `session`
-- `discovery_report`
+`Red Night application -> nightrecon-red-engine -> nightrecon-shared-core`
 
-Network-capable legacy module paths are module aliases to the canonical Red
-engine modules so established monkeypatch/test seams continue to target the
-actual implementation.
+Optional extras expose existing bounded runtime integrations such as browser,
+API/YAML, Active Directory/ldap3, SSH, SMB, WinRM, PostgreSQL, and MySQL.
 
-Batch D migrates the complete existing web/browser/DAST, API/GraphQL, and
-assessment/check groups. Compatibility module aliases preserve legacy import and
-mock/patch identity; the canonical sources do not import the legacy
-`nightrecon` package.
+Red Night remains authorization-first. v0.41 does not add arbitrary command
+execution, credential harvesting, directory/cloud writes, persistence,
+privilege changes, or autonomous exploitation.
