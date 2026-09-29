@@ -13,21 +13,29 @@ from nightrecon_white_engine.engagement_domain import (
     RulesOfEngagement,
     ScopeDefinition,
 )
+from nightrecon_white_engine.policy_compiler import (
+    CompiledPolicyBundle,
+    PolicyCompilationError,
+    compile_engagement_policy,
+)
 from nightrecon_white_engine.roe_render import (
     render_engagement_summary,
     render_rules_of_engagement,
 )
 
 __all__ = [
+    "CompiledPolicyBundle",
     "DataHandlingPolicy",
     "EngagementContact",
     "EngagementDefinition",
+    "PolicyCompilationError",
     "RulesOfEngagement",
     "ScopeDefinition",
     "WHITE_ACTIVE_COMMANDS",
     "WHITE_EDITION_SLUG",
     "WHITE_FOUNDATION_CAPABILITIES",
     "WHITE_OWNED_COMMANDS",
+    "compile_engagement_policy",
     "render_engagement_summary",
     "render_rules_of_engagement",
 ]
