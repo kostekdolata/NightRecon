@@ -60,10 +60,9 @@ class WebSurfaceEvidence:
 
     @property
     def natural_key(self) -> str:
-        return (
-            f"web-surface:{self.surface_type}:"
-            f"{sha256(self.origin.encode('utf-8')).hexdigest()}"
-        )
+        origin_hash = sha256(self.origin.encode("utf-8")).hexdigest()
+        source_hash = sha256(self.source_id.encode("utf-8")).hexdigest()[:16]
+        return f"web-surface:{self.surface_type}:{origin_hash}:{source_hash}"
 
     @property
     def properties(self) -> tuple[tuple[str, str], ...]:
