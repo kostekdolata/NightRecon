@@ -142,6 +142,8 @@ class ScopeDefinition:
         Scope.from_values(list(allowed))
         if excluded:
             Scope.from_values(list(excluded))
+        object.__setattr__(self, "allowed", allowed)
+        object.__setattr__(self, "excluded", excluded)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -240,6 +242,8 @@ class RulesOfEngagement:
         overlap = set(allowed).intersection(prohibited)
         if overlap:
             raise ValueError("a technique cannot be both allowed and prohibited")
+        object.__setattr__(self, "allowed_techniques", allowed)
+        object.__setattr__(self, "prohibited_techniques", prohibited)
 
         if self.max_intrusiveness not in _VALID_INTRUSIVENESS:
             raise ValueError("unsupported max_intrusiveness")
@@ -356,7 +360,11 @@ class EngagementDefinition:
         _identifier(self.owner_contact_id, "owner_contact_id")
         if not isinstance(self.contacts, tuple) or not self.contacts:
             raise ValueError("contacts must be a nonempty tuple")
-        ids = [contact.contact_id for contact in self.contacts]
+        for contact in self.contacts:
+            if not isinstance(contact, EngagementContact):
+                raise ValueError("contacts must contain EngagementContact values")
+        contacts = tuple(sorted(self.contacts, key=lambda item: item.contact_id))
+        ids = [contact.contact_id for contact in contacts]
         if len(ids) != len(set(ids)):
             raise ValueError("contact_id values must be unique")
         if self.owner_contact_id not in ids:
@@ -365,6 +373,7 @@ class EngagementDefinition:
             raise ValueError("roe must be RulesOfEngagement")
         if self.roe.engagement_id != self.engagement_id:
             raise ValueError("ROE must belong to the engagement")
+        object.__setattr__(self, "contacts", contacts)
         _optional_text(self.description, "description")
 
     def to_dict(self) -> dict[str, Any]:
