@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nightrecon-white-engine"
-version = "0.1.0a3"
+version = "0.1.0a4"
 description = "White Night engagement and exercise-control engine foundation"
 readme = "README.md"
 requires-python = ">=3.11"
