@@ -254,9 +254,21 @@ authorize or execute operations; executable policy compilation remains Batch D.
 
 ### Batch D — policy compiler
 
-Add deterministic ROE-to-policy compilation using shared-core policy primitives.
+Status: implemented and PR-CI verified on shared core v0.42.0.
 
-Negative tests must prove compilation cannot silently broaden scope.
+Delivered:
+
+- deterministic ROE-to-shared-core policy compilation;
+- source engagement/ROE version and fingerprint binding;
+- exact scope-exclusion projection;
+- explicit shared-core impact ceiling with legacy-compatible defaults;
+- fail-closed handling of unrepresentable destructive intent;
+- deterministic bundle fingerprints and local integrity verification;
+- local compile/verify CLI operations;
+- negative tests proving scope, capabilities, action budgets, validity windows,
+  and impact cannot silently broaden.
+
+Approval binding and signed policy publication remain later batches.
 
 ### Batch E — approvals
 
