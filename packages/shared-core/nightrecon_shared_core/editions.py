@@ -42,7 +42,7 @@ class EditionRouteError(ValueError):
 
 
 _COMMANDS = MappingProxyType({
-    "white": frozenset({"editions", "policy"}),
+    "white": frozenset({"approval", "editions", "policy"}),
     "blue": frozenset({"editions"}),
     "red": frozenset({
         "editions", "infra", "api", "assets", "checks", "discover",
