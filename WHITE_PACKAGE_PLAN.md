@@ -291,8 +291,26 @@ work so Batch E does not couple White to a deployment-specific storage model.
 
 ### Batch F — evidence and audit
 
-Add evidence custody, integrity manifests, append-only logical audit, export, and
-verification.
+Status: active implementation.
+
+Current scope:
+
+- reuse shared-core `EvidenceRecord` as the portable source record;
+- custody wrappers with record fingerprints, classification, retention, export
+  policy, and parent-evidence lineage;
+- append-only custody events for intake, derivation, transfer, and export;
+- metadata-only integrity manifests;
+- portable integrity-bound export bundles with explicit non-authorization
+  semantics;
+- export refusal for prohibited or retention-expired evidence;
+- backend-neutral `CustodyStore` and `AuditStore` protocols;
+- in-memory references and atomic local file stores;
+- append-only hash-linked logical audit events/trails;
+- secret-safe operator summaries and audit detail-key rejection;
+- local evidence/audit CLI operations and installed-package smoke coverage.
+
+Batch F provides deterministic integrity/tamper evidence. Cryptographic signer
+identity and key management remain later hardening work.
 
 ### Batch G — Live alpha
 
