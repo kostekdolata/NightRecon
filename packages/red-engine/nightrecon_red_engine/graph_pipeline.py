@@ -6,6 +6,11 @@ from nightrecon_red_engine.assessment_engine import ServiceAssessmentResult
 from nightrecon_red_engine.asset_inventory import AssetInventory
 from nightrecon_red_engine.graph_assessment import add_assessment_findings_to_identity_graph
 from nightrecon_red_engine.graph_builder import GraphBuildLimits
+from nightrecon_red_engine.graph_correlation import (
+    CrossSurfaceCorrelationLimits,
+    CrossSurfaceCorrelationResult,
+    correlate_exact_cross_surface_evidence,
+)
 from nightrecon_red_engine.graph_critical_asset import (
     CriticalAssetEvidence,
     add_critical_asset_evidence_to_identity_graph,
@@ -76,3 +81,43 @@ def build_identity_graph(
     )
     assert_valid_identity_graph(graph)
     return graph
+
+
+def build_correlated_identity_graph(
+    *,
+    inventory: AssetInventory,
+    vulnerabilities: tuple[ServiceVulnerabilityResult, ...] = (),
+    threat_context: tuple[ThreatContextResult, ...] = (),
+    assessments: tuple[ServiceAssessmentResult, ...] = (),
+    identity_evidence: IdentityEvidenceBundle | None = None,
+    critical_assets: tuple[CriticalAssetEvidence, ...] = (),
+    vulnerability_observed_at: str = "",
+    threat_context_observed_at: str = "",
+    assessment_observed_at: str = "",
+    identity_observed_at: str = "",
+    critical_asset_observed_at: str = "",
+    limits: GraphBuildLimits | None = None,
+    correlation_limits: CrossSurfaceCorrelationLimits | None = None,
+) -> CrossSurfaceCorrelationResult:
+    """Build the normal evidence graph, then add exact cross-surface correlations."""
+
+    graph = build_identity_graph(
+        inventory=inventory,
+        vulnerabilities=vulnerabilities,
+        threat_context=threat_context,
+        assessments=assessments,
+        identity_evidence=identity_evidence,
+        critical_assets=critical_assets,
+        vulnerability_observed_at=vulnerability_observed_at,
+        threat_context_observed_at=threat_context_observed_at,
+        assessment_observed_at=assessment_observed_at,
+        identity_observed_at=identity_observed_at,
+        critical_asset_observed_at=critical_asset_observed_at,
+        limits=limits,
+    )
+    result = correlate_exact_cross_surface_evidence(
+        graph,
+        limits=correlation_limits,
+    )
+    assert_valid_identity_graph(result.graph)
+    return result
