@@ -60,6 +60,20 @@ class AttackPathAtlasLimits:
 
 
 @dataclass(frozen=True)
+class AttackPathProvenanceSource:
+    """One non-secret provenance source supporting a returned path."""
+
+    source_type: str
+    source_id: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "source_type": self.source_type,
+            "source_id": self.source_id,
+        }
+
+
+@dataclass(frozen=True)
 class AttackPathAtlasPath:
     """One deterministic evidence-backed path to a critical asset."""
 
@@ -72,6 +86,7 @@ class AttackPathAtlasPath:
     observed_hops: int
     inferred_hops: int
     evidence_ids: tuple[str, ...]
+    provenance_sources: tuple[AttackPathProvenanceSource, ...]
 
     @property
     def hop_count(self) -> int:
@@ -89,6 +104,9 @@ class AttackPathAtlasPath:
             "observed_hops": self.observed_hops,
             "inferred_hops": self.inferred_hops,
             "evidence_ids": list(self.evidence_ids),
+            "provenance_sources": [
+                item.to_dict() for item in self.provenance_sources
+            ],
         }
 
 
@@ -156,6 +174,19 @@ def _evidence_ids(edges: tuple[GraphEdge, ...]) -> tuple[str, ...]:
         for item in edge.provenance
         if item.source_type == "engagement-evidence"
     }))
+
+
+def _provenance_sources(
+    edges: tuple[GraphEdge, ...],
+) -> tuple[AttackPathProvenanceSource, ...]:
+    return tuple(
+        AttackPathProvenanceSource(source_type, source_id)
+        for source_type, source_id in sorted({
+            (item.source_type, item.source_id)
+            for edge in edges
+            for item in edge.provenance
+        })
+    )
 
 
 def _ordered_nodes(
@@ -327,6 +358,7 @@ def build_cross_domain_attack_path_atlas(
                         observed_hops=observed_hops,
                         inferred_hops=inferred_hops,
                         evidence_ids=_evidence_ids(next_edges),
+                        provenance_sources=_provenance_sources(next_edges),
                     ))
                     # Critical assets terminate the review path.
                     continue
