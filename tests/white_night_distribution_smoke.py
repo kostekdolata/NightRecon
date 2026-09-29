@@ -124,6 +124,8 @@ def main() -> None:
         assert "editions" in help_text
         assert "policy" in help_text
         assert "approval" in help_text
+        assert "evidence" in help_text
+        assert "audit" in help_text
         for forbidden in (
             "scan",
             "discover",
@@ -160,7 +162,7 @@ def main() -> None:
                 "import nightrecon_shared_core as core; "
                 "import nightrecon_white_engine as engine; "
                 "assert core.edition_name('white') == 'White Night'; "
-                "assert engine.WHITE_OWNED_COMMANDS == ('approval', 'editions', 'policy'); "
+                "assert engine.WHITE_OWNED_COMMANDS == ('approval', 'audit', 'editions', 'evidence', 'policy'); "
                 "assert engine.WHITE_ACTIVE_COMMANDS == (); "
                 "assert importlib.util.find_spec('nightrecon') is None; "
                 "assert importlib.util.find_spec('nightrecon_red_engine') is None"
@@ -382,6 +384,199 @@ def main() -> None:
             cwd=directory,
         ))
         assert approval_verified["integrity"] == "valid"
+
+        evidence_record_path = directory / "red-evidence.json"
+        evidence_record_path.write_text(json.dumps({
+            "schema_version": 1,
+            "engagement_id": "eng-cli-smoke",
+            "evidence_id": "ev-red-001",
+            "source_night": "red",
+            "evidence_type": "assessment.finding",
+            "observed_at": "2026-09-29T16:10:00+00:00",
+            "provenance": "isolated-smoke-fixture",
+            "data": {
+                "finding": "fixture-finding",
+                "surface": "web",
+            },
+            "limitations": ["test fixture only"],
+        }, sort_keys=True), encoding="utf-8")
+
+        custody_initial = directory / "custody-initial.json"
+        custody = json.loads(check(
+            white_app,
+            "evidence",
+            "create",
+            str(engagement_path),
+            str(evidence_record_path),
+            "--case-id",
+            "case-smoke",
+            "--event-id",
+            "custody-ingest",
+            "--actor-id",
+            "collector",
+            "--custodian-id",
+            "custodian-a",
+            "--at",
+            "2026-09-29T16:20:00+00:00",
+            "--reason",
+            "Evidence intake for package smoke",
+            "--output",
+            str(custody_initial),
+            cwd=directory,
+        ))
+        assert custody["authorization_effect"] == "none"
+        assert custody["items"][0]["record"]["source_night"] == "red"
+        assert custody["data_handling"]["classification"] == "confidential"
+
+        custody_transferred = directory / "custody-transferred.json"
+        transferred = json.loads(check(
+            white_app,
+            "evidence",
+            "transfer",
+            str(custody_initial),
+            "--evidence-id",
+            "ev-red-001",
+            "--event-id",
+            "custody-transfer",
+            "--actor-id",
+            "custodian-a",
+            "--to-custodian",
+            "custodian-b",
+            "--at",
+            "2026-09-29T16:25:00+00:00",
+            "--reason",
+            "Review handoff",
+            "--output",
+            str(custody_transferred),
+            cwd=directory,
+        ))
+        assert transferred["events"][-1]["event_type"] == "transferred"
+
+        manifest = json.loads(check(
+            white_app,
+            "evidence",
+            "manifest",
+            str(custody_transferred),
+            "--at",
+            "2026-09-29T16:26:00+00:00",
+            cwd=directory,
+        ))
+        assert manifest["authorization_effect"] == "none"
+        assert manifest["entries"][0]["evidence_id"] == "ev-red-001"
+        assert "data" not in manifest["entries"][0]
+
+        export_case = directory / "custody-exported.json"
+        export_bundle = directory / "evidence-export.json"
+        exported = json.loads(check(
+            white_app,
+            "evidence",
+            "export",
+            str(custody_transferred),
+            "--event-id",
+            "custody-export",
+            "--actor-id",
+            "custodian-b",
+            "--destination",
+            "offline-review",
+            "--at",
+            "2026-09-29T16:30:00+00:00",
+            "--reason",
+            "Approved package smoke export",
+            "--case-output",
+            str(export_case),
+            "--output",
+            str(export_bundle),
+            cwd=directory,
+        ))
+        assert exported["authorization_effect"] == "none"
+        assert exported["manifest"]["authorization_effect"] == "none"
+
+        evidence_verified = json.loads(check(
+            white_app,
+            "evidence",
+            "verify",
+            str(export_bundle),
+            cwd=directory,
+        ))
+        assert evidence_verified["integrity"] == "valid"
+        assert evidence_verified["authorization_effect"] == "none"
+
+        audit_initial = directory / "audit-initial.json"
+        audit_created = json.loads(check(
+            white_app,
+            "audit",
+            "create",
+            "--trail-id",
+            "audit-smoke",
+            "--engagement-id",
+            "eng-cli-smoke",
+            "--event-id",
+            "audit-ingest",
+            "--event-type",
+            "evidence.ingested",
+            "--at",
+            "2026-09-29T16:20:00+00:00",
+            "--actor-id",
+            "collector",
+            "--subject-type",
+            "evidence",
+            "--subject-id",
+            "ev-red-001",
+            "--outcome",
+            "success",
+            "--reason-code",
+            "evidence_ingested",
+            "--summary",
+            "Evidence entered custody",
+            "--detail",
+            "case_id=case-smoke",
+            "--output",
+            str(audit_initial),
+            cwd=directory,
+        ))
+        assert len(audit_created["events"]) == 1
+
+        audit_advanced = directory / "audit-advanced.json"
+        audit_appended = json.loads(check(
+            white_app,
+            "audit",
+            "append",
+            str(audit_initial),
+            "--event-id",
+            "audit-export",
+            "--event-type",
+            "evidence.exported",
+            "--at",
+            "2026-09-29T16:30:00+00:00",
+            "--actor-id",
+            "custodian-b",
+            "--subject-type",
+            "custody.case",
+            "--subject-id",
+            "case-smoke",
+            "--outcome",
+            "success",
+            "--reason-code",
+            "evidence_exported",
+            "--summary",
+            "Governed evidence bundle exported",
+            "--detail",
+            "destination=offline-review",
+            "--output",
+            str(audit_advanced),
+            cwd=directory,
+        ))
+        assert len(audit_appended["events"]) == 2
+
+        audit_verified = json.loads(check(
+            white_app,
+            "audit",
+            "verify",
+            str(audit_advanced),
+            cwd=directory,
+        ))
+        assert audit_verified["integrity"] == "valid"
+        assert audit_verified["trail_id"] == "audit-smoke"
 
         metadata = check(
             str(python),
