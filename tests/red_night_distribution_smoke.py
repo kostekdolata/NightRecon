@@ -267,12 +267,12 @@ def main() -> None:
             )
         core_wheel = next(wheels.glob("nightrecon-0.31.0-*.whl"))
         shared_core_wheel = next(
-            wheels.glob("nightrecon_shared_core-0.40.0-*.whl")
+            wheels.glob("nightrecon_shared_core-0.41.0-*.whl")
         )
         red_engine_wheel = next(
-            wheels.glob("nightrecon_red_engine-0.40.0-*.whl")
+            wheels.glob("nightrecon_red_engine-0.41.0-*.whl")
         )
-        app_wheel = next(wheels.glob("nightrecon_red_night-0.40.0-*.whl"))
+        app_wheel = next(wheels.glob("nightrecon_red_night-0.41.0-*.whl"))
 
         with zipfile.ZipFile(app_wheel) as archive:
             app_files = tuple(sorted(archive.namelist()))
