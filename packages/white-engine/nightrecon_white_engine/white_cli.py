@@ -20,7 +20,7 @@ def _version() -> str:
     try:
         return version("nightrecon-white-night")
     except PackageNotFoundError:
-        return "0.1.0a1"
+        return "0.1.0a2"
 
 
 def build_parser() -> argparse.ArgumentParser:
