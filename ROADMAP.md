@@ -486,26 +486,31 @@ Status: implemented and PR-CI verified.
 
 ### White Batch 4 — Deterministic policy compiler
 
-Status: active implementation on released Red v0.42.0 baseline.
+Status: implemented and PR-CI verified on released Red v0.42.0 baseline.
 
-Current scope:
+Delivered:
 
-- compile immutable engagement/ROE versions into
-  `EngagementExecutionPolicy`;
-- bind engagement/ROE versions and SHA-256 fingerprints into deterministic
-  compiled bundles;
+- immutable engagement/ROE -> `EngagementExecutionPolicy` compilation;
+- engagement/ROE version and SHA-256 fingerprint binding;
+- deterministic compiled-policy bundle and integrity verification;
 - exact IP/CIDR exclusion subtraction without widening scope;
-- preserve exact-address semantics rather than converting IPs to /32 or /128;
+- exact-address semantics preserved instead of converting IPs to /32 or /128;
 - backward-compatible shared-core `max_impact` ceiling, defaulting to `high`
   for legacy policies;
 - conservative mapping: passive -> low, safe-active -> standard, intrusive ->
   high;
-- refuse destructive intrusiveness because the current execution policy cannot
+- destructive intrusiveness refused because the current execution policy cannot
   represent it safely;
 - local `policy compile` and `policy verify` operations only;
 - no policy publication, persistence, approval, signing, or network execution;
 - negative tests for scope broadening, impact escalation, capability widening,
-  legacy compatibility, and bundle tampering.
+  legacy compatibility, and bundle tampering;
+- isolated installed-wheel compiler/verify smoke on Windows and Ubuntu,
+  Python 3.11 and 3.14.
+
+Release evidence: the released-v0.42 PR matrix completed 29/29 jobs
+successfully, including all four White distribution jobs and the complete
+current Red v0.42/general regression matrix.
 
 Deferred:
 
