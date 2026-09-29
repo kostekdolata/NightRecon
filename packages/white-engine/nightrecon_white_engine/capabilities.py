@@ -15,4 +15,7 @@ WHITE_FOUNDATION_CAPABILITIES: tuple[str, ...] = (
     "standalone-deployment-target",
     "composed-stack-deployment-target",
     "live-usb-deployment-target",
+    "immutable-engagement-domain",
+    "scope-and-exclusion-authoring",
+    "rules-of-engagement-rendering",
 )
