@@ -359,7 +359,7 @@ Batch 1 — Cross-Domain Attack Path Atlas:
   expansion ceilings
 - deterministic no-network cross-domain runtime benchmark on Python 3.11/3.14
 
-Batch 2 — Exact Cross-Surface Correlation:
+Batch 2 — Exact AD Identity/Network Correlation:
 
 - bounded identity correlation properties carried through provider,
   normalization, engagement evidence, and graph projection
@@ -371,9 +371,23 @@ Batch 2 — Exact Cross-Surface Correlation:
 - deterministic duplicate-proof aggregation and hard correlation ceilings
 - correlated direct and portable unified graph builders
 
+Batch 3 — Exact Web/API Origin Correlation:
+
+- web crawl, OpenAPI base, and GraphQL endpoint origins represented as explicit
+  observation-scoped service evidence
+- normalized HTTP(S) scheme, host, and explicit/default port retained as
+  bounded correlation properties
+- hostname origins require exactly one observed network asset hostname match
+- IP-literal origins require an exact observed asset address
+- the selected asset must expose an observed TCP service on the exact origin port
+- inferred `correlates-to` edges run from observed network service to web/API
+  surface so the attack-path atlas can traverse into application evidence
+- missing/ambiguous asset or service evidence remains unresolved with opaque
+  correlation metadata
+- dedicated deterministic runtime benchmark on Python 3.11/3.14
+
 Planned follow-on v0.42 batches:
 
-- exact web/API origin-to-network-service correlation
 - concrete AWS/Azure/Kubernetes correlation keys and cloud-to-network/identity joins
 - bounded validation-candidate compilation from evidence-backed paths
 - cross-domain engagement/path reporting with evidence gaps and retest state
@@ -507,8 +521,8 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Complete and verify v0.42 Batch 2 — Exact Cross-Surface Correlation.
-2. Extend exact correlation into web/API and concrete cloud resources.
+1. Complete and verify v0.42 Batch 3 — Exact Web/API Origin Correlation.
+2. Extend exact correlation into concrete AWS/Azure/Kubernetes resources.
 3. Compile bounded controlled-validation candidates from evidence-backed paths;
    never auto-execute them.
 4. Add cross-domain operator reporting, evidence-gap review, and remediation
