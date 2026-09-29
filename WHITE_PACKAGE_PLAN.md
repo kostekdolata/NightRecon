@@ -272,8 +272,22 @@ Approval binding and signed policy publication remain later batches.
 
 ### Batch E — approvals
 
-Add approval requests, eligibility, dual/quorum rules, expiry, revocation,
-delegation, and immutable decisions.
+Status: active implementation.
+
+Current scope:
+
+- immutable approval requests bound to exact policy/action context;
+- single, dual, and quorum rules;
+- role eligibility and separation of duties;
+- bounded request-specific delegation without authority multiplication;
+- expiry, rejection, escalation, and revocation;
+- deterministic hash-linked decision evidence;
+- fingerprinted approval grants and replay protection;
+- local network-free CLI workflow operations;
+- isolated package smoke coverage.
+
+Persistent ApprovalStore backends and signed approval authenticity remain later
+work so Batch E does not couple White to a deployment-specific storage model.
 
 ### Batch F — evidence and audit
 
