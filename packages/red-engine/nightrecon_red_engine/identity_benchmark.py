@@ -62,6 +62,33 @@ def _membership_keys(
     return values
 
 
+def _role_keys(bundle: IdentityEvidenceBundle) -> tuple[str, ...]:
+    return _unique(
+        tuple(item.natural_key for item in bundle.roles),
+        "role keys",
+    )
+
+
+def _relationship_keys(
+    bundle: IdentityEvidenceBundle,
+) -> tuple[tuple[object, ...], ...]:
+    values = tuple(sorted(
+        (
+            item.source_kind.value,
+            item.source_key,
+            item.relationship,
+            item.target_kind.value,
+            item.target_key,
+            item.evidence_state.value,
+            tuple(sorted(item.properties)),
+        )
+        for item in bundle.relationships
+    ))
+    if len(values) != len(set(values)):
+        raise ValueError("identity relationship evidence must not contain duplicates")
+    return values
+
+
 def _missed_reasons(
     *,
     missed_count: int,
@@ -96,6 +123,14 @@ class IdentityBenchmarkResult:
     discovered_expected_memberships: int
     missed_memberships: int
     invented_memberships: int
+    expected_roles: int
+    discovered_expected_roles: int
+    missed_roles: int
+    invented_roles: int
+    expected_relationships: int
+    discovered_expected_relationships: int
+    missed_relationships: int
+    invented_relationships: int
     unresolved_members: int
     provider_requests: int
     provider_duration_ms: int
@@ -121,6 +156,14 @@ class IdentityBenchmarkResult:
             "discovered_expected_memberships": self.discovered_expected_memberships,
             "missed_memberships": self.missed_memberships,
             "invented_memberships": self.invented_memberships,
+            "expected_roles": self.expected_roles,
+            "discovered_expected_roles": self.discovered_expected_roles,
+            "missed_roles": self.missed_roles,
+            "invented_roles": self.invented_roles,
+            "expected_relationships": self.expected_relationships,
+            "discovered_expected_relationships": self.discovered_expected_relationships,
+            "missed_relationships": self.missed_relationships,
+            "invented_relationships": self.invented_relationships,
             "unresolved_members": self.unresolved_members,
             "provider_requests": self.provider_requests,
             "provider_duration_ms": self.provider_duration_ms,
@@ -151,6 +194,10 @@ def benchmark_identity_collection(
     observed_groups = set(_group_keys(result.evidence))
     expected_memberships = set(_membership_keys(expected))
     observed_memberships = set(_membership_keys(result.evidence))
+    expected_roles = set(_role_keys(expected))
+    observed_roles = set(_role_keys(result.evidence))
+    expected_relationships = set(_relationship_keys(expected))
+    observed_relationships = set(_relationship_keys(result.evidence))
 
     found_identities = expected_identities & observed_identities
     found_groups = expected_groups & observed_groups
@@ -161,6 +208,12 @@ def benchmark_identity_collection(
     invented_identities = observed_identities - expected_identities
     invented_groups = observed_groups - expected_groups
     invented_memberships = observed_memberships - expected_memberships
+    found_roles = expected_roles & observed_roles
+    missed_roles = expected_roles - observed_roles
+    invented_roles = observed_roles - expected_roles
+    found_relationships = expected_relationships & observed_relationships
+    missed_relationships = expected_relationships - observed_relationships
+    invented_relationships = observed_relationships - expected_relationships
 
     graph = add_identity_evidence_to_identity_graph(
         IdentityGraphBuilder().build(),
@@ -172,11 +225,15 @@ def benchmark_identity_collection(
         len(missed_identities)
         + len(missed_groups)
         + len(missed_memberships)
+        + len(missed_roles)
+        + len(missed_relationships)
     )
     total_invented = (
         len(invented_identities)
         + len(invented_groups)
         + len(invented_memberships)
+        + len(invented_roles)
+        + len(invented_relationships)
     )
     reasons = _missed_reasons(
         missed_count=total_missed,
@@ -189,11 +246,15 @@ def benchmark_identity_collection(
             "identities": sorted(expected_identities),
             "groups": sorted(expected_groups),
             "memberships": sorted(expected_memberships),
+            "roles": sorted(expected_roles),
+            "relationships": sorted(expected_relationships),
         },
         "observed": {
             "identities": sorted(observed_identities),
             "groups": sorted(observed_groups),
             "memberships": sorted(observed_memberships),
+            "roles": sorted(observed_roles),
+            "relationships": sorted(observed_relationships),
         },
         "unresolved_members": result.unresolved_members,
         "provider_requests": result.provider_requests,
@@ -223,6 +284,14 @@ def benchmark_identity_collection(
         discovered_expected_memberships=len(found_memberships),
         missed_memberships=len(missed_memberships),
         invented_memberships=len(invented_memberships),
+        expected_roles=len(expected_roles),
+        discovered_expected_roles=len(found_roles),
+        missed_roles=len(missed_roles),
+        invented_roles=len(invented_roles),
+        expected_relationships=len(expected_relationships),
+        discovered_expected_relationships=len(found_relationships),
+        missed_relationships=len(missed_relationships),
+        invented_relationships=len(invented_relationships),
         unresolved_members=result.unresolved_members,
         provider_requests=result.provider_requests,
         provider_duration_ms=result.provider_duration_ms,

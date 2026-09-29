@@ -59,9 +59,9 @@ def directory_natural_key(
 ) -> str:
     """Return an opaque graph key for one exact provider-native identifier."""
 
-    if kind not in ("user", "computer", "service", "group"):
+    if kind not in ("user", "computer", "service", "application", "role", "group"):
         raise ValueError(
-            "directory node kind must be user, computer, service, or group"
+            "directory node kind must be user, computer, service, application, role, or group"
         )
     _required_text(dn, "dn")
     _required_text(namespace, "namespace")
@@ -80,7 +80,7 @@ def import_directory_snapshot(
     """Import a secret-free JSON snapshot; reject extra fields and over-budget data.
 
     Schema: {"schema_version": 1, "entries": [{"dn": str, "kind": "user",
-    "computer", "service", or "group", "name": str,
+    "computer", "service", "application", or "group", "name": str,
     "members": [str, ...] (groups only)}]}.
     References must match a DN exactly in the same snapshot. Absent references
     are counted, never materialized as an observed membership.
@@ -122,9 +122,9 @@ def import_directory_snapshot(
         dn = _required_text(entry["dn"], "dn")
         name = _required_text(entry["name"], "name")
         kind = entry["kind"]
-        if kind not in ("user", "computer", "service", "group"):
+        if kind not in ("user", "computer", "service", "application", "group"):
             raise ValueError(
-                "directory entry kind must be user, computer, service, or group"
+                "directory entry kind must be user, computer, service, application, or group"
             )
         if dn in by_dn:
             raise ValueError("directory export contains a duplicate DN")
@@ -146,6 +146,7 @@ def import_directory_snapshot(
             "user": f"{namespace}-user",
             "computer": f"{namespace}-computer",
             "service": f"{namespace}-service",
+            "application": f"{namespace}-application",
         }
         if kind in identity_types:
             identities.append(

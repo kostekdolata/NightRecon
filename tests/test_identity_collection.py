@@ -6,6 +6,13 @@ from datetime import datetime, timezone
 import tempfile
 import unittest
 
+from nightrecon_red_engine.graph_identity_evidence import (
+    IdentityEvidenceBundle,
+    IdentityRelationshipEvidence,
+    RoleEvidence,
+)
+from nightrecon_red_engine.graph_models import GraphNodeKind
+from nightrecon_red_engine.red_directory_import import directory_natural_key
 from nightrecon_red_engine.identity_collection import (
     DirectoryEntry,
     IdentityCollectionDenied,
@@ -150,6 +157,92 @@ class IdentityCollectionTests(unittest.TestCase):
             )
             self.assertEqual(len(result.evidence.memberships), 1)
 
+    def test_entra_application_and_supplemental_relationships_are_merged(self):
+        with tempfile.TemporaryDirectory() as root:
+            user_id = "11111111-1111-1111-1111-111111111111"
+            app_id = "22222222-2222-2222-2222-222222222222"
+            role_key = directory_natural_key(
+                "role",
+                "33333333-3333-3333-3333-333333333333",
+                namespace="entra",
+            )
+            user_key = directory_natural_key(
+                "user",
+                user_id,
+                namespace="entra",
+            )
+            provider = FakeProvider(IdentityProviderCollection(
+                entries=(
+                    DirectoryEntry(user_id, "user", "Cloud User"),
+                    DirectoryEntry(app_id, "application", "Example App"),
+                ),
+                supplemental_evidence=IdentityEvidenceBundle(
+                    roles=(
+                        RoleEvidence(role_key, "Directory Readers", "role-source"),
+                    ),
+                    relationships=(
+                        IdentityRelationshipEvidence(
+                            source_kind=GraphNodeKind.IDENTITY,
+                            source_key=user_key,
+                            target_kind=GraphNodeKind.PERMISSION,
+                            target_key=role_key,
+                            relationship="assigned-role",
+                            source_id="assignment-source",
+                        ),
+                    ),
+                ),
+            ))
+
+            result = collect_authorized_identity_intelligence(
+                workspace(root, scope=("tenant.example",)),
+                provider,
+                IdentityCollectionRequest(
+                    engagement_id="eng-identity",
+                    source_id="graph-readonly-1",
+                    source_type="entra-id",
+                    target="tenant.example",
+                ),
+                now=datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc),
+            )
+
+            self.assertEqual(
+                {item.identity_type for item in result.evidence.identities},
+                {"entra-user", "entra-application"},
+            )
+            self.assertEqual(len(result.evidence.roles), 1)
+            self.assertEqual(len(result.evidence.relationships), 1)
+
+    def test_missing_supplemental_relationship_endpoint_fails_closed(self):
+        with tempfile.TemporaryDirectory() as root:
+            provider = FakeProvider(IdentityProviderCollection(
+                entries=(),
+                supplemental_evidence=IdentityEvidenceBundle(
+                    roles=(RoleEvidence("entra:role:test", "Role", "source"),),
+                    relationships=(
+                        IdentityRelationshipEvidence(
+                            source_kind=GraphNodeKind.IDENTITY,
+                            source_key="entra:user:missing",
+                            target_kind=GraphNodeKind.PERMISSION,
+                            target_key="entra:role:test",
+                            relationship="assigned-role",
+                            source_id="source",
+                        ),
+                    ),
+                ),
+            ))
+            with self.assertRaisesRegex(ValueError, "source is missing"):
+                collect_authorized_identity_intelligence(
+                    workspace(root, scope=("tenant.example",)),
+                    provider,
+                    IdentityCollectionRequest(
+                        engagement_id="eng-identity",
+                        source_id="graph-readonly-1",
+                        source_type="entra-id",
+                        target="tenant.example",
+                    ),
+                    now=datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc),
+                )
+
     def test_provider_completeness_metadata_is_preserved(self):
         with tempfile.TemporaryDirectory() as root:
             provider = FakeProvider(IdentityProviderCollection(
@@ -223,7 +316,7 @@ class IdentityCollectionTests(unittest.TestCase):
                 )
 
     def test_provider_entries_reject_non_group_members_and_duplicate_members(self):
-        for kind in ("user", "computer", "service"):
+        for kind in ("user", "computer", "service", "application"):
             with self.subTest(kind=kind):
                 with self.assertRaises(ValueError):
                     DirectoryEntry("CN=A", kind, "A", ("CN=B",))

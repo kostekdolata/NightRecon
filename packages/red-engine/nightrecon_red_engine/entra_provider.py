@@ -18,11 +18,18 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from nightrecon_red_engine.graph_identity_evidence import (
+    IdentityEvidenceBundle,
+    IdentityRelationshipEvidence,
+    RoleEvidence,
+)
+from nightrecon_red_engine.graph_models import GraphNodeKind
 from nightrecon_red_engine.identity_collection import (
     DirectoryEntry,
     IdentityCollectionRequest,
     IdentityProviderCollection,
 )
+from nightrecon_red_engine.red_directory_import import directory_natural_key
 
 
 GRAPH_HOST = "graph.microsoft.com"
@@ -31,15 +38,24 @@ GRAPH_USERS_PATH = (
     "/v1.0/users?$select=id,displayName,userPrincipalName&$top=100"
 )
 GRAPH_GROUPS_PATH = "/v1.0/groups?$select=id,displayName&$top=100"
+GRAPH_APPLICATIONS_PATH = "/v1.0/applications?$select=id,displayName,appId&$top=100"
 GRAPH_SERVICE_PRINCIPALS_PATH = (
     "/v1.0/servicePrincipals?$select=id,displayName,appId&$top=100"
+)
+GRAPH_ROLE_DEFINITIONS_PATH = "/v1.0/roleManagement/directory/roleDefinitions"
+GRAPH_ROLE_ASSIGNMENTS_PATH = (
+    "/v1.0/roleManagement/directory/roleAssignments"
+    "?$select=id,principalId,roleDefinitionId,directoryScopeId"
 )
 
 _ALLOWED_QUERY_KEYS = frozenset({"$select", "$top", "$skiptoken"})
 _ALLOWED_COLLECTION_PATHS = frozenset({
     "/v1.0/users",
     "/v1.0/groups",
+    "/v1.0/applications",
     "/v1.0/servicePrincipals",
+    "/v1.0/roleManagement/directory/roleDefinitions",
+    "/v1.0/roleManagement/directory/roleAssignments",
 })
 
 
@@ -64,6 +80,13 @@ def _group_members_path(group_id: str) -> str:
     )
 
 
+def _owners_path(resource: str, object_id: str) -> str:
+    if resource not in {"applications", "servicePrincipals"}:
+        raise ValueError("Microsoft Graph ownership resource is unsupported")
+    encoded = quote(_object_id(object_id), safe="._-")
+    return f"/v1.0/{resource}/{encoded}/owners"
+
+
 def _validate_graph_url(url: str) -> str:
     _required_text(url, "Microsoft Graph URL")
     parsed = urlparse(url)
@@ -77,6 +100,7 @@ def _validate_graph_url(url: str) -> str:
         raise ValueError("Microsoft Graph URL fragments are not supported")
 
     path = parsed.path
+    relationship_kind = ""
     allowed = path in _ALLOWED_COLLECTION_PATHS
     if not allowed:
         pieces = path.split("/")
@@ -88,6 +112,20 @@ def _validate_graph_url(url: str) -> str:
             and len(pieces[3]) <= 256
             and not any(char in pieces[3] for char in "?#")
         )
+        if allowed:
+            relationship_kind = "members"
+        else:
+            allowed = (
+                len(pieces) == 5
+                and pieces[1] == "v1.0"
+                and pieces[2] in {"applications", "servicePrincipals"}
+                and pieces[4] == "owners"
+                and bool(pieces[3])
+                and len(pieces[3]) <= 256
+                and not any(char in pieces[3] for char in "?#")
+            )
+            if allowed:
+                relationship_kind = "owners"
     if not allowed:
         raise ValueError("Microsoft Graph URL is outside the fixed Entra collection plan")
 
@@ -97,17 +135,50 @@ def _validate_graph_url(url: str) -> str:
     if any(len(values) != 1 for values in query.values()):
         raise ValueError("Microsoft Graph query contains repeated parameters")
 
+    if relationship_kind == "owners":
+        if "$select" in query or "$top" in query:
+            raise ValueError(
+                "Microsoft Graph owner query is outside the fixed Entra collection plan"
+            )
+        if "$skiptoken" in query and not query["$skiptoken"][0]:
+            raise ValueError("Microsoft Graph $skiptoken must not be blank")
+        return url
+
     expected_select = {
         "/v1.0/users": "id,displayName,userPrincipalName",
         "/v1.0/groups": "id,displayName",
+        "/v1.0/applications": "id,displayName,appId",
         "/v1.0/servicePrincipals": "id,displayName,appId",
+        "/v1.0/roleManagement/directory/roleAssignments":
+            "id,principalId,roleDefinitionId,directoryScopeId",
     }.get(path)
-    if expected_select is None:
+    if relationship_kind == "members":
         expected_select = "id,displayName,userPrincipalName,appId"
-    if query.get("$select") != [expected_select]:
-        raise ValueError("Microsoft Graph $select is outside the fixed Entra collection plan")
-    if query.get("$top") != ["100"]:
-        raise ValueError("Microsoft Graph $top is outside the fixed Entra collection plan")
+
+    if expected_select is None:
+        if path != "/v1.0/roleManagement/directory/roleDefinitions":
+            raise ValueError(
+                "Microsoft Graph projection is outside the fixed Entra collection plan"
+            )
+        if "$select" in query or "$top" in query:
+            raise ValueError(
+                "Microsoft Graph role-definition query is outside the fixed plan"
+            )
+    else:
+        if query.get("$select") != [expected_select]:
+            raise ValueError(
+                "Microsoft Graph $select is outside the fixed Entra collection plan"
+            )
+        if path != "/v1.0/roleManagement/directory/roleAssignments":
+            if query.get("$top") != ["100"]:
+                raise ValueError(
+                    "Microsoft Graph $top is outside the fixed Entra collection plan"
+                )
+        elif "$top" in query:
+            raise ValueError(
+                "Microsoft Graph role-assignment query is outside the fixed plan"
+            )
+
     if "$skiptoken" in query and not query["$skiptoken"][0]:
         raise ValueError("Microsoft Graph $skiptoken must not be blank")
     return url
@@ -246,9 +317,12 @@ class MicrosoftGraphTransport:
 
 @dataclass(frozen=True)
 class EntraProviderLimits:
-    max_requests: int = 64
+    max_requests: int = 96
     max_pages_per_collection: int = 10
     max_groups_with_membership_reads: int = 32
+    max_owner_objects: int = 64
+    max_role_definitions: int = 256
+    max_relationships: int = 5_000
     max_runtime_seconds: float = 30.0
 
     def __post_init__(self) -> None:
@@ -266,6 +340,12 @@ class EntraProviderLimits:
             raise ValueError(
                 "max_groups_with_membership_reads must be a positive integer"
             )
+        if type(self.max_owner_objects) is not int or self.max_owner_objects < 1:
+            raise ValueError("max_owner_objects must be a positive integer")
+        if type(self.max_role_definitions) is not int or self.max_role_definitions < 1:
+            raise ValueError("max_role_definitions must be a positive integer")
+        if type(self.max_relationships) is not int or self.max_relationships < 1:
+            raise ValueError("max_relationships must be a positive integer")
         if (
             isinstance(self.max_runtime_seconds, bool)
             or not isinstance(self.max_runtime_seconds, (int, float))
@@ -285,7 +365,7 @@ def _display_name(item: Mapping[str, object], *fallbacks: str) -> str:
     return _object_id(item.get("id"))
 
 
-def _member_kind(item: Mapping[str, object]) -> str | None:
+def _directory_object_kind(item: Mapping[str, object]) -> str | None:
     raw = item.get("@odata.type")
     if not isinstance(raw, str):
         return None
@@ -297,6 +377,14 @@ def _member_kind(item: Mapping[str, object]) -> str | None:
     if normalized == "#microsoft.graph.serviceprincipal":
         return "service"
     return None
+
+
+def _entry_natural_key(entry: DirectoryEntry) -> str:
+    return directory_natural_key(
+        entry.kind,
+        entry.distinguished_name,
+        namespace="entra",
+    )
 
 
 class EntraIdentityProvider:
@@ -328,9 +416,16 @@ class EntraIdentityProvider:
         started = self._clock()
         request_count = 0
         truncated = False
+        entry_budget_exhausted = False
         limitations: list[str] = []
         identities: dict[str, DirectoryEntry] = {}
         groups: dict[str, tuple[str, set[str]]] = {}
+        role_definitions: dict[str, str] = {}
+        roles: dict[str, RoleEvidence] = {}
+        relationships: dict[
+            tuple[GraphNodeKind, str, GraphNodeKind, str, str],
+            IdentityRelationshipEvidence,
+        ] = {}
 
         def mark_truncated(reason: str) -> None:
             nonlocal truncated
@@ -350,8 +445,10 @@ class EntraIdentityProvider:
         def read_collection(
             initial_path: str,
             handler: Callable[[Mapping[str, object]], None],
+            *,
+            enforce_entry_budget: bool = True,
         ) -> None:
-            nonlocal request_count
+            nonlocal request_count, entry_budget_exhausted
             page_ref: str | None = initial_path
             pages = 0
             while page_ref is not None:
@@ -367,15 +464,23 @@ class EntraIdentityProvider:
                 pages += 1
                 for item in page.items:
                     handler(item)
-                    if len(identities) + len(groups) >= request.limits.max_entries:
+                    if (
+                        enforce_entry_budget
+                        and len(identities) + len(groups) >= request.limits.max_entries
+                    ):
+                        entry_budget_exhausted = True
                         mark_truncated("Microsoft Graph entry ceiling reached.")
                         return
                 page_ref = page.next_link
 
         def add_identity(item: Mapping[str, object], kind: str) -> None:
+            if kind not in {"user", "service", "application"}:
+                raise ValueError("Microsoft Graph identity kind is unsupported")
             object_id = _object_id(item.get("id"))
             if object_id in groups:
-                raise ValueError("Microsoft Graph object id appears as both group and identity")
+                raise ValueError(
+                    "Microsoft Graph object id appears as both group and identity"
+                )
             name = (
                 _display_name(item, "userPrincipalName")
                 if kind == "user"
@@ -384,21 +489,54 @@ class EntraIdentityProvider:
             existing = identities.get(object_id)
             entry = DirectoryEntry(object_id, kind, name)
             if existing is not None and existing != entry:
-                raise ValueError("Microsoft Graph object id has conflicting identity data")
+                raise ValueError(
+                    "Microsoft Graph object id has conflicting identity data"
+                )
             identities[object_id] = entry
 
         def add_group(item: Mapping[str, object]) -> None:
             object_id = _object_id(item.get("id"))
             if object_id in identities:
-                raise ValueError("Microsoft Graph object id appears as both identity and group")
+                raise ValueError(
+                    "Microsoft Graph object id appears as both identity and group"
+                )
             name = _display_name(item)
             existing = groups.get(object_id)
             if existing is not None and existing[0] != name:
                 raise ValueError("Microsoft Graph group id has conflicting display data")
             groups.setdefault(object_id, (name, set()))
 
+        def principal_reference(
+            object_id: str,
+        ) -> tuple[GraphNodeKind, str] | None:
+            identity = identities.get(object_id)
+            if identity is not None:
+                return GraphNodeKind.IDENTITY, _entry_natural_key(identity)
+            group = groups.get(object_id)
+            if group is not None:
+                return (
+                    GraphNodeKind.GROUP,
+                    directory_natural_key("group", object_id, namespace="entra"),
+                )
+            return None
+
+        def add_relationship(item: IdentityRelationshipEvidence) -> None:
+            key = (
+                item.source_kind,
+                item.source_key,
+                item.target_kind,
+                item.target_key,
+                item.relationship,
+            )
+            if key in relationships:
+                return
+            if len(relationships) >= self._limits.max_relationships:
+                mark_truncated("Microsoft Graph relationship ceiling reached.")
+                return
+            relationships[key] = item
+
         def add_member(group_id: str, item: Mapping[str, object]) -> None:
-            kind = _member_kind(item)
+            kind = _directory_object_kind(item)
             if kind is None:
                 mark_truncated(
                     "Microsoft Graph returned an unsupported group member type; "
@@ -409,6 +547,12 @@ class EntraIdentityProvider:
             group = groups.get(group_id)
             if group is None:
                 raise ValueError("Microsoft Graph membership references an unknown group")
+            if principal_reference(member_id) is None:
+                mark_truncated(
+                    "Microsoft Graph membership referenced an object absent from "
+                    "the bounded base identity collection; relationship omitted."
+                )
+                return
             members = group[1]
             if member_id in members:
                 return
@@ -417,6 +561,100 @@ class EntraIdentityProvider:
                 mark_truncated("Microsoft Graph membership ceiling reached.")
                 return
             members.add(member_id)
+
+        def add_owner(
+            target_resource: str,
+            target_id: str,
+            item: Mapping[str, object],
+        ) -> None:
+            owner_kind = _directory_object_kind(item)
+            if owner_kind is None:
+                mark_truncated(
+                    "Microsoft Graph returned an unsupported owner type; "
+                    "ownership relationship omitted."
+                )
+                return
+            owner_id = _object_id(item.get("id"))
+            owner = principal_reference(owner_id)
+            if owner is None:
+                mark_truncated(
+                    "Microsoft Graph owner was absent from the bounded base identity "
+                    "collection; ownership relationship omitted."
+                )
+                return
+            target = identities.get(target_id)
+            if target is None or target.kind not in {"application", "service"}:
+                raise ValueError("Microsoft Graph ownership target is missing")
+            source_kind, source_key = owner
+            add_relationship(IdentityRelationshipEvidence(
+                source_kind=source_kind,
+                source_key=source_key,
+                target_kind=GraphNodeKind.IDENTITY,
+                target_key=_entry_natural_key(target),
+                relationship="owns",
+                source_id=(
+                    f"{request.source_id}#owners:{target_resource}:{target_id}"
+                ),
+                properties=(("target_type", target.kind),),
+            ))
+
+        def add_role_definition(item: Mapping[str, object]) -> None:
+            role_id = _object_id(item.get("id"))
+            if role_id in role_definitions:
+                return
+            if len(role_definitions) >= self._limits.max_role_definitions:
+                mark_truncated("Microsoft Graph role-definition ceiling reached.")
+                return
+            role_definitions[role_id] = _display_name(item)
+
+        def add_role_assignment(item: Mapping[str, object]) -> None:
+            principal_id = _object_id(item.get("principalId"))
+            role_id = _object_id(item.get("roleDefinitionId"))
+            scope = _required_text(
+                item.get("directoryScopeId"),
+                "Microsoft Graph role assignment directoryScopeId",
+            )
+            principal = principal_reference(principal_id)
+            role_label = role_definitions.get(role_id)
+            if principal is None:
+                mark_truncated(
+                    "Microsoft Graph role assignment referenced a principal absent "
+                    "from the bounded base identity collection; assignment omitted."
+                )
+                return
+            if role_label is None:
+                mark_truncated(
+                    "Microsoft Graph role assignment referenced an unobserved role "
+                    "definition; assignment omitted."
+                )
+                return
+            scoped_role_key = directory_natural_key(
+                "role",
+                f"{role_id}|{scope}",
+                namespace="entra",
+            )
+            roles.setdefault(
+                scoped_role_key,
+                RoleEvidence(
+                    natural_key=scoped_role_key,
+                    label=role_label,
+                    source_id=f"{request.source_id}#role-assignment",
+                    properties=(
+                        ("directory_scope_id", scope),
+                        ("provider", "entra-directory-role"),
+                    ),
+                ),
+            )
+            source_kind, source_key = principal
+            add_relationship(IdentityRelationshipEvidence(
+                source_kind=source_kind,
+                source_key=source_key,
+                target_kind=GraphNodeKind.PERMISSION,
+                target_key=scoped_role_key,
+                relationship="assigned-role",
+                source_id=f"{request.source_id}#role-assignment",
+                properties=(("directory_scope_id", scope),),
+            ))
 
         try:
             read_collection(
@@ -427,11 +665,16 @@ class EntraIdentityProvider:
                 read_collection(GRAPH_GROUPS_PATH, add_group)
             if len(identities) + len(groups) < request.limits.max_entries:
                 read_collection(
+                    GRAPH_APPLICATIONS_PATH,
+                    lambda item: add_identity(item, "application"),
+                )
+            if len(identities) + len(groups) < request.limits.max_entries:
+                read_collection(
                     GRAPH_SERVICE_PRINCIPALS_PATH,
                     lambda item: add_identity(item, "service"),
                 )
 
-            group_ids = tuple(sorted(groups))
+            group_ids = () if entry_budget_exhausted else tuple(sorted(groups))
             if len(group_ids) > self._limits.max_groups_with_membership_reads:
                 mark_truncated("Microsoft Graph group-membership read ceiling reached.")
                 group_ids = group_ids[:self._limits.max_groups_with_membership_reads]
@@ -443,6 +686,7 @@ class EntraIdentityProvider:
                 read_collection(
                     _group_members_path(group_id),
                     lambda item, gid=group_id: add_member(gid, item),
+                    enforce_entry_budget=False,
                 )
                 if request_count == before_requests and truncated:
                     break
@@ -451,6 +695,49 @@ class EntraIdentityProvider:
                 mark_truncated(
                     "Microsoft Graph v1.0 group-member listing may omit service "
                     "principals; service-principal group membership can be incomplete."
+                )
+
+            owner_targets = () if entry_budget_exhausted else tuple(sorted(
+                (
+                    ("applications", object_id)
+                    for object_id, entry in identities.items()
+                    if entry.kind == "application"
+                ),
+                key=lambda item: (item[0], item[1]),
+            )) + tuple(sorted(
+                (
+                    ("servicePrincipals", object_id)
+                    for object_id, entry in identities.items()
+                    if entry.kind == "service"
+                ),
+                key=lambda item: (item[0], item[1]),
+            ))
+            if len(owner_targets) > self._limits.max_owner_objects:
+                mark_truncated("Microsoft Graph owner-read ceiling reached.")
+                owner_targets = owner_targets[:self._limits.max_owner_objects]
+
+            for resource, object_id in owner_targets:
+                if not budget_available():
+                    break
+                read_collection(
+                    _owners_path(resource, object_id),
+                    lambda item, res=resource, oid=object_id: add_owner(
+                        res, oid, item
+                    ),
+                    enforce_entry_budget=False,
+                )
+
+            if not entry_budget_exhausted and budget_available():
+                read_collection(
+                    GRAPH_ROLE_DEFINITIONS_PATH,
+                    add_role_definition,
+                    enforce_entry_budget=False,
+                )
+            if not entry_budget_exhausted and budget_available():
+                read_collection(
+                    GRAPH_ROLE_ASSIGNMENTS_PATH,
+                    add_role_assignment,
+                    enforce_entry_budget=False,
                 )
         finally:
             self._transport.close()
@@ -481,4 +768,20 @@ class EntraIdentityProvider:
             request_count=request_count,
             duration_ms=duration_ms,
             limitations=tuple(limitations),
+            supplemental_evidence=IdentityEvidenceBundle(
+                roles=tuple(sorted(
+                    roles.values(),
+                    key=lambda item: item.natural_key,
+                )),
+                relationships=tuple(sorted(
+                    relationships.values(),
+                    key=lambda item: (
+                        item.relationship,
+                        item.source_kind.value,
+                        item.source_key,
+                        item.target_kind.value,
+                        item.target_key,
+                    ),
+                )),
+            ),
         )
