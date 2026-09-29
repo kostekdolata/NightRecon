@@ -54,11 +54,9 @@ class FixtureTransport:
         )
         application_owners_path = (
             f"/v1.0/applications/{APPLICATION_ID}/owners"
-            "?$select=id,displayName,userPrincipalName,appId&$top=100"
         )
         service_owners_path = (
             f"/v1.0/servicePrincipals/{SERVICE_ID}/owners"
-            "?$select=id,displayName,userPrincipalName,appId&$top=100"
         )
         self._pages = {
             GRAPH_USERS_PATH: GraphPage(items=(
