@@ -36,7 +36,7 @@ class WhitePackageBoundaryTests(unittest.TestCase):
     def test_white_manifest_matches_fail_closed_shared_core_policy(self) -> None:
         self.assertEqual(WHITE_EDITION_SLUG, "white")
         self.assertEqual(WHITE_OWNED_COMMANDS, available_commands("white"))
-        self.assertEqual(WHITE_OWNED_COMMANDS, ("editions", "policy"))
+        self.assertEqual(WHITE_OWNED_COMMANDS, ("approval", "editions", "policy"))
         self.assertEqual(WHITE_ACTIVE_COMMANDS, ())
 
     def test_foundation_declares_all_required_deployment_targets(self) -> None:
@@ -49,6 +49,7 @@ class WhitePackageBoundaryTests(unittest.TestCase):
                 "composed-stack-deployment-target",
                 "live-usb-deployment-target",
                 "deterministic-policy-compiler",
+                "approval-workflow-engine",
             },
         )
 
