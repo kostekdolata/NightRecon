@@ -921,18 +921,28 @@ class ActiveDirectoryIdentityProvider:
                     )
                 else:
                     source_kind, source_key = manager
-                    add_relationship(IdentityRelationshipEvidence(
-                        source_kind=source_kind,
-                        source_key=source_key,
-                        target_kind=GraphNodeKind.GROUP,
-                        target_key=directory_natural_key(
-                            "group",
-                            group.distinguished_name,
-                            namespace="ad",
-                        ),
-                        relationship="manages",
-                        source_id=f"{request.source_id}#managed-by",
-                    ))
+                    target_key = directory_natural_key(
+                        "group",
+                        group.distinguished_name,
+                        namespace="ad",
+                    )
+                    if (
+                        source_kind is GraphNodeKind.GROUP
+                        and source_key == target_key
+                    ):
+                        mark_truncated(
+                            "Active Directory managedBy resolved to the same group; "
+                            "self-management relationship omitted."
+                        )
+                    else:
+                        add_relationship(IdentityRelationshipEvidence(
+                            source_kind=source_kind,
+                            source_key=source_key,
+                            target_kind=GraphNodeKind.GROUP,
+                            target_key=target_key,
+                            relationship="manages",
+                            source_id=f"{request.source_id}#managed-by",
+                        ))
 
         explicit_memberships = {
             (member.casefold(), group.distinguished_name.casefold())
@@ -1012,15 +1022,22 @@ class ActiveDirectoryIdentityProvider:
                     )
                     continue
                 target = matches[0]
+                target_key = directory_natural_key(
+                    target.kind,
+                    target.distinguished_name,
+                    namespace="ad",
+                )
+                if target_key == source_key:
+                    mark_truncated(
+                        "Active Directory constrained-delegation target resolved "
+                        "to the same identity; self-relationship omitted."
+                    )
+                    continue
                 add_relationship(IdentityRelationshipEvidence(
                     source_kind=GraphNodeKind.IDENTITY,
                     source_key=source_key,
                     target_kind=GraphNodeKind.IDENTITY,
-                    target_key=directory_natural_key(
-                        target.kind,
-                        target.distinguished_name,
-                        namespace="ad",
-                    ),
+                    target_key=target_key,
                     relationship="delegates-to",
                     source_id=f"{request.source_id}#constrained-delegation",
                 ))
@@ -1053,6 +1070,12 @@ class ActiveDirectoryIdentityProvider:
                         identity_type="ad-domain",
                     ),
                 )
+                if partner_key == current_domain_key:
+                    mark_truncated(
+                        "Active Directory trusted-domain object resolved to the "
+                        "current domain; self-trust relationship omitted."
+                    )
+                    continue
                 properties = tuple(
                     (name, str(value))
                     for name, value in (
