@@ -287,7 +287,7 @@ class EngagementDomainTests(unittest.TestCase):
 
         self.assertIn("# Rules of Engagement — ACME September Assessment", rendered)
         self.assertIn(f"sha256:{definition.fingerprint()}", rendered)
-        self.assertIn("\`192.0.2.200\`", rendered)
+        self.assertIn("192.0.2.200", rendered)
         self.assertIn("Maximum intrusiveness: **safe-active**", rendered)
         self.assertIn("Total action budget: **40**", rendered)
         self.assertIn("Retention: **30 days**", rendered)
