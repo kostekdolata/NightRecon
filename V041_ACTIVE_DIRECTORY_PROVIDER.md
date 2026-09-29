@@ -88,5 +88,7 @@ This provider does not implement:
 The deterministic provider-quality benchmark is documented in
 [V041_AD_BENCHMARK_LAB.md](V041_AD_BENCHMARK_LAB.md).
 
-Broader privilege/trust relationships, live external comparison measurements,
-and the Entra provider remain later v0.41 batches.
+Broader privilege/trust relationships and live external comparison
+measurements remain later v0.41 batches. The read-only Microsoft Entra provider
+is documented separately in
+[V041_ENTRA_PROVIDER.md](V041_ENTRA_PROVIDER.md).
