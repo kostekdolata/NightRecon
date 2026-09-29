@@ -22,7 +22,7 @@ from nightrecon_shared_core.workspace import LocalWorkspace
 
 
 _VALID_SOURCE_TYPES = frozenset({"active-directory", "entra-id"})
-_VALID_ENTRY_KINDS = frozenset({"user", "computer", "service", "group"})
+_VALID_ENTRY_KINDS = frozenset({"user", "computer", "service", "application", "group"})
 
 
 def _required(value: str, field: str) -> str:
@@ -42,7 +42,9 @@ class DirectoryEntry:
         _required(self.distinguished_name, "distinguished_name")
         _required(self.name, "name")
         if self.kind not in _VALID_ENTRY_KINDS:
-            raise ValueError("kind must be user, computer, service, or group")
+            raise ValueError(
+                "kind must be user, computer, service, application, or group"
+            )
         if self.kind != "group" and self.members:
             raise ValueError("only group entries can contain members")
         if len(self.members) != len(set(self.members)):
@@ -88,6 +90,7 @@ class IdentityProviderCollection:
     request_count: int = 0
     duration_ms: int = 0
     limitations: tuple[str, ...] = ()
+    supplemental_evidence: IdentityEvidenceBundle = IdentityEvidenceBundle.empty()
 
     def __post_init__(self) -> None:
         if not isinstance(self.entries, tuple) or any(
@@ -107,6 +110,10 @@ class IdentityProviderCollection:
             for item in self.limitations
         ):
             raise ValueError("identity provider limitations must be nonblank strings")
+        if not isinstance(self.supplemental_evidence, IdentityEvidenceBundle):
+            raise ValueError(
+                "identity provider supplemental_evidence must be IdentityEvidenceBundle"
+            )
 
 
 class ReadOnlyIdentityProvider(Protocol):
@@ -169,6 +176,104 @@ def _provider_collection(
     )
 
 
+def _merge_identity_evidence(
+    base: IdentityEvidenceBundle,
+    supplemental: IdentityEvidenceBundle,
+) -> IdentityEvidenceBundle:
+    def unique(items, key, description):
+        combined = tuple(items)
+        seen: set[object] = set()
+        for item in combined:
+            natural = key(item)
+            if natural in seen:
+                raise ValueError(f"duplicate {description} in identity evidence")
+            seen.add(natural)
+        return combined
+
+    identities = unique(
+        base.identities + supplemental.identities,
+        lambda item: item.natural_key,
+        "identity",
+    )
+    groups = unique(
+        base.groups + supplemental.groups,
+        lambda item: item.natural_key,
+        "group",
+    )
+    roles = unique(
+        base.roles + supplemental.roles,
+        lambda item: item.natural_key,
+        "role",
+    )
+    memberships = unique(
+        base.memberships + supplemental.memberships,
+        lambda item: (item.member_kind, item.member_key, item.group_key),
+        "membership relationship",
+    )
+    permissions = unique(
+        base.permissions + supplemental.permissions,
+        lambda item: item.natural_key,
+        "permission",
+    )
+    relationships = unique(
+        base.relationships + supplemental.relationships,
+        lambda item: (
+            item.source_kind,
+            item.source_key,
+            item.target_kind,
+            item.target_key,
+            item.relationship,
+        ),
+        "identity relationship",
+    )
+
+    identity_keys = {item.natural_key for item in identities}
+    group_keys = {item.natural_key for item in groups}
+    role_keys = {item.natural_key for item in roles}
+    for item in relationships:
+        source_keys = identity_keys if item.source_kind.value == "identity" else group_keys
+        if item.source_key not in source_keys:
+            raise ValueError("identity relationship source is missing from evidence")
+        if item.target_kind.value == "identity":
+            target_keys = identity_keys
+        elif item.target_kind.value == "group":
+            target_keys = group_keys
+        elif item.target_kind.value == "permission":
+            target_keys = role_keys
+        else:
+            raise ValueError("identity relationship target kind is unsupported")
+        if item.target_key not in target_keys:
+            raise ValueError("identity relationship target is missing from evidence")
+
+    return IdentityEvidenceBundle(
+        identities=tuple(sorted(identities, key=lambda item: item.natural_key)),
+        groups=tuple(sorted(groups, key=lambda item: item.natural_key)),
+        memberships=tuple(sorted(
+            memberships,
+            key=lambda item: (
+                item.group_key,
+                item.member_kind.value,
+                item.member_key,
+            ),
+        )),
+        permissions=tuple(sorted(
+            permissions,
+            key=lambda item: item.natural_key,
+        )),
+        roles=tuple(sorted(roles, key=lambda item: item.natural_key)),
+        relationships=tuple(sorted(
+            relationships,
+            key=lambda item: (
+                item.relationship,
+                item.source_kind.value,
+                item.source_key,
+                item.target_kind.value,
+                item.target_key,
+            ),
+        )),
+    )
+
+
 def collect_authorized_identity_intelligence(
     workspace: LocalWorkspace,
     provider: ReadOnlyIdentityProvider,
@@ -211,12 +316,16 @@ def collect_authorized_identity_intelligence(
             max_memberships=request.limits.max_memberships,
         ),
     )
+    evidence = _merge_identity_evidence(
+        imported.evidence,
+        provider_output.supplemental_evidence,
+    )
     return IdentityCollectionResult(
         source_type=request.source_type,
         target=request.target,
         entry_count=len(entries),
         unresolved_members=imported.unresolved_members,
-        evidence=imported.evidence,
+        evidence=evidence,
         truncated=provider_output.truncated,
         provider_requests=provider_output.request_count,
         provider_duration_ms=provider_output.duration_ms,
