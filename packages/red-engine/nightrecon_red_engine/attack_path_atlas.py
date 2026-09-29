@@ -224,15 +224,20 @@ def build_cross_domain_attack_path_atlas(
     if GraphNodeKind.CRITICAL_ASSET in start_kinds:
         raise ValueError("critical-asset cannot be a start kind")
 
-    allowed_relationships = tuple(sorted({
-        item.strip().lower()
+    if any(
+        not isinstance(item, str)
+        or not item
+        or item != item.strip()
         for item in relationships
-        if isinstance(item, str) and item.strip()
-    }))
-    if len(allowed_relationships) != len(tuple(
-        item for item in relationships if isinstance(item, str) and item.strip()
-    )):
+    ):
         raise ValueError("relationships must contain unique nonblank strings")
+    normalized_relationships = tuple(
+        item.lower()
+        for item in relationships
+    )
+    if len(normalized_relationships) != len(set(normalized_relationships)):
+        raise ValueError("relationships must contain unique nonblank strings")
+    allowed_relationships = tuple(sorted(normalized_relationships))
     allowed = set(allowed_relationships)
 
     index = IdentityGraphIndex(graph)
@@ -326,6 +331,10 @@ def build_cross_domain_attack_path_atlas(
                     # Critical assets terminate the review path.
                     continue
 
+                if expansions + len(queue) >= active.max_expansions:
+                    if "global expansion ceiling reached" not in truncation_reasons:
+                        truncation_reasons.append("global expansion ceiling reached")
+                    continue
                 queue.append((next_nodes, next_edges))
 
             if hard_stop:
