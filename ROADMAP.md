@@ -302,6 +302,39 @@ The measurable specialist comparison and broader product-completion gates remain
 in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md); a stable v0.40 milestone does not
 claim universal parity with specialist tools.
 
+### v0.41.0 — Live Identity Intelligence
+
+Status: release finalization.
+
+Delivered capabilities:
+
+- concrete authorization-first read-only Active Directory provider over
+  certificate-validating LDAPS/StartTLS
+- concrete authorization-first read-only Microsoft Entra provider over a fixed
+  Microsoft Graph v1.0 collection plan
+- identity-safe live operator commands under the existing engagement policy
+- dedicated AD and Entra evidence namespaces
+- user, service, computer, application, group, role, and domain identities
+- direct/nested and primary-group membership evidence
+- bounded membership-path review
+- Entra application/service-principal ownership and scoped directory roles
+- selected well-known AD privileged-group semantics
+- AD `managedBy`, constrained-delegation, and domain-trust relationships
+- explicit incomplete-evidence handling and provider request/runtime limits
+- deterministic label-free AD/Entra benchmark fixtures
+- reproducible graph fingerprints and explicit graph-label export boundary
+- full package/migration ownership registration for the v0.41 identity modules
+
+The v0.41 release closes the concrete AD/Entra identity-provider foundation and
+selected relationship-modeling milestone. It does not claim universal parity
+with BloodHound or another specialist identity product; live authorized
+comparison labs and broader ACL/security-descriptor coverage remain measured
+acceptance work.
+
+Release gate: coordinated 0.41.0 package metadata, exact-head 19-job CI,
+standalone/combined distribution smoke, merge to `master`, post-merge 19-job
+verification, then guarded annotated tag creation.
+
 ## Generation 3 — Red Validation Engine
 
 Goal: controlled validation of authorized attack paths.
@@ -421,17 +454,13 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Keep the five-Night catalog, separation contract, and v0.31 CLI version
-   correction merged and verified.
-2. Verify the internal fail-closed edition command gateway without changing
-   the existing single-package CLI defaults.
-3. Complete the Red Night acceptance gates in [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md).
-   Evidence-only path review, a shared-distribution `red-night` launcher, and a
-   separately built `red-night-app` preview now exist. Split shared safety
-   core and Red-only engines, and verify isolation before production release.
-4. Build authorization-first live Active Directory and Entra ID collectors on
-   the stable graph evidence contract; the offline normalized directory export
-   bridge is an intermediate step, not a live collector.
-5. Finish Red Night's remaining controlled validation, engagement safety,
-   reporting, and repeatable specialist-comparison gates before beginning
-   product development of another Night.
+1. Finalize and tag Red Night v0.41.0 only after coordinated package metadata,
+   exact-head CI, merge verification, and guarded release-tag approval.
+2. Run live authorized identity comparison labs and record coverage,
+   false-positive, runtime, operator-step, and incomplete-evidence measurements.
+3. Close the next highest evidence-backed Red acceptance gap rather than adding
+   another foundation abstraction. Candidate areas are professional
+   reporting/collaboration, broader safe read-only ACL/security-descriptor
+   relationships, and controlled-validation technique coverage.
+4. Keep Red Night as the active product track until the full
+   [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md) standard is evidence-backed.
