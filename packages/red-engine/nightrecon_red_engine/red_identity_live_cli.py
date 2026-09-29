@@ -294,7 +294,6 @@ def main(argv: Sequence[str]) -> None:
         graph = add_identity_evidence_to_identity_graph(
             IdentityGraphBuilder().build(),
             result.evidence,
-            observed_at=observed_at,
         )
         graph_report = IdentityGraphReport.create(graph)
         manifest = create_identity_graph_snapshot_manifest(graph)
