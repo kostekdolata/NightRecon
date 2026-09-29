@@ -73,6 +73,11 @@ def _store_error(exc: Exception) -> None:
 
 
 def main(argv: Sequence[str]) -> None:
+    if argv and argv[0] == "collect":
+        from nightrecon_red_engine.red_identity_live_cli import main as live_main
+        live_main(argv[1:])
+        return
+
     parser = argparse.ArgumentParser(prog="red-night identity")
     operations = parser.add_subparsers(dest="operation", required=True)
 
