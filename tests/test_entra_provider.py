@@ -228,6 +228,42 @@ class EntraIdentityProviderTests(unittest.TestCase):
                 for item in result.limitations)
         )
 
+    def test_same_role_at_multiple_scopes_remains_distinct(self):
+        pages = base_pages()
+        pages[GRAPH_ROLE_ASSIGNMENTS_PATH] = GraphPage(items=(
+            {
+                "id": "assignment-1",
+                "principalId": USER_ID,
+                "roleDefinitionId": ROLE_ID,
+                "directoryScopeId": "/",
+            },
+            {
+                "id": "assignment-2",
+                "principalId": USER_ID,
+                "roleDefinitionId": ROLE_ID,
+                "directoryScopeId": "/administrativeUnits/unit-1",
+            },
+        ))
+        provider = EntraIdentityProvider(
+            transport=FakeGraphTransport(pages),
+            tenant_id=TENANT,
+            clock=lambda: 100.0,
+        )
+
+        result = provider.collect(request())
+
+        self.assertEqual(len(result.supplemental_evidence.roles), 2)
+        assignments = [
+            item for item in result.supplemental_evidence.relationships
+            if item.relationship == "assigned-role"
+        ]
+        self.assertEqual(len(assignments), 2)
+        self.assertEqual(
+            {dict(item.properties)["directory_scope_id"] for item in assignments},
+            {"/", "/administrativeUnits/unit-1"},
+        )
+        self.assertEqual(len({item.target_key for item in assignments}), 2)
+
     def test_tenant_mismatch_fails_before_graph_call(self):
         transport = FakeGraphTransport({})
         provider = EntraIdentityProvider(
