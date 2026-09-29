@@ -220,13 +220,17 @@ No runtime behavior changes.
 
 ### Batch B — package skeleton
 
-Create White engine/application namespaces with:
+Status: implemented and PR-CI verified.
 
-- version metadata;
-- informational CLI/application entry point;
-- capability/edition registration;
-- no active operations;
-- package-isolation tests.
+Delivered:
+
+- White engine/application namespaces and version metadata;
+- `white-night-app` informational entry point;
+- explicit foundation capability/command registration;
+- zero active commands;
+- package-boundary unit tests;
+- isolated wheel/install/uninstall distribution smoke;
+- dedicated four-platform/runtime White distribution CI matrix.
 
 ### Batch C — engagement domain
 
