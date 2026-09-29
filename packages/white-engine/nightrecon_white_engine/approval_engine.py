@@ -551,7 +551,7 @@ class ApprovalGrant:
         _sha256(self.workflow_fingerprint, "workflow_fingerprint")
         object.__setattr__(self, "approver_ids", approvers)
 
-    def to_dict(self) -> dict[str, Any]:
+    def _payload(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
             "request_id": self.request_id,
@@ -565,6 +565,54 @@ class ApprovalGrant:
             "approver_ids": list(self.approver_ids),
             "workflow_fingerprint": self.workflow_fingerprint,
         }
+
+    @property
+    def fingerprint(self) -> str:
+        return _fingerprint(self._payload())
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = self._payload()
+        payload["grant_fingerprint"] = self.fingerprint
+        return payload
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "ApprovalGrant":
+        required = {
+            "schema_version",
+            "request_id",
+            "engagement_id",
+            "policy_bundle_fingerprint",
+            "capability",
+            "target",
+            "impact",
+            "approved_at",
+            "expires_at",
+            "approver_ids",
+            "workflow_fingerprint",
+            "grant_fingerprint",
+        }
+        if not isinstance(payload, Mapping) or set(payload) != required:
+            raise ApprovalWorkflowError("approval grant schema is not supported")
+        if not isinstance(payload["approver_ids"], list):
+            raise ApprovalWorkflowError("approver_ids must be a list")
+        grant = cls(
+            schema_version=payload["schema_version"],
+            request_id=payload["request_id"],
+            engagement_id=payload["engagement_id"],
+            policy_bundle_fingerprint=payload["policy_bundle_fingerprint"],
+            capability=payload["capability"],
+            target=payload["target"],
+            impact=payload["impact"],
+            approved_at=payload["approved_at"],
+            expires_at=payload["expires_at"],
+            approver_ids=tuple(payload["approver_ids"]),
+            workflow_fingerprint=payload["workflow_fingerprint"],
+        )
+        if payload["grant_fingerprint"] != grant.fingerprint:
+            raise ApprovalWorkflowError(
+                "approval grant fingerprint verification failed"
+            )
+        return grant
 
 
 @dataclass(frozen=True)
