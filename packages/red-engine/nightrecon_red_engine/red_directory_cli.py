@@ -1,4 +1,4 @@
-"""Explicit offline directory import for Red Night; no directory connections."""
+"""Red Night identity CLI for offline import and authorized live collection."""
 
 from __future__ import annotations
 
