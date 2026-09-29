@@ -749,20 +749,36 @@ class ApprovalWorkflow:
             events=self.events + (event,),
         )
 
-    def approval_events(self) -> tuple[ApprovalEvent, ...]:
+    def approval_events(self, at: str | None = None) -> tuple[ApprovalEvent, ...]:
+        cutoff = None if at is None else _parse_time(_iso8601(at, "at"))
         return tuple(
-            event for event in self.events if event.event_type == "approved"
+            event
+            for event in self.events
+            if event.event_type == "approved"
+            and (cutoff is None or _parse_time(event.occurred_at) <= cutoff)
         )
 
-    def rejection_event(self) -> ApprovalEvent | None:
+    def rejection_event(self, at: str | None = None) -> ApprovalEvent | None:
+        cutoff = None if at is None else _parse_time(_iso8601(at, "at"))
         return next(
-            (event for event in self.events if event.event_type == "rejected"),
+            (
+                event
+                for event in self.events
+                if event.event_type == "rejected"
+                and (cutoff is None or _parse_time(event.occurred_at) <= cutoff)
+            ),
             None,
         )
 
-    def revocation_event(self) -> ApprovalEvent | None:
+    def revocation_event(self, at: str | None = None) -> ApprovalEvent | None:
+        cutoff = None if at is None else _parse_time(_iso8601(at, "at"))
         return next(
-            (event for event in self.events if event.event_type == "revoked"),
+            (
+                event
+                for event in self.events
+                if event.event_type == "revoked"
+                and (cutoff is None or _parse_time(event.occurred_at) <= cutoff)
+            ),
             None,
         )
 
@@ -771,14 +787,14 @@ class ApprovalWorkflow:
 
     def status(self, at: str) -> str:
         _iso8601(at, "at")
-        if self.revocation_event() is not None:
+        if self.revocation_event(at) is not None:
             return "revoked"
-        if self.rejection_event() is not None:
+        if self.rejection_event(at) is not None:
             return "rejected"
-        if len(self.approval_events()) >= self.request.policy.required_approvals:
-            return "approved"
         if _parse_time(at) >= _parse_time(self.request.expires_at):
             return "expired"
+        if len(self.approval_events(at)) >= self.request.policy.required_approvals:
+            return "approved"
         return "pending"
 
     def _ensure_pending(self, at: str) -> None:
@@ -808,7 +824,11 @@ class ApprovalWorkflow:
                 and event.detail("delegated_role") in self.request.policy.eligible_roles
             ):
                 valid_until = event.detail("valid_until")
-                if valid_until is not None and _parse_time(at) < _parse_time(valid_until):
+                if (
+                    _parse_time(event.occurred_at) <= _parse_time(at)
+                    and valid_until is not None
+                    and _parse_time(at) < _parse_time(valid_until)
+                ):
                     return event.detail("delegated_role") or ""
         raise ApprovalWorkflowError(
             "principal does not hold eligible approval authority"
@@ -1000,7 +1020,7 @@ class ApprovalWorkflow:
             raise ApprovalWorkflowError(
                 "approval grant is unavailable unless request is approved"
             )
-        approvals = self.approval_events()
+        approvals = self.approval_events(at)
         approved_at = approvals[
             self.request.policy.required_approvals - 1
         ].occurred_at
