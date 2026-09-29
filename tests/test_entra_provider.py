@@ -9,7 +9,10 @@ import unittest
 from urllib.error import HTTPError
 
 from nightrecon_red_engine.entra_provider import (
+    GRAPH_APPLICATIONS_PATH,
     GRAPH_GROUPS_PATH,
+    GRAPH_ROLE_ASSIGNMENTS_PATH,
+    GRAPH_ROLE_DEFINITIONS_PATH,
     GRAPH_SERVICE_PRINCIPALS_PATH,
     GRAPH_USERS_PATH,
     EntraIdentityProvider,
@@ -32,6 +35,8 @@ TENANT = "11111111-2222-3333-4444-555555555555"
 USER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 GROUP_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 SERVICE_ID = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+APPLICATION_ID = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+ROLE_ID = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
 
 
 class FakeGraphTransport:
@@ -86,6 +91,14 @@ def base_pages():
         f"/v1.0/groups/{GROUP_ID}/members"
         "?$select=id,displayName,userPrincipalName,appId&$top=100"
     )
+    application_owners_path = (
+        f"/v1.0/applications/{APPLICATION_ID}/owners"
+        "?$select=id,displayName,userPrincipalName,appId&$top=100"
+    )
+    service_owners_path = (
+        f"/v1.0/servicePrincipals/{SERVICE_ID}/owners"
+        "?$select=id,displayName,userPrincipalName,appId&$top=100"
+    )
     return {
         GRAPH_USERS_PATH: GraphPage(items=(
             {
@@ -100,11 +113,18 @@ def base_pages():
                 "displayName": "Operators",
             },
         )),
+        GRAPH_APPLICATIONS_PATH: GraphPage(items=(
+            {
+                "id": APPLICATION_ID,
+                "displayName": "Example Application",
+                "appId": "11111111-aaaa-bbbb-cccc-111111111111",
+            },
+        )),
         GRAPH_SERVICE_PRINCIPALS_PATH: GraphPage(items=(
             {
                 "id": SERVICE_ID,
-                "displayName": "Example App",
-                "appId": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+                "displayName": "Example Service Principal",
+                "appId": "22222222-aaaa-bbbb-cccc-222222222222",
             },
         )),
         members_path: GraphPage(items=(
@@ -115,15 +135,43 @@ def base_pages():
             },
             {
                 "id": SERVICE_ID,
-                "displayName": "Example App",
+                "displayName": "Example Service Principal",
                 "@odata.type": "#microsoft.graph.servicePrincipal",
+            },
+        )),
+        application_owners_path: GraphPage(items=(
+            {
+                "id": USER_ID,
+                "displayName": "Cloud User",
+                "@odata.type": "#microsoft.graph.user",
+            },
+        )),
+        service_owners_path: GraphPage(items=(
+            {
+                "id": USER_ID,
+                "displayName": "Cloud User",
+                "@odata.type": "#microsoft.graph.user",
+            },
+        )),
+        GRAPH_ROLE_DEFINITIONS_PATH: GraphPage(items=(
+            {
+                "id": ROLE_ID,
+                "displayName": "Directory Readers",
+            },
+        )),
+        GRAPH_ROLE_ASSIGNMENTS_PATH: GraphPage(items=(
+            {
+                "id": "assignment-1",
+                "principalId": USER_ID,
+                "roleDefinitionId": ROLE_ID,
+                "directoryScopeId": "/",
             },
         )),
     }
 
 
 class EntraIdentityProviderTests(unittest.TestCase):
-    def test_fixed_plan_collects_users_groups_services_and_memberships(self):
+    def test_fixed_plan_collects_identity_ownership_and_role_relationships(self):
         transport = FakeGraphTransport(base_pages())
         provider = EntraIdentityProvider(
             transport=transport,
@@ -133,28 +181,47 @@ class EntraIdentityProviderTests(unittest.TestCase):
 
         result = provider.collect(request())
 
-        self.assertEqual(result.request_count, 4)
+        self.assertEqual(result.request_count, 9)
         self.assertEqual(result.duration_ms, 0)
         self.assertEqual(
             {entry.kind for entry in result.entries},
-            {"user", "service", "group"},
+            {"user", "service", "application", "group"},
         )
         by_kind = {entry.kind: entry for entry in result.entries}
         self.assertEqual(by_kind["user"].distinguished_name, USER_ID)
         self.assertEqual(by_kind["service"].distinguished_name, SERVICE_ID)
+        self.assertEqual(by_kind["application"].distinguished_name, APPLICATION_ID)
         self.assertEqual(
             set(by_kind["group"].members),
             {USER_ID, SERVICE_ID},
         )
         self.assertEqual(
-            transport.calls[:3],
+            transport.calls[:4],
             [
                 GRAPH_USERS_PATH,
                 GRAPH_GROUPS_PATH,
+                GRAPH_APPLICATIONS_PATH,
                 GRAPH_SERVICE_PRINCIPALS_PATH,
             ],
         )
         self.assertEqual(transport.close_calls, 1)
+        self.assertEqual(len(result.supplemental_evidence.roles), 1)
+        relationships = result.supplemental_evidence.relationships
+        self.assertEqual(
+            [item.relationship for item in relationships].count("owns"),
+            2,
+        )
+        self.assertEqual(
+            [item.relationship for item in relationships].count("assigned-role"),
+            1,
+        )
+        role_assignment = next(
+            item for item in relationships if item.relationship == "assigned-role"
+        )
+        self.assertEqual(
+            dict(role_assignment.properties)["directory_scope_id"],
+            "/",
+        )
         self.assertTrue(result.truncated)
         self.assertTrue(
             any("service-principal group membership" in item.lower()
