@@ -117,11 +117,57 @@ Batch 3 does not register callable adapters, invoke the existing validation
 runtime, consume authorization or action budgets, perform network activity,
 resolve credentials, or introduce command/payload templates.
 
+## Batch 4 — Isolated revocable worker execution boundary
+
+Batch 4 is the first v0.43 layer that can perform a live validation action.
+Execution is intentionally limited to the three already-reviewed
+`read-only-proof` techniques:
+
+- bounded TCP connection property proof
+- bounded TLS transport/certificate-fingerprint proof
+- bounded HTTP HEAD response-policy proof
+
+The operator must explicitly select the exact Batch 3 binding ID. The parent
+process revalidates the current graph binding and then performs the canonical
+`validation.run` authorization with `consume=True`. Exactly one engagement
+action is therefore reserved before any child worker starts.
+
+Each action runs in a fresh spawned child process that receives only a minimal
+typed request containing the reviewed technique ID and bounded target metadata.
+The child receives no workspace handle, authorization store, credentials,
+generic command text, script/payload surface, or arbitrary HTTP request
+template.
+
+While the child runs, the parent reloads the workspace policy from disk and
+re-evaluates the already-reserved action without consuming another budget slot.
+A revoked authorization, inactive engagement, expired/not-yet-valid window,
+removed capability, scope change, approval loss, policy-budget inconsistency,
+or lease recheck failure causes fail-closed worker termination.
+
+Hard worker limits include:
+
+- one reserved engagement action per invocation
+- fresh spawned process per action
+- maximum 15-second worker runtime
+- maximum 5-second adapter I/O timeout
+- bounded policy recheck interval
+- maximum 64 KiB serialized result ceiling
+- Batch 3 postcondition validation before evidence is accepted
+
+The HTTP adapter is fixed to `HEAD /`, requests no response body, follows no
+redirects, and reports only status code plus an allowlisted set of security
+header names. The TLS adapter performs no authentication and confirms only an
+exact pre-observed certificate SHA-256 fingerprint; certificate-chain trust is
+not asserted by that proof.
+
+Batch 4 still provides no arbitrary command execution, shell, PowerShell, SQL,
+generic HTTP request builder, credential handling, exploit payload, persistence,
+privilege change, automatic technique selection, or high-impact technique.
+
 ## Planned follow-on batches
 
-1. Isolated worker and revocation boundary for approved validation execution.
-2. Cleanup/evidence lifecycle and deterministic retest integration.
-3. Reviewed ATT&CK mappings and controlled comparison labs.
+1. Cleanup/evidence lifecycle and deterministic retest integration.
+2. Reviewed ATT&CK mappings and controlled comparison labs.
 
 Higher-impact techniques remain out of scope until the isolation, approval,
 cleanup, and revocation boundaries are independently verified.
