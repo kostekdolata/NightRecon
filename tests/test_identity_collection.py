@@ -95,8 +95,18 @@ class IdentityCollectionTests(unittest.TestCase):
             service_dn = "CN=WebSvc,OU=Services,DC=example,DC=test"
             group_dn = "CN=Operators,OU=Groups,DC=example,DC=test"
             provider = FakeProvider((
-                DirectoryEntry(computer_dn, "computer", "ws01.example.test"),
-                DirectoryEntry(service_dn, "service", "Web Service"),
+                DirectoryEntry(
+                    computer_dn,
+                    "computer",
+                    "ws01.example.test",
+                    properties=(("dns_hostname", "ws01.example.test"),),
+                ),
+                DirectoryEntry(
+                    service_dn,
+                    "service",
+                    "Web Service",
+                    properties=(("spn_hosts", "web.example.test"),),
+                ),
                 DirectoryEntry(
                     group_dn,
                     "group",
@@ -122,6 +132,18 @@ class IdentityCollectionTests(unittest.TestCase):
                 {"ad-computer", "ad-service"},
             )
             self.assertEqual(len(result.evidence.memberships), 2)
+            properties_by_type = {
+                item.identity_type: dict(item.properties)
+                for item in result.evidence.identities
+            }
+            self.assertEqual(
+                properties_by_type["ad-computer"]["dns_hostname"],
+                "ws01.example.test",
+            )
+            self.assertEqual(
+                properties_by_type["ad-service"]["spn_hosts"],
+                "web.example.test",
+            )
             self.assertEqual(result.unresolved_members, 0)
 
     def test_entra_collection_uses_separate_identity_namespace(self):
@@ -324,6 +346,25 @@ class IdentityCollectionTests(unittest.TestCase):
             DirectoryEntry("CN=G", "group", "G", ("CN=A", "CN=A"))
         with self.assertRaises(ValueError):
             DirectoryEntry("CN=X", "unknown", "X")
+
+    def test_provider_entries_reject_unallowlisted_correlation_properties(self):
+        with self.assertRaisesRegex(ValueError, "allowlisted"):
+            DirectoryEntry(
+                "CN=A",
+                "computer",
+                "A",
+                properties=(("password", "secret"),),
+            )
+        with self.assertRaisesRegex(ValueError, "unique"):
+            DirectoryEntry(
+                "CN=A",
+                "computer",
+                "A",
+                properties=(
+                    ("dns_hostname", "a.example.test"),
+                    ("dns_hostname", "b.example.test"),
+                ),
+            )
 
     def test_provider_metadata_rejects_invalid_values(self):
         with self.assertRaisesRegex(ValueError, "request_count"):
