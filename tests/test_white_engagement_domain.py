@@ -96,6 +96,22 @@ class WhiteEngagementDomainTests(unittest.TestCase):
         self.assertEqual(rebuilt.canonical_json(), engagement.canonical_json())
         self.assertEqual(rebuilt.fingerprint, engagement.fingerprint)
 
+    def test_semantically_equivalent_unordered_sets_normalize_identically(self) -> None:
+        first = sample_engagement()
+        reordered_contacts = tuple(reversed(first.contacts))
+        second = sample_engagement(
+            contacts=reordered_contacts,
+            roe=sample_roe(
+                scope=ScopeDefinition(
+                    allowed=("app.example.test", "192.0.2.0/24"),
+                    excluded=("192.0.2.250",),
+                ),
+                allowed_techniques=("web.safe-active", "discovery"),
+            ),
+        )
+        self.assertEqual(first.fingerprint, second.fingerprint)
+        self.assertEqual(first.roe.fingerprint, second.roe.fingerprint)
+
     def test_fingerprint_changes_when_authoring_intent_changes(self) -> None:
         first = sample_engagement()
         second = sample_engagement(
