@@ -325,7 +325,7 @@ def _provenance(
     )
 
 
-def validationvalidation_eligibility_id(
+def validation_eligibility_id(
     candidate_id: str,
     technique_id: str,
     target_node_id: str,
