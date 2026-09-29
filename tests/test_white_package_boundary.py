@@ -36,7 +36,7 @@ class WhitePackageBoundaryTests(unittest.TestCase):
     def test_white_manifest_matches_fail_closed_shared_core_policy(self) -> None:
         self.assertEqual(WHITE_EDITION_SLUG, "white")
         self.assertEqual(WHITE_OWNED_COMMANDS, available_commands("white"))
-        self.assertEqual(WHITE_OWNED_COMMANDS, ("editions",))
+        self.assertEqual(WHITE_OWNED_COMMANDS, ("editions", "policy"))
         self.assertEqual(WHITE_ACTIVE_COMMANDS, ())
 
     def test_foundation_declares_all_required_deployment_targets(self) -> None:
@@ -48,6 +48,7 @@ class WhitePackageBoundaryTests(unittest.TestCase):
                 "standalone-deployment-target",
                 "composed-stack-deployment-target",
                 "live-usb-deployment-target",
+                "deterministic-policy-compiler",
             },
         )
 
@@ -126,7 +127,7 @@ class WhitePackageBoundaryTests(unittest.TestCase):
             with self.subTest(path=path.name):
                 self.assertTrue(imported_roots(path).isdisjoint(forbidden_roots))
 
-    def test_batch_two_contains_no_network_or_process_execution_surface(self) -> None:
+    def test_white_engine_contains_no_network_or_process_execution_surface(self) -> None:
         forbidden_text = (
             "socket.",
             "subprocess.",
