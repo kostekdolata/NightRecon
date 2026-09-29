@@ -3,9 +3,9 @@
 `nightrecon-white-night` is the separately installable White Night application
 package.
 
-The initial `0.1.0a1` package is a foundation release candidate only. It
+The `0.2.0a1` package is a domain-foundation release candidate. It
 supplies the `white-night-app` entry point and depends on
-`nightrecon-white-engine==0.1.0a1` plus the mandatory
+`nightrecon-white-engine==0.2.0a1` plus the mandatory
 `nightrecon-shared-core==0.41.0`.
 
 It deliberately exposes only the informational `editions` command. White Night
