@@ -488,9 +488,9 @@ Delivered:
 
 ### White Batch 3 — Engagement, scope and ROE domain
 
-Status: active implementation.
+Status: implemented and PR-CI verified.
 
-Current scope:
+Delivered:
 
 - immutable/versioned engagement definitions
 - named engagement contacts and roles
@@ -501,9 +501,15 @@ Current scope:
 - data classification, retention, and export policy
 - deterministic canonical JSON and SHA-256 fingerprints
 - stable human-readable ROE and engagement summary rendering
+- deterministic normalization for unordered scope/technique/contact inputs
 - explicit non-authorization semantics: authoring models cannot execute,
   approve, or authorize operations
 - isolated built-package smoke coverage
+- current-master compatibility verification with Red v0.42 web/API correlation
+
+Release evidence: the clean current-master PR matrix completed 27/27 jobs
+successfully, including all four White distribution combinations and every
+current Red/general integration job.
 
 Deferred to Batch 4:
 
