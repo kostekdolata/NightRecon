@@ -24,6 +24,10 @@ from nightrecon_red_engine.graph_projection import (
 )
 from nightrecon_red_engine.graph_threat_context import add_threat_context_to_identity_graph
 from nightrecon_red_engine.graph_validation import assert_valid_identity_graph
+from nightrecon_red_engine.graph_web_surface import (
+    WebSurfaceEvidence,
+    add_web_surface_evidence_to_graph,
+)
 from nightrecon_red_engine.threat_context import ThreatContextResult
 from nightrecon_red_engine.vulnerability_intelligence import ServiceVulnerabilityResult
 
@@ -35,11 +39,13 @@ def build_identity_graph(
     threat_context: tuple[ThreatContextResult, ...] = (),
     assessments: tuple[ServiceAssessmentResult, ...] = (),
     identity_evidence: IdentityEvidenceBundle | None = None,
+    web_surfaces: tuple[WebSurfaceEvidence, ...] = (),
     critical_assets: tuple[CriticalAssetEvidence, ...] = (),
     vulnerability_observed_at: str = "",
     threat_context_observed_at: str = "",
     assessment_observed_at: str = "",
     identity_observed_at: str = "",
+    web_surface_observed_at: str = "",
     critical_asset_observed_at: str = "",
     limits: GraphBuildLimits | None = None,
 ) -> IdentityGraph:
@@ -73,6 +79,12 @@ def build_identity_graph(
         observed_at=identity_observed_at,
         limits=limits,
     )
+    graph = add_web_surface_evidence_to_graph(
+        graph,
+        web_surfaces,
+        observed_at=web_surface_observed_at,
+        limits=limits,
+    )
     graph = add_critical_asset_evidence_to_identity_graph(
         graph,
         critical_assets,
@@ -90,11 +102,13 @@ def build_correlated_identity_graph(
     threat_context: tuple[ThreatContextResult, ...] = (),
     assessments: tuple[ServiceAssessmentResult, ...] = (),
     identity_evidence: IdentityEvidenceBundle | None = None,
+    web_surfaces: tuple[WebSurfaceEvidence, ...] = (),
     critical_assets: tuple[CriticalAssetEvidence, ...] = (),
     vulnerability_observed_at: str = "",
     threat_context_observed_at: str = "",
     assessment_observed_at: str = "",
     identity_observed_at: str = "",
+    web_surface_observed_at: str = "",
     critical_asset_observed_at: str = "",
     limits: GraphBuildLimits | None = None,
     correlation_limits: CrossSurfaceCorrelationLimits | None = None,
@@ -107,11 +121,13 @@ def build_correlated_identity_graph(
         threat_context=threat_context,
         assessments=assessments,
         identity_evidence=identity_evidence,
+        web_surfaces=web_surfaces,
         critical_assets=critical_assets,
         vulnerability_observed_at=vulnerability_observed_at,
         threat_context_observed_at=threat_context_observed_at,
         assessment_observed_at=assessment_observed_at,
         identity_observed_at=identity_observed_at,
+        web_surface_observed_at=web_surface_observed_at,
         critical_asset_observed_at=critical_asset_observed_at,
         limits=limits,
     )
