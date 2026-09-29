@@ -337,7 +337,7 @@ verification, then guarded annotated tag creation.
 
 ### v0.42.0 — Cross-Domain Exposure Intelligence
 
-Status: active development.
+Status: release finalization.
 
 Product goal:
 
@@ -396,14 +396,26 @@ Batch 4 — Exact Cloud Correlation:
 - no DNS resolution, fuzzy/display-name matching, IP adjacency inference, or
   provider identity guessing
 
-Planned follow-on v0.42 batches:
+Batch 5 — Proposal-Only Validation Candidates:
 
-- bounded validation-candidate compilation from evidence-backed paths
-- cross-domain engagement/path reporting with evidence gaps and retest state
-- choke-point and blast-radius analysis that remains descriptive rather than
-  an exploitability or risk score
-- reproducible specialist comparison labs measuring path coverage,
-  false/invented edges, runtime, evidence completeness, and operator effort
+- deterministic bounded candidates compiled from exact atlas paths
+- exact node, edge, evidence and observed/inferred-hop context retained
+- validation capability, approval review and scope review declared explicitly
+- no adapter execution, credential resolution, action consumption or mutation
+
+Batch 6 — Exposure Review and Structural Concentration:
+
+- path evidence-gap review including inferred hops and unresolved correlations
+- remediation/retest status summary and before/after path-set comparison
+- descriptive node/edge path, start and critical-target participation counts
+- no risk score, exploitability ranking, probability or automatic prioritization
+
+Batch 7 — Reproducible Comparison/Runtime Lab:
+
+- deterministic expected/matched/missed/invented path and edge measurements
+- evidence completeness, runtime, operator-step count and truncation reporting
+- explicit non-parity interpretation; live specialist comparison remains a
+  broader Red acceptance activity
 
 The v0.42 atlas and correlation layers remain evidence-review surfaces. Graph
 reachability or a `correlates-to` edge does not establish exploitability,
@@ -530,11 +542,9 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Complete and verify v0.42 Batch 4 — Exact Cloud Correlation.
-2. Compile bounded controlled-validation candidates from evidence-backed paths;
-   never auto-execute them.
-3. Add cross-domain operator reporting, evidence-gap review, and remediation
-   impact on exposure paths.
-4. Run reproducible comparison labs and keep Red Night as the active product
-   track until the full [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md) standard is
-   evidence-backed.
+1. Finalize coordinated v0.42 package metadata and release documentation.
+2. Run the exact-head v0.42 release-finalization CI and distribution matrix.
+3. Merge the finalization PR and verify the exact master merge commit again.
+4. Add the verified immutable release commit to the guarded tag allowlist and
+   create the annotated v0.42.0 tag.
+5. Continue broader Red acceptance work without claiming unmeasured specialist parity.
