@@ -304,7 +304,7 @@ claim universal parity with specialist tools.
 
 ### v0.41.0 — Live Identity Intelligence
 
-Status: release finalization.
+Status: released, tagged, and verified stable.
 
 Delivered capabilities:
 
@@ -334,6 +334,43 @@ acceptance work.
 Release gate: coordinated 0.41.0 package metadata, exact-head 19-job CI,
 standalone/combined distribution smoke, merge to `master`, post-merge 19-job
 verification, then guarded annotated tag creation.
+
+### v0.42.0 — Cross-Domain Exposure Intelligence
+
+Status: active development.
+
+Product goal:
+
+Make Red Night operate as one evidence-backed engagement system across network,
+web/API, identity, cloud/hybrid, vulnerability, validation, remediation, and
+critical-asset evidence rather than as disconnected specialist surfaces.
+
+Batch 1 — Cross-Domain Attack Path Atlas:
+
+- bounded directed paths from selected identity/group/asset/service starts to
+  critical assets
+- one global exploration budget across the atlas
+- deterministic path IDs and ordering
+- observed/inferred hop counts retained explicitly
+- supporting engagement-evidence IDs retained per path
+- structural node/edge participation counts with no risk or exploitability
+  score
+- explicit truncation reasons for start, target, depth, path, and global
+  expansion ceilings
+- deterministic no-network cross-domain runtime benchmark on Python 3.11/3.14
+
+Planned follow-on v0.42 batches:
+
+- evidence correlation rules that create cross-domain links only from explicit
+  identifiers and provenance
+- bounded validation-candidate compilation from evidence-backed paths
+- cross-domain engagement/path reporting with evidence gaps and retest state
+- concrete AWS/Azure/Kubernetes read-only collectors
+- reproducible specialist comparison labs measuring path coverage,
+  false/invented edges, runtime, evidence completeness, and operator effort
+
+The v0.42 path atlas remains an evidence-review surface. Graph reachability does
+not establish exploitability, likelihood, impact, or risk.
 
 ## Generation 3 — Red Validation Engine
 
@@ -454,13 +491,12 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Finalize and tag Red Night v0.41.0 only after coordinated package metadata,
-   exact-head CI, merge verification, and guarded release-tag approval.
-2. Run live authorized identity comparison labs and record coverage,
-   false-positive, runtime, operator-step, and incomplete-evidence measurements.
-3. Close the next highest evidence-backed Red acceptance gap rather than adding
-   another foundation abstraction. Candidate areas are professional
-   reporting/collaboration, broader safe read-only ACL/security-descriptor
-   relationships, and controlled-validation technique coverage.
-4. Keep Red Night as the active product track until the full
-   [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md) standard is evidence-backed.
+1. Build and verify v0.42 Batch 1 — Cross-Domain Attack Path Atlas.
+2. Add evidence correlation rules that connect specialist evidence only when
+   explicit identifiers/provenance support the relationship.
+3. Compile bounded controlled-validation candidates from evidence-backed paths;
+   never auto-execute them.
+4. Add cross-domain operator reporting and concrete cloud collectors.
+5. Run reproducible comparison labs and keep Red Night as the active product
+   track until the full [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md) standard is
+   evidence-backed.
