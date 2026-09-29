@@ -413,6 +413,7 @@ class EntraIdentityProvider:
         limitations: list[str] = []
         identities: dict[str, DirectoryEntry] = {}
         groups: dict[str, tuple[str, set[str]]] = {}
+        role_definitions: dict[str, str] = {}
         roles: dict[str, RoleEvidence] = {}
         relationships: dict[
             tuple[GraphNodeKind, str, GraphNodeKind, str, str],
@@ -591,19 +592,12 @@ class EntraIdentityProvider:
 
         def add_role_definition(item: Mapping[str, object]) -> None:
             role_id = _object_id(item.get("id"))
-            if role_id in roles:
+            if role_id in role_definitions:
                 return
-            if len(roles) >= self._limits.max_role_definitions:
+            if len(role_definitions) >= self._limits.max_role_definitions:
                 mark_truncated("Microsoft Graph role-definition ceiling reached.")
                 return
-            label = _display_name(item)
-            key = directory_natural_key("role", role_id, namespace="entra")
-            roles[role_id] = RoleEvidence(
-                natural_key=key,
-                label=label,
-                source_id=f"{request.source_id}#role-definition:{role_id}",
-                properties=(("provider", "entra-directory-role"),),
-            )
+            role_definitions[role_id] = _display_name(item)
 
         def add_role_assignment(item: Mapping[str, object]) -> None:
             principal_id = _object_id(item.get("principalId"))
@@ -613,25 +607,42 @@ class EntraIdentityProvider:
                 "Microsoft Graph role assignment directoryScopeId",
             )
             principal = principal_reference(principal_id)
-            role = roles.get(role_id)
+            role_label = role_definitions.get(role_id)
             if principal is None:
                 mark_truncated(
                     "Microsoft Graph role assignment referenced a principal absent "
                     "from the bounded base identity collection; assignment omitted."
                 )
                 return
-            if role is None:
+            if role_label is None:
                 mark_truncated(
                     "Microsoft Graph role assignment referenced an unobserved role "
                     "definition; assignment omitted."
                 )
                 return
+            scoped_role_key = directory_natural_key(
+                "role",
+                f"{role_id}|{scope}",
+                namespace="entra",
+            )
+            roles.setdefault(
+                scoped_role_key,
+                RoleEvidence(
+                    natural_key=scoped_role_key,
+                    label=role_label,
+                    source_id=f"{request.source_id}#role-assignment",
+                    properties=(
+                        ("directory_scope_id", scope),
+                        ("provider", "entra-directory-role"),
+                    ),
+                ),
+            )
             source_kind, source_key = principal
             add_relationship(IdentityRelationshipEvidence(
                 source_kind=source_kind,
                 source_key=source_key,
                 target_kind=GraphNodeKind.PERMISSION,
-                target_key=role.natural_key,
+                target_key=scoped_role_key,
                 relationship="assigned-role",
                 source_id=f"{request.source_id}#role-assignment",
                 properties=(("directory_scope_id", scope),),
