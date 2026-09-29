@@ -220,6 +220,7 @@ BUILTIN_VALIDATION_TECHNIQUES = (
         eligibility_required_properties=("address", "port"),
         eligibility_required_values=(("protocol", "tcp"),),
         impact="standard",
+        attack_ids=("T1046",),
     ),
     ValidationTechniqueDefinition(
         technique_id="service.tls-property-proof",

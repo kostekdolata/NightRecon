@@ -202,9 +202,48 @@ engagement workspace.
 Batch 5 introduces no additional live validation technique, no cleanup mutation,
 no credential handling, and no expansion of the Batch 4 worker network surface.
 
+## Batch 6 — Reviewed ATT&CK mappings + controlled comparison labs
+
+Batch 6 reviews every current controlled-validation technique against MITRE
+ATT&CK without turning ATT&CK IDs into an equivalence claim.
+
+The bounded TCP service proof is recorded as **related** to Enterprise ATT&CK
+T1046 Network Service Discovery. The review uses the official MITRE ATT&CK
+T1046 reference (version 3.2, last modified 2026-05-12). The relationship is
+deliberately narrow: NightRecon confirms one already-selected TCP service; it
+does not enumerate a host/range or claim to implement the complete T1046
+adversary technique.
+
+The TLS transport/fingerprint proof and HTTP response-policy proof are explicitly
+marked **reviewed-unmapped**. Their current behavior validates already-observed
+transport/application evidence and is not force-fit to an ATT&CK adversary
+technique.
+
+A deterministic validation comparison lab now measures explicit fixture
+expectations across durable Batch 5 lifecycle records:
+
+- expected, matched, missed, and invented validation scenarios
+- exact terminal state and evidence-key shape
+- explicit cleanup completion state
+- reviewed ATT&CK relationship disposition and IDs
+- operator step count
+- runtime reported separately
+- deterministic SHA-256 comparison fingerprint excluding runtime
+
+The lab validates the durable lifecycle records before measurement and refuses
+duplicate actual scenarios. Its result explicitly states that fixture matching
+does not establish parity or operational equivalence with ATT&CK, Caldera,
+Metasploit, Cobalt Strike, or another specialist product.
+
+Batch 6 adds no worker technique, network request, credential surface, payload,
+cleanup mutation, automatic technique selection, or high-impact behavior.
+
 ## Planned follow-on batches
 
-1. Reviewed ATT&CK mappings and controlled comparison labs.
+No additional v0.43 execution expansion is implied by Batch 6. Release
+finalization should evaluate the full v0.43 acceptance state and leave live
+authorized specialist-product comparisons open where external evidence has not
+yet been collected.
 
 Higher-impact techniques remain out of scope until the isolation, approval,
 cleanup, and revocation boundaries are independently verified.

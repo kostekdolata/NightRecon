@@ -154,3 +154,33 @@ fixture-comparison result remains descriptive/review evidence. None of these
 objects independently establishes exploitability, compromise, authentication
 access, likelihood, impact, risk, or permission to execute.
 
+
+
+## v0.43 development state
+
+Red Night v0.43 Controlled Validation Intelligence now has a reviewed,
+evidence-backed validation chain from proposal through lifecycle comparison:
+
+- reviewed symbolic technique registry
+- exact candidate-to-technique eligibility
+- immutable adapter/precondition/postcondition contracts
+- explicit operator-selected isolated revocable workers for the current
+  read-only proof techniques
+- durable validation and cleanup evidence with deterministic remediation/retest
+  transitions
+- one reviewed ATT&CK relationship: the selected-service TCP proof is related
+  to T1046 Network Service Discovery, without claiming full technique
+  implementation
+- explicit reviewed-unmapped dispositions for the TLS metadata proof and HTTP
+  response-policy proof rather than force-fitting ATT&CK IDs
+- deterministic fixture comparison across expected/matched/missed/invented
+  validation lifecycle scenarios, evidence shape, cleanup state, ATT&CK review
+  disposition, operator steps, runtime, and a reproducible comparison
+  fingerprint
+
+The v0.43 controlled comparison lab remains an internal deterministic fixture
+lab. It does **not** close the live authorized specialist-comparison gates in
+this completion standard and does not establish parity with ATT&CK, Caldera,
+Metasploit, Cobalt Strike, Nmap, Burp/ZAP, BloodHound, or another specialist
+product. External comparison categories remain open until measured under the
+same documented authorized lab conditions.

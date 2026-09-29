@@ -515,6 +515,62 @@ def _validate_cleanup_record(
     return cleanup_state
 
 
+@dataclass(frozen=True)
+class ValidationLifecycleIntegrity:
+    engagement_id: str
+    validation_evidence_id: str
+    cleanup_evidence_id: str
+    binding_id: str
+    technique_id: str
+    state: str
+    evidence_keys: tuple[str, ...]
+    cleanup_state: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "engagement_id": self.engagement_id,
+            "validation_evidence_id": self.validation_evidence_id,
+            "cleanup_evidence_id": self.cleanup_evidence_id,
+            "binding_id": self.binding_id,
+            "technique_id": self.technique_id,
+            "state": self.state,
+            "evidence_keys": list(self.evidence_keys),
+            "cleanup_state": self.cleanup_state,
+        }
+
+
+def validate_validation_lifecycle_records(
+    validation_record: EvidenceRecord,
+    cleanup_record: EvidenceRecord,
+) -> ValidationLifecycleIntegrity:
+    """Validate exact durable lifecycle records without changing any state."""
+
+    state = _validate_validation_record(validation_record)
+    cleanup_state = _validate_cleanup_record(
+        cleanup_record,
+        validation_record,
+    )
+    evidence = validation_record.data.get("evidence")
+    if not isinstance(evidence, Mapping):
+        raise ValueError("persisted validation evidence payload is invalid")
+    return ValidationLifecycleIntegrity(
+        engagement_id=validation_record.engagement_id,
+        validation_evidence_id=validation_record.evidence_id,
+        cleanup_evidence_id=cleanup_record.evidence_id,
+        binding_id=_required_data_text(
+            validation_record.data,
+            "binding_id",
+        ),
+        technique_id=_required_data_text(
+            validation_record.data,
+            "technique_id",
+        ),
+        state=state.value,
+        evidence_keys=tuple(sorted(evidence)),
+        cleanup_state=cleanup_state,
+    )
+
+
 def _persisted_exact(
     workspace: LocalWorkspace,
     record: EvidenceRecord,
@@ -544,15 +600,13 @@ def record_persisted_validation_retest(
     _persisted_exact(workspace, validation_record)
     _persisted_exact(workspace, cleanup_record)
 
-    validation_state = _validate_validation_record(validation_record).value
-    cleanup_state = _validate_cleanup_record(
-        cleanup_record,
+    integrity = validate_validation_lifecycle_records(
         validation_record,
+        cleanup_record,
     )
-    binding_id = _required_data_text(
-        validation_record.data,
-        "binding_id",
-    )
+    validation_state = integrity.state
+    cleanup_state = integrity.cleanup_state
+    binding_id = integrity.binding_id
 
     return remediation_store.record_evidence_retest(
         finding_id,
