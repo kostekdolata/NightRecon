@@ -447,9 +447,17 @@ Batch 1 — Reviewed Technique Registry:
 - unknown techniques, target kinds, secret-like evidence fields, and invalid
   mappings fail closed
 
+Batch 2 — Exact Candidate-to-Technique Eligibility:
+
+- separate expected output evidence from graph eligibility prerequisites
+- exact canonical target-kind classification from graph evidence
+- candidate path/evidence/hop/safety metadata revalidated before planning
+- deterministic all-matches planning with no ranking or automatic selection
+- explicit no-target and missing-prerequisite rejection reasons
+- hard candidate/technique/target/option/rejection ceilings
+
 Planned follow-on v0.43 batches:
 
-- exact candidate-to-technique eligibility planning
 - explicit adapter/precondition/postcondition contracts
 - isolated revocable worker execution boundary
 - cleanup and retest evidence lifecycle
@@ -582,7 +590,11 @@ The current execution order is:
 
 1. Keep Red Night v0.42.0 as the verified stable Cross-Domain Exposure Intelligence baseline.
 2. Develop v0.43.0 Controlled Validation Intelligence in small verified batches.
-3. Complete and verify Batch 1 — the reviewed metadata-only validation technique registry.
-4. Add exact candidate-to-technique eligibility planning without automatic execution.
-5. Continue broader Red acceptance comparison evidence while preserving the existing
+3. Keep Batch 1 — the reviewed metadata-only validation technique registry — as
+   the verified v0.43 foundation.
+4. Complete and verify Batch 2 — exact candidate-to-technique eligibility
+   planning without automatic execution.
+5. Add explicit adapter/precondition/postcondition contracts before any worker
+   execution boundary is introduced.
+6. Continue broader Red acceptance comparison evidence while preserving the existing
    authorization, evidence-honesty, approval, revocation, and no-auto-execution rules.

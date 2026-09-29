@@ -59,6 +59,8 @@ class ValidationTechniqueDefinition:
     summary: str
     target_kinds: tuple[str, ...]
     evidence_keys: tuple[str, ...]
+    eligibility_required_properties: tuple[str, ...] = ()
+    eligibility_required_values: tuple[tuple[str, str], ...] = ()
     impact: str = "standard"
     requires_approval: bool = False
     attack_ids: tuple[str, ...] = ()
@@ -97,8 +99,64 @@ class ValidationTechniqueDefinition:
             if not _EVIDENCE_KEY_RE.fullmatch(key):
                 raise ValueError(f"invalid evidence key: {key}")
             lowered = key.lower()
-            if any(fragment in lowered for fragment in _SECRET_LIKE_EVIDENCE_FRAGMENTS):
-                raise ValueError(f"secret-like evidence key is not allowed: {key}")
+            if any(
+                fragment in lowered
+                for fragment in _SECRET_LIKE_EVIDENCE_FRAGMENTS
+            ):
+                raise ValueError(
+                    f"secret-like evidence key is not allowed: {key}"
+                )
+
+        _unique(
+            self.eligibility_required_properties,
+            "eligibility_required_properties",
+        )
+        for key in self.eligibility_required_properties:
+            if not _EVIDENCE_KEY_RE.fullmatch(key):
+                raise ValueError(
+                    f"invalid eligibility property key: {key}"
+                )
+            lowered = key.lower()
+            if any(
+                fragment in lowered
+                for fragment in _SECRET_LIKE_EVIDENCE_FRAGMENTS
+            ):
+                raise ValueError(
+                    "secret-like eligibility property is not allowed: "
+                    f"{key}"
+                )
+
+        eligibility_value_keys: list[str] = []
+        for key, value in self.eligibility_required_values:
+            if not _EVIDENCE_KEY_RE.fullmatch(key):
+                raise ValueError(
+                    f"invalid eligibility value key: {key}"
+                )
+            if not isinstance(value, str) or not value or value != value.strip():
+                raise ValueError(
+                    "eligibility required values must be nonblank "
+                    "trimmed strings"
+                )
+            lowered = key.lower()
+            if any(
+                fragment in lowered
+                for fragment in _SECRET_LIKE_EVIDENCE_FRAGMENTS
+            ):
+                raise ValueError(
+                    f"secret-like eligibility value key is not allowed: {key}"
+                )
+            eligibility_value_keys.append(key)
+        if len(eligibility_value_keys) != len(set(eligibility_value_keys)):
+            raise ValueError(
+                "eligibility_required_values must not repeat keys"
+            )
+        if set(self.eligibility_required_properties).intersection(
+            eligibility_value_keys
+        ):
+            raise ValueError(
+                "eligibility property names must not be duplicated across "
+                "presence and exact-value requirements"
+            )
 
         _unique(self.attack_ids, "attack_ids")
         for attack_id in self.attack_ids:
@@ -112,6 +170,13 @@ class ValidationTechniqueDefinition:
             "summary": self.summary,
             "target_kinds": list(self.target_kinds),
             "evidence_keys": list(self.evidence_keys),
+            "eligibility_required_properties": list(
+                self.eligibility_required_properties
+            ),
+            "eligibility_required_values": [
+                [key, value]
+                for key, value in self.eligibility_required_values
+            ],
             "impact": self.impact,
             "requires_approval": self.requires_approval,
             "attack_ids": list(self.attack_ids),
@@ -152,6 +217,8 @@ BUILTIN_VALIDATION_TECHNIQUES = (
         ),
         target_kinds=("service",),
         evidence_keys=("transport", "port", "state"),
+        eligibility_required_properties=("address", "port"),
+        eligibility_required_values=(("protocol", "tcp"),),
         impact="standard",
     ),
     ValidationTechniqueDefinition(
@@ -163,6 +230,12 @@ BUILTIN_VALIDATION_TECHNIQUES = (
         ),
         target_kinds=("service",),
         evidence_keys=("tls_version", "cipher", "certificate_sha256"),
+        eligibility_required_properties=(
+            "address",
+            "port",
+            "tls_certificate_sha256",
+        ),
+        eligibility_required_values=(("protocol", "tcp"),),
         impact="standard",
     ),
     ValidationTechniqueDefinition(
@@ -174,6 +247,11 @@ BUILTIN_VALIDATION_TECHNIQUES = (
         ),
         target_kinds=("web", "api"),
         evidence_keys=("status_code", "security_headers"),
+        eligibility_required_properties=(
+            "origin_host",
+            "origin_port",
+            "origin_scheme",
+        ),
         impact="standard",
     ),
 )
