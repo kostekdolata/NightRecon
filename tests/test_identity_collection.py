@@ -12,6 +12,7 @@ from nightrecon_red_engine.graph_identity_evidence import (
     RoleEvidence,
 )
 from nightrecon_red_engine.graph_models import GraphNodeKind
+from nightrecon_red_engine.red_directory_import import directory_natural_key
 from nightrecon_red_engine.identity_collection import (
     DirectoryEntry,
     IdentityCollectionDenied,
@@ -160,7 +161,16 @@ class IdentityCollectionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             user_id = "11111111-1111-1111-1111-111111111111"
             app_id = "22222222-2222-2222-2222-222222222222"
-            role_key = "entra:role:test"
+            role_key = directory_natural_key(
+                "role",
+                "33333333-3333-3333-3333-333333333333",
+                namespace="entra",
+            )
+            user_key = directory_natural_key(
+                "user",
+                user_id,
+                namespace="entra",
+            )
             provider = FakeProvider(IdentityProviderCollection(
                 entries=(
                     DirectoryEntry(user_id, "user", "Cloud User"),
@@ -173,41 +183,6 @@ class IdentityCollectionTests(unittest.TestCase):
                     relationships=(
                         IdentityRelationshipEvidence(
                             source_kind=GraphNodeKind.IDENTITY,
-                            source_key=(
-                                "entra:user:"
-                                "d5c9b4e27f6b98c97d2f3014f84f704"
-                                "d7c5a22d4408fb924d68c6dad63c5e82e"
-                            ),
-                            target_kind=GraphNodeKind.PERMISSION,
-                            target_key=role_key,
-                            relationship="assigned-role",
-                            source_id="assignment-source",
-                        ),
-                    ),
-                ),
-            ))
-
-            # Use the exact normalized key produced by the collection bridge.
-            user_key = None
-            initial = collect_authorized_identity_intelligence(
-                workspace(root, scope=("tenant.example",)),
-                FakeProvider((DirectoryEntry(user_id, "user", "Cloud User"),)),
-                IdentityCollectionRequest(
-                    engagement_id="eng-identity",
-                    source_id="graph-readonly-key",
-                    source_type="entra-id",
-                    target="tenant.example",
-                ),
-                now=datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc),
-            )
-            user_key = initial.evidence.identities[0].natural_key
-            provider.entries = IdentityProviderCollection(
-                entries=provider.entries.entries,
-                supplemental_evidence=IdentityEvidenceBundle(
-                    roles=(RoleEvidence(role_key, "Directory Readers", "role-source"),),
-                    relationships=(
-                        IdentityRelationshipEvidence(
-                            source_kind=GraphNodeKind.IDENTITY,
                             source_key=user_key,
                             target_kind=GraphNodeKind.PERMISSION,
                             target_key=role_key,
@@ -216,7 +191,7 @@ class IdentityCollectionTests(unittest.TestCase):
                         ),
                     ),
                 ),
-            )
+            ))
 
             result = collect_authorized_identity_intelligence(
                 workspace(root, scope=("tenant.example",)),
