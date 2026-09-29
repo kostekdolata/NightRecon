@@ -6,14 +6,14 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 ## Current Versions
 
-**Red Night v0.40.0**
+**Red Night v0.41.0**
 
 **v0.31.0** — legacy NightRecon compatibility package
 
 The long-term product layout is five independently installable applications:
 White Night, Blue Night, Red Night, Purple Night, and Black Night. Install one,
 any combination, or all five under NightRecon when the applications are ready.
-Red Night is now independently installable as the stable v0.40.0 application
+Red Night is now independently installable as the stable v0.41.0 application
 distribution backed by the dedicated Red engine and mandatory shared safety core.
 White Night, Blue Night, Purple Night, and Black Night remain future standalone
 applications. Run `nightrecon editions` for the current readiness catalog and
@@ -21,6 +21,8 @@ see [EDITIONS.md](EDITIONS.md) for the separation contract. The legacy
 NightRecon v0.31.0 compatibility distribution continues to install the
 `red-night` command while the dedicated Red distribution installs
 `red-night-app`.
+
+Red Night v0.41 adds authorization-first live Active Directory and Microsoft Entra identity collection, privacy-safe operator summaries, deterministic AD/Entra benchmark fixtures, primary/nested group relationships, application/service-principal ownership, scoped Entra directory roles, selected AD privileged-group semantics, constrained delegation, management, and domain-trust evidence. These relationships remain descriptive evidence and never become an exploitability verdict.
 
 NightRecon now includes scope-enforced concurrent TCP scanning, authorized bounded CIDR host discovery, persistent asset inventory and historical exposure tracking, concurrent service detection, evidence-backed deep service fingerprinting, evidence-based host operating-system fingerprinting, opt-in bounded active service probes, bounded banner detection, HTTP and HTTPS service intelligence, TLS certificate inspection, HTTP security-header analysis, structured software identity, opt-in NVD vulnerability intelligence with match evidence and descriptive summaries, opt-in CISA KEV and FIRST EPSS threat context, an extensible assessment-check engine with built-in, Python-plugin, and signed declarative check-pack support, a managed signed check-feed lifecycle with verified install, sync, inventory, rollback, replay protection, dry-run update planning, and active installed-pack execution, plus a scope-enforced bounded same-origin web crawler with passive content discovery, secret-safe authenticated crawling, passive and safe-active DAST, passive session-cookie security intelligence that never persists cookie values, the v0.25 Stateful Web Workflow Engine, the v0.26 Browser-Powered Application Discovery layer, v0.27 API Intelligence for OpenAPI/Swagger inventory, explicitly selected bounded GET/HEAD validation, and fixed GraphQL schema introspection, plus v0.28 Expanded Safe-Active DAST with deterministic request budgets, bounded response-difference evidence, retest identities, and explicit credentialed-CORS reflection validation, plus v0.29 Read-Only SSH Credentialed Assessment with ephemeral secret handling, strict host-key verification, fixed symbolic actions, bounded typed facts, and secret-free reporting, and v0.30 Broader Credentialed Infrastructure Assessment covering bounded read-only SMB, WinRM, PostgreSQL, MySQL, and selected network-device evidence under the same authorization-first control model, plus v0.31 Identity Graph Foundation with immutable provenance-backed graph snapshots, observed-vs-inferred evidence semantics, generic identity/group/permission modeling, critical-asset classification, deterministic graph queries/traversal, reproducible snapshot fingerprints, and bounded evidence-backed path discovery.
 
