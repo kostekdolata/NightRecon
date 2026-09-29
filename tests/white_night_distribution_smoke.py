@@ -175,6 +175,32 @@ def main() -> None:
             cwd=directory,
         )
 
+        check(
+            str(python),
+            "-c",
+            (
+                "from nightrecon_white_engine import "
+                "DataHandlingPolicy, EngagementContact, EngagementDefinition, "
+                "RulesOfEngagement, ScopeDefinition, render_rules_of_engagement; "
+                "scope=ScopeDefinition(allowed=('192.0.2.0/24',), excluded=('192.0.2.250',)); "
+                "roe=RulesOfEngagement("
+                "engagement_id='eng-smoke', version=1, title='Packaged ROE', "
+                "created_at='2026-09-29T12:00:00+00:00', "
+                "valid_from='2026-10-01T08:00:00+00:00', "
+                "valid_until='2026-10-02T18:00:00+00:00', scope=scope, "
+                "allowed_techniques=('discovery',), max_actions=10, "
+                "data_handling=DataHandlingPolicy()); "
+                "contact=EngagementContact(contact_id='owner', display_name='Owner', role='lead'); "
+                "eng=EngagementDefinition("
+                "engagement_id='eng-smoke', version=1, name='Smoke', "
+                "created_at='2026-09-29T12:00:00+00:00', status='planned', "
+                "owner_contact_id='owner', contacts=(contact,), roe=roe); "
+                "assert len(eng.fingerprint) == 64; "
+                "assert 'does not itself authorize active operations' in render_rules_of_engagement(roe)"
+            ),
+            cwd=directory,
+        )
+
         metadata = check(
             str(python),
             "-c",
