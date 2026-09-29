@@ -207,6 +207,203 @@ class CrossSurfaceCorrelationTests(unittest.TestCase):
 
         self.assertEqual(first, second)
 
+    def test_exact_https_origin_links_network_service_to_web_surface(self):
+        asset = node(
+            GraphNodeKind.ASSET,
+            "192.0.2.80",
+            "App host",
+            (
+                ("address", "192.0.2.80"),
+                ("hostnames", "app.example.test"),
+            ),
+        )
+        network_service = node(
+            GraphNodeKind.SERVICE,
+            "192.0.2.80:443/tcp",
+            "https",
+            (
+                ("address", "192.0.2.80"),
+                ("port", "443"),
+                ("protocol", "tcp"),
+            ),
+        )
+        web_surface = node(
+            GraphNodeKind.SERVICE,
+            "web-surface:web:opaque",
+            "https://app.example.test",
+            (
+                ("origin_host", "app.example.test"),
+                ("origin_port", "443"),
+                ("origin_scheme", "https"),
+                ("surface_type", "web"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(
+            graph(asset, web_surface, network_service)
+        )
+
+        self.assertEqual(result.unresolved, ())
+        self.assertEqual(len(result.correlated_edge_ids), 1)
+        edge = next(
+            item for item in result.graph.edges
+            if item.edge_id in result.correlated_edge_ids
+        )
+        self.assertEqual(edge.source_node_id, network_service.node_id)
+        self.assertEqual(edge.target_node_id, web_surface.node_id)
+        self.assertEqual(
+            dict(edge.properties)["correlation_basis"],
+            "exact-origin-host-port",
+        )
+        self.assertIs(edge.evidence_state, GraphEvidenceState.INFERRED)
+
+    def test_explicit_api_port_requires_same_observed_network_port(self):
+        asset = node(
+            GraphNodeKind.ASSET,
+            "192.0.2.81",
+            "API host",
+            (
+                ("address", "192.0.2.81"),
+                ("hostnames", "api.example.test"),
+            ),
+        )
+        wrong_port = node(
+            GraphNodeKind.SERVICE,
+            "192.0.2.81:443/tcp",
+            "https",
+            (
+                ("address", "192.0.2.81"),
+                ("port", "443"),
+                ("protocol", "tcp"),
+            ),
+        )
+        api_surface = node(
+            GraphNodeKind.SERVICE,
+            "web-surface:api:opaque",
+            "https://api.example.test:8443",
+            (
+                ("origin_host", "api.example.test"),
+                ("origin_port", "8443"),
+                ("origin_scheme", "https"),
+                ("surface_type", "api"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(
+            graph(asset, wrong_port, api_surface)
+        )
+
+        self.assertEqual(result.correlated_edge_ids, ())
+        self.assertEqual(len(result.unresolved), 1)
+        self.assertEqual(
+            result.unresolved[0].reason,
+            "no-exact-origin-service-match",
+        )
+        self.assertEqual(
+            result.unresolved[0].source_kind,
+            GraphNodeKind.SERVICE,
+        )
+
+    def test_ip_literal_origin_matches_exact_asset_address(self):
+        asset = node(
+            GraphNodeKind.ASSET,
+            "192.0.2.82",
+            "192.0.2.82",
+            (("address", "192.0.2.82"),),
+        )
+        network_service = node(
+            GraphNodeKind.SERVICE,
+            "192.0.2.82:80/tcp",
+            "http",
+            (
+                ("address", "192.0.2.82"),
+                ("port", "80"),
+                ("protocol", "tcp"),
+            ),
+        )
+        surface = node(
+            GraphNodeKind.SERVICE,
+            "web-surface:web:ip",
+            "http://192.0.2.82",
+            (
+                ("origin_host", "192.0.2.82"),
+                ("origin_port", "80"),
+                ("origin_scheme", "http"),
+                ("surface_type", "web"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(
+            graph(surface, network_service, asset)
+        )
+
+        self.assertEqual(len(result.correlated_edge_ids), 1)
+        self.assertEqual(result.unresolved, ())
+
+    def test_ambiguous_origin_hostname_never_selects_an_asset(self):
+        asset_a = node(
+            GraphNodeKind.ASSET,
+            "192.0.2.83",
+            "A",
+            (
+                ("address", "192.0.2.83"),
+                ("hostnames", "shared.example.test"),
+            ),
+        )
+        asset_b = node(
+            GraphNodeKind.ASSET,
+            "192.0.2.84",
+            "B",
+            (
+                ("address", "192.0.2.84"),
+                ("hostnames", "shared.example.test"),
+            ),
+        )
+        surface = node(
+            GraphNodeKind.SERVICE,
+            "web-surface:graphql:shared",
+            "https://shared.example.test",
+            (
+                ("origin_host", "shared.example.test"),
+                ("origin_port", "443"),
+                ("origin_scheme", "https"),
+                ("surface_type", "graphql"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(
+            graph(asset_a, surface, asset_b)
+        )
+
+        self.assertEqual(result.correlated_edge_ids, ())
+        self.assertEqual(len(result.unresolved), 1)
+        self.assertEqual(
+            result.unresolved[0].reason,
+            "ambiguous-origin-asset",
+        )
+        self.assertEqual(result.unresolved[0].candidate_count, 2)
+
+    def test_web_surface_hostname_is_not_exposed_in_unresolved_metadata(self):
+        surface = node(
+            GraphNodeKind.SERVICE,
+            "web-surface:web:missing",
+            "https://missing.example.test",
+            (
+                ("origin_host", "missing.example.test"),
+                ("origin_port", "443"),
+                ("origin_scheme", "https"),
+                ("surface_type", "web"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(graph(surface))
+
+        self.assertEqual(len(result.unresolved), 1)
+        unresolved = result.unresolved[0]
+        self.assertEqual(unresolved.reason, "no-exact-origin-asset-match")
+        self.assertNotIn("missing.example.test", repr(unresolved))
+        self.assertEqual(len(unresolved.key_sha256), 64)
+
     def test_edge_limit_fails_closed(self):
         asset_a = node(
             GraphNodeKind.ASSET,

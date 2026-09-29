@@ -65,6 +65,7 @@ MIGRATED_MODULES = frozenset({
     "graph_threat_context",
     "graph_traversal",
     "graph_validation",
+    "graph_web_surface",
     "graphql_report",
     "active_directory_provider",
     "attack_path_atlas",

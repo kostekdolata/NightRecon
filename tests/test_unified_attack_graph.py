@@ -99,6 +99,61 @@ class UnifiedAttackGraphTests(unittest.TestCase):
         self.assertEqual(edge.relationship, "correlates-to")
         self.assertIs(edge.evidence_state, GraphEvidenceState.INFERRED)
 
+    def test_portable_web_surface_correlates_to_exact_network_service(self):
+        records = (
+            record("asset-web", "asset.observation", {
+                "asset_key": "10.0.0.20",
+                "label": "Web Host",
+                "properties": {
+                    "address": "10.0.0.20",
+                    "hostnames": "web.example.test",
+                },
+            }),
+            record("network-service", "service.observation", {
+                "service_key": "10.0.0.20:443/tcp",
+                "label": "https",
+                "properties": {
+                    "address": "10.0.0.20",
+                    "port": "443",
+                    "protocol": "tcp",
+                },
+            }),
+            record("web-surface", "service.observation", {
+                "service_key": "web-surface:web:opaque",
+                "label": "https://web.example.test",
+                "properties": {
+                    "origin_host": "web.example.test",
+                    "origin_port": "443",
+                    "origin_scheme": "https",
+                    "surface_type": "web",
+                },
+            }),
+        )
+
+        result = build_correlated_unified_attack_graph(records)
+
+        self.assertEqual(result.unresolved_records, ())
+        self.assertEqual(result.unresolved_correlations, ())
+        self.assertEqual(len(result.correlated_edge_ids), 1)
+        edge = next(
+            item for item in result.graph.edges
+            if item.edge_id in result.correlated_edge_ids
+        )
+        source = next(
+            node for node in result.graph.nodes
+            if node.node_id == edge.source_node_id
+        )
+        target = next(
+            node for node in result.graph.nodes
+            if node.node_id == edge.target_node_id
+        )
+        self.assertEqual(source.natural_key, "10.0.0.20:443/tcp")
+        self.assertEqual(target.natural_key, "web-surface:web:opaque")
+        self.assertEqual(
+            dict(edge.properties)["correlation_basis"],
+            "exact-origin-host-port",
+        )
+
     def test_missing_endpoint_stays_unresolved_without_fabricated_edge(self):
         result = build_unified_attack_graph((
             record("rel-1", "graph.relationship", {

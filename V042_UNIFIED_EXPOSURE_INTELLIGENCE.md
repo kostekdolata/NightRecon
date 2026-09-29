@@ -1,113 +1,153 @@
 # v0.42.0 Unified Exposure Intelligence
 
-Red Night v0.42 development begins the transition from parallel specialist
-modules into one evidence-correlated red-team operating system.
+Red Night v0.42 is the transition from parallel specialist modules into one
+evidence-correlated red-team operating system.
 
-The milestone goal is to connect network, web/API, identity, cloud/hybrid,
-vulnerability, validation, critical-asset, remediation, and retest evidence in
-one deterministic graph without turning graph reachability into an
-exploitability verdict.
+The milestone connects network, web/API, identity, cloud/hybrid, vulnerability,
+validation, critical-asset, remediation, and retest evidence without turning
+graph reachability into an exploitability or risk verdict.
 
-## Batch 1 — Exact cross-surface correlation
+## Batch 1 — Cross-Domain Attack Path Atlas
 
-The first batch adds a deterministic network/identity correlation layer.
+Batch 1 introduced bounded deterministic traversal over the unified engagement
+graph. It preserves observed/inferred hop counts, supporting evidence IDs,
+structural participation, global exploration budgets, and explicit truncation.
 
-Current production-backed correlation evidence is:
+See [V042_ATTACK_PATH_ATLAS.md](V042_ATTACK_PATH_ATLAS.md).
+
+## Batch 2 — Exact AD identity to network correlation
+
+Batch 2 added deterministic identity/network correlation using:
 
 - network asset hostnames observed in the asset inventory
 - Active Directory computer `dNSHostName`
 - host components extracted from observed Active Directory SPNs
 
-Directory correlation properties are explicitly allowlisted to:
+Directory correlation properties are strictly allowlisted to:
 
 - `dns_hostname`
 - `spn_hosts`
 
-No generic provider-property channel is introduced.
+One normalized identity hostname must map to exactly one observed network asset
+hostname before Red Night creates an inferred `correlates-to` edge.
 
-## Correlation rule
+Zero matches and ambiguous matches remain explicit unresolved correlation
+records. Human-readable labels are never join keys.
 
-A correlation edge is created only when one normalized identity hostname maps
-to exactly one observed network asset hostname.
+## Batch 3 — Exact web/API origin to network-service correlation
 
-The resulting edge is:
+Batch 3 projects HTTP(S) surfaces as observation-scoped service nodes from:
+
+- bounded web-crawl reports
+- passive OpenAPI inventory reports
+- GraphQL schema reports
+
+Each web-surface observation carries only normalized correlation metadata:
+
+- `surface_type` — `web`, `api`, or `graphql`
+- `origin_scheme` — `http` or `https`
+- `origin_host`
+- `origin_port` — explicit port or normalized default 80/443
+
+Surface natural keys contain opaque hashes of the origin and evidence source;
+session/source identifiers are not exposed in the key.
+
+### Origin correlation rule
+
+A web/API surface is correlated only when:
+
+1. the origin host is an exact match for one observed asset hostname, or the
+   origin is an IP literal exactly matching one observed asset address;
+2. that asset is unique for the origin host;
+3. the asset has exactly one observed TCP service on the origin port.
+
+The resulting inferred edge is directed:
+
+`observed network service -> web/API surface`
+
+with:
 
 - relationship: `correlates-to`
 - evidence state: `inferred`
 - claim: `exact-evidence-correlation-only`
-- basis: `exact-hostname`
+- basis: `exact-origin-host-port`
 
-Human-readable labels are never used as join keys.
+This direction lets the attack-path atlas traverse naturally from an exposed
+asset/service into its observed application/API surface.
 
-The correlator does not:
+The scheme is preserved as evidence but is not used to invent a service
+protocol. Red Night requires an observed TCP service on the exact port.
 
-- perform DNS resolution
-- use fuzzy matching
-- use suffix similarity
-- infer from display names
-- infer from IP adjacency
-- infer exploitability or compromise
+### Incomplete and ambiguous web correlation
 
-## Ambiguity and incomplete evidence
+Red Night creates no edge when evidence is incomplete or ambiguous. Reasons
+include:
 
-If an exact identity hostname has no matching asset, Red Night returns an
-explicit unresolved correlation with reason:
+- `no-exact-origin-asset-match`
+- `ambiguous-origin-asset`
+- `no-exact-origin-service-match`
+- `ambiguous-origin-service`
 
-`no-exact-asset-hostname-match`
+Unresolved correlation records retain an opaque source key, candidate count,
+and SHA-256 of the correlation material. They do not expose the hostname.
 
-If more than one asset carries the same exact hostname, no graph edge is
-created. Red Night returns:
+## Shared correlation guarantees
 
-`ambiguous-asset-hostname`
+The correlation engine never:
 
-The unresolved result contains the opaque identity key, candidate count, and a
-SHA-256 of the normalized correlation key. It does not expose the hostname
-through the unresolved metadata.
+- performs DNS resolution
+- performs network activity
+- uses fuzzy matching
+- uses suffix similarity
+- joins on display labels
+- infers from IP adjacency
+- treats a service name as proof of HTTP(S)
+- claims authentication access
+- claims compromise, exploitability, or lateral movement
 
-## Determinism and budgets
-
-Multiple exact hostname proofs between the same identity and asset collapse into
-one deterministic correlation edge with a `matched_key_count`.
-
-The correlator has hard ceilings for:
-
-- generated correlation edges
-- unresolved correlation records
-
-Over-budget correlation fails closed.
-
-Identical graph inputs produce identical correlation edges and unresolved results.
-
-## Graph integration
+Multiple exact proofs for one source/target pair collapse deterministically.
+Generated edges and unresolved records have hard ceilings; over-budget work
+fails closed.
 
 The correlation layer is available through both graph assembly paths:
 
 - `build_correlated_identity_graph(...)`
 - `build_correlated_unified_attack_graph(...)`
 
-The portable unified graph now preserves bounded node properties from engagement
-evidence so exact correlation keys survive workspace storage and reload.
+The portable unified graph preserves bounded node properties from engagement
+evidence so correlation metadata survives workspace storage and reload.
 
-Existing non-correlated graph builders remain available and keep their previous
-behavior.
+## Deterministic runtime benchmark
+
+`tests/cross_surface_correlation_runtime.py` proves the combined evidence chain
+without network access:
+
+`AD identity -> network asset -> observed TCP service -> web/API surfaces`
+
+The benchmark runs on Python 3.11 and 3.14 and verifies:
+
+- one exact AD identity-to-asset correlation
+- exact network-service-to-web correlation
+- exact network-service-to-API correlation
+- observed vs inferred edge state
+- zero unresolved correlations
+- deterministic graph equality
+- deterministic graph SHA-256 fingerprint
 
 ## Safety and interpretation
 
-Cross-surface correlation is evidence linkage only.
+An inferred `correlates-to` edge means two independently observed facts share
+the exact normalized evidence required by a documented correlation rule.
 
-An inferred `correlates-to` edge means that two independently observed facts
-share an exact normalized correlation key under the defined rule. It does not
-mean the identity can authenticate to the asset, the asset is compromised, a
-vulnerability is exploitable, lateral movement is possible, or a privilege
-path is validated.
+It does not establish exploitability, likelihood, impact, compromise,
+authentication access, or a validated attack path. Those require separate
+evidence or controlled validation.
 
 ## Next v0.42 batches
 
-1. exact web/API origin-to-network-service correlation
-2. concrete cloud resource correlation keys and cloud-to-network/identity joins
-3. critical-asset exposure paths spanning identity + network + web/API + cloud
-4. evidence-chain explanations for every cross-surface path
-5. descriptive choke-point and blast-radius analysis
-6. operator-facing unified exposure review
-7. remediation/retest impact on exposure paths
-8. performance and specialist comparison labs
+1. concrete AWS/Azure/Kubernetes correlation keys and cloud-to-network/identity joins
+2. bounded controlled-validation candidates compiled from evidence-backed paths
+3. evidence-chain explanations and unified operator exposure review
+4. descriptive choke-point and blast-radius analysis
+5. remediation/retest impact on exposure paths
+6. reproducible specialist comparison labs

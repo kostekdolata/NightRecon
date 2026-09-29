@@ -54,7 +54,7 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
         "graph_identity_projection", "graph_index", "graph_models", "graph_path",
         "graph_path_review", "graph_pipeline", "graph_projection", "graph_query",
         "graph_report", "graph_snapshot", "graph_summary", "graph_threat_context",
-        "graph_traversal", "graph_validation", "identity_benchmark",
+        "graph_traversal", "graph_validation", "graph_web_surface", "identity_benchmark",
         "identity_collection", "identity_engagement_evidence", "red_directory_cli",
         "red_directory_import", "red_identity_live_cli",
     ),
