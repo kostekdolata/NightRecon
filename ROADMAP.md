@@ -520,8 +520,32 @@ Deferred:
 
 ### White Batch 5 — Approval workflow engine
 
-Planned: single/dual/quorum approval, separation of duties, expiry, delegation,
-rejection, revocation, escalation, and immutable decision evidence.
+Status: active implementation.
+
+Current scope:
+
+- immutable approval principals, policies, requests, events, grants, and workflows;
+- single, dual-control, and quorum approval modes;
+- explicit eligible-role policy and requester/approver separation of duties;
+- approval requests bound to one engagement, compiled-policy fingerprint,
+  capability, exact normalized target, impact, requester, and expiry window;
+- unique approver and unique authority-source enforcement;
+- request-scoped delegation with bounded expiry and no delegation chaining;
+- delegated authority cannot count twice toward dual/quorum control;
+- immediate rejection semantics;
+- approval expiry and time-aware historical state projection;
+- escalation thresholds and policy-defined escalation roles;
+- explicit post-approval revocation by direct eligible authority;
+- action-bound approval grants with independent deterministic fingerprints;
+- grant replay protection across engagement, policy bundle, capability, target,
+  impact, expiry, revocation, and workflow revision;
+- append-only hash-linked decision events with semantic validation on import;
+- local `approval create/status/approve/reject/delegate/escalate/revoke/grant/verify`
+  operations only;
+- no target execution, network activity, or cross-Night runtime dependency.
+
+Digital signatures/authenticity, persistent ApprovalStore backends, and wider
+evidence-custody integration remain later batches.
 
 ### White Batch 6 — Evidence custody and tamper-evident audit
 
