@@ -38,6 +38,7 @@ Every returned path records:
 - observed hop count
 - inferred hop count
 - engagement-evidence IDs supporting the path
+- every non-secret provenance source type and source ID supporting its edges
 
 Inferred edges remain explicitly inferred. The atlas does not relabel them as
 observed.
