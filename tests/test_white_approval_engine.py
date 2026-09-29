@@ -7,6 +7,7 @@ from dataclasses import FrozenInstanceError
 import unittest
 
 from nightrecon_white_engine.approval_engine import (
+    ApprovalGrant,
     ApprovalPolicy,
     ApprovalPrincipal,
     ApprovalRequest,
@@ -117,6 +118,26 @@ class WhiteApprovalWorkflowTests(unittest.TestCase):
             item.status("2026-09-29T18:00:00+00:00"),
             "expired",
         )
+
+    def test_grant_round_trip_and_tamper_detection(self) -> None:
+        item = workflow().approve(
+            event_id="evt-a1",
+            actor_id="alice",
+            occurred_at="2026-09-29T16:05:00+00:00",
+            reason="Approved",
+        )
+        grant = item.grant("2026-09-29T16:06:00+00:00")
+        rebuilt = ApprovalGrant.from_dict(grant.to_dict())
+        self.assertEqual(rebuilt, grant)
+        self.assertEqual(len(grant.fingerprint), 64)
+
+        tampered = copy.deepcopy(grant.to_dict())
+        tampered["capability"] = "web.safe-active"
+        with self.assertRaisesRegex(
+            ApprovalWorkflowError,
+            "grant fingerprint verification failed",
+        ):
+            ApprovalGrant.from_dict(tampered)
 
     def test_grant_cannot_be_replayed_across_context(self) -> None:
         item = workflow().approve(
