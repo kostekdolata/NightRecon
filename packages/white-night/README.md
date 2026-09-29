@@ -3,9 +3,9 @@
 `nightrecon-white-night` is the separately installable White Night application
 package.
 
-The `0.1.0a2` development package includes the Batch 3 immutable engagement/ROE domain while the application command surface remains intentionally informational. It
+The `0.1.0a3` development package includes the immutable engagement/ROE domain plus local `policy compile` and `policy verify` operations. The command surface remains network-free and does not publish or execute policy. It
 supplies the `white-night-app` entry point and depends on
-`nightrecon-white-engine==0.1.0a2` plus the mandatory
+`nightrecon-white-engine==0.1.0a3` plus the mandatory
 `nightrecon-shared-core==0.41.0`.
 
 It deliberately exposes only the informational `editions` command. White Night
