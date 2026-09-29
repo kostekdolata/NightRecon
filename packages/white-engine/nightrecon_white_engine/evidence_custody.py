@@ -770,6 +770,10 @@ class EvidenceCustodyCase:
                         raise EvidenceCustodyError(
                             "derived parent evidence does not match item"
                         )
+                    if set(expected_parents) - origins:
+                        raise EvidenceCustodyError(
+                            "derived evidence parents must already be in custody"
+                        )
                 elif expected_parents or encoded_parents is not None:
                     raise EvidenceCustodyError(
                         "ingested evidence cannot claim derivation parents"
@@ -1181,6 +1185,10 @@ class EvidenceCustodyCase:
 
     def manifest(self, *, generated_at: str) -> EvidenceManifest:
         _iso8601(generated_at, "generated_at")
+        if _parse_time(generated_at) < _parse_time(self.events[-1].occurred_at):
+            raise EvidenceCustodyError(
+                "manifest cannot predate the latest custody event"
+            )
         return EvidenceManifest(
             case_id=self.case_id,
             engagement_id=self.engagement_id,
