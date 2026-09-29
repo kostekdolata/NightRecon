@@ -533,9 +533,9 @@ shared-core impact ceiling.
 
 ### White Batch 5 — Approval workflow engine
 
-Status: active implementation on the current Red v0.43 development baseline.
+Status: implemented and PR-CI verified on the current Red v0.43 development baseline.
 
-Current scope:
+Delivered:
 
 - immutable approval principals, policies, requests, events, grants, and workflows;
 - single, dual-control, and quorum approval modes;
@@ -555,7 +555,13 @@ Current scope:
 - append-only hash-linked decision events with semantic validation on import;
 - local `approval create/status/approve/reject/delegate/escalate/revoke/grant/verify`
   operations only;
-- no target execution, network activity, or cross-Night runtime dependency.
+- no target execution, network activity, or cross-Night runtime dependency;
+- isolated installed-wheel workflow smoke on Windows and Ubuntu,
+  Python 3.11 and 3.14.
+
+Release evidence: the current-v0.43 Batch 5 PR matrix completed 29/29 jobs
+successfully, including all four White distribution combinations and the full
+current Red/general regression matrix.
 
 Digital signatures/authenticity, persistent ApprovalStore backends, and broader
 evidence-custody integration remain later batches.
