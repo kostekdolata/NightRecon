@@ -351,6 +351,25 @@ def _expected_provenance(
     )
 
 
+def validation_binding_id(
+    eligibility_id: str,
+    contract_id: str,
+    target_node_id: str,
+) -> str:
+    """Return the stable identifier for one eligibility/contract/target binding."""
+
+    for value, field in (
+        (eligibility_id, "eligibility_id"),
+        (contract_id, "contract_id"),
+        (target_node_id, "target_node_id"),
+    ):
+        _required(value, field)
+    material = "\x1f".join(
+        (eligibility_id, contract_id, target_node_id)
+    ).encode("utf-8")
+    return "validation-binding-" + sha256(material).hexdigest()
+
+
 def bind_validation_eligibility_option(
     graph: IdentityGraph,
     option: ValidationEligibilityOption,
@@ -417,15 +436,12 @@ def bind_validation_eligibility_option(
             + ",".join(preconditions.failed_keys)
         )
 
-    material = "\x1f".join(
-        (
+    return ValidationAdapterBinding(
+        binding_id=validation_binding_id(
             option.eligibility_id,
             contract.contract_id,
             option.target_node_id,
-        )
-    ).encode("utf-8")
-    return ValidationAdapterBinding(
-        binding_id="validation-binding-" + sha256(material).hexdigest(),
+        ),
         eligibility_id=option.eligibility_id,
         candidate_id=option.candidate_id,
         path_id=option.path_id,
