@@ -133,6 +133,33 @@ def identity_bundle_to_engagement_records(
             ),
         ))
 
+    for item in bundle.roles:
+        data = {
+            "permission_key": item.natural_key,
+            "label": item.label,
+        }
+        if item.properties:
+            data["properties"] = _properties(item.properties)
+        records.append(EvidenceRecord(
+            engagement_id=engagement_id,
+            evidence_id=_evidence_id(
+                engagement_id=engagement_id,
+                evidence_type="permission.observation",
+                natural_key=item.natural_key,
+                observed_at=observed_at,
+                provenance=item.source_id,
+            ),
+            source_night="red",
+            evidence_type="permission.observation",
+            observed_at=observed_at,
+            provenance=item.source_id,
+            data=data,
+            limitations=(
+                "Read-only observed directory role definition.",
+                "Role definition does not independently prove effective privilege.",
+            ),
+        ))
+
     for item in bundle.permissions:
         natural_key = (
             f"{item.subject_kind.value}:{item.subject_key}"
@@ -168,6 +195,42 @@ def identity_bundle_to_engagement_records(
             limitations=(
                 "Observed permission relationship only.",
                 "Permission does not independently prove exploitability.",
+            ),
+        ))
+
+    for item in bundle.relationships:
+        natural_key = (
+            f"{item.source_kind.value}:{item.source_key}"
+            f"->{item.relationship}->"
+            f"{item.target_kind.value}:{item.target_key}"
+        )
+        data = {
+            "source_kind": item.source_kind.value,
+            "source_key": item.source_key,
+            "target_kind": item.target_kind.value,
+            "target_key": item.target_key,
+            "relationship": item.relationship,
+            "evidence_state": item.evidence_state.value,
+        }
+        if item.properties:
+            data["properties"] = _properties(item.properties)
+        records.append(EvidenceRecord(
+            engagement_id=engagement_id,
+            evidence_id=_evidence_id(
+                engagement_id=engagement_id,
+                evidence_type="graph.relationship",
+                natural_key=natural_key,
+                observed_at=observed_at,
+                provenance=item.source_id,
+            ),
+            source_night="red",
+            evidence_type="graph.relationship",
+            observed_at=observed_at,
+            provenance=item.source_id,
+            data=data,
+            limitations=(
+                "Observed directory relationship only.",
+                "Relationship does not independently prove exploitability or compromise.",
             ),
         ))
 
