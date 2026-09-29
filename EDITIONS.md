@@ -10,7 +10,7 @@ and `black` for CLI routing and future evidence contracts.
 
 | Edition | Product responsibility | Current state |
 | --- | --- | --- |
-| White Night | Engagement scope, rules of engagement, approvals, audit, evidence custody, exercise control, and emergency stop | Shared scope/audit foundations exist; standalone application not available |
+| White Night | Engagement scope, rules of engagement, approvals, audit, evidence custody, exercise control, emergency stop, and after-action reporting | Package boundary, engagement/ROE domain, policy compiler verified; immutable approval workflow engine in active development; functional standalone application not yet available |
 | Blue Night | Defensive telemetry, control validation, detection coverage, and remediation retests | Planned; standalone application not available |
 | Red Night | Authorized reconnaissance, exposure and attack-path analysis, bounded validation, and controlled emulation | Stable v0.41.0 standalone application available with mandatory shared safety core |
 | Purple Night | Match approved Red Night actions to Blue Night prevention, alerts, telemetry, and detection gaps | Planned; standalone application not available |
@@ -106,6 +106,27 @@ The full-suite installation should therefore feel like one integrated NightRecon
 workspace while preserving the ability to install, upgrade, run, and remove each
 Night independently.
 
+### White Night deployment contract
+
+White Night is the second standalone NightRecon product track after Red Night.
+Its foundation is defined by [WHITE_ACCEPTANCE.md](WHITE_ACCEPTANCE.md),
+[WHITE_OWNERSHIP.md](WHITE_OWNERSHIP.md),
+[WHITE_PACKAGE_PLAN.md](WHITE_PACKAGE_PLAN.md), and
+[WHITE_LIVE_ARCHITECTURE.md](WHITE_LIVE_ARCHITECTURE.md).
+
+White Night remains one product across standalone installation, composed
+full-stack installation, and White Night Live USB. The same White app/engine
+packages and versioned contracts must be used in all three deployments.
+
+White manages engagement authoring, approvals, evidence custody, exercise
+control, emergency-stop workflows, and reporting. Shared core remains the
+authoritative enforcement layer. White's deterministic compiler projects
+immutable ROE intent into shared-core policy and must fail closed rather than
+widen scope, capabilities, budgets, or impact.
+
+Deployment-specific storage may differ, but engagement/evidence semantics must
+not. Imported evidence never becomes authorization.
+
 ### Shared engagement storage
 
 The shared core now defines a backend-neutral `EngagementStore` contract plus a
@@ -177,9 +198,16 @@ workspace.
    tests proving one edition cannot invoke another edition's active commands.
    Completed for Red Night v0.41.0; arbitrary multi-Night/full-suite composition
    remains future work because the other standalone applications do not yet exist.
-4. Add the missing Blue Night/White Night/Purple Night capabilities and further Red Night/Black Night
-   capabilities in small CI-verified releases. Do not advertise a standalone
-   edition as available until its isolation and functional acceptance tests pass.
+4. White Night is the second standalone product track after Red. Implement it
+   in small CI-verified releases while preserving Red stability and the
+   shared-core enforcement boundary.
+5. Add the missing Blue Night/Purple Night capabilities and further
+   Red Night/Black Night capabilities in small verified releases. Do not
+   advertise any standalone edition as available until its isolation,
+   deployment, and functional acceptance tests pass.
+6. Full-stack composition and Live image profiles must reuse the same Night
+   packages and versioned contracts; deployment must not introduce hidden
+   Night-to-Night runtime dependencies.
 
 The next Red Night product-development milestone should close measured
 acceptance gaps rather than duplicate existing foundations: concrete authorized
