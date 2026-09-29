@@ -58,7 +58,7 @@ class WhitePackageBoundaryTests(unittest.TestCase):
             )
         )
         self.assertEqual(payload["project"]["name"], "nightrecon-white-engine")
-        self.assertEqual(payload["project"]["version"], "0.1.0a2")
+        self.assertEqual(payload["project"]["version"], "0.1.0a3")
         self.assertEqual(
             set(payload["project"]["dependencies"]),
             {"nightrecon-shared-core==0.41.0"},
@@ -76,12 +76,12 @@ class WhitePackageBoundaryTests(unittest.TestCase):
         )
         dependencies = set(payload["project"]["dependencies"])
         self.assertEqual(payload["project"]["name"], "nightrecon-white-night")
-        self.assertEqual(payload["project"]["version"], "0.1.0a2")
+        self.assertEqual(payload["project"]["version"], "0.1.0a3")
         self.assertEqual(
             dependencies,
             {
                 "nightrecon-shared-core==0.41.0",
-                "nightrecon-white-engine==0.1.0a2",
+                "nightrecon-white-engine==0.1.0a3",
             },
         )
         forbidden = (
