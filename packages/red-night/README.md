@@ -2,9 +2,9 @@
 
 `nightrecon-red-night` is the independently installable Red Night application.
 
-The stable v0.41.0 package supplies the `red-night-app` command and depends on
-the matching `nightrecon-red-engine==0.41.0` and
-`nightrecon-shared-core==0.41.0` distributions. It does not require the
+The stable v0.42.0 package supplies the `red-night-app` command and depends on
+the matching `nightrecon-red-engine==0.42.0` and
+`nightrecon-shared-core==0.42.0` distributions. It does not require the
 legacy `nightrecon==0.31.0` package and it does not install future White,
 Blue, Purple, or Black Night applications.
 
