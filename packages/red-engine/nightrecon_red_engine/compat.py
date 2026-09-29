@@ -90,6 +90,7 @@ MIGRATED_MODULES = frozenset({
     "red_cli",
     "red_directory_cli",
     "red_directory_import",
+    "red_identity_live_cli",
     "red_workspace_cli",
     "report",
     "resolver",
