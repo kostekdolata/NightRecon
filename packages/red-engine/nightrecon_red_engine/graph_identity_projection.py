@@ -56,6 +56,17 @@ def add_identity_evidence_to_identity_graph(
         builder.add_node(node)
         nodes_by_key[(node.kind, node.natural_key)] = node
 
+    for record in evidence.roles:
+        node = GraphNode.create(
+            kind=GraphNodeKind.PERMISSION,
+            natural_key=record.natural_key,
+            label=record.label,
+            provenance=_provenance(record.source_id, observed_at),
+            properties=record.properties,
+        )
+        builder.add_node(node)
+        nodes_by_key[(node.kind, node.natural_key)] = node
+
     for record in evidence.memberships:
         member = _require_node(
             nodes_by_key,
@@ -119,6 +130,30 @@ def add_identity_evidence_to_identity_graph(
                 relationship="applies-to",
                 evidence_state=record.evidence_state,
                 provenance=provenance,
+            )
+        )
+
+    for record in evidence.relationships:
+        source = _require_node(
+            nodes_by_key,
+            record.source_kind,
+            record.source_key,
+            "identity relationship source",
+        )
+        target = _require_node(
+            nodes_by_key,
+            record.target_kind,
+            record.target_key,
+            "identity relationship target",
+        )
+        builder.add_edge(
+            GraphEdge.create(
+                source_node_id=source.node_id,
+                target_node_id=target.node_id,
+                relationship=record.relationship,
+                evidence_state=record.evidence_state,
+                provenance=_provenance(record.source_id, observed_at),
+                properties=record.properties,
             )
         )
 
