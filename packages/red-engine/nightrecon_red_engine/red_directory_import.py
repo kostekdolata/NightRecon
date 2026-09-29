@@ -141,7 +141,13 @@ def import_directory_snapshot(
         if not isinstance(properties, dict):
             raise ValueError("directory entry properties must be an object")
         normalized_properties: list[tuple[str, str]] = []
-        allowed_property_keys = {"dns_hostname", "spn_hosts"}
+        allowed_property_keys = {
+            "dns_hostname",
+            "spn_hosts",
+            "entra_tenant_id",
+            "entra_object_id",
+            "entra_app_id",
+        }
         for property_key, property_value in properties.items():
             if (
                 not isinstance(property_key, str)

@@ -386,9 +386,18 @@ Batch 3 — Exact Web/API Origin Correlation:
   correlation metadata
 - dedicated deterministic runtime benchmark on Python 3.11/3.14
 
+Batch 4 — Exact Cloud Correlation:
+
+- provider-specific allowlisted AWS/Azure/Entra/Kubernetes correlation evidence
+  retained through portable graph projection
+- exact canonical cloud IP/DNS evidence joined only to observed network assets
+- exact Azure/Entra tenant + object-ID evidence joined only to observed Entra identities
+- ambiguous or conflicting exact evidence fails closed without a correlation edge
+- no DNS resolution, fuzzy/display-name matching, IP adjacency inference, or
+  provider identity guessing
+
 Planned follow-on v0.42 batches:
 
-- concrete AWS/Azure/Kubernetes correlation keys and cloud-to-network/identity joins
 - bounded validation-candidate compilation from evidence-backed paths
 - cross-domain engagement/path reporting with evidence gaps and retest state
 - choke-point and blast-radius analysis that remains descriptive rather than
@@ -521,12 +530,11 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Complete and verify v0.42 Batch 3 — Exact Web/API Origin Correlation.
-2. Extend exact correlation into concrete AWS/Azure/Kubernetes resources.
-3. Compile bounded controlled-validation candidates from evidence-backed paths;
+1. Complete and verify v0.42 Batch 4 — Exact Cloud Correlation.
+2. Compile bounded controlled-validation candidates from evidence-backed paths;
    never auto-execute them.
-4. Add cross-domain operator reporting, evidence-gap review, and remediation
+3. Add cross-domain operator reporting, evidence-gap review, and remediation
    impact on exposure paths.
-5. Run reproducible comparison labs and keep Red Night as the active product
+4. Run reproducible comparison labs and keep Red Night as the active product
    track until the full [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md) standard is
    evidence-backed.

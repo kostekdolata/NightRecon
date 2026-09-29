@@ -23,7 +23,13 @@ from nightrecon_shared_core.workspace import LocalWorkspace
 
 _VALID_SOURCE_TYPES = frozenset({"active-directory", "entra-id"})
 _VALID_ENTRY_KINDS = frozenset({"user", "computer", "service", "application", "group"})
-_VALID_CORRELATION_PROPERTY_KEYS = frozenset({"dns_hostname", "spn_hosts"})
+_VALID_CORRELATION_PROPERTY_KEYS = frozenset({
+    "dns_hostname",
+    "spn_hosts",
+    "entra_tenant_id",
+    "entra_object_id",
+    "entra_app_id",
+})
 
 
 def _required(value: str, field: str) -> str:

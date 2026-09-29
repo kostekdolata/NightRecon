@@ -190,6 +190,29 @@ class EntraIdentityProviderTests(unittest.TestCase):
         self.assertEqual(by_kind["service"].distinguished_name, SERVICE_ID)
         self.assertEqual(by_kind["application"].distinguished_name, APPLICATION_ID)
         self.assertEqual(
+            dict(by_kind["user"].properties),
+            {
+                "entra_tenant_id": TENANT,
+                "entra_object_id": USER_ID,
+            },
+        )
+        self.assertEqual(
+            dict(by_kind["service"].properties),
+            {
+                "entra_tenant_id": TENANT,
+                "entra_object_id": SERVICE_ID,
+                "entra_app_id": "22222222-aaaa-bbbb-cccc-222222222222",
+            },
+        )
+        self.assertEqual(
+            dict(by_kind["application"].properties),
+            {
+                "entra_tenant_id": TENANT,
+                "entra_object_id": APPLICATION_ID,
+                "entra_app_id": "11111111-aaaa-bbbb-cccc-111111111111",
+            },
+        )
+        self.assertEqual(
             set(by_kind["group"].members),
             {USER_ID, SERVICE_ID},
         )

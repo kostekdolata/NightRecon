@@ -22,6 +22,12 @@ from nightrecon_red_engine.graph_models import (
 
 
 _WEB_SURFACE_TYPES = frozenset({"web", "api", "graphql"})
+_CLOUD_NETWORK_IP_PROPERTIES = ("private_ip", "public_ip")
+_CLOUD_NETWORK_HOST_PROPERTIES = (
+    "hostname",
+    "private_dns_name",
+    "public_dns_name",
+)
 
 
 def _normalize_hostname(value: str) -> str:
@@ -68,6 +74,67 @@ def _identity_hostnames(node: GraphNode) -> tuple[str, ...]:
         values.add(dns_hostname)
     values.update(_csv_hostnames(properties.get("spn_hosts", "")))
     return tuple(sorted(values))
+
+
+def _cloud_network_proofs(node: GraphNode) -> tuple[tuple[str, str], ...]:
+    if node.kind is not GraphNodeKind.ASSET:
+        return ()
+    properties = _property_map(node)
+    if not properties.get("cloud_provider") or not properties.get("cloud_resource_id"):
+        return ()
+
+    proofs: list[tuple[str, str]] = []
+    for key in _CLOUD_NETWORK_IP_PROPERTIES:
+        value = properties.get(key, "")
+        if not value:
+            continue
+        try:
+            normalized = str(ipaddress.ip_address(value))
+        except ValueError as exc:
+            raise ValueError(f"cloud {key} correlation property is invalid") from exc
+        if normalized != value:
+            raise ValueError(f"cloud {key} correlation property is not canonical")
+        proofs.append((key, normalized))
+
+    for key in _CLOUD_NETWORK_HOST_PROPERTIES:
+        value = properties.get(key, "")
+        if not value:
+            continue
+        normalized = _normalize_hostname(value)
+        if not normalized or normalized != value:
+            raise ValueError(f"cloud {key} correlation property is not canonical")
+        proofs.append((key, normalized))
+
+    return tuple(sorted(proofs))
+
+
+def _entra_identity_key(node: GraphNode) -> tuple[str, str] | None:
+    if node.kind is not GraphNodeKind.IDENTITY:
+        return None
+    properties = _property_map(node)
+    if properties.get("cloud_provider"):
+        return None
+    tenant_id = properties.get("entra_tenant_id", "")
+    object_id = properties.get("entra_object_id", "")
+    if not tenant_id or not object_id:
+        return None
+    return tenant_id, object_id
+
+
+def _cloud_identity_entra_parts(node: GraphNode) -> tuple[str, str, bool]:
+    if node.kind is not GraphNodeKind.IDENTITY:
+        return "", "", False
+    properties = _property_map(node)
+    provider = properties.get("cloud_provider", "")
+    if provider == "entra":
+        tenant_id = properties.get("entra_tenant_id", "")
+        object_id = properties.get("entra_object_id", "")
+    elif provider == "azure":
+        tenant_id = properties.get("azure_tenant_id", "")
+        object_id = properties.get("azure_object_id", "")
+    else:
+        return "", "", False
+    return tenant_id, object_id, bool(tenant_id or object_id)
 
 
 def _network_service_endpoint(node: GraphNode) -> tuple[str, int] | None:
@@ -137,6 +204,7 @@ class CrossSurfaceUnresolved:
 
     def __post_init__(self) -> None:
         if self.source_kind not in {
+            GraphNodeKind.ASSET,
             GraphNodeKind.IDENTITY,
             GraphNodeKind.SERVICE,
         }:
@@ -146,6 +214,8 @@ class CrossSurfaceUnresolved:
         if self.correlation_basis not in {
             "exact-hostname",
             "exact-origin-host-port",
+            "exact-cloud-network-key",
+            "exact-cloud-entra-object",
         }:
             raise ValueError("unsupported correlation basis")
         if len(self.key_sha256) != 64:
@@ -157,6 +227,12 @@ class CrossSurfaceUnresolved:
             "ambiguous-origin-asset",
             "no-exact-origin-service-match",
             "ambiguous-origin-service",
+            "no-exact-cloud-network-match",
+            "ambiguous-cloud-network-match",
+            "conflicting-cloud-network-evidence",
+            "incomplete-cloud-identity-key",
+            "no-exact-cloud-identity-match",
+            "ambiguous-cloud-identity-match",
         }:
             raise ValueError("unsupported unresolved correlation reason")
         if self.candidate_count < 0:
@@ -185,7 +261,7 @@ def correlate_exact_cross_surface_evidence(
     *,
     limits: CrossSurfaceCorrelationLimits | None = None,
 ) -> CrossSurfaceCorrelationResult:
-    """Correlate exact identity/network and web-origin/network evidence."""
+    """Correlate exact identity, network, web/API, and cloud evidence."""
 
     active = limits or CrossSurfaceCorrelationLimits()
     builder = IdentityGraphBuilder(
@@ -202,17 +278,33 @@ def correlate_exact_cross_surface_evidence(
     assets_by_hostname: dict[str, list[GraphNode]] = {}
     assets_by_address: dict[str, list[GraphNode]] = {}
     network_services: dict[tuple[str, int], list[GraphNode]] = {}
+    entra_identities_by_key: dict[tuple[str, str], list[GraphNode]] = {}
     identities: list[GraphNode] = []
     web_surfaces: list[GraphNode] = []
+    cloud_resources: list[GraphNode] = []
+    cloud_identities: list[GraphNode] = []
 
     for node in graph.nodes:
         if node.kind is GraphNodeKind.ASSET:
+            properties = _property_map(node)
+            if properties.get("cloud_provider"):
+                if properties.get("cloud_resource_id"):
+                    cloud_resources.append(node)
+                continue
             for hostname in _asset_hostnames(node):
                 assets_by_hostname.setdefault(hostname, []).append(node)
             address = _asset_address(node)
             if address:
                 assets_by_address.setdefault(address, []).append(node)
         elif node.kind is GraphNodeKind.IDENTITY:
+            properties = _property_map(node)
+            if properties.get("cloud_provider"):
+                if properties.get("cloud_identity_id"):
+                    cloud_identities.append(node)
+                continue
+            entra_key = _entra_identity_key(node)
+            if entra_key is not None:
+                entra_identities_by_key.setdefault(entra_key, []).append(node)
             if _identity_hostnames(node):
                 identities.append(node)
         elif node.kind is GraphNodeKind.SERVICE:
@@ -343,6 +435,125 @@ def correlate_exact_cross_surface_evidence(
             service_candidates[0],
             surface,
             basis="exact-origin-host-port",
+            proof=proof,
+        )
+
+
+    for cloud_resource in sorted(cloud_resources, key=lambda item: item.node_id):
+        proofs = _cloud_network_proofs(cloud_resource)
+        if not proofs:
+            continue
+
+        resolved: dict[str, tuple[GraphNode, list[str]]] = {}
+        no_matches: list[str] = []
+        ambiguous = False
+        for property_name, value in proofs:
+            proof = f"{property_name}\x1f{value}"
+            candidates = tuple(sorted(
+                (
+                    assets_by_address.get(value, ())
+                    if property_name in _CLOUD_NETWORK_IP_PROPERTIES
+                    else assets_by_hostname.get(value, ())
+                ),
+                key=lambda item: item.node_id,
+            ))
+            if not candidates:
+                no_matches.append(proof)
+                continue
+            if len(candidates) != 1:
+                add_unresolved(
+                    source_kind=GraphNodeKind.ASSET,
+                    source_key=cloud_resource.natural_key,
+                    basis="exact-cloud-network-key",
+                    proof=proof,
+                    reason="ambiguous-cloud-network-match",
+                    candidate_count=len(candidates),
+                )
+                ambiguous = True
+                continue
+            target = candidates[0]
+            entry = resolved.setdefault(target.node_id, (target, []))
+            entry[1].append(proof)
+
+        if ambiguous:
+            continue
+
+        if len(resolved) > 1:
+            add_unresolved(
+                source_kind=GraphNodeKind.ASSET,
+                source_key=cloud_resource.natural_key,
+                basis="exact-cloud-network-key",
+                proof="\x1e".join(sorted(
+                    proof
+                    for _target, target_proofs in resolved.values()
+                    for proof in target_proofs
+                )),
+                reason="conflicting-cloud-network-evidence",
+                candidate_count=len(resolved),
+            )
+            continue
+
+        if len(resolved) == 1:
+            target, target_proofs = next(iter(resolved.values()))
+            for proof in sorted(target_proofs):
+                add_pair(
+                    target,
+                    cloud_resource,
+                    basis="exact-cloud-network-key",
+                    proof=proof,
+                )
+
+        for proof in sorted(no_matches):
+            add_unresolved(
+                source_kind=GraphNodeKind.ASSET,
+                source_key=cloud_resource.natural_key,
+                basis="exact-cloud-network-key",
+                proof=proof,
+                reason="no-exact-cloud-network-match",
+                candidate_count=0,
+            )
+
+    for cloud_identity in sorted(cloud_identities, key=lambda item: item.node_id):
+        tenant_id, object_id, has_any_key = _cloud_identity_entra_parts(
+            cloud_identity
+        )
+        if not has_any_key:
+            continue
+        proof = f"{tenant_id}\x1f{object_id}"
+        if not tenant_id or not object_id:
+            add_unresolved(
+                source_kind=GraphNodeKind.IDENTITY,
+                source_key=cloud_identity.natural_key,
+                basis="exact-cloud-entra-object",
+                proof=proof,
+                reason="incomplete-cloud-identity-key",
+                candidate_count=0,
+            )
+            continue
+
+        candidates = tuple(sorted(
+            entra_identities_by_key.get((tenant_id, object_id), ()),
+            key=lambda item: item.node_id,
+        ))
+        if len(candidates) != 1:
+            add_unresolved(
+                source_kind=GraphNodeKind.IDENTITY,
+                source_key=cloud_identity.natural_key,
+                basis="exact-cloud-entra-object",
+                proof=proof,
+                reason=(
+                    "no-exact-cloud-identity-match"
+                    if not candidates
+                    else "ambiguous-cloud-identity-match"
+                ),
+                candidate_count=len(candidates),
+            )
+            continue
+
+        add_pair(
+            candidates[0],
+            cloud_identity,
+            basis="exact-cloud-entra-object",
             proof=proof,
         )
 

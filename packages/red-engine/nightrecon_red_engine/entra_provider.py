@@ -487,7 +487,23 @@ class EntraIdentityProvider:
                 else _display_name(item, "appId")
             )
             existing = identities.get(object_id)
-            entry = DirectoryEntry(object_id, kind, name)
+            correlation_properties = [
+                ("entra_tenant_id", self._tenant_id),
+                ("entra_object_id", object_id),
+            ]
+            app_id = item.get("appId")
+            if (
+                kind in {"service", "application"}
+                and isinstance(app_id, str)
+                and app_id.strip()
+            ):
+                correlation_properties.append(("entra_app_id", _object_id(app_id)))
+            entry = DirectoryEntry(
+                object_id,
+                kind,
+                name,
+                properties=tuple(correlation_properties),
+            )
             if existing is not None and existing != entry:
                 raise ValueError(
                     "Microsoft Graph object id has conflicting identity data"
