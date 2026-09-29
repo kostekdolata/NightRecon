@@ -272,19 +272,19 @@ Approval binding and signed policy publication remain later batches.
 
 ### Batch E — approvals
 
-Status: active implementation.
+Status: implemented and PR-CI verified.
 
-Current scope:
+Delivered:
 
 - immutable approval requests bound to exact policy/action context;
 - single, dual, and quorum rules;
 - role eligibility and separation of duties;
 - bounded request-specific delegation without authority multiplication;
 - expiry, rejection, escalation, and revocation;
-- deterministic hash-linked decision evidence;
+- deterministic hash-linked decision evidence with semantic import validation;
 - fingerprinted approval grants and replay protection;
 - local network-free CLI workflow operations;
-- isolated package smoke coverage.
+- isolated installed-package smoke coverage across the supported matrix.
 
 Persistent ApprovalStore backends and signed approval authenticity remain later
 work so Batch E does not couple White to a deployment-specific storage model.
