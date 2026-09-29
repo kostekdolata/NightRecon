@@ -27,8 +27,8 @@ The fixed Graph surfaces are:
 - `/v1.0/applications?$select=id,displayName,appId&$top=100`
 - `/v1.0/servicePrincipals?$select=id,displayName,appId&$top=100`
 - `/v1.0/groups/{id}/members?$select=id,displayName,userPrincipalName,appId&$top=100`
-- `/v1.0/applications/{id}/owners?$select=id,displayName,userPrincipalName,appId&$top=100`
-- `/v1.0/servicePrincipals/{id}/owners?$select=id,displayName,userPrincipalName,appId&$top=100`
+- `/v1.0/applications/{id}/owners`
+- `/v1.0/servicePrincipals/{id}/owners`
 - `/v1.0/roleManagement/directory/roleDefinitions`
 - `/v1.0/roleManagement/directory/roleAssignments?$select=id,principalId,roleDefinitionId,directoryScopeId`
 
