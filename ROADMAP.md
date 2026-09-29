@@ -6,19 +6,30 @@ This roadmap is directional. Release scope may be split into smaller verified in
 
 ## Product delivery order
 
-Red Night is the only active Night product track until it passes the complete
-[Red Night acceptance standard](RED_ACCEPTANCE.md) and documented, repeatable
-comparison labs. For each relevant specialist category, measure coverage,
-false positives, safety, repeatability, usability, and operational evidence.
-The goal is to exceed leading tools where Red Night can demonstrate a material
-advantage and meet their essential capability baseline elsewhere. Never claim
-universal superiority from a feature checklist or a passing unit-test count.
+Red Night remains the currently available standalone Night and continues its
+evidence-backed completion work under
+[RED_ACCEPTANCE.md](RED_ACCEPTANCE.md). For each relevant specialist category,
+measure coverage, false positives, safety, repeatability, usability, and
+operational evidence. Never claim universal superiority from a feature checklist
+or a passing unit-test count.
 
-After Red Night reaches that evidence-backed gate, choose the next Night using
-its own acceptance and comparison plan. Blue Night, White Night, Purple Night,
-and Black Night remain distinct future applications, not parallel delivery
-tracks. Maintenance of the shared authorization core continues throughout;
-it cannot wait for the separate White Night application.
+White Night is the second standalone product track. Its foundation/acceptance
+architecture may proceed while Red Night remains stable, provided White work
+does not refactor or change Red execution behavior. White implementation is
+governed by [WHITE_ACCEPTANCE.md](WHITE_ACCEPTANCE.md),
+[WHITE_OWNERSHIP.md](WHITE_OWNERSHIP.md),
+[WHITE_PACKAGE_PLAN.md](WHITE_PACKAGE_PLAN.md), and
+[WHITE_LIVE_ARCHITECTURE.md](WHITE_LIVE_ARCHITECTURE.md).
+
+White Night must be designed from the start for three equivalent deployment
+profiles: standalone installation, composed full-stack installation, and
+bootable White Night Live USB. These are deployments of one White product, not
+separate forks.
+
+Blue Night, Purple Night, and Black Night remain distinct later standalone
+applications. Maintenance of the shared authorization/safety core continues
+throughout and never waits for White Night; another Night must remain safe and
+usable without White installed.
 
 ## Operating Modes
 
@@ -33,6 +44,12 @@ edition architecture and honest availability status are in [EDITIONS.md](EDITION
 - **White Night** — authorization, scope, rules of engagement, approvals, safety controls, audit, evidence, exercise control, and emergency stop.
 - **Black Night** — deliberately knowledge-limited external assessment beginning from an explicitly authorized starting scope.
 - **Purple Night** — correlation of approved Red Night actions with Blue Night prevention, telemetry, alerts, and detection coverage, usable on its own with exported evidence or alongside Red Night and Blue Night.
+
+White Night additionally has a locked deployment requirement: the same White
+application/engine code and versioned contracts must support standalone install,
+full-stack composition, and a bootable encrypted Live USB. A future full-stack
+Live image may include the other Night packages, but no Night may become a
+mandatory runtime dependency of another.
 
 ## Locked Safety Principles
 
@@ -412,7 +429,190 @@ Planned capabilities:
 
 High-impact actions must never be exposed as ordinary scan options.
 
-## Generation 4 — Blue Defensive Validation
+## Generation 4 — White Night Command and Exercise Control
+
+Goal: make authorization, engagement governance, evidence custody, exercise
+control, and emergency-stop management a first-class standalone product while
+preserving shared-core enforcement when White is absent.
+
+White Night is the second standalone product track after Red Night.
+
+Locked architecture:
+
+- one White product across standalone install, full-stack install, and Live USB;
+- `White application -> White engine -> shared core`;
+- no White-to-Red/Blue/Purple/Black runtime imports;
+- no Red/Blue/Purple/Black dependency on White;
+- shared-core scope, budget, stop, and secret-handling enforcement remains
+  authoritative;
+- imported evidence never grants authorization.
+
+### White Batch 1 — Foundation and acceptance
+
+Status: active documentation foundation.
+
+- `WHITE_ACCEPTANCE.md`
+- `WHITE_OWNERSHIP.md`
+- `WHITE_PACKAGE_PLAN.md`
+- `WHITE_LIVE_ARCHITECTURE.md`
+- edition/roadmap composition contract
+- no runtime behavior changes
+
+### White Batch 2 — Package skeleton
+
+Planned:
+
+- `nightrecon-white-engine`
+- `nightrecon-white-night`
+- independent launcher/application boundary
+- capability registration
+- package-isolation smoke tests
+- no active assessment engine
+
+### White Batch 3 — Engagement, scope and ROE domain
+
+Planned:
+
+- immutable/versioned engagements
+- roles and authorized contacts
+- target allowlists/exclusions
+- testing/exercise windows
+- allowed action/technique classes
+- maximum intrusiveness and budgets
+- data-handling/retention rules
+- human-readable ROE
+
+### White Batch 4 — Deterministic policy compiler
+
+Planned:
+
+- ROE to machine-enforceable policy bundle
+- stable policy fingerprint
+- approval/version binding
+- expiry/revocation
+- authenticity/integrity verification
+- negative tests proving policy compilation cannot broaden source scope
+
+### White Batch 5 — Approval workflow engine
+
+Planned:
+
+- single approval
+- dual control
+- quorum approval
+- separation of duties
+- expiry
+- delegation
+- rejection
+- revocation
+- escalation
+- immutable decision evidence
+
+### White Batch 6 — Evidence custody and tamper-evident audit
+
+Planned:
+
+- provenance-backed evidence intake
+- custody events
+- cryptographic evidence fingerprints
+- classification and limitations
+- derivation/parent references
+- append-only logical audit
+- portable integrity manifest
+- signed export support
+- secret-free ordinary audit/report output
+
+### White Batch 7 — White Night Live USB alpha
+
+Planned:
+
+- reproducible Debian-based `live-build` configuration
+- x86-64 UEFI first target
+- immutable/read-only base system image
+- White packages installed from versioned artifacts
+- Secure Workspace boot mode
+- Ephemeral Session boot mode
+- Recovery & Integrity Check boot mode
+- LUKS2 encrypted persistent workspace
+- automatic White application start after workspace unlock
+- VM boot/reboot persistence tests
+- no removable-media AutoRun bypass
+
+### White Batch 8 — Exercise Director
+
+Planned:
+
+- technical and tabletop exercise modes
+- objectives/phases/scenarios
+- facilitator/participant/observer/reviewer roles
+- injects
+- exercise clock
+- pause/resume/terminate
+- observations
+- lessons learned
+- improvement actions
+
+### White Batch 9 — Mission Control and emergency-stop management
+
+Planned:
+
+- one engagement timeline
+- authorization/policy visibility
+- approval state
+- budget/time-window state
+- Night capability/status visibility through shared contracts
+- stop engagement/Night/operation
+- freeze new actions
+- revoke approval
+- stop requested versus stop acknowledged
+- bounded offline authorization checkpoints
+
+### White Batch 10 — Red Night composition
+
+Planned:
+
+- Red publishes versioned action/evidence events to the shared engagement layer
+- White consumes Red evidence without importing Red engine code
+- Red consumes shared-core-enforceable White-approved policy without importing
+  White runtime code
+- standalone export/import path
+- composed shared-workspace path
+- prove imported Red evidence never expands authorization
+
+### White Batch 11 — Professional workspace and reporting
+
+Planned:
+
+- engagement dashboard
+- scope/ROE review
+- approval inbox
+- evidence browser
+- audit viewer
+- facilitator console
+- after-action report
+- evidence manifest
+- policy/decision history
+- machine-readable exports
+
+### White Batch 12 — Hardened deployment and acceptance
+
+Planned:
+
+- standalone/composed/Live deployment parity tests
+- signed/offline Live update bundles
+- recovery and rollback
+- Secure Boot production target
+- SBOM/build manifest
+- hardware compatibility matrix
+- large-engagement/evidence performance tests
+- migration/version tests
+- benchmark labs against relevant cyber-range, SOAR, engagement-management,
+  BAS, and exercise-planning categories
+
+White Night must remain independently useful even when no other Night is
+installed. Full-stack capability comes from composition, not duplicated engines.
+
+## Generation 5 — Blue Defensive Validation
 
 Goal: test whether defensive controls actually prevent or detect approved activity.
 
@@ -435,32 +635,6 @@ Planned integrations and capabilities:
 - remediation and re-test loops
 
 Purple Night workflows will correlate approved Red Night activity with Blue Night telemetry and detections.
-
-## Generation 5 — White Team Command Layer
-
-Goal: make authorization and exercise control a first-class product capability.
-
-Planned capabilities:
-
-- engagements and projects
-- authorization records
-- target allowlists and exclusions
-- testing windows
-- allowed techniques
-- maximum intrusiveness
-- approval chains
-- request/action budgets
-- worker permissions
-- encrypted credential/secrets handling
-- immutable audit evidence
-- exercise control and scoring
-- emergency stop and worker revocation
-- data-retention policy
-- evidence custody and export
-
-The separate White Night application will provide engagement administration
-and exercise control. Mandatory shared-core authorization and safety remain
-available to Red Night before White Night exists as an application.
 
 ## Generation 6 — Black-Box / External Attack Surface
 
@@ -507,12 +681,17 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Complete and verify v0.42 Batch 2 — Exact Cross-Surface Correlation.
-2. Extend exact correlation into web/API and concrete cloud resources.
-3. Compile bounded controlled-validation candidates from evidence-backed paths;
-   never auto-execute them.
-4. Add cross-domain operator reporting, evidence-gap review, and remediation
-   impact on exposure paths.
-5. Run reproducible comparison labs and keep Red Night as the active product
-   track until the full [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md) standard is
-   evidence-backed.
+1. Preserve and verify the current Red Night v0.42 work; White foundation changes
+   must not modify Red execution behavior.
+2. Complete White Batch 1 documentation/contract foundation and verify the diff
+   is documentation-only.
+3. Begin White Batch 2 with independent White application/engine package
+   skeletons and isolation tests.
+4. Build White Batch 3 engagement/scope/ROE domain before UI-heavy work.
+5. Establish the first reproducible White Live build skeleton early enough that
+   storage, offline behavior, and deployment constraints shape White development
+   rather than being bolted on later.
+6. Continue Red acceptance work and White development in small verified branches;
+   neither product may weaken shared-core authorization semantics.
+7. Do not advertise White as standalone, full-stack compatible, or Live-ready
+   until the relevant gates in [WHITE_ACCEPTANCE.md](WHITE_ACCEPTANCE.md) pass.
