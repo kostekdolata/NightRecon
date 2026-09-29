@@ -177,7 +177,11 @@ def main() -> None:
     application_key = directory_natural_key(
         "application", APPLICATION_ID, namespace="entra"
     )
-    role_key = directory_natural_key("role", ROLE_ID, namespace="entra")
+    role_key = directory_natural_key(
+        "role",
+        f"{ROLE_ID}|/",
+        namespace="entra",
+    )
     expected = IdentityEvidenceBundle(
         identities=imported.evidence.identities,
         groups=imported.evidence.groups,
