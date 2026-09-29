@@ -14,7 +14,7 @@ from nightrecon.cli import main
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_VERSION = "0.31.0"
-RED_EXPECTED_VERSION = "0.40.0"
+RED_EXPECTED_VERSION = "0.41.0"
 
 
 class ReleaseMetadataTests(unittest.TestCase):
