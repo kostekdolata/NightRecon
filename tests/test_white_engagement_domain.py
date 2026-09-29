@@ -173,7 +173,7 @@ class EngagementDomainTests(unittest.TestCase):
         )
         self.assertTrue(scope.allows("192.0.2.10"))
         self.assertFalse(scope.allows("192.0.2.200"))
-        self.assertFalse(scope.allows("192.0.2.64/25"))
+        self.assertFalse(scope.allows("192.0.2.128/26"))
         self.assertTrue(scope.allows("example.test"))
         self.assertFalse(scope.allows("other.example.test"))
 
