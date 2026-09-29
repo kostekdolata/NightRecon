@@ -18,11 +18,18 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from nightrecon_red_engine.graph_identity_evidence import (
+    IdentityEvidenceBundle,
+    IdentityRelationshipEvidence,
+    RoleEvidence,
+)
+from nightrecon_red_engine.graph_models import GraphNodeKind
 from nightrecon_red_engine.identity_collection import (
     DirectoryEntry,
     IdentityCollectionRequest,
     IdentityProviderCollection,
 )
+from nightrecon_red_engine.red_directory_import import directory_natural_key
 
 
 GRAPH_HOST = "graph.microsoft.com"
@@ -31,15 +38,24 @@ GRAPH_USERS_PATH = (
     "/v1.0/users?$select=id,displayName,userPrincipalName&$top=100"
 )
 GRAPH_GROUPS_PATH = "/v1.0/groups?$select=id,displayName&$top=100"
+GRAPH_APPLICATIONS_PATH = "/v1.0/applications?$select=id,displayName,appId&$top=100"
 GRAPH_SERVICE_PRINCIPALS_PATH = (
     "/v1.0/servicePrincipals?$select=id,displayName,appId&$top=100"
+)
+GRAPH_ROLE_DEFINITIONS_PATH = "/v1.0/roleManagement/directory/roleDefinitions"
+GRAPH_ROLE_ASSIGNMENTS_PATH = (
+    "/v1.0/roleManagement/directory/roleAssignments"
+    "?$select=id,principalId,roleDefinitionId,directoryScopeId"
 )
 
 _ALLOWED_QUERY_KEYS = frozenset({"$select", "$top", "$skiptoken"})
 _ALLOWED_COLLECTION_PATHS = frozenset({
     "/v1.0/users",
     "/v1.0/groups",
+    "/v1.0/applications",
     "/v1.0/servicePrincipals",
+    "/v1.0/roleManagement/directory/roleDefinitions",
+    "/v1.0/roleManagement/directory/roleAssignments",
 })
 
 
@@ -77,6 +93,7 @@ def _validate_graph_url(url: str) -> str:
         raise ValueError("Microsoft Graph URL fragments are not supported")
 
     path = parsed.path
+    relationship_kind = ""
     allowed = path in _ALLOWED_COLLECTION_PATHS
     if not allowed:
         pieces = path.split("/")
@@ -88,6 +105,20 @@ def _validate_graph_url(url: str) -> str:
             and len(pieces[3]) <= 256
             and not any(char in pieces[3] for char in "?#")
         )
+        if allowed:
+            relationship_kind = "members"
+        else:
+            allowed = (
+                len(pieces) == 5
+                and pieces[1] == "v1.0"
+                and pieces[2] in {"applications", "servicePrincipals"}
+                and pieces[4] == "owners"
+                and bool(pieces[3])
+                and len(pieces[3]) <= 256
+                and not any(char in pieces[3] for char in "?#")
+            )
+            if allowed:
+                relationship_kind = "owners"
     if not allowed:
         raise ValueError("Microsoft Graph URL is outside the fixed Entra collection plan")
 
@@ -100,14 +131,38 @@ def _validate_graph_url(url: str) -> str:
     expected_select = {
         "/v1.0/users": "id,displayName,userPrincipalName",
         "/v1.0/groups": "id,displayName",
+        "/v1.0/applications": "id,displayName,appId",
         "/v1.0/servicePrincipals": "id,displayName,appId",
+        "/v1.0/roleManagement/directory/roleAssignments":
+            "id,principalId,roleDefinitionId,directoryScopeId",
     }.get(path)
-    if expected_select is None:
+    if relationship_kind in {"members", "owners"}:
         expected_select = "id,displayName,userPrincipalName,appId"
-    if query.get("$select") != [expected_select]:
-        raise ValueError("Microsoft Graph $select is outside the fixed Entra collection plan")
-    if query.get("$top") != ["100"]:
-        raise ValueError("Microsoft Graph $top is outside the fixed Entra collection plan")
+
+    if expected_select is None:
+        if path != "/v1.0/roleManagement/directory/roleDefinitions":
+            raise ValueError(
+                "Microsoft Graph projection is outside the fixed Entra collection plan"
+            )
+        if "$select" in query or "$top" in query:
+            raise ValueError(
+                "Microsoft Graph role-definition query is outside the fixed plan"
+            )
+    else:
+        if query.get("$select") != [expected_select]:
+            raise ValueError(
+                "Microsoft Graph $select is outside the fixed Entra collection plan"
+            )
+        if path != "/v1.0/roleManagement/directory/roleAssignments":
+            if query.get("$top") != ["100"]:
+                raise ValueError(
+                    "Microsoft Graph $top is outside the fixed Entra collection plan"
+                )
+        elif "$top" in query:
+            raise ValueError(
+                "Microsoft Graph role-assignment query is outside the fixed plan"
+            )
+
     if "$skiptoken" in query and not query["$skiptoken"][0]:
         raise ValueError("Microsoft Graph $skiptoken must not be blank")
     return url
