@@ -84,10 +84,7 @@ def _owners_path(resource: str, object_id: str) -> str:
     if resource not in {"applications", "servicePrincipals"}:
         raise ValueError("Microsoft Graph ownership resource is unsupported")
     encoded = quote(_object_id(object_id), safe="._-")
-    return (
-        f"/v1.0/{resource}/{encoded}/owners"
-        "?$select=id,displayName,userPrincipalName,appId&$top=100"
-    )
+    return f"/v1.0/{resource}/{encoded}/owners"
 
 
 def _validate_graph_url(url: str) -> str:
@@ -138,6 +135,15 @@ def _validate_graph_url(url: str) -> str:
     if any(len(values) != 1 for values in query.values()):
         raise ValueError("Microsoft Graph query contains repeated parameters")
 
+    if relationship_kind == "owners":
+        if "$select" in query or "$top" in query:
+            raise ValueError(
+                "Microsoft Graph owner query is outside the fixed Entra collection plan"
+            )
+        if "$skiptoken" in query and not query["$skiptoken"][0]:
+            raise ValueError("Microsoft Graph $skiptoken must not be blank")
+        return url
+
     expected_select = {
         "/v1.0/users": "id,displayName,userPrincipalName",
         "/v1.0/groups": "id,displayName",
@@ -146,7 +152,7 @@ def _validate_graph_url(url: str) -> str:
         "/v1.0/roleManagement/directory/roleAssignments":
             "id,principalId,roleDefinitionId,directoryScopeId",
     }.get(path)
-    if relationship_kind in {"members", "owners"}:
+    if relationship_kind == "members":
         expected_select = "id,displayName,userPrincipalName,appId"
 
     if expected_select is None:
