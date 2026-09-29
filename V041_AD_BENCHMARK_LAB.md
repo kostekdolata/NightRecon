@@ -13,8 +13,10 @@ For one explicit expected identity topology, the benchmark records:
 - expected identities discovered
 - expected groups discovered
 - expected membership relationships discovered
-- missed identities, groups, and memberships
-- unexpected/invented identities, groups, and memberships
+- expected role/privilege semantics discovered
+- expected management, delegation, and trust relationships discovered
+- missed identities, groups, memberships, roles, and relationships
+- unexpected/invented identities, groups, memberships, roles, and relationships
 - unresolved membership references
 - provider request/page count
 - provider runtime in milliseconds
@@ -49,8 +51,13 @@ The fixture models:
 - 1 regular user identity
 - 1 service identity
 - 1 computer identity
-- 1 group
-- 3 observed memberships
+- 2 directory groups
+- 2 domain identities used by one trust observation
+- 4 observed memberships, including 3 primary-group relationships
+- 1 selected privileged-group role semantic
+- 1 group-management relationship
+- 1 constrained-delegation relationship
+- 1 domain-trust relationship
 - 2 LDAP page requests
 
 Its acceptance conditions are:
@@ -58,7 +65,10 @@ Its acceptance conditions are:
 - 0 missed identities
 - 0 missed groups
 - 0 missed memberships
+- 0 missed roles
+- 0 missed management/delegation/trust relationships
 - 0 invented memberships
+- 0 invented relationships
 - no unexpected evidence
 - no unresolved references
 - no truncation
@@ -87,6 +97,10 @@ This is a deterministic provider-quality baseline, not yet a live-domain
 comparison against external specialist products. Live authorized lab work will
 be added separately once reproducible test infrastructure is available.
 
-The deterministic fixture now covers user, service, computer, group, and
-membership normalization. Broader authorization/trust relationships remain
-subsequent v0.41 work.
+The deterministic fixture now covers user, service, computer, group, primary
+group, selected privileged-group semantics, management, constrained delegation,
+and domain-trust normalization.
+
+This remains a deterministic provider-quality baseline rather than a live
+specialist-tool comparison. Broader ACL/security-descriptor relationship
+coverage and external lab comparisons remain open work.

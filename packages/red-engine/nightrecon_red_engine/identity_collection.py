@@ -230,6 +230,17 @@ def _merge_identity_evidence(
     identity_keys = {item.natural_key for item in identities}
     group_keys = {item.natural_key for item in groups}
     role_keys = {item.natural_key for item in roles}
+    for item in memberships:
+        member_keys = (
+            identity_keys
+            if item.member_kind.value == "identity"
+            else group_keys
+        )
+        if item.member_key not in member_keys:
+            raise ValueError("membership source is missing from identity evidence")
+        if item.group_key not in group_keys:
+            raise ValueError("membership group is missing from identity evidence")
+
     for item in relationships:
         source_keys = identity_keys if item.source_kind.value == "identity" else group_keys
         if item.source_key not in source_keys:

@@ -59,9 +59,11 @@ def directory_natural_key(
 ) -> str:
     """Return an opaque graph key for one exact provider-native identifier."""
 
-    if kind not in ("user", "computer", "service", "application", "role", "group"):
+    if kind not in (
+        "user", "computer", "service", "application", "domain", "role", "group"
+    ):
         raise ValueError(
-            "directory node kind must be user, computer, service, application, role, or group"
+            "directory node kind must be user, computer, service, application, domain, role, or group"
         )
     _required_text(dn, "dn")
     _required_text(namespace, "namespace")
@@ -122,9 +124,11 @@ def import_directory_snapshot(
         dn = _required_text(entry["dn"], "dn")
         name = _required_text(entry["name"], "name")
         kind = entry["kind"]
-        if kind not in ("user", "computer", "service", "application", "group"):
+        if kind not in (
+            "user", "computer", "service", "application", "domain", "group"
+        ):
             raise ValueError(
-                "directory entry kind must be user, computer, service, application, or group"
+                "directory entry kind must be user, computer, service, application, domain, or group"
             )
         if dn in by_dn:
             raise ValueError("directory export contains a duplicate DN")
@@ -147,6 +151,7 @@ def import_directory_snapshot(
             "computer": f"{namespace}-computer",
             "service": f"{namespace}-service",
             "application": f"{namespace}-application",
+            "domain": f"{namespace}-domain",
         }
         if kind in identity_types:
             identities.append(

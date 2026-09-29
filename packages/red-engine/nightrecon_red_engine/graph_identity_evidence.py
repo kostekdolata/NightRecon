@@ -134,7 +134,13 @@ class IdentityRelationshipEvidence:
         _require(self.source_key, "source_key")
         _require(self.target_key, "target_key")
         relationship = _require(self.relationship, "relationship").lower()
-        if relationship not in {"owns", "assigned-role"}:
+        if relationship not in {
+            "owns",
+            "assigned-role",
+            "manages",
+            "delegates-to",
+            "domain-trust",
+        }:
             raise ValueError("identity relationship type is unsupported")
         if self.source_kind == self.target_kind and self.source_key == self.target_key:
             raise ValueError("identity relationships cannot be self-referential")
