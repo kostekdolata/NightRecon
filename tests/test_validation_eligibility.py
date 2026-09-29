@@ -66,7 +66,7 @@ def service_fixture(*, tls=True):
     second = GraphEdge.create(
         source_node_id=service.node_id,
         target_node_id=critical.node_id,
-        relationship="classified-as-critical",
+        relationship="evidence-path",
         evidence_state=GraphEvidenceState.OBSERVED,
         provenance=provenance("edge-2"),
     )
@@ -118,7 +118,7 @@ def web_fixture():
     second = GraphEdge.create(
         source_node_id=web.node_id,
         target_node_id=critical.node_id,
-        relationship="classified-as-critical",
+        relationship="evidence-path",
         evidence_state=GraphEvidenceState.OBSERVED,
         provenance=provenance("web-edge-2"),
     )
