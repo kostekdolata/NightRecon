@@ -843,13 +843,25 @@ class ApprovalWorkflow:
                     raise ApprovalWorkflowError(
                         "approval workflow was escalated more than once"
                     )
-                recorded_roles = sorted(
-                    value
-                    for key, value in event.details
-                    if key == "escalation_role"
-                )
-                if recorded_roles != sorted(
-                    self.request.policy.escalation_roles
+                encoded_roles = event.detail("escalation_roles")
+                if (
+                    encoded_roles is None
+                    or set(key for key, _ in event.details)
+                    != {"escalation_roles"}
+                ):
+                    raise ApprovalWorkflowError(
+                        "approval escalation evidence is incomplete"
+                    )
+                try:
+                    decoded_roles = json.loads(encoded_roles)
+                except json.JSONDecodeError as exc:
+                    raise ApprovalWorkflowError(
+                        "approval escalation roles are invalid"
+                    ) from exc
+                if (
+                    not isinstance(decoded_roles, list)
+                    or tuple(sorted(decoded_roles))
+                    != self.request.policy.escalation_roles
                 ):
                     raise ApprovalWorkflowError(
                         "approval escalation roles do not match policy"
@@ -1197,10 +1209,13 @@ class ApprovalWorkflow:
             actor_id=actor_id,
             actor_role=None,
             reason=reason,
-            details=tuple(
-                ("escalation_role", role)
-                for role in self.request.policy.escalation_roles
-            ),
+            details=((
+                "escalation_roles",
+                json.dumps(
+                    list(self.request.policy.escalation_roles),
+                    separators=(",", ":"),
+                ),
+            ),),
         )
 
     def revoke(
