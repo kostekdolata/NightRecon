@@ -430,6 +430,9 @@ class ApprovalEvent:
         normalized = tuple(sorted(self.details))
         if len(normalized) != len(set(normalized)):
             raise ApprovalWorkflowError("event details must not contain duplicates")
+        keys = [key for key, _ in normalized]
+        if len(keys) != len(set(keys)):
+            raise ApprovalWorkflowError("event detail keys must be unique")
         for key, value in normalized:
             _required_text(key, "event detail key")
             _required_text(value, "event detail value")
@@ -619,6 +622,13 @@ class ApprovalWorkflow:
             raise ApprovalWorkflowError(
                 "requested event is not bound to request fingerprint"
             )
+        if (
+            first.occurred_at != self.request.requested_at
+            or first.actor_id != self.request.requested_by
+        ):
+            raise ApprovalWorkflowError(
+                "requested event does not match request origin"
+            )
         self._validate_history()
 
     @classmethod
@@ -650,6 +660,39 @@ class ApprovalWorkflow:
         approving_actors: set[str] = set()
         authority_sources: set[str] = set()
         escalated = False
+        prior_events: list[ApprovalEvent] = [self.events[0]]
+
+        def direct_role(actor_id: str, actor_role: str | None) -> bool:
+            if actor_role is None:
+                return False
+            principal = self.request.principal(actor_id)
+            return (
+                actor_role in principal.roles
+                and actor_role in self.request.policy.eligible_roles
+            )
+
+        def delegated_source(
+            actor_id: str,
+            actor_role: str | None,
+            occurred_at: str,
+        ) -> str | None:
+            if actor_role is None:
+                return None
+            at = _parse_time(occurred_at)
+            for prior in reversed(prior_events):
+                if (
+                    prior.event_type == "delegated"
+                    and prior.detail("delegate_id") == actor_id
+                    and prior.detail("delegated_role") == actor_role
+                ):
+                    valid_until = prior.detail("valid_until")
+                    if (
+                        valid_until is not None
+                        and _parse_time(prior.occurred_at) <= at
+                        and at < _parse_time(valid_until)
+                    ):
+                        return prior.actor_id
+            return None
 
         for event in self.events[1:]:
             if (
@@ -659,7 +702,6 @@ class ApprovalWorkflow:
                 raise ApprovalWorkflowError(
                     "approval workflow contains a decision after request expiry"
                 )
-
             if state in {"rejected", "revoked"}:
                 raise ApprovalWorkflowError(
                     "approval workflow contains events after terminal state"
@@ -668,59 +710,164 @@ class ApprovalWorkflow:
                 raise ApprovalWorkflowError(
                     "approved workflow may only be revoked"
                 )
+            if event.event_type == "requested":
+                raise ApprovalWorkflowError(
+                    "approval workflow contains duplicate requested event"
+                )
 
-            if event.event_type == "approved":
+            if event.event_type in {"approved", "rejected"}:
                 if state != "pending":
                     raise ApprovalWorkflowError(
                         "approval decision is not valid in current state"
                     )
-                if event.actor_id in approving_actors:
-                    raise ApprovalWorkflowError(
-                        "principal approved the request more than once"
-                    )
-                authority_source = event.detail("authority_source")
-                if authority_source is None:
-                    raise ApprovalWorkflowError(
-                        "approval event is missing authority source"
-                    )
-                if authority_source in authority_sources:
-                    raise ApprovalWorkflowError(
-                        "approval authority source was counted more than once"
-                    )
-                approving_actors.add(event.actor_id)
-                authority_sources.add(authority_source)
+                self.request.principal(event.actor_id)
                 if (
-                    len(authority_sources)
-                    >= self.request.policy.required_approvals
+                    not self.request.policy.requester_may_approve
+                    and event.actor_id == self.request.requested_by
                 ):
-                    state = "approved"
-            elif event.event_type == "rejected":
-                if state != "pending":
                     raise ApprovalWorkflowError(
-                        "rejection is not valid in current state"
+                        "requester cannot decide their own approval request"
                     )
-                state = "rejected"
-            elif event.event_type == "revoked":
-                if state != "approved":
+
+                expected_source: str | None
+                if direct_role(event.actor_id, event.actor_role):
+                    expected_source = event.actor_id
+                else:
+                    expected_source = delegated_source(
+                        event.actor_id,
+                        event.actor_role,
+                        event.occurred_at,
+                    )
+                if expected_source is None:
                     raise ApprovalWorkflowError(
-                        "revocation requires an approved workflow"
+                        "approval decision lacks eligible authority"
                     )
-                state = "revoked"
+                if event.detail("authority_source") != expected_source:
+                    raise ApprovalWorkflowError(
+                        "approval decision authority source is invalid"
+                    )
+
+                if event.event_type == "approved":
+                    if event.actor_id in approving_actors:
+                        raise ApprovalWorkflowError(
+                            "principal approved the request more than once"
+                        )
+                    if expected_source in authority_sources:
+                        raise ApprovalWorkflowError(
+                            "approval authority source was counted more than once"
+                        )
+                    approving_actors.add(event.actor_id)
+                    authority_sources.add(expected_source)
+                    if (
+                        len(authority_sources)
+                        >= self.request.policy.required_approvals
+                    ):
+                        state = "approved"
+                else:
+                    state = "rejected"
+
             elif event.event_type == "delegated":
                 if state != "pending":
                     raise ApprovalWorkflowError(
                         "delegation is not valid in current state"
                     )
+                if not self.request.policy.allow_delegation:
+                    raise ApprovalWorkflowError(
+                        "approval workflow contains forbidden delegation"
+                    )
+                delegate_id = event.detail("delegate_id")
+                delegated_role = event.detail("delegated_role")
+                valid_until = event.detail("valid_until")
+                if (
+                    delegate_id is None
+                    or delegated_role is None
+                    or valid_until is None
+                    or set(key for key, _ in event.details)
+                    != {"delegate_id", "delegated_role", "valid_until"}
+                ):
+                    raise ApprovalWorkflowError(
+                        "approval delegation evidence is incomplete"
+                    )
+                self.request.principal(delegate_id)
+                if event.actor_id == delegate_id:
+                    raise ApprovalWorkflowError(
+                        "delegator and delegate must differ"
+                    )
+                if (
+                    not self.request.policy.requester_may_approve
+                    and (
+                        event.actor_id == self.request.requested_by
+                        or delegate_id == self.request.requested_by
+                    )
+                ):
+                    raise ApprovalWorkflowError(
+                        "separation of duties forbids requester delegation"
+                    )
+                if (
+                    event.actor_role != delegated_role
+                    or delegated_role not in self.request.policy.eligible_roles
+                    or not direct_role(event.actor_id, delegated_role)
+                ):
+                    raise ApprovalWorkflowError(
+                        "delegation lacks direct eligible authority"
+                    )
+                if (
+                    _parse_time(valid_until) <= _parse_time(event.occurred_at)
+                    or _parse_time(valid_until)
+                    > _parse_time(self.request.expires_at)
+                ):
+                    raise ApprovalWorkflowError(
+                        "approval delegation validity is out of bounds"
+                    )
+
             elif event.event_type == "escalated":
                 if state != "pending":
                     raise ApprovalWorkflowError(
                         "escalation is not valid in current state"
                     )
+                self.request.principal(event.actor_id)
+                seconds = self.request.policy.escalation_after_seconds
+                if seconds is None:
+                    raise ApprovalWorkflowError(
+                        "approval workflow contains unconfigured escalation"
+                    )
+                due = (
+                    _parse_time(self.request.requested_at)
+                    + timedelta(seconds=seconds)
+                )
+                if _parse_time(event.occurred_at) < due:
+                    raise ApprovalWorkflowError(
+                        "approval escalation occurred before it was due"
+                    )
                 if escalated:
                     raise ApprovalWorkflowError(
                         "approval workflow was escalated more than once"
                     )
+                recorded_roles = sorted(
+                    value
+                    for key, value in event.details
+                    if key == "escalation_role"
+                )
+                if recorded_roles != sorted(
+                    self.request.policy.escalation_roles
+                ):
+                    raise ApprovalWorkflowError(
+                        "approval escalation roles do not match policy"
+                    )
                 escalated = True
+
+            elif event.event_type == "revoked":
+                if state != "approved":
+                    raise ApprovalWorkflowError(
+                        "revocation requires an approved workflow"
+                    )
+                if not direct_role(event.actor_id, event.actor_role):
+                    raise ApprovalWorkflowError(
+                        "revocation requires direct eligible authority"
+                    )
+                state = "revoked"
+
+            prior_events.append(event)
 
     @property
     def fingerprint(self) -> str:
@@ -1131,7 +1278,11 @@ class ApprovalWorkflow:
             return False
         if self.status(at) != "approved":
             return False
-        if grant.workflow_fingerprint != self.fingerprint:
+        try:
+            expected_grant = self.grant(at)
+        except ApprovalWorkflowError:
+            return False
+        if grant != expected_grant:
             return False
         return (
             grant.request_id == self.request.request_id
