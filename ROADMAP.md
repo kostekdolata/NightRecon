@@ -6,19 +6,23 @@ This roadmap is directional. Release scope may be split into smaller verified in
 
 ## Product delivery order
 
-Red Night is the only active Night product track until it passes the complete
-[Red Night acceptance standard](RED_ACCEPTANCE.md) and documented, repeatable
-comparison labs. For each relevant specialist category, measure coverage,
-false positives, safety, repeatability, usability, and operational evidence.
-The goal is to exceed leading tools where Red Night can demonstrate a material
-advantage and meet their essential capability baseline elsewhere. Never claim
-universal superiority from a feature checklist or a passing unit-test count.
+Red Night v0.42.0 is the verified stable standalone baseline and continues its
+evidence-backed acceptance work under [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md).
 
-After Red Night reaches that evidence-backed gate, choose the next Night using
-its own acceptance and comparison plan. Blue Night, White Night, Purple Night,
-and Black Night remain distinct future applications, not parallel delivery
-tracks. Maintenance of the shared authorization core continues throughout;
-it cannot wait for the separate White Night application.
+White Night is the second standalone product track. Its development may proceed
+from the verified Red baseline provided White changes do not refactor or weaken
+Red execution behavior. White is governed by
+[WHITE_ACCEPTANCE.md](WHITE_ACCEPTANCE.md),
+[WHITE_OWNERSHIP.md](WHITE_OWNERSHIP.md),
+[WHITE_PACKAGE_PLAN.md](WHITE_PACKAGE_PLAN.md), and
+[WHITE_LIVE_ARCHITECTURE.md](WHITE_LIVE_ARCHITECTURE.md).
+
+White must remain one product across standalone installation, composed
+full-stack installation, and bootable White Night Live USB.
+
+Blue Night, Purple Night, and Black Night remain distinct later standalone
+applications. Shared authorization/safety enforcement remains Night-neutral and
+must work without White installed.
 
 ## Operating Modes
 
@@ -33,6 +37,11 @@ edition architecture and honest availability status are in [EDITIONS.md](EDITION
 - **White Night** — authorization, scope, rules of engagement, approvals, safety controls, audit, evidence, exercise control, and emergency stop.
 - **Black Night** — deliberately knowledge-limited external assessment beginning from an explicitly authorized starting scope.
 - **Purple Night** — correlation of approved Red Night actions with Blue Night prevention, telemetry, alerts, and detection coverage, usable on its own with exported evidence or alongside Red Night and Blue Night.
+
+White Night additionally has a locked deployment requirement: the same White
+application/engine code and versioned contracts must support standalone install,
+full-stack composition, and a bootable encrypted Live USB. No Night may become
+a mandatory runtime dependency of another.
 
 ## Locked Safety Principles
 
@@ -447,7 +456,89 @@ Planned capabilities:
 
 High-impact actions must never be exposed as ordinary scan options.
 
-## Generation 4 — Blue Defensive Validation
+## Generation 4 — White Night Command and Exercise Control
+
+Goal: make authorization, engagement governance, evidence custody, exercise
+control, and emergency-stop management a first-class standalone product while
+preserving shared-core enforcement when White is absent.
+
+Locked architecture:
+
+- one White product across standalone install, full-stack install, and Live USB;
+- `White application -> White engine -> shared core`;
+- no White-to-Red/Blue/Purple/Black runtime imports;
+- no Red/Blue/Purple/Black dependency on White;
+- shared-core scope, budget, impact, stop, and secret-handling enforcement
+  remains authoritative;
+- imported evidence never grants authorization.
+
+### White Batch 1 — Foundation and acceptance
+
+Status: completed documentation foundation.
+
+### White Batch 2 — Package skeleton
+
+Status: implemented and PR-CI verified.
+
+### White Batch 3 — Engagement, scope and ROE domain
+
+Status: implemented and PR-CI verified.
+
+### White Batch 4 — Deterministic policy compiler
+
+Status: active implementation on released Red v0.42.0 baseline.
+
+Current scope:
+
+- compile immutable engagement/ROE versions into
+  `EngagementExecutionPolicy`;
+- bind engagement/ROE versions and SHA-256 fingerprints into deterministic
+  compiled bundles;
+- exact IP/CIDR exclusion subtraction without widening scope;
+- preserve exact-address semantics rather than converting IPs to /32 or /128;
+- backward-compatible shared-core `max_impact` ceiling, defaulting to `high`
+  for legacy policies;
+- conservative mapping: passive -> low, safe-active -> standard, intrusive ->
+  high;
+- refuse destructive intrusiveness because the current execution policy cannot
+  represent it safely;
+- local `policy compile` and `policy verify` operations only;
+- no policy publication, persistence, approval, signing, or network execution;
+- negative tests for scope broadening, impact escalation, capability widening,
+  legacy compatibility, and bundle tampering.
+
+Deferred:
+
+- approval workflow and approval binding to Batch 5;
+- signing/publication/revocation and broader custody/audit lifecycle to later
+  White batches.
+
+### White Batch 5 — Approval workflow engine
+
+Planned: single/dual/quorum approval, separation of duties, expiry, delegation,
+rejection, revocation, escalation, and immutable decision evidence.
+
+### White Batch 6 — Evidence custody and tamper-evident audit
+
+Planned: provenance-backed evidence intake, custody events, integrity manifests,
+append-only logical audit, signed exports, and secret-free reporting.
+
+### White Batch 7 — White Night Live USB alpha
+
+Planned: reproducible Debian-based `live-build`, x86-64 UEFI, immutable base
+image, LUKS2 workspace, Secure Workspace/Ephemeral/Recovery modes, package-based
+White installation, automatic White startup, and VM persistence tests.
+
+### White Batches 8-12
+
+Exercise Director, Mission Control/emergency-stop management, Red composition,
+professional workspace/reporting, then hardened standalone/composed/Live
+deployment acceptance.
+
+White remains independently useful for its own control-plane responsibility.
+Full-stack capability comes from composition, not duplicated engines.
+
+## Generation 5 — Blue Defensive Validation
 
 Goal: test whether defensive controls actually prevent or detect approved activity.
 
@@ -470,32 +561,6 @@ Planned integrations and capabilities:
 - remediation and re-test loops
 
 Purple Night workflows will correlate approved Red Night activity with Blue Night telemetry and detections.
-
-## Generation 5 — White Team Command Layer
-
-Goal: make authorization and exercise control a first-class product capability.
-
-Planned capabilities:
-
-- engagements and projects
-- authorization records
-- target allowlists and exclusions
-- testing windows
-- allowed techniques
-- maximum intrusiveness
-- approval chains
-- request/action budgets
-- worker permissions
-- encrypted credential/secrets handling
-- immutable audit evidence
-- exercise control and scoring
-- emergency stop and worker revocation
-- data-retention policy
-- evidence custody and export
-
-The separate White Night application will provide engagement administration
-and exercise control. Mandatory shared-core authorization and safety remain
-available to Red Night before White Night exists as an application.
 
 ## Generation 6 — Black-Box / External Attack Surface
 
@@ -547,3 +612,12 @@ The current execution order is:
    evidence and reviewed controlled-validation coverage.
 3. Begin the next Red milestone only from the verified v0.42.0 release checkpoint,
    preserving the existing authorization, evidence-honesty, and no-auto-execution rules.
+
+White Night proceeds as a separate non-breaking track:
+
+1. Verify Batch 4 compiler semantics against the released v0.42.0 shared core.
+2. Require exact-head cross-platform White distribution and the complete current
+   Red/general regression matrix before marking Batch 4 complete.
+3. Keep approval, publication/signing, and active execution out of Batch 4.
+4. Preserve legacy policy behavior through the default `high` impact ceiling
+   while allowing White-compiled policies to enforce stricter ceilings.
