@@ -10,7 +10,7 @@ and `black` for CLI routing and future evidence contracts.
 
 | Edition | Product responsibility | Current state |
 | --- | --- | --- |
-| White Night | Engagement scope, rules of engagement, approvals, audit, evidence custody, exercise control, emergency stop, and after-action reporting | Package boundary, engagement/ROE domain, policy compiler verified; immutable approval workflow engine in active development; functional standalone application not yet available |
+| White Night | Engagement scope, rules of engagement, approvals, audit, evidence custody, exercise control, emergency stop, and after-action reporting | Package boundary, engagement/ROE domain, deterministic policy compiler, and immutable approval workflow engine verified; functional standalone application not yet available |
 | Blue Night | Defensive telemetry, control validation, detection coverage, and remediation retests | Planned; standalone application not available |
 | Red Night | Authorized reconnaissance, exposure and attack-path analysis, bounded validation, and controlled emulation | Stable v0.41.0 standalone application available with mandatory shared safety core |
 | Purple Night | Match approved Red Night actions to Blue Night prevention, alerts, telemetry, and detection gaps | Planned; standalone application not available |
