@@ -66,6 +66,7 @@ MIGRATED_MODULES = frozenset({
     "graph_validation",
     "graphql_report",
     "active_directory_provider",
+    "attack_path_atlas",
     "entra_provider",
     "identity_benchmark",
     "identity_collection",
