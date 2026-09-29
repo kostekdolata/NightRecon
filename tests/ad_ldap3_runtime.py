@@ -36,12 +36,19 @@ def main() -> None:
     assert "(objectClass=user)" in AD_USER_FILTER
     assert "(!(objectClass=computer))" in AD_USER_FILTER
     assert "(objectCategory=computer)" in AD_USER_FILTER
-    assert AD_GROUP_FILTER == "(objectClass=group)"
+    assert "(objectClass=group)" in AD_GROUP_FILTER
+    assert "(objectClass=trustedDomain)" in AD_GROUP_FILTER
     assert "distinguishedName" in AD_USER_ATTRIBUTES
     assert "objectClass" in AD_USER_ATTRIBUTES
     assert "servicePrincipalName" in AD_USER_ATTRIBUTES
+    assert "msDS-AllowedToDelegateTo" in AD_USER_ATTRIBUTES
+    assert "primaryGroupID" in AD_USER_ATTRIBUTES
+    assert "objectSid" in AD_USER_ATTRIBUTES
     assert "dNSHostName" in AD_USER_ATTRIBUTES
     assert "member" in AD_GROUP_ATTRIBUTES
+    assert "managedBy" in AD_GROUP_ATTRIBUTES
+    assert "trustPartner" in AD_GROUP_ATTRIBUTES
+    assert "trustDirection" in AD_GROUP_ATTRIBUTES
 
     print(f"ldap3 Active Directory runtime compatibility: passed ({version})")
 
