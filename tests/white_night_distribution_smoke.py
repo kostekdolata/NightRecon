@@ -175,6 +175,36 @@ def main() -> None:
             cwd=directory,
         )
 
+        check(
+            str(python),
+            "-c",
+            (
+                "from nightrecon_white_engine import "
+                "ActionConstraints, AuthorizedContact, DataHandlingPolicy, "
+                "EngagementDefinition, EngagementEnvironment, EngagementRole, "
+                "EngagementWindow, RulesOfEngagementTerms, ScopeDefinition, WindowKind; "
+                "d=EngagementDefinition("
+                "engagement_id='smoke-engagement',revision=1,name='Smoke',"
+                "purpose='Package smoke',created_at='2026-09-29T12:00:00Z',"
+                "environment=EngagementEnvironment.TEST,"
+                "contacts=(AuthorizedContact(contact_id='lead',display_name='Lead',"
+                "roles=(EngagementRole.ENGAGEMENT_LEAD,EngagementRole.EMERGENCY_CONTACT)),),"
+                "windows=(EngagementWindow(window_id='w1',kind=WindowKind.TESTING,"
+                "starts_at='2026-09-29T12:00:00Z',ends_at='2026-09-29T13:00:00Z'),),"
+                "scope=ScopeDefinition(allowed_targets=('192.0.2.0/24',),"
+                "excluded_targets=('192.0.2.200',)),"
+                "constraints=ActionConstraints(),data_handling=DataHandlingPolicy(),"
+                "roe=RulesOfEngagementTerms(objective='Smoke objective',"
+                "communications_channel='Smoke channel',"
+                "emergency_procedure='Stop and contact lead')); "
+                "assert d.scope.allows('192.0.2.10'); "
+                "assert not d.scope.allows('192.0.2.200'); "
+                "assert len(d.fingerprint()) == 64; "
+                "assert EngagementDefinition.from_json(d.to_json()) == d"
+            ),
+            cwd=directory,
+        )
+
         metadata = check(
             str(python),
             "-c",
