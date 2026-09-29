@@ -3,10 +3,7 @@
 `nightrecon-white-engine` is the independently packaged White Night control-plane
 engine.
 
-The initial `0.1.0a1` package is intentionally a non-active foundation. It
-defines White Night identity/capability metadata and an informational CLI surface
-only. It does not scan targets, modify engagement authorization, grant approvals,
-or execute another Night's capabilities.
+The `0.2.0a1` package adds White Night's immutable engagement, scope, rules-of-engagement, action-constraint, contact/window, and data-handling authoring domain. The command surface remains informational only. It does not scan targets, compile execution authorization, grant approvals, or execute another Night's capabilities.
 
 The engine depends only on the mandatory `nightrecon-shared-core==0.41.0`
 package. It does not depend on Red, Blue, Purple, Black, or the legacy
