@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nightrecon-white-night"
+version = "0.1.0a2"
+description = "White Night application launcher for NightRecon engagement and exercise control"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "nightrecon-shared-core==0.41.0",
+    "nightrecon-white-engine==0.1.0a2",
+]
+
+[project.scripts]
+white-night-app = "white_night_app:main"
+
+[tool.setuptools.packages.find]
+include = ["white_night_app*"]
