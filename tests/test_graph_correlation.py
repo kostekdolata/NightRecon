@@ -404,6 +404,176 @@ class CrossSurfaceCorrelationTests(unittest.TestCase):
         self.assertNotIn("missing.example.test", repr(unresolved))
         self.assertEqual(len(unresolved.key_sha256), 64)
 
+
+    def test_exact_cloud_private_ip_links_network_asset_to_cloud_resource(self):
+        network = node(
+            GraphNodeKind.ASSET,
+            "10.0.0.50",
+            "Observed host",
+            (("address", "10.0.0.50"),),
+        )
+        cloud = node(
+            GraphNodeKind.ASSET,
+            "cloud:azure:resource:vm-50",
+            "Azure VM",
+            (
+                ("cloud_provider", "azure"),
+                ("cloud_resource_id", "vm-50"),
+                ("cloud_resource_kind", "virtual-machine"),
+                ("private_ip", "10.0.0.50"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(graph(cloud, network))
+
+        self.assertEqual(result.unresolved, ())
+        self.assertEqual(len(result.correlated_edge_ids), 1)
+        edge = next(
+            item for item in result.graph.edges
+            if item.edge_id in result.correlated_edge_ids
+        )
+        self.assertEqual(edge.source_node_id, network.node_id)
+        self.assertEqual(edge.target_node_id, cloud.node_id)
+        self.assertEqual(
+            dict(edge.properties)["correlation_basis"],
+            "exact-cloud-network-key",
+        )
+
+    def test_cloud_network_multiple_exact_proofs_collapse_to_one_edge(self):
+        network = node(
+            GraphNodeKind.ASSET,
+            "10.0.0.51",
+            "Observed host",
+            (
+                ("address", "10.0.0.51"),
+                ("hostnames", "vm51.example.test"),
+            ),
+        )
+        cloud = node(
+            GraphNodeKind.ASSET,
+            "cloud:aws:resource:i-51",
+            "EC2",
+            (
+                ("cloud_provider", "aws"),
+                ("cloud_resource_id", "i-51"),
+                ("cloud_resource_kind", "virtual-machine"),
+                ("private_ip", "10.0.0.51"),
+                ("private_dns_name", "vm51.example.test"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(graph(network, cloud))
+
+        self.assertEqual(result.unresolved, ())
+        self.assertEqual(len(result.correlated_edge_ids), 1)
+        edge = next(
+            item for item in result.graph.edges
+            if item.edge_id in result.correlated_edge_ids
+        )
+        self.assertEqual(dict(edge.properties)["matched_key_count"], "2")
+
+    def test_conflicting_cloud_network_evidence_fails_closed(self):
+        network_a = node(
+            GraphNodeKind.ASSET,
+            "10.0.0.52",
+            "A",
+            (
+                ("address", "10.0.0.52"),
+                ("hostnames", "a.example.test"),
+            ),
+        )
+        network_b = node(
+            GraphNodeKind.ASSET,
+            "10.0.0.53",
+            "B",
+            (
+                ("address", "10.0.0.53"),
+                ("hostnames", "b.example.test"),
+            ),
+        )
+        cloud = node(
+            GraphNodeKind.ASSET,
+            "cloud:azure:resource:vm-conflict",
+            "Azure VM",
+            (
+                ("cloud_provider", "azure"),
+                ("cloud_resource_id", "vm-conflict"),
+                ("cloud_resource_kind", "virtual-machine"),
+                ("private_ip", "10.0.0.52"),
+                ("hostname", "b.example.test"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(
+            graph(network_a, cloud, network_b)
+        )
+
+        self.assertEqual(result.correlated_edge_ids, ())
+        self.assertEqual(len(result.unresolved), 1)
+        self.assertEqual(
+            result.unresolved[0].reason,
+            "conflicting-cloud-network-evidence",
+        )
+        self.assertEqual(result.unresolved[0].candidate_count, 2)
+
+    def test_exact_tenant_and_object_id_links_entra_to_cloud_identity(self):
+        entra = node(
+            GraphNodeKind.IDENTITY,
+            "entra:user:opaque",
+            "Cloud User",
+            (
+                ("entra_tenant_id", "tenant-1"),
+                ("entra_object_id", "object-1"),
+            ),
+        )
+        cloud = node(
+            GraphNodeKind.IDENTITY,
+            "cloud:entra:identity:object-1",
+            "Cloud User",
+            (
+                ("cloud_provider", "entra"),
+                ("cloud_identity_id", "object-1"),
+                ("entra_tenant_id", "tenant-1"),
+                ("entra_object_id", "object-1"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(graph(cloud, entra))
+
+        self.assertEqual(result.unresolved, ())
+        self.assertEqual(len(result.correlated_edge_ids), 1)
+        edge = next(
+            item for item in result.graph.edges
+            if item.edge_id in result.correlated_edge_ids
+        )
+        self.assertEqual(edge.source_node_id, entra.node_id)
+        self.assertEqual(edge.target_node_id, cloud.node_id)
+        self.assertEqual(
+            dict(edge.properties)["correlation_basis"],
+            "exact-cloud-entra-object",
+        )
+
+    def test_cloud_identity_requires_tenant_and_object_id(self):
+        cloud = node(
+            GraphNodeKind.IDENTITY,
+            "cloud:azure:identity:managed-1",
+            "Managed identity",
+            (
+                ("cloud_provider", "azure"),
+                ("cloud_identity_id", "managed-1"),
+                ("azure_object_id", "object-1"),
+            ),
+        )
+
+        result = correlate_exact_cross_surface_evidence(graph(cloud))
+
+        self.assertEqual(result.correlated_edge_ids, ())
+        self.assertEqual(len(result.unresolved), 1)
+        self.assertEqual(
+            result.unresolved[0].reason,
+            "incomplete-cloud-identity-key",
+        )
+
     def test_edge_limit_fails_closed(self):
         asset_a = node(
             GraphNodeKind.ASSET,

@@ -175,10 +175,46 @@ This foundation exists so the next batch can join cloud resources to network
 and identity evidence only when both surfaces carry the same explicit,
 normalized evidence.
 
+
+## Batch 4B — Exact cloud-to-network and cloud-to-identity correlation
+
+Batch 4B consumes the allowlisted cloud correlation evidence introduced in
+Batch 4A.
+
+Cloud resource to network correlation uses only explicit canonical properties:
+
+- `private_ip` / `public_ip` -> exact observed network asset address
+- `hostname` / `private_dns_name` / `public_dns_name` -> exact observed
+  network asset hostname
+
+A cloud resource correlates only when the exact evidence resolves to one
+observed network asset. Multiple proofs for the same asset collapse into one
+inferred edge. Ambiguous evidence blocks correlation, and exact proofs pointing
+to different observed assets fail closed as
+`conflicting-cloud-network-evidence`.
+
+The directed inferred edge is:
+
+`observed network asset -> cloud resource`
+
+Cloud identity correlation currently bridges Azure/Entra cloud identity
+observations to live Entra identity evidence only. It requires the exact pair:
+
+`tenant ID + Microsoft Graph object ID`
+
+The Entra provider now preserves those identifiers as allowlisted correlation
+properties while keeping its opaque graph natural keys. The inferred edge is:
+
+`observed Entra identity -> cloud identity`
+
+AWS and Kubernetes identities are not cross-joined to another identity system
+without an explicit provider-native shared identifier. Human-readable names,
+UPNs, display labels, application labels, IP adjacency, DNS resolution, and
+fuzzy/suffix matching are never used.
+
 ## Next v0.42 batches
 
-1. concrete AWS/Azure/Kubernetes correlation keys and cloud-to-network/identity joins
-2. bounded controlled-validation candidates compiled from evidence-backed paths
+1. bounded controlled-validation candidates compiled from evidence-backed paths
 3. evidence-chain explanations and unified operator exposure review
 4. descriptive choke-point and blast-radius analysis
 5. remediation/retest impact on exposure paths

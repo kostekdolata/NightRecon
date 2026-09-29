@@ -154,6 +154,63 @@ class UnifiedAttackGraphTests(unittest.TestCase):
             "exact-origin-host-port",
         )
 
+
+    def test_portable_cloud_correlates_to_network_and_entra_identity(self):
+        records = (
+            record("network", "asset.observation", {
+                "asset_key": "10.0.0.60",
+                "label": "Observed VM",
+                "properties": {
+                    "address": "10.0.0.60",
+                    "hostnames": "vm60.example.test",
+                },
+            }),
+            record("cloud-resource", "asset.observation", {
+                "asset_key": "cloud:azure:resource:vm-60",
+                "label": "Azure VM",
+                "properties": {
+                    "cloud_provider": "azure",
+                    "cloud_resource_id": "vm-60",
+                    "cloud_resource_kind": "virtual-machine",
+                    "private_ip": "10.0.0.60",
+                    "hostname": "vm60.example.test",
+                },
+            }),
+            record("entra-live", "identity.observation", {
+                "identity_key": "entra:user:opaque-60",
+                "label": "Cloud User",
+                "properties": {
+                    "entra_tenant_id": "tenant-60",
+                    "entra_object_id": "object-60",
+                },
+            }),
+            record("cloud-identity", "identity.observation", {
+                "identity_key": "cloud:entra:identity:object-60",
+                "label": "Cloud User",
+                "properties": {
+                    "cloud_provider": "entra",
+                    "cloud_identity_id": "object-60",
+                    "entra_tenant_id": "tenant-60",
+                    "entra_object_id": "object-60",
+                },
+            }),
+        )
+
+        result = build_correlated_unified_attack_graph(records)
+
+        self.assertEqual(result.unresolved_records, ())
+        self.assertEqual(result.unresolved_correlations, ())
+        self.assertEqual(len(result.correlated_edge_ids), 2)
+        bases = {
+            dict(edge.properties)["correlation_basis"]
+            for edge in result.graph.edges
+            if edge.edge_id in result.correlated_edge_ids
+        }
+        self.assertEqual(
+            bases,
+            {"exact-cloud-network-key", "exact-cloud-entra-object"},
+        )
+
     def test_missing_endpoint_stays_unresolved_without_fabricated_edge(self):
         result = build_unified_attack_graph((
             record("rel-1", "graph.relationship", {
