@@ -48,6 +48,9 @@ class WhitePackageBoundaryTests(unittest.TestCase):
                 "standalone-deployment-target",
                 "composed-stack-deployment-target",
                 "live-usb-deployment-target",
+                "immutable-engagement-domain",
+                "scope-and-exclusion-authoring",
+                "rules-of-engagement-rendering",
             },
         )
 
@@ -126,7 +129,7 @@ class WhitePackageBoundaryTests(unittest.TestCase):
             with self.subTest(path=path.name):
                 self.assertTrue(imported_roots(path).isdisjoint(forbidden_roots))
 
-    def test_batch_two_contains_no_network_or_process_execution_surface(self) -> None:
+    def test_white_engine_contains_no_network_or_process_execution_surface(self) -> None:
         forbidden_text = (
             "socket.",
             "subprocess.",
