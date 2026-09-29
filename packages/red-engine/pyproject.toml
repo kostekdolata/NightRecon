@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nightrecon-red-engine"
-version = "0.40.0"
+version = "0.41.0"
 description = "Red Night engine package for existing authorized NightRecon assessment capabilities"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
-    "nightrecon-shared-core==0.40.0",
+    "nightrecon-shared-core==0.41.0",
     "cryptography>=50.0.1,<51",
 ]
 
