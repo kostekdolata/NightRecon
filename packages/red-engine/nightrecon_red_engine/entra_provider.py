@@ -16,7 +16,7 @@ from time import monotonic
 from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from nightrecon_red_engine.identity_collection import (
     DirectoryEntry,
@@ -139,6 +139,13 @@ class EntraGraphTransport(Protocol):
     def close(self) -> None: ...
 
 
+class _NoGraphRedirects(HTTPRedirectHandler):
+    """Reject redirects so bearer credentials never leave the fixed Graph host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class MicrosoftGraphTransport:
     """Fixed-host Graph v1.0 transport with ephemeral bearer-token resolution."""
 
@@ -162,6 +169,7 @@ class MicrosoftGraphTransport:
         self._access_token_resolver = access_token_resolver
         self._timeout_seconds = float(timeout_seconds)
         self._max_response_bytes = max_response_bytes
+        self._opener = build_opener(_NoGraphRedirects())
 
     def __repr__(self) -> str:
         return (
@@ -172,7 +180,12 @@ class MicrosoftGraphTransport:
 
     def get_page(self, path_or_url: str) -> GraphPage:
         url = _absolute_graph_url(path_or_url)
-        token = self._access_token_resolver()
+        try:
+            token = self._access_token_resolver()
+        except Exception:
+            raise LookupError(
+                "Microsoft Graph access token could not be resolved"
+            ) from None
         response = None
         try:
             _required_text(token, "resolved Microsoft Graph access token")
@@ -185,7 +198,7 @@ class MicrosoftGraphTransport:
                 method="GET",
             )
             try:
-                response = urlopen(request, timeout=self._timeout_seconds)
+                response = self._opener.open(request, timeout=self._timeout_seconds)
                 payload = response.read(self._max_response_bytes + 1)
             except HTTPError as exc:
                 raise RuntimeError(
