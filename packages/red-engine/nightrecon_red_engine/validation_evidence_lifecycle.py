@@ -222,8 +222,6 @@ def build_cleanup_evidence(
     _reviewed_binding(binding)
     if validation_record.evidence_type != VALIDATION_EVIDENCE_TYPE:
         raise ValueError("cleanup requires a validation worker-result record")
-    if validation_record.engagement_id != validation_record.engagement_id:
-        raise ValueError("cleanup validation record engagement is invalid")
     if validation_record.data.get("binding_id") != binding.binding_id:
         raise ValueError("cleanup validation record binding does not match")
     if binding.side_effect_mode != "none" or binding.cleanup_mode != "none":

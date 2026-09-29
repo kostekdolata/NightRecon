@@ -279,7 +279,6 @@ class ValidationEvidenceLifecycleTests(unittest.TestCase):
         side_effecting = replace(
             binding(),
             side_effect_mode="mutating",
-            cleanup_mode="required",
         )
         with self.assertRaisesRegex(ValueError, "reviewed cleanup"):
             build_validation_result_evidence(
