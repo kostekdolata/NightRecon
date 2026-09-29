@@ -88,6 +88,33 @@ class DirectoryImportTests(unittest.TestCase):
             {"ad-computer", "ad-service"},
         )
 
+    def test_entra_namespace_is_distinct_from_active_directory(self):
+        object_id = "11111111-1111-1111-1111-111111111111"
+        payload = snapshot([
+            {"dn": object_id, "kind": "user", "name": "Cloud User"},
+        ])
+
+        ad = import_directory_snapshot(
+            payload,
+            source_id="ad-source",
+        )
+        entra = import_directory_snapshot(
+            payload,
+            source_id="entra-source",
+            namespace="entra",
+        )
+
+        self.assertNotEqual(
+            ad.evidence.identities[0].natural_key,
+            entra.evidence.identities[0].natural_key,
+        )
+        self.assertTrue(ad.evidence.identities[0].natural_key.startswith("ad:user:"))
+        self.assertTrue(
+            entra.evidence.identities[0].natural_key.startswith("entra:user:")
+        )
+        self.assertEqual(ad.evidence.identities[0].identity_type, "ad-user")
+        self.assertEqual(entra.evidence.identities[0].identity_type, "entra-user")
+
     def test_out_of_snapshot_membership_is_unresolved_not_observed(self):
         result = import_directory_snapshot(snapshot([
             {"dn": GROUP_DN, "kind": "group", "name": "Operators",
