@@ -8,7 +8,10 @@ import unittest
 from nightrecon_red_engine.graph_identity_evidence import (
     IdentityEvidence,
     IdentityEvidenceBundle,
+    IdentityRelationshipEvidence,
+    RoleEvidence,
 )
+from nightrecon_red_engine.graph_models import GraphNodeKind
 from nightrecon_red_engine.identity_benchmark import benchmark_identity_collection
 from nightrecon_red_engine.identity_collection import IdentityCollectionResult
 from nightrecon_red_engine.red_directory_import import import_directory_snapshot
@@ -122,6 +125,68 @@ class IdentityBenchmarkTests(unittest.TestCase):
         self.assertEqual(benchmark.invented_memberships, 1)
         self.assertNotIn("risk", json.dumps(benchmark.to_dict()).lower())
         self.assertNotIn("exploitable", json.dumps(benchmark.to_dict()).lower())
+
+    def test_roles_and_relationships_are_part_of_coverage(self):
+        bundle = IdentityEvidenceBundle(
+            identities=(
+                IdentityEvidence(
+                    "entra:user:alice",
+                    "Alice",
+                    "fixture",
+                    identity_type="entra-user",
+                ),
+                IdentityEvidence(
+                    "entra:application:app",
+                    "Example App",
+                    "fixture",
+                    identity_type="entra-application",
+                ),
+            ),
+            roles=(
+                RoleEvidence(
+                    "entra:role:reader",
+                    "Directory Readers",
+                    "fixture",
+                ),
+            ),
+            relationships=(
+                IdentityRelationshipEvidence(
+                    source_kind=GraphNodeKind.IDENTITY,
+                    source_key="entra:user:alice",
+                    target_kind=GraphNodeKind.IDENTITY,
+                    target_key="entra:application:app",
+                    relationship="owns",
+                    source_id="fixture",
+                ),
+                IdentityRelationshipEvidence(
+                    source_kind=GraphNodeKind.IDENTITY,
+                    source_key="entra:user:alice",
+                    target_kind=GraphNodeKind.PERMISSION,
+                    target_key="entra:role:reader",
+                    relationship="assigned-role",
+                    source_id="fixture",
+                    properties=(("directory_scope_id", "/"),),
+                ),
+            ),
+        )
+        result = IdentityCollectionResult(
+            source_type="entra-id",
+            target="tenant",
+            entry_count=2,
+            unresolved_members=0,
+            evidence=bundle,
+        )
+
+        benchmark = benchmark_identity_collection(result, bundle)
+
+        self.assertTrue(benchmark.expected_coverage_complete)
+        self.assertFalse(benchmark.unexpected_evidence_present)
+        self.assertEqual(benchmark.expected_roles, 1)
+        self.assertEqual(benchmark.discovered_expected_roles, 1)
+        self.assertEqual(benchmark.expected_relationships, 2)
+        self.assertEqual(benchmark.discovered_expected_relationships, 2)
+        self.assertEqual(benchmark.missed_relationships, 0)
+        self.assertEqual(benchmark.invented_relationships, 0)
 
     def test_truncation_and_unresolved_references_explain_missing_evidence(self):
         expected = snapshot(
