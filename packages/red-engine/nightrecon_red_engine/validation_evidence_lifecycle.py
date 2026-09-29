@@ -49,6 +49,37 @@ _NON_SUCCESS_STATES = frozenset({
     ValidationWorkerState.CONTRACT_REJECTED,
     ValidationWorkerState.ERROR,
 })
+_VALIDATION_DATA_FIELDS = frozenset({
+    "binding_id",
+    "eligibility_id",
+    "candidate_id",
+    "path_id",
+    "technique_id",
+    "contract_id",
+    "target_node_id",
+    "target_kind",
+    "target",
+    "state",
+    "reason_code",
+    "summary",
+    "evidence",
+    "actions_used",
+    "remaining_actions",
+    "adapter_kind",
+    "execution_mode",
+    "side_effect_mode",
+    "cleanup_mode",
+})
+_CLEANUP_DATA_FIELDS = frozenset({
+    "validation_evidence_id",
+    "binding_id",
+    "technique_id",
+    "cleanup_mode",
+    "side_effect_mode",
+    "cleanup_state",
+    "cleanup_actions",
+})
+_MAX_LIFECYCLE_RECORD_BYTES = 96 * 1024
 
 
 @dataclass(frozen=True)
@@ -119,6 +150,20 @@ def _assert_result_matches_binding(
     result: ValidationWorkerResult,
 ) -> None:
     _technique, contract = _reviewed_binding(binding)
+    for value, field in (
+        (result.engagement_id, "worker engagement_id"),
+        (result.target, "worker target"),
+        (result.reason_code, "worker reason_code"),
+        (result.summary, "worker summary"),
+    ):
+        if not isinstance(value, str) or not value or value != value.strip():
+            raise ValueError(f"{field} must be nonblank and trimmed")
+    for value, field in (
+        (result.actions_used, "actions_used"),
+        (result.remaining_actions, "remaining_actions"),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"{field} must be a nonnegative integer")
     if result.binding_id != binding.binding_id:
         raise ValueError("worker result binding does not match selected binding")
     if result.technique_id != binding.technique_id:
@@ -190,13 +235,17 @@ def build_validation_result_evidence(
         "side_effect_mode": binding.side_effect_mode,
         "cleanup_mode": binding.cleanup_mode,
     }
+    limitations = result.limitations + (
+        "Worker process identity is intentionally not persisted.",
+        "Validation evidence is descriptive proof, not an exploitability verdict.",
+    )
     identity = {
         "engagement_id": result.engagement_id,
         "observed_at": current.isoformat(),
         **data,
-        "limitations": list(result.limitations),
+        "limitations": list(limitations),
     }
-    return EvidenceRecord(
+    record = EvidenceRecord(
         engagement_id=result.engagement_id,
         evidence_id=_canonical_record_id("validation-result-", identity),
         source_night="red",
@@ -204,11 +253,11 @@ def build_validation_result_evidence(
         observed_at=current.isoformat(),
         provenance=f"validation-worker://{binding.binding_id}",
         data=data,
-        limitations=result.limitations + (
-            "Worker process identity is intentionally not persisted.",
-            "Validation evidence is descriptive proof, not an exploitability verdict.",
-        ),
+        limitations=limitations,
     )
+    if len(record.to_json().encode("utf-8")) > _MAX_LIFECYCLE_RECORD_BYTES:
+        raise ValueError("validation lifecycle evidence exceeds record byte ceiling")
+    return record
 
 
 def build_cleanup_evidence(
@@ -239,12 +288,17 @@ def build_cleanup_evidence(
         "cleanup_state": CLEANUP_NOT_REQUIRED,
         "cleanup_actions": 0,
     }
+    limitations = (
+        "No cleanup action was required because the reviewed technique "
+        "declares no side effects.",
+    )
     identity = {
         "engagement_id": validation_record.engagement_id,
         "observed_at": current.isoformat(),
         **data,
+        "limitations": list(limitations),
     }
-    return EvidenceRecord(
+    record = EvidenceRecord(
         engagement_id=validation_record.engagement_id,
         evidence_id=_canonical_record_id("validation-cleanup-", identity),
         source_night="red",
@@ -252,11 +306,11 @@ def build_cleanup_evidence(
         observed_at=current.isoformat(),
         provenance=f"validation-cleanup://{binding.binding_id}",
         data=data,
-        limitations=(
-            "No cleanup action was required because the reviewed technique "
-            "declares no side effects.",
-        ),
+        limitations=limitations,
     )
+    if len(record.to_json().encode("utf-8")) > _MAX_LIFECYCLE_RECORD_BYTES:
+        raise ValueError("validation cleanup evidence exceeds record byte ceiling")
+    return record
 
 
 def persist_validation_evidence_lifecycle(
@@ -298,6 +352,169 @@ def persist_validation_evidence_lifecycle(
     )
 
 
+def _required_data_text(data: Mapping[str, Any], key: str) -> str:
+    value = data.get(key)
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise ValueError(f"persisted validation field is invalid: {key}")
+    return value
+
+
+def _validate_validation_record(record: EvidenceRecord) -> ValidationWorkerState:
+    if record.source_night != "red":
+        raise ValueError("validation lifecycle evidence must come from Red Night")
+    if record.evidence_type != VALIDATION_EVIDENCE_TYPE:
+        raise ValueError("retest validation evidence type is invalid")
+    if set(record.data) != _VALIDATION_DATA_FIELDS:
+        raise ValueError("persisted validation evidence schema is invalid")
+    if not record.provenance.startswith("validation-worker://"):
+        raise ValueError("persisted validation provenance is invalid")
+
+    data = record.data
+    binding_id = _required_data_text(data, "binding_id")
+    eligibility_id = _required_data_text(data, "eligibility_id")
+    technique_id = _required_data_text(data, "technique_id")
+    contract_id = _required_data_text(data, "contract_id")
+    target_node_id = _required_data_text(data, "target_node_id")
+    target_kind = _required_data_text(data, "target_kind")
+    _required_data_text(data, "candidate_id")
+    _required_data_text(data, "path_id")
+    _required_data_text(data, "target")
+    _required_data_text(data, "reason_code")
+    summary = _required_data_text(data, "summary")
+
+    technique = BUILTIN_VALIDATION_TECHNIQUE_REGISTRY.get(technique_id)
+    contract = BUILTIN_VALIDATION_ADAPTER_CONTRACT_REGISTRY.for_technique(
+        technique_id
+    )
+    assert_contract_matches_technique(contract, technique)
+    if contract_id != contract.contract_id:
+        raise ValueError("persisted validation contract is not reviewed")
+    if target_kind not in technique.target_kinds:
+        raise ValueError("persisted validation target kind is not reviewed")
+    if data.get("adapter_kind") != technique.adapter_kind:
+        raise ValueError("persisted validation adapter kind is invalid")
+    if data.get("cleanup_mode") != technique.cleanup_mode:
+        raise ValueError("persisted validation cleanup mode is invalid")
+    if data.get("side_effect_mode") != "none":
+        raise ValueError("persisted validation side-effect mode is invalid")
+    if data.get("execution_mode") != "isolated-worker":
+        raise ValueError("persisted validation execution mode is invalid")
+    if binding_id != validation_binding_id(
+        eligibility_id,
+        contract_id,
+        target_node_id,
+    ):
+        raise ValueError("persisted validation binding identifier is invalid")
+    if record.provenance != f"validation-worker://{binding_id}":
+        raise ValueError("persisted validation provenance does not match binding")
+
+    try:
+        state = ValidationWorkerState(_required_data_text(data, "state"))
+    except ValueError as exc:
+        raise ValueError("persisted validation state is invalid") from exc
+
+    evidence = data.get("evidence")
+    if not isinstance(evidence, Mapping):
+        raise ValueError("persisted validation evidence payload is invalid")
+    if state in {
+        ValidationWorkerState.CONFIRMED,
+        ValidationWorkerState.NOT_CONFIRMED,
+    }:
+        observation = ValidationObservation(
+            confirmed=state is ValidationWorkerState.CONFIRMED,
+            summary=summary,
+            evidence=dict(evidence),
+            limitations=record.limitations[:-2],
+        )
+        postconditions = check_validation_observation_contract(
+            contract,
+            observation,
+        )
+        if not postconditions.valid:
+            raise ValueError(
+                "persisted validation evidence violates reviewed postconditions"
+            )
+    elif state in _NON_SUCCESS_STATES:
+        if evidence:
+            raise ValueError(
+                "persisted non-success validation must not contain evidence"
+            )
+    else:
+        raise ValueError("persisted validation state is unsupported")
+
+    for key in ("actions_used", "remaining_actions"):
+        value = data.get(key)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(
+                f"persisted validation action counter is invalid: {key}"
+            )
+
+    identity = {
+        "engagement_id": record.engagement_id,
+        "observed_at": record.observed_at,
+        **dict(record.data),
+        "limitations": list(record.limitations),
+    }
+    if record.evidence_id != _canonical_record_id(
+        "validation-result-",
+        identity,
+    ):
+        raise ValueError("persisted validation evidence identifier is invalid")
+    if len(record.to_json().encode("utf-8")) > _MAX_LIFECYCLE_RECORD_BYTES:
+        raise ValueError("persisted validation evidence exceeds byte ceiling")
+    return state
+
+
+def _validate_cleanup_record(
+    record: EvidenceRecord,
+    validation_record: EvidenceRecord,
+) -> str:
+    if record.source_night != "red":
+        raise ValueError("validation cleanup evidence must come from Red Night")
+    if record.evidence_type != CLEANUP_EVIDENCE_TYPE:
+        raise ValueError("retest cleanup evidence type is invalid")
+    if set(record.data) != _CLEANUP_DATA_FIELDS:
+        raise ValueError("persisted validation cleanup schema is invalid")
+
+    data = record.data
+    binding_id = _required_data_text(data, "binding_id")
+    technique_id = _required_data_text(data, "technique_id")
+    cleanup_state = _required_data_text(data, "cleanup_state")
+    if record.engagement_id != validation_record.engagement_id:
+        raise ValueError("retest lifecycle records belong to different engagements")
+    if data.get("validation_evidence_id") != validation_record.evidence_id:
+        raise ValueError("cleanup record does not reference validation evidence")
+    if binding_id != validation_record.data.get("binding_id"):
+        raise ValueError("cleanup record binding does not match validation evidence")
+    if technique_id != validation_record.data.get("technique_id"):
+        raise ValueError("cleanup record technique does not match validation evidence")
+    if data.get("cleanup_mode") != "none":
+        raise ValueError("persisted validation cleanup mode is invalid")
+    if data.get("side_effect_mode") != "none":
+        raise ValueError("persisted validation cleanup side-effect mode is invalid")
+    if cleanup_state != CLEANUP_NOT_REQUIRED:
+        raise ValueError("persisted validation cleanup state is invalid")
+    if data.get("cleanup_actions") != 0:
+        raise ValueError("no-op cleanup must not report cleanup actions")
+    if record.provenance != f"validation-cleanup://{binding_id}":
+        raise ValueError("persisted cleanup provenance does not match binding")
+
+    identity = {
+        "engagement_id": record.engagement_id,
+        "observed_at": record.observed_at,
+        **dict(record.data),
+        "limitations": list(record.limitations),
+    }
+    if record.evidence_id != _canonical_record_id(
+        "validation-cleanup-",
+        identity,
+    ):
+        raise ValueError("persisted cleanup evidence identifier is invalid")
+    if len(record.to_json().encode("utf-8")) > _MAX_LIFECYCLE_RECORD_BYTES:
+        raise ValueError("persisted cleanup evidence exceeds byte ceiling")
+    return cleanup_state
+
+
 def _persisted_exact(
     workspace: LocalWorkspace,
     record: EvidenceRecord,
@@ -327,30 +544,15 @@ def record_persisted_validation_retest(
     _persisted_exact(workspace, validation_record)
     _persisted_exact(workspace, cleanup_record)
 
-    if validation_record.evidence_type != VALIDATION_EVIDENCE_TYPE:
-        raise ValueError("retest validation evidence type is invalid")
-    if cleanup_record.evidence_type != CLEANUP_EVIDENCE_TYPE:
-        raise ValueError("retest cleanup evidence type is invalid")
-    if validation_record.engagement_id != cleanup_record.engagement_id:
-        raise ValueError("retest lifecycle records belong to different engagements")
-    if cleanup_record.data.get("validation_evidence_id") != (
-        validation_record.evidence_id
-    ):
-        raise ValueError("cleanup record does not reference validation evidence")
-    if cleanup_record.data.get("binding_id") != validation_record.data.get(
-        "binding_id"
-    ):
-        raise ValueError("cleanup record binding does not match validation evidence")
-
-    validation_state = validation_record.data.get("state")
-    binding_id = validation_record.data.get("binding_id")
-    cleanup_state = cleanup_record.data.get("cleanup_state")
-    if not isinstance(validation_state, str):
-        raise ValueError("validation evidence state is invalid")
-    if not isinstance(binding_id, str):
-        raise ValueError("validation evidence binding is invalid")
-    if not isinstance(cleanup_state, str):
-        raise ValueError("cleanup evidence state is invalid")
+    validation_state = _validate_validation_record(validation_record).value
+    cleanup_state = _validate_cleanup_record(
+        cleanup_record,
+        validation_record,
+    )
+    binding_id = _required_data_text(
+        validation_record.data,
+        "binding_id",
+    )
 
     return remediation_store.record_evidence_retest(
         finding_id,

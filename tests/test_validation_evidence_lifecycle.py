@@ -18,6 +18,7 @@ from nightrecon_red_engine.validation_adapter_contracts import (
 )
 from nightrecon_red_engine.validation_evidence_lifecycle import (
     CLEANUP_NOT_REQUIRED,
+    ValidationEvidenceLifecycle,
     build_validation_result_evidence,
     persist_validation_evidence_lifecycle,
     record_persisted_validation_retest,
@@ -264,6 +265,48 @@ class ValidationEvidenceLifecycleTests(unittest.TestCase):
                     remediation,
                     "finding-1",
                     lifecycle,
+                    now=NOW,
+                )
+
+    def test_forged_persisted_lifecycle_record_cannot_drive_retest(self):
+        with tempfile.TemporaryDirectory() as root:
+            source = workspace(Path(root) / "source")
+            lifecycle = persist_validation_evidence_lifecycle(
+                source,
+                binding(),
+                worker_result(),
+                observed_at=NOW,
+            )
+            forged_validation = replace(
+                lifecycle.validation_record,
+                data={
+                    **dict(lifecycle.validation_record.data),
+                    "state": "not-confirmed",
+                    "evidence": {},
+                },
+            )
+            target = workspace(Path(root) / "target")
+            target.merge_envelope(__import__(
+                "nightrecon_shared_core.contracts",
+                fromlist=["EngagementEnvelope"],
+            ).EngagementEnvelope(
+                engagement_id="eng-lifecycle",
+                records=(forged_validation, lifecycle.cleanup_record),
+                metadata=target.envelope("eng-lifecycle").metadata,
+            ))
+            forged = ValidationEvidenceLifecycle(
+                validation_record=forged_validation,
+                cleanup_record=lifecycle.cleanup_record,
+                added_records=2,
+                identical_records=0,
+            )
+            remediation = ready_finding(Path(root) / "rem")
+            with self.assertRaisesRegex(ValueError, "identifier"):
+                record_persisted_validation_retest(
+                    target,
+                    remediation,
+                    "finding-1",
+                    forged,
                     now=NOW,
                 )
 
