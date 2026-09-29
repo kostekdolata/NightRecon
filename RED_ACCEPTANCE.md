@@ -12,7 +12,7 @@ Benchmark reviewed on 2026-09-27 against official product documentation:
 | --- | --- | --- | --- |
 | [Nmap](https://nmap.org/book/man.html) | Broad, efficient network discovery and service/OS identification | Bounded TCP reachability, scanning, service/version and evidence-based OS hints | Lab comparison across IPv4/IPv6, TCP and appropriately approved UDP cases, false positives, performance, and scope limits |
 | [Burp Scanner](https://portswigger.net/burp/documentation/scanner) and [ZAP](https://www.zaproxy.org/docs/automate/automation-framework/) | Authenticated modern web/API traversal, configurable audit coverage, repeatable automation | Bounded crawl/browser discovery, selected safe checks, OpenAPI/GraphQL inspection and explicit GET/HEAD validation | Authenticated stateful browser and API workflows plus a reviewed check library, with false-positive and safety regression corpora |
-| [BloodHound](https://bloodhound.specterops.io/get-started/introduction) | AD/Entra identity relationships and useful paths to critical assets | Offline identity graph, provenance, bounded paths; no AD/Entra collectors | Authorized collectors, privilege/trust modeling, path explanations, incomplete-evidence handling, and lab validation |
+| [BloodHound](https://bloodhound.specterops.io/get-started/introduction) | AD/Entra identity relationships and useful paths to critical assets | Authorized bounded AD/Entra collectors, provenance, user/service/computer/application identities, group memberships, ownership, scoped Entra roles, selected AD privilege/delegation/trust relationships, bounded paths, and deterministic no-network benchmark fixtures; live specialist comparison remains open | Authorized collectors, privilege/trust modeling, path explanations, incomplete-evidence handling, and lab validation |
 | [Metasploit](https://docs.metasploit.com/docs/using-metasploit/basics/using-metasploit.html) | Reusable validation modules with preconditions and outcomes | Signed checks and read-only infrastructure actions; no exploit validation engine | Controlled, approval-gated validation adapters in isolated workers with evidence, limits, cleanup, and tested failure handling |
 | [MITRE Caldera](https://caldera.readthedocs.io/en/5.3.0/) and [ATT&CK](https://attack.mitre.org/resources/adversary-emulation-plans/) | Technique-mapped adversary emulation and reproducible operations | No live emulation operations | ATT&CK-mapped plans, approved execution/simulation, operator stop, cleanup, and evidence that can feed Purple |
 | [Cobalt Strike](https://www.cobaltstrike.com/) | Operator collaboration and exercise reports | Structured JSON and audit records; no multi-operator Red workspace | Engagement-level collaboration, evidence review, redacted reports, export, and exercise handoff without requiring an unrestricted agent |
@@ -80,3 +80,44 @@ execution, cloud write operations, persistence mechanisms, privilege changes, or
 autonomous execution. Higher-impact future validation remains subject to the
 same explicit authorization, approval, budget, isolation, evidence, cleanup, and
 operator-stop requirements.
+
+## v0.41 identity-intelligence development state
+
+v0.41 development has moved the identity gate beyond the v0.40 fake-provider
+acceptance baseline.
+
+Implemented and CI-covered work now includes:
+
+- concrete authorization-first read-only Active Directory collection over
+  certificate-validating LDAPS or StartTLS
+- concrete authorization-first read-only Microsoft Entra collection over a
+  fixed Microsoft Graph v1.0 plan
+- user, service, computer, application, group, and domain identity evidence
+- direct/nested and primary-group membership evidence
+- Entra application/service-principal ownership
+- scoped Entra directory-role assignments
+- selected Active Directory well-known privileged-group semantics
+- Active Directory `managedBy` relationships
+- constrained-delegation target relationships resolved through observed SPNs
+- neutral domain-trust relationships with direction/type/attribute evidence
+- explicit incomplete-evidence behavior for missing, ambiguous, ranged,
+  redirected, or over-budget observations
+- deterministic label-free AD and Entra benchmark fixtures
+- authorization-first live operator commands with identity-safe default output
+
+This closes the v0.41 foundation work for concrete AD/Entra identity collection
+and selected relationship modeling. It does **not** close the broader Red
+completion standard by itself.
+
+Still-open acceptance work includes:
+
+- live authorized comparison labs against specialist identity tooling
+- broader ACL/security-descriptor relationship coverage where it can be kept
+  read-only, bounded, and evidence-honest
+- cross-category discovery performance/false-positive baselines
+- broader professional reporting/collaboration workflows
+- reviewed controlled-validation coverage and external lab evidence
+
+No v0.41 work changes the rule that a graph path or privilege relationship is
+descriptive evidence, not an exploitability verdict.
+
