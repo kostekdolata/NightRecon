@@ -53,6 +53,13 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
         if name != "Red Night"
     )
     assert "--scope" in check(app, "scan", "--help", cwd=directory)
+    live_identity_help = check(
+        app, "identity", "collect", "--help", cwd=directory,
+    )
+    assert "ad" in live_identity_help
+    assert "entra" in live_identity_help
+    assert "red-night identity collect" in live_identity_help
+
     snapshot = directory / "directory-export.json"
     snapshot.write_text(json.dumps({
         "schema_version": 1,
