@@ -55,15 +55,43 @@ Batch 1 preserves the existing controlled-validation guarantees:
 - cleanup mode is fixed to `none` for the initial read-only catalog
 - registry presence is not permission to execute
 
+## Batch 2 — Exact candidate-to-technique eligibility planning
+
+Batch 2 connects proposal-only v0.42 validation candidates to the reviewed
+Batch 1 technique registry without choosing or executing a technique.
+
+Each technique now separates:
+
+- expected validation output evidence keys
+- exact graph-property presence required for eligibility
+- exact graph-property values required for eligibility
+
+The planner verifies the candidate path, edge sequence, evidence IDs,
+observed/inferred hop counts, proposal-only execution mode, review gates, and
+`validation.run` capability against the current immutable graph before
+considering any technique.
+
+Target classification is exact and fail-closed:
+
+- assets remain `asset` targets
+- network services require canonical IP, canonical TCP port, and
+  `protocol=tcp`
+- web/API surfaces require canonical origin host/port, HTTP(S) scheme, and the
+  explicit surface type
+- unsupported surface types or malformed target evidence are not eligible
+
+The planner emits every matching candidate/technique/target option in
+deterministic order. It never ranks, recommends, or automatically selects one.
+Missing exact target kinds and missing evidence prerequisites are returned as
+explicit rejections.
+
 ## Planned follow-on batches
 
-1. Exact candidate-to-technique eligibility planning using graph/evidence
-   prerequisites, still proposal-only.
-2. Explicit adapter registration and precondition/postcondition contracts with
+1. Explicit adapter registration and precondition/postcondition contracts with
    no arbitrary command or payload surface.
-3. Isolated worker and revocation boundary for approved validation execution.
-4. Cleanup/evidence lifecycle and deterministic retest integration.
-5. Reviewed ATT&CK mappings and controlled comparison labs.
+2. Isolated worker and revocation boundary for approved validation execution.
+3. Cleanup/evidence lifecycle and deterministic retest integration.
+4. Reviewed ATT&CK mappings and controlled comparison labs.
 
 Higher-impact techniques remain out of scope until the isolation, approval,
 cleanup, and revocation boundaries are independently verified.
