@@ -1,5 +1,14 @@
 """White Night control-plane engine foundation."""
 
+from nightrecon_white_engine.approval_engine import (
+    ApprovalEvent,
+    ApprovalGrant,
+    ApprovalPolicy,
+    ApprovalPrincipal,
+    ApprovalRequest,
+    ApprovalWorkflow,
+    ApprovalWorkflowError,
+)
 from nightrecon_white_engine.capabilities import (
     WHITE_ACTIVE_COMMANDS,
     WHITE_EDITION_SLUG,
@@ -24,6 +33,13 @@ from nightrecon_white_engine.roe_render import (
 )
 
 __all__ = [
+    "ApprovalEvent",
+    "ApprovalGrant",
+    "ApprovalPolicy",
+    "ApprovalPrincipal",
+    "ApprovalRequest",
+    "ApprovalWorkflow",
+    "ApprovalWorkflowError",
     "CompiledPolicyBundle",
     "DataHandlingPolicy",
     "EngagementContact",
