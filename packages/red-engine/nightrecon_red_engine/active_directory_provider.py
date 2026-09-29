@@ -494,6 +494,30 @@ def _attribute_members(
     return tuple(sorted(members, key=str.casefold)), ranged
 
 
+def _normalized_hostname(value: str) -> str:
+    normalized = value.strip().casefold().rstrip(".")
+    if not normalized or any(character.isspace() for character in normalized):
+        return ""
+    return normalized
+
+
+def _spn_hosts(values: tuple[str, ...]) -> tuple[str, ...]:
+    hosts: set[str] = set()
+    for value in values:
+        parts = value.split("/", 1)
+        if len(parts) != 2:
+            continue
+        target = parts[1].split("/", 1)[0]
+        if target.startswith("[") and "]" in target:
+            target = target[1:target.index("]")]
+        else:
+            target = target.split(":", 1)[0]
+        normalized = _normalized_hostname(target)
+        if normalized:
+            hosts.add(normalized)
+    return tuple(sorted(hosts))
+
+
 def _directory_entry(
     raw: Mapping[str, object],
     *,
@@ -514,14 +538,30 @@ def _directory_entry(
             "servicePrincipalName",
         )
 
+        correlation_properties: list[tuple[str, str]] = []
         if "computer" in object_classes:
             identity_kind = "computer"
-            name = _attribute_text(
-                attributes,
-                "dNSHostName",
-                "sAMAccountName",
-                "name",
-            ) or dn
+            dns_hostname = _normalized_hostname(
+                _attribute_text(attributes, "dNSHostName")
+            )
+            name = (
+                _attribute_text(
+                    attributes,
+                    "dNSHostName",
+                    "sAMAccountName",
+                    "name",
+                )
+                or dn
+            )
+            if dns_hostname:
+                correlation_properties.append(
+                    ("dns_hostname", dns_hostname)
+                )
+            hosts = _spn_hosts(service_principals)
+            if hosts:
+                correlation_properties.append(
+                    ("spn_hosts", ",".join(hosts))
+                )
         elif service_principals:
             identity_kind = "service"
             name = _attribute_text(
@@ -530,6 +570,11 @@ def _directory_entry(
                 "sAMAccountName",
                 "name",
             ) or dn
+            hosts = _spn_hosts(service_principals)
+            if hosts:
+                correlation_properties.append(
+                    ("spn_hosts", ",".join(hosts))
+                )
         else:
             identity_kind = "user"
             name = _attribute_text(
@@ -539,7 +584,12 @@ def _directory_entry(
                 "name",
             ) or dn
 
-        return DirectoryEntry(dn, identity_kind, name), False
+        return DirectoryEntry(
+            dn,
+            identity_kind,
+            name,
+            properties=tuple(sorted(correlation_properties)),
+        ), False
 
     if kind == "group":
         name = _attribute_text(attributes, "cn", "name") or dn
