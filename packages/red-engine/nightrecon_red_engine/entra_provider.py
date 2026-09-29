@@ -96,10 +96,18 @@ def _validate_graph_url(url: str) -> str:
         raise ValueError("Microsoft Graph query is outside the fixed Entra collection plan")
     if any(len(values) != 1 for values in query.values()):
         raise ValueError("Microsoft Graph query contains repeated parameters")
-    if "$top" in query:
-        value = query["$top"][0]
-        if not value.isdigit() or not 1 <= int(value) <= 100:
-            raise ValueError("Microsoft Graph $top must be between 1 and 100")
+
+    expected_select = {
+        "/v1.0/users": "id,displayName,userPrincipalName",
+        "/v1.0/groups": "id,displayName",
+        "/v1.0/servicePrincipals": "id,displayName,appId",
+    }.get(path)
+    if expected_select is None:
+        expected_select = "id,displayName,userPrincipalName,appId"
+    if query.get("$select") != [expected_select]:
+        raise ValueError("Microsoft Graph $select is outside the fixed Entra collection plan")
+    if query.get("$top") != ["100"]:
+        raise ValueError("Microsoft Graph $top is outside the fixed Entra collection plan")
     if "$skiptoken" in query and not query["$skiptoken"][0]:
         raise ValueError("Microsoft Graph $skiptoken must not be blank")
     return url
