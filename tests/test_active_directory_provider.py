@@ -200,6 +200,18 @@ class ActiveDirectoryIdentityProviderTests(unittest.TestCase):
         self.assertEqual(by_kind["service"].name, "Web Service")
         self.assertEqual(by_kind["computer"].name, "ws01.example.test")
         self.assertEqual(
+            dict(by_kind["service"].properties)["spn_hosts"],
+            "app.example.test",
+        )
+        self.assertEqual(
+            dict(by_kind["computer"].properties)["dns_hostname"],
+            "ws01.example.test",
+        )
+        self.assertEqual(
+            dict(by_kind["computer"].properties)["spn_hosts"],
+            "ws01.example.test",
+        )
+        self.assertEqual(
             set(by_kind["group"].members),
             {user_dn, service_dn, computer_dn},
         )
