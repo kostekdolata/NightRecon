@@ -308,6 +308,44 @@ class WhiteApprovalWorkflowTests(unittest.TestCase):
                 reason="Too late",
             )
 
+    def test_delegated_authority_cannot_fake_dual_control(self) -> None:
+        item = workflow(mode="dual", required=2)
+        item = item.delegate(
+            event_id="evt-delegate-dual",
+            delegator_id="alice",
+            delegate_id="dave",
+            delegated_role="approver",
+            occurred_at="2026-09-29T16:05:00+00:00",
+            valid_until="2026-09-29T17:00:00+00:00",
+            reason="Temporary cover",
+        )
+        item = item.approve(
+            event_id="evt-delegate-dual-approve",
+            actor_id="dave",
+            occurred_at="2026-09-29T16:10:00+00:00",
+            reason="Delegated approval",
+        )
+        with self.assertRaisesRegex(
+            ApprovalWorkflowError,
+            "authority source already counted",
+        ):
+            item.approve(
+                event_id="evt-alice-duplicate-authority",
+                actor_id="alice",
+                occurred_at="2026-09-29T16:11:00+00:00",
+                reason="Must not count twice",
+            )
+        item = item.approve(
+            event_id="evt-bob-independent",
+            actor_id="bob",
+            occurred_at="2026-09-29T16:12:00+00:00",
+            reason="Independent second authority",
+        )
+        self.assertEqual(
+            item.status("2026-09-29T16:13:00+00:00"),
+            "approved",
+        )
+
     def test_delegation_cannot_outlive_request_or_chain_from_delegate(self) -> None:
         item = workflow()
         with self.assertRaisesRegex(ApprovalWorkflowError, "outlive"):
