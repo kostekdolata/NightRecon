@@ -460,14 +460,25 @@ Status: active documentation foundation.
 
 ### White Batch 2 — Package skeleton
 
-Planned:
+Status: implemented and PR-CI verified.
 
-- `nightrecon-white-engine`
-- `nightrecon-white-night`
-- independent launcher/application boundary
-- capability registration
-- package-isolation smoke tests
-- no active assessment engine
+Delivered:
+
+- `nightrecon-white-engine==0.1.0a1`
+- `nightrecon-white-night==0.1.0a1`
+- independent `white-night-app` launcher/application boundary
+- explicit White foundation capability registration
+- informational `editions` command only
+- explicit zero-active-command manifest
+- package-isolation unit tests
+- isolated wheel/install/uninstall smoke tests
+- dedicated Ubuntu/Windows, Python 3.11/3.14 distribution CI
+- no dependency on Red, Blue, Purple, Black, or legacy `nightrecon`
+- no active assessment, engagement mutation, approval, or network engine
+
+Release evidence: the initial Batch 2 PR matrix completed 25/25 jobs
+successfully, including all four White distribution combinations and the
+existing NightRecon regression/integration jobs.
 
 ### White Batch 3 — Engagement, scope and ROE domain
 
