@@ -161,6 +161,23 @@ class WebSurfaceEvidenceTests(unittest.TestCase):
         self.assertEqual(dict(node.properties)["origin_host"], "app.example.test")
         self.assertEqual(dict(node.properties)["origin_port"], "443")
 
+    def test_repeat_origin_observations_have_distinct_opaque_source_keys(self):
+        first = WebSurfaceEvidence(
+            origin="https://app.example.test",
+            source_id="crawl-session-secretish-name-a",
+            surface_type="web",
+        )
+        second = WebSurfaceEvidence(
+            origin="https://app.example.test",
+            source_id="crawl-session-secretish-name-b",
+            surface_type="web",
+        )
+
+        self.assertNotEqual(first.natural_key, second.natural_key)
+        self.assertNotIn("crawl-session", first.natural_key)
+        self.assertNotIn("secretish", first.natural_key)
+        self.assertTrue(first.natural_key.startswith("web-surface:web:"))
+
     def test_surface_natural_keys_are_type_specific(self):
         web = WebSurfaceEvidence(
             origin="https://app.example.test",
