@@ -123,6 +123,7 @@ def main() -> None:
         assert "White Night command boundary" in help_text
         assert "editions" in help_text
         assert "policy" in help_text
+        assert "approval" in help_text
         for forbidden in (
             "scan",
             "discover",
@@ -159,7 +160,7 @@ def main() -> None:
                 "import nightrecon_shared_core as core; "
                 "import nightrecon_white_engine as engine; "
                 "assert core.edition_name('white') == 'White Night'; "
-                "assert engine.WHITE_OWNED_COMMANDS == ('editions', 'policy'); "
+                "assert engine.WHITE_OWNED_COMMANDS == ('approval', 'editions', 'policy'); "
                 "assert engine.WHITE_ACTIVE_COMMANDS == (); "
                 "assert importlib.util.find_spec('nightrecon') is None; "
                 "assert importlib.util.find_spec('nightrecon_red_engine') is None"
@@ -267,6 +268,120 @@ def main() -> None:
         ))
         assert verified["integrity"] == "valid"
         assert verified["engagement_id"] == "eng-cli-smoke"
+
+        approval_request_path = directory / "approval-request.json"
+        approval_request_path.write_text(json.dumps({
+            "schema_version": 1,
+            "request_id": "approval-smoke",
+            "engagement_id": "eng-cli-smoke",
+            "policy_bundle_fingerprint": compiled["bundle_fingerprint"],
+            "requested_at": "2026-09-29T16:00:00+00:00",
+            "expires_at": "2026-09-29T18:00:00+00:00",
+            "requested_by": "requester",
+            "principals": [
+                {
+                    "principal_id": "requester",
+                    "roles": ["operator"],
+                },
+                {
+                    "principal_id": "approver",
+                    "roles": ["approver"],
+                },
+            ],
+            "capability": "discovery",
+            "target": "192.0.2.10",
+            "impact": "standard",
+            "reason": "Approve isolated package smoke action",
+            "policy": {
+                "mode": "single",
+                "required_approvals": 1,
+                "eligible_roles": ["approver"],
+                "requester_may_approve": False,
+                "allow_delegation": True,
+                "escalation_after_seconds": 600,
+                "escalation_roles": ["approver"],
+            },
+            "operation_id": "operation-smoke",
+        }, sort_keys=True), encoding="utf-8")
+
+        workflow_pending = directory / "approval-pending.json"
+        created = json.loads(check(
+            white_app,
+            "approval",
+            "create",
+            str(approval_request_path),
+            "--event-id",
+            "evt-requested",
+            "--output",
+            str(workflow_pending),
+            cwd=directory,
+        ))
+        assert created["request"]["request_id"] == "approval-smoke"
+
+        pending_status = json.loads(check(
+            white_app,
+            "approval",
+            "status",
+            str(workflow_pending),
+            "--at",
+            "2026-09-29T16:01:00+00:00",
+            cwd=directory,
+        ))
+        assert pending_status["status"] == "pending"
+
+        workflow_approved = directory / "approval-approved.json"
+        approved = json.loads(check(
+            white_app,
+            "approval",
+            "approve",
+            str(workflow_pending),
+            "--event-id",
+            "evt-approved",
+            "--actor-id",
+            "approver",
+            "--at",
+            "2026-09-29T16:05:00+00:00",
+            "--reason",
+            "Approved for smoke validation",
+            "--output",
+            str(workflow_approved),
+            cwd=directory,
+        ))
+        assert len(approved["events"]) == 2
+
+        approval_status = json.loads(check(
+            white_app,
+            "approval",
+            "status",
+            str(workflow_approved),
+            "--at",
+            "2026-09-29T16:06:00+00:00",
+            cwd=directory,
+        ))
+        assert approval_status["status"] == "approved"
+
+        grant = json.loads(check(
+            white_app,
+            "approval",
+            "grant",
+            str(workflow_approved),
+            "--at",
+            "2026-09-29T16:06:00+00:00",
+            cwd=directory,
+        ))
+        assert grant["request_id"] == "approval-smoke"
+        assert grant["policy_bundle_fingerprint"] == compiled["bundle_fingerprint"]
+        assert grant["capability"] == "discovery"
+        assert grant["target"] == "192.0.2.10"
+
+        approval_verified = json.loads(check(
+            white_app,
+            "approval",
+            "verify",
+            str(workflow_approved),
+            cwd=directory,
+        ))
+        assert approval_verified["integrity"] == "valid"
 
         metadata = check(
             str(python),
