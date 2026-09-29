@@ -234,16 +234,23 @@ Delivered:
 
 ### Batch C — engagement domain
 
-Add immutable/versioned:
+Status: implemented and PR-CI verified.
+
+Delivered immutable/versioned:
 
 - engagements;
-- roles;
+- roles/contacts;
 - scope/exclusions;
-- windows;
+- timezone-aware windows;
 - ROE;
-- retention/data-handling policy.
+- allowed/prohibited techniques;
+- maximum intrusiveness and action-budget declarations;
+- retention/data-handling policy;
+- deterministic canonical serialization/fingerprints;
+- stable human-readable ROE rendering.
 
-No other Night runtime required.
+No other Night runtime is required. The authoring domain does not itself
+authorize or execute operations; executable policy compilation remains Batch D.
 
 ### Batch D — policy compiler
 
