@@ -3,7 +3,7 @@
 `nightrecon-white-engine` is the independently packaged White Night control-plane
 engine.
 
-The `0.1.0a2` development package adds the immutable White Night engagement, scope, and ROE authoring domain above the previously verified package boundary. It remains non-active: the models describe engagement intent and generate deterministic human-readable ROE output, but they do not authorize actions, grant approvals, compile executable policy, scan targets, or execute another Night's capabilities.
+The `0.1.0a3` development package adds deterministic local compilation of immutable White Night engagement/ROE intent into the shared-core execution-policy contract. Compilation remains network-free and does not publish, approve, persist, or execute the resulting policy. Scope exclusions are projected exactly where representable and compilation fails closed rather than widening intent.
 
 The engine depends only on the mandatory `nightrecon-shared-core==0.41.0`
 package. It does not depend on Red, Blue, Purple, Black, or the legacy
