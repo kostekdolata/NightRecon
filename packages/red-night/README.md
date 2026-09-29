@@ -1,30 +1,26 @@
-# Red Night application distribution (development preview)
+# Red Night application distribution
 
-This separately built package supplies the `red-night-app` command. It uses
-the dedicated Red engine package for the existing Red assessment engines and the
-separate shared-core package for common authorization and cross-Night
-foundations. It does not install future White, Blue, Purple, or
-Black Night applications.
+`nightrecon-red-night` is the independently installable Red Night application.
 
-Run `red-night-app --help` to see the commands supported by the existing
-fail-closed Red gateway.
+The stable v0.41.0 package supplies the `red-night-app` command and depends on
+the matching `nightrecon-red-engine==0.41.0` and
+`nightrecon-shared-core==0.41.0` distributions. It does not require the
+legacy `nightrecon==0.31.0` package and it does not install future White,
+Blue, Purple, or Black Night applications.
 
-The existing NightRecon assessment modules are treated as Red-owned
-capabilities. Separation work must package or move those proven implementations,
-not copy or rebuild them. See `RED_OWNERSHIP.md` for ownership and
-`RED_PACKAGE_PLAN.md` for the dependency-removal sequence.
+The application entry point calls `nightrecon_red_engine.red_cli` directly.
+The CI distribution matrix verifies:
 
-## Standalone runtime boundary
+- isolated Red Night installation with no legacy NightRecon package
+- combined Red Night + legacy compatibility installation
+- independent `red-night-app` / `red-night` scripts
+- Python 3.11 and 3.14 on Ubuntu and Windows
 
-The Red app no longer depends on `nightrecon==0.31.0`. Its runtime boundary is
-`nightrecon-red-engine` plus shared core and the declared base/optional
-dependencies. The legacy root package remains compatible but optional.
-
-The Red package now declares the existing direct runtime requirement
-`cryptography` and mirrors the established optional extras:
+Optional extras expose the existing bounded integrations:
 
 - `browser`
 - `api`
+- `ad`
 - `ssh`
 - `smb`
 - `winrm`
@@ -32,24 +28,10 @@ The Red package now declares the existing direct runtime requirement
 - `mysql`
 - `all`
 
-These extras expose existing functionality; they do not add new assessment
-features.
+v0.41 includes authorization-first live Active Directory and Microsoft Entra
+identity collection through `red-night-app identity collect ad` and
+`red-night-app identity collect entra`. Default live identity output is
+label/secret-safe; detailed graph labels require an explicit graph export.
 
-Dedicated package separation and compatibility migration remain development
-work. This preview is not a completed Red Night release.
-
-
-## Red engine namespace skeleton
-
-The separate `nightrecon-red-engine` distribution owns the
-`nightrecon_red_engine` namespace. The Red app depends directly on that engine
-package. Existing engine modules were moved in dependency-coherent batches; they
-were not copied or rebuilt. See `RED_PACKAGE_NAMESPACE.md`.
-
-
-## Direct Red engine runtime
-
-The application entrypoint calls `nightrecon_red_engine.red_cli` directly.
-The isolated distribution matrix verifies that the app runs with no legacy
-`nightrecon` package installed, while combined installs preserve compatibility
-aliases and legacy console behavior.
+All active operations remain subject to shared-core scope, authorization
+windows, action budgets, approval requirements, revocation, and audit controls.
