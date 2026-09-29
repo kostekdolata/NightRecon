@@ -25,3 +25,7 @@ Microsoft Graph v1.0 identity endpoints, dedicated Entra evidence namespacing,
 strict next-link validation, explicit request/runtime ceilings, and zero Graph
 calls when engagement authorization fails. See
 [V041_ENTRA_PROVIDER.md](V041_ENTRA_PROVIDER.md).
+
+The v0.41 operator surface exposes both concrete providers through the existing
+engagement workspace authorization boundary. See
+[V041_IDENTITY_OPERATOR_SURFACE.md](V041_IDENTITY_OPERATOR_SURFACE.md).
