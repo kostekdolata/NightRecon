@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import io
 import tempfile
 import unittest
+from urllib.error import HTTPError
 
 from nightrecon_red_engine.entra_provider import (
     GRAPH_GROUPS_PATH,
@@ -309,6 +311,53 @@ class EntraIdentityProviderTests(unittest.TestCase):
 
         self.assertEqual(resolved, [])
         self.assertNotIn("secret-token", repr(transport))
+
+    def test_token_resolution_failure_is_secret_free(self):
+        def resolver():
+            raise RuntimeError("secret-token-provider-detail")
+
+        transport = MicrosoftGraphTransport(access_token_resolver=resolver)
+
+        with self.assertRaises(LookupError) as error:
+            transport.get_page(GRAPH_USERS_PATH)
+
+        self.assertEqual(
+            str(error.exception),
+            "Microsoft Graph access token could not be resolved",
+        )
+        self.assertNotIn("secret-token-provider-detail", str(error.exception))
+
+    def test_redirect_response_is_not_followed_or_exposed(self):
+        class RedirectingOpener:
+            def __init__(self):
+                self.calls = 0
+
+            def open(self, request, timeout):
+                self.calls += 1
+                raise HTTPError(
+                    request.full_url,
+                    302,
+                    "Found",
+                    {"Location": "https://evil.example/steal"},
+                    io.BytesIO(b""),
+                )
+
+        opener = RedirectingOpener()
+        transport = MicrosoftGraphTransport(
+            access_token_resolver=lambda: "secret-token",
+        )
+        transport._opener = opener
+
+        with self.assertRaises(RuntimeError) as error:
+            transport.get_page(GRAPH_USERS_PATH)
+
+        self.assertEqual(opener.calls, 1)
+        self.assertEqual(
+            str(error.exception),
+            "Microsoft Graph read-only request failed with HTTP 302",
+        )
+        self.assertNotIn("secret-token", str(error.exception))
+        self.assertNotIn("evil.example", str(error.exception))
 
     def test_graph_page_rejects_scope_escape_next_link(self):
         with self.assertRaisesRegex(ValueError, "graph.microsoft.com"):
