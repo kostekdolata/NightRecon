@@ -3,9 +3,9 @@
 `nightrecon-white-night` is the separately installable White Night application
 package.
 
-The `0.1.0a4` development package includes immutable engagement/ROE, deterministic local policy compilation, and local approval-workflow operations. The command surface remains network-free and does not execute target activity. It
+The `0.1.0a5` development package includes engagement/ROE, policy compilation, approvals, evidence custody/manifests, and tamper-evident audit operations. The command surface remains network-free and does not execute target activity. It
 supplies the `white-night-app` entry point and depends on
-`nightrecon-white-engine==0.1.0a4` plus the mandatory
+`nightrecon-white-engine==0.1.0a5` plus the mandatory
 `nightrecon-shared-core==0.41.0`.
 
 It deliberately exposes only the informational `editions` command. White Night
