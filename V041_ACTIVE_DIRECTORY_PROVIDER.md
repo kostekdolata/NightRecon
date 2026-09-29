@@ -92,3 +92,6 @@ Broader privilege/trust relationships and live external comparison
 measurements remain later v0.41 batches. The read-only Microsoft Entra provider
 is documented separately in
 [V041_ENTRA_PROVIDER.md](V041_ENTRA_PROVIDER.md).
+
+The authorization-first CLI integration is documented in
+[V041_IDENTITY_OPERATOR_SURFACE.md](V041_IDENTITY_OPERATOR_SURFACE.md).

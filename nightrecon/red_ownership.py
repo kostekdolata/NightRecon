@@ -49,12 +49,14 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
         "check_pack_store", "check_packs", "check_plugins",
     ),
     "graph_identity": (
-        "graph_assessment", "graph_builder", "graph_critical_asset",
-        "graph_identity_evidence", "graph_identity_projection", "graph_index",
-        "graph_models", "graph_path", "graph_path_review", "graph_pipeline",
-        "graph_projection", "graph_query", "graph_report", "graph_snapshot",
-        "graph_summary", "graph_threat_context", "graph_traversal",
-        "graph_validation", "red_directory_cli", "red_directory_import",
+        "active_directory_provider", "entra_provider", "graph_assessment",
+        "graph_builder", "graph_critical_asset", "graph_identity_evidence",
+        "graph_identity_projection", "graph_index", "graph_models", "graph_path",
+        "graph_path_review", "graph_pipeline", "graph_projection", "graph_query",
+        "graph_report", "graph_snapshot", "graph_summary", "graph_threat_context",
+        "graph_traversal", "graph_validation", "identity_benchmark",
+        "identity_collection", "identity_engagement_evidence", "red_directory_cli",
+        "red_directory_import", "red_identity_live_cli",
     ),
 }
 

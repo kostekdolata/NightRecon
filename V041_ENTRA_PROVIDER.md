@@ -180,3 +180,6 @@ This provider does not implement:
 
 Broader hybrid identity correlation, additional read-only relationship types,
 and live external comparison measurements remain later work.
+
+The authorization-first CLI integration is documented in
+[V041_IDENTITY_OPERATOR_SURFACE.md](V041_IDENTITY_OPERATOR_SURFACE.md).
