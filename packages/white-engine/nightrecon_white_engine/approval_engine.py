@@ -653,8 +653,7 @@ class ApprovalWorkflow:
 
         for event in self.events[1:]:
             if (
-                state == "pending"
-                and _parse_time(event.occurred_at)
+                _parse_time(event.occurred_at)
                 >= _parse_time(self.request.expires_at)
             ):
                 raise ApprovalWorkflowError(
