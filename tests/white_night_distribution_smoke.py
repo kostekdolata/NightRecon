@@ -122,6 +122,7 @@ def main() -> None:
         help_text = check(white_app, "--help", cwd=directory)
         assert "White Night command boundary" in help_text
         assert "editions" in help_text
+        assert "policy" in help_text
         for forbidden in (
             "scan",
             "discover",
@@ -158,7 +159,7 @@ def main() -> None:
                 "import nightrecon_shared_core as core; "
                 "import nightrecon_white_engine as engine; "
                 "assert core.edition_name('white') == 'White Night'; "
-                "assert engine.WHITE_OWNED_COMMANDS == ('editions',); "
+                "assert engine.WHITE_OWNED_COMMANDS == ('editions', 'policy'); "
                 "assert engine.WHITE_ACTIVE_COMMANDS == (); "
                 "assert importlib.util.find_spec('nightrecon') is None; "
                 "assert importlib.util.find_spec('nightrecon_red_engine') is None"
@@ -200,6 +201,72 @@ def main() -> None:
             ),
             cwd=directory,
         )
+
+        engagement_path = directory / "white-engagement.json"
+        engagement_path.write_text(json.dumps({
+            "schema_version": 1,
+            "engagement_id": "eng-cli-smoke",
+            "version": 1,
+            "name": "CLI smoke",
+            "created_at": "2026-09-29T12:00:00+00:00",
+            "status": "planned",
+            "owner_contact_id": "owner",
+            "contacts": [{
+                "contact_id": "owner",
+                "display_name": "Owner",
+                "role": "lead",
+                "email": None,
+                "phone": None,
+            }],
+            "roe": {
+                "schema_version": 1,
+                "engagement_id": "eng-cli-smoke",
+                "version": 1,
+                "title": "CLI smoke ROE",
+                "created_at": "2026-09-29T12:00:00+00:00",
+                "valid_from": "2026-10-01T08:00:00+00:00",
+                "valid_until": "2026-10-02T18:00:00+00:00",
+                "scope": {
+                    "allowed": ["192.0.2.0/24"],
+                    "excluded": ["192.0.2.250"],
+                },
+                "allowed_techniques": ["discovery"],
+                "prohibited_techniques": [],
+                "max_intrusiveness": "safe-active",
+                "max_actions": 10,
+                "data_handling": {
+                    "classification": "confidential",
+                    "retention_days": 90,
+                    "export_allowed": True,
+                    "notes": None,
+                },
+                "deviation_requires_approval": True,
+                "notes": None,
+            },
+            "description": None,
+        }, sort_keys=True), encoding="utf-8")
+        bundle_path = directory / "compiled-policy.json"
+        compiled = json.loads(check(
+            white_app,
+            "policy",
+            "compile",
+            str(engagement_path),
+            "--output",
+            str(bundle_path),
+            cwd=directory,
+        ))
+        assert compiled["policy"]["max_impact"] == "standard"
+        assert "192.0.2.250" not in compiled["policy"]["scope"]
+        assert bundle_path.exists()
+        verified = json.loads(check(
+            white_app,
+            "policy",
+            "verify",
+            str(bundle_path),
+            cwd=directory,
+        ))
+        assert verified["integrity"] == "valid"
+        assert verified["engagement_id"] == "eng-cli-smoke"
 
         metadata = check(
             str(python),
