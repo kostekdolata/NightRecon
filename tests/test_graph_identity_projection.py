@@ -9,6 +9,8 @@ from nightrecon.graph_identity_evidence import (
     IdentityEvidence,
     IdentityEvidenceBundle,
     PermissionEvidence,
+    IdentityRelationshipEvidence,
+    RoleEvidence,
 )
 from nightrecon.graph_identity_projection import add_identity_evidence_to_identity_graph
 from nightrecon.graph_models import GraphEvidenceState, GraphNodeKind
@@ -102,6 +104,62 @@ class GraphIdentityProjectionTests(unittest.TestCase):
             and edge.evidence_state is GraphEvidenceState.INFERRED
         )
         self.assertEqual(len(inferred_memberships), 1)
+
+    def test_projects_ownership_and_directory_role_relationships(self):
+        graph = add_identity_evidence_to_identity_graph(
+            self.base_graph(),
+            IdentityEvidenceBundle(
+                identities=(
+                    IdentityEvidence(
+                        natural_key="entra:user:alice",
+                        label="Alice",
+                        source_id="entra-user",
+                        identity_type="entra-user",
+                    ),
+                    IdentityEvidence(
+                        natural_key="entra:application:app",
+                        label="Example App",
+                        source_id="entra-app",
+                        identity_type="entra-application",
+                    ),
+                ),
+                roles=(
+                    RoleEvidence(
+                        natural_key="entra:role:reader",
+                        label="Directory Readers",
+                        source_id="entra-role",
+                    ),
+                ),
+                relationships=(
+                    IdentityRelationshipEvidence(
+                        source_kind=GraphNodeKind.IDENTITY,
+                        source_key="entra:user:alice",
+                        target_kind=GraphNodeKind.IDENTITY,
+                        target_key="entra:application:app",
+                        relationship="owns",
+                        source_id="entra-owner",
+                    ),
+                    IdentityRelationshipEvidence(
+                        source_kind=GraphNodeKind.IDENTITY,
+                        source_key="entra:user:alice",
+                        target_kind=GraphNodeKind.PERMISSION,
+                        target_key="entra:role:reader",
+                        relationship="assigned-role",
+                        source_id="entra-assignment",
+                        properties=(("directory_scope_id", "/"),),
+                    ),
+                ),
+            ),
+        )
+
+        relationships = {edge.relationship for edge in graph.edges}
+        self.assertIn("owns", relationships)
+        self.assertIn("assigned-role", relationships)
+        role_nodes = [
+            node for node in graph.nodes if node.kind is GraphNodeKind.PERMISSION
+            and node.natural_key == "entra:role:reader"
+        ]
+        self.assertEqual(len(role_nodes), 1)
 
     def test_missing_permission_target_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "permission target is missing"):
