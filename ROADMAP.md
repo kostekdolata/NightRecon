@@ -456,9 +456,18 @@ Batch 2 — Exact Candidate-to-Technique Eligibility:
 - explicit no-target and missing-prerequisite rejection reasons
 - hard candidate/technique/target/option/rejection ceilings
 
+Batch 3 — Explicit Adapter + Precondition/Postcondition Contracts:
+
+- immutable metadata-only adapter contracts derived from reviewed techniques
+- exact graph-property preconditions and reviewed evidence postconditions
+- deterministic explicit eligibility-to-contract bindings
+- stale target/provenance/eligibility metadata and contract drift fail closed
+- confirmed observations require all reviewed evidence keys
+- unexpected top-level evidence is rejected
+- no callable adapters, network activity, credentials, payloads, or execution
+
 Planned follow-on v0.43 batches:
 
-- explicit adapter/precondition/postcondition contracts
 - isolated revocable worker execution boundary
 - cleanup and retest evidence lifecycle
 - reviewed ATT&CK mappings and controlled comparison labs
@@ -592,9 +601,11 @@ The current execution order is:
 2. Develop v0.43.0 Controlled Validation Intelligence in small verified batches.
 3. Keep Batch 1 — the reviewed metadata-only validation technique registry — as
    the verified v0.43 foundation.
-4. Complete and verify Batch 2 — exact candidate-to-technique eligibility
-   planning without automatic execution.
-5. Add explicit adapter/precondition/postcondition contracts before any worker
-   execution boundary is introduced.
-6. Continue broader Red acceptance comparison evidence while preserving the existing
+4. Keep Batch 2 — exact candidate-to-technique eligibility planning — as a
+   verified proposal-only planning layer.
+5. Complete and verify Batch 3 — explicit adapter and precondition/postcondition
+   contracts with no callable execution surface.
+6. Add an isolated revocable worker boundary only after the Batch 3 contract
+   checkpoint is verified.
+7. Continue broader Red acceptance comparison evidence while preserving the existing
    authorization, evidence-honesty, approval, revocation, and no-auto-execution rules.
