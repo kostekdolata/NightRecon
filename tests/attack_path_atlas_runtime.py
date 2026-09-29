@@ -145,6 +145,13 @@ def main() -> None:
         "rel-service-cloud",
         "critical-cloud",
     }
+    assert {
+        (item.source_type, item.source_id)
+        for item in cross_domain.provenance_sources
+    } == {
+        ("engagement-evidence", evidence_id)
+        for evidence_id in cross_domain.evidence_ids
+    }
 
     cloud_path = next(
         item for item in atlas.paths
