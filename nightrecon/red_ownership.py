@@ -50,7 +50,7 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
     ),
     "graph_identity": (
         "active_directory_provider", "attack_path_atlas", "entra_provider", "graph_assessment",
-        "graph_builder", "graph_critical_asset", "graph_identity_evidence",
+        "graph_builder", "graph_correlation", "graph_critical_asset", "graph_identity_evidence",
         "graph_identity_projection", "graph_index", "graph_models", "graph_path",
         "graph_path_review", "graph_pipeline", "graph_projection", "graph_query",
         "graph_report", "graph_snapshot", "graph_summary", "graph_threat_context",
