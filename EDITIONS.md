@@ -10,7 +10,7 @@ and `black` for CLI routing and future evidence contracts.
 
 | Edition | Product responsibility | Current state |
 | --- | --- | --- |
-| White Night | Engagement scope, rules of engagement, approvals, audit, evidence custody, exercise control, and emergency stop | Shared scope/audit foundations exist; standalone application not available |
+| White Night | Engagement scope, rules of engagement, approvals, audit, evidence custody, exercise control, emergency stop, and after-action reporting | Independent package skeleton plus engagement/scope/ROE domain verified; policy/approval/runtime workflows not yet available |
 | Blue Night | Defensive telemetry, control validation, detection coverage, and remediation retests | Planned; standalone application not available |
 | Red Night | Authorized reconnaissance, exposure and attack-path analysis, bounded validation, and controlled emulation | Stable v0.41.0 standalone application available with mandatory shared safety core |
 | Purple Night | Match approved Red Night actions to Blue Night prevention, alerts, telemetry, and detection gaps | Planned; standalone application not available |
@@ -106,6 +106,38 @@ The full-suite installation should therefore feel like one integrated NightRecon
 workspace while preserving the ability to install, upgrade, run, and remove each
 Night independently.
 
+### White Night deployment contract
+
+White Night is the second standalone NightRecon product track after Red Night.
+Its foundation is defined by [WHITE_ACCEPTANCE.md](WHITE_ACCEPTANCE.md),
+[WHITE_OWNERSHIP.md](WHITE_OWNERSHIP.md),
+[WHITE_PACKAGE_PLAN.md](WHITE_PACKAGE_PLAN.md), and
+[WHITE_LIVE_ARCHITECTURE.md](WHITE_LIVE_ARCHITECTURE.md).
+
+White Night must remain one product across three required deployment profiles:
+
+- standalone White installation with the mandatory shared core;
+- White installed as part of a composed NightRecon stack;
+- White Night Live USB using the same White application/engine packages and
+  versioned contracts.
+
+The Live deployment is a bootable, offline-capable field environment, not an
+AutoRun mechanism and not a fork of White business logic. A future full-stack
+Live image may include any available Night packages beside White, but each Night
+retains its independent package boundary.
+
+White manages richer engagement authorization, approvals, evidence custody,
+exercise control, emergency-stop workflows, and after-action reporting. Shared
+core remains the authoritative enforcement layer so removing or omitting White
+never disables the scope, budget, approval, stop, or secret-handling controls
+required by another Night.
+
+Deployment-specific storage may differ, but engagement/evidence semantics must
+not. Standalone file/local storage, a composed workspace service/database, and
+encrypted Live USB persistence must implement compatible backend-neutral
+contracts. Evidence imported from another deployment or Night remains evidence,
+never automatic authorization.
+
 ### Shared engagement storage
 
 The shared core now defines a backend-neutral `EngagementStore` contract plus a
@@ -177,11 +209,20 @@ workspace.
    tests proving one edition cannot invoke another edition's active commands.
    Completed for Red Night v0.41.0; arbitrary multi-Night/full-suite composition
    remains future work because the other standalone applications do not yet exist.
-4. Add the missing Blue Night/White Night/Purple Night capabilities and further Red Night/Black Night
-   capabilities in small CI-verified releases. Do not advertise a standalone
-   edition as available until its isolation and functional acceptance tests pass.
+4. White Night foundation and package isolation are now established as the next
+   standalone product track after Red. Continue White in small CI-verified
+   batches while preserving Red stability and the shared-core enforcement
+   boundary.
+5. Add the missing Blue Night/Purple Night capabilities and further
+   Red Night/Black Night capabilities in small verified releases. Do not
+   advertise any standalone edition as available until its isolation,
+   deployment, and functional acceptance tests pass.
+6. Full-stack composition and Live image profiles must reuse the same Night
+   packages and versioned contracts; deployment must not introduce hidden
+   Night-to-Night runtime dependencies.
 
-The next Red Night product-development milestone should close measured
-acceptance gaps rather than duplicate existing foundations: concrete authorized
-provider adapters, repeatable comparison labs, controlled technique coverage,
-and professional operator/reporting workflows.
+Red Night remains the currently available standalone application and its open
+acceptance work continues. White Night work may proceed in parallel where it
+does not modify Red execution behavior; White runtime availability must remain
+marked unavailable until its own package, functional, composition, and Live
+deployment gates pass.
