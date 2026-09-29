@@ -51,15 +51,23 @@ def _required_text(value: object, field: str) -> str:
     return value
 
 
-def directory_natural_key(kind: str, dn: str) -> str:
-    """Return the opaque graph key for an exact imported directory DN."""
+def directory_natural_key(
+    kind: str,
+    dn: str,
+    *,
+    namespace: str = "ad",
+) -> str:
+    """Return an opaque graph key for one exact provider-native identifier."""
 
     if kind not in ("user", "computer", "service", "group"):
         raise ValueError(
             "directory node kind must be user, computer, service, or group"
         )
     _required_text(dn, "dn")
-    return f"ad:{kind}:{sha256(dn.encode('utf-8')).hexdigest()}"
+    _required_text(namespace, "namespace")
+    if namespace not in {"ad", "entra"}:
+        raise ValueError("directory namespace must be ad or entra")
+    return f"{namespace}:{kind}:{sha256(dn.encode('utf-8')).hexdigest()}"
 
 
 def import_directory_snapshot(
@@ -67,6 +75,7 @@ def import_directory_snapshot(
     *,
     source_id: str,
     limits: DirectoryImportLimits | None = None,
+    namespace: str = "ad",
 ) -> DirectoryImportResult:
     """Import a secret-free JSON snapshot; reject extra fields and over-budget data.
 
@@ -79,6 +88,9 @@ def import_directory_snapshot(
 
     active = limits or DirectoryImportLimits()
     _required_text(source_id, "source_id")
+    _required_text(namespace, "namespace")
+    if namespace not in {"ad", "entra"}:
+        raise ValueError("directory namespace must be ad or entra")
     if not isinstance(payload, bytes) or len(payload) > active.max_bytes:
         raise ValueError("directory export must be bytes within max_bytes")
     try:
@@ -127,13 +139,13 @@ def import_directory_snapshot(
         if any(not isinstance(member, str) or not member or member != member.strip()
                for member in members) or len(set(members)) != len(members):
             raise ValueError("group members must be unique, trimmed DNs")
-        key = directory_natural_key(kind, dn)
+        key = directory_natural_key(kind, dn, namespace=namespace)
         by_dn[dn] = (kind, key)
         provenance = f"{source_id}#entry-{index}"
         identity_types = {
-            "user": "ad-user",
-            "computer": "ad-computer",
-            "service": "ad-service",
+            "user": f"{namespace}-user",
+            "computer": f"{namespace}-computer",
+            "service": f"{namespace}-service",
         }
         if kind in identity_types:
             identities.append(
