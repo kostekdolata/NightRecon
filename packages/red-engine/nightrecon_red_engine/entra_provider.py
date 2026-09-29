@@ -410,6 +410,7 @@ class EntraIdentityProvider:
         started = self._clock()
         request_count = 0
         truncated = False
+        entry_budget_exhausted = False
         limitations: list[str] = []
         identities: dict[str, DirectoryEntry] = {}
         groups: dict[str, tuple[str, set[str]]] = {}
@@ -441,7 +442,7 @@ class EntraIdentityProvider:
             *,
             enforce_entry_budget: bool = True,
         ) -> None:
-            nonlocal request_count
+            nonlocal request_count, entry_budget_exhausted
             page_ref: str | None = initial_path
             pages = 0
             while page_ref is not None:
@@ -461,6 +462,7 @@ class EntraIdentityProvider:
                         enforce_entry_budget
                         and len(identities) + len(groups) >= request.limits.max_entries
                     ):
+                        entry_budget_exhausted = True
                         mark_truncated("Microsoft Graph entry ceiling reached.")
                         return
                 page_ref = page.next_link
@@ -666,7 +668,7 @@ class EntraIdentityProvider:
                     lambda item: add_identity(item, "service"),
                 )
 
-            group_ids = tuple(sorted(groups))
+            group_ids = () if entry_budget_exhausted else tuple(sorted(groups))
             if len(group_ids) > self._limits.max_groups_with_membership_reads:
                 mark_truncated("Microsoft Graph group-membership read ceiling reached.")
                 group_ids = group_ids[:self._limits.max_groups_with_membership_reads]
@@ -689,7 +691,7 @@ class EntraIdentityProvider:
                     "principals; service-principal group membership can be incomplete."
                 )
 
-            owner_targets = tuple(sorted(
+            owner_targets = () if entry_budget_exhausted else tuple(sorted(
                 (
                     ("applications", object_id)
                     for object_id, entry in identities.items()
@@ -719,13 +721,13 @@ class EntraIdentityProvider:
                     enforce_entry_budget=False,
                 )
 
-            if budget_available():
+            if not entry_budget_exhausted and budget_available():
                 read_collection(
                     GRAPH_ROLE_DEFINITIONS_PATH,
                     add_role_definition,
                     enforce_entry_budget=False,
                 )
-            if budget_available():
+            if not entry_budget_exhausted and budget_available():
                 read_collection(
                     GRAPH_ROLE_ASSIGNMENTS_PATH,
                     add_role_assignment,
