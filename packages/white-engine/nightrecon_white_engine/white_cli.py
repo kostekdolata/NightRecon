@@ -20,7 +20,7 @@ def _version() -> str:
     try:
         return version("nightrecon-white-night")
     except PackageNotFoundError:
-        return "0.1.0a1"
+        return "0.2.0a1"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="white-night-app",
         description=(
             "NightRecon White Night command boundary. "
-            "Batch 2 is an informational package foundation only."
+            "Batch 3 adds an immutable engagement and ROE authoring domain; active execution remains unavailable."
         ),
     )
     parser.add_argument(
