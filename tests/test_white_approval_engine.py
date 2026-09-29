@@ -98,6 +98,26 @@ class WhiteApprovalWorkflowTests(unittest.TestCase):
             at="2026-09-29T16:06:00+00:00",
         ))
 
+    def test_status_projection_respects_query_time_and_expiry(self) -> None:
+        item = workflow().approve(
+            event_id="evt-a1",
+            actor_id="alice",
+            occurred_at="2026-09-29T16:05:00+00:00",
+            reason="Approved",
+        )
+        self.assertEqual(
+            item.status("2026-09-29T16:04:59+00:00"),
+            "pending",
+        )
+        self.assertEqual(
+            item.status("2026-09-29T16:05:00+00:00"),
+            "approved",
+        )
+        self.assertEqual(
+            item.status("2026-09-29T18:00:00+00:00"),
+            "expired",
+        )
+
     def test_grant_cannot_be_replayed_across_context(self) -> None:
         item = workflow().approve(
             event_id="evt-a1",
