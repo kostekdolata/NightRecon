@@ -234,16 +234,22 @@ Delivered:
 
 ### Batch C — engagement domain
 
-Add immutable/versioned:
+Status: implemented and PR-CI verified.
 
-- engagements;
-- roles;
-- scope/exclusions;
-- windows;
-- ROE;
-- retention/data-handling policy.
+Delivered immutable/versioned:
 
-No other Night runtime required.
+- engagement definitions and revisions;
+- authorized contacts and bounded roles;
+- normalized scope/exclusions with fail-closed CIDR overlap handling;
+- timezone-aware testing/exercise windows;
+- action classes, techniques, intrusiveness and action budgets;
+- production/test/cyber-range environment classification;
+- retention/data-handling policy;
+- deterministic JSON and SHA-256 definition fingerprints;
+- human-readable ROE rendered from the same source definition.
+
+No other Night runtime is required, and the domain remains non-authoritative for
+execution until Batch D compiles it through shared-core policy primitives.
 
 ### Batch D — policy compiler
 
