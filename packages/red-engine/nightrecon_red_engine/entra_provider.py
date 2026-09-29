@@ -80,6 +80,16 @@ def _group_members_path(group_id: str) -> str:
     )
 
 
+def _owners_path(resource: str, object_id: str) -> str:
+    if resource not in {"applications", "servicePrincipals"}:
+        raise ValueError("Microsoft Graph ownership resource is unsupported")
+    encoded = quote(_object_id(object_id), safe="._-")
+    return (
+        f"/v1.0/{resource}/{encoded}/owners"
+        "?$select=id,displayName,userPrincipalName,appId&$top=100"
+    )
+
+
 def _validate_graph_url(url: str) -> str:
     _required_text(url, "Microsoft Graph URL")
     parsed = urlparse(url)
@@ -301,9 +311,12 @@ class MicrosoftGraphTransport:
 
 @dataclass(frozen=True)
 class EntraProviderLimits:
-    max_requests: int = 64
+    max_requests: int = 96
     max_pages_per_collection: int = 10
     max_groups_with_membership_reads: int = 32
+    max_owner_objects: int = 64
+    max_role_definitions: int = 256
+    max_relationships: int = 5_000
     max_runtime_seconds: float = 30.0
 
     def __post_init__(self) -> None:
@@ -321,6 +334,12 @@ class EntraProviderLimits:
             raise ValueError(
                 "max_groups_with_membership_reads must be a positive integer"
             )
+        if type(self.max_owner_objects) is not int or self.max_owner_objects < 1:
+            raise ValueError("max_owner_objects must be a positive integer")
+        if type(self.max_role_definitions) is not int or self.max_role_definitions < 1:
+            raise ValueError("max_role_definitions must be a positive integer")
+        if type(self.max_relationships) is not int or self.max_relationships < 1:
+            raise ValueError("max_relationships must be a positive integer")
         if (
             isinstance(self.max_runtime_seconds, bool)
             or not isinstance(self.max_runtime_seconds, (int, float))
