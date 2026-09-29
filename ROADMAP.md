@@ -492,9 +492,23 @@ Batch 5 — Cleanup / Evidence Lifecycle + Deterministic Retest:
 - confirmed -> regressed, not-confirmed -> verified, other worker states inconclusive
 - no new active technique, mutation, credential, or network capability
 
-Planned follow-on v0.43 batches:
+Batch 6 — Reviewed ATT&CK Mappings + Controlled Comparison Labs:
 
-- reviewed ATT&CK mappings and controlled comparison labs
+- every current validation technique has an explicit ATT&CK review disposition
+- TCP selected-service proof is related to T1046 Network Service Discovery,
+  without claiming complete T1046 implementation
+- TLS and HTTP policy proofs are explicitly reviewed-unmapped
+- mapping records retain official ATT&CK source/version/last-modified metadata
+- deterministic lifecycle comparison measures matched/missed/invented scenarios,
+  evidence keys, cleanup state, ATT&CK review disposition and operator steps
+- runtime is reported separately from the deterministic comparison fingerprint
+- fixture results explicitly do not claim parity with specialist products
+- no new worker technique, credential, payload, cleanup mutation or execution power
+
+Planned follow-on v0.43 work:
+
+- release acceptance/finalization
+- live authorized specialist comparisons remain broader Red acceptance work
 
 The v0.43 registry and planning layers do not grant permission to execute.
 Every later validation action must independently pass the existing
@@ -631,9 +645,11 @@ The current execution order is:
    as the verified execution-contract boundary.
 6. Keep Batch 4 — isolated revocable execution — as the verified live worker
    boundary for reviewed read-only proofs.
-7. Complete and verify Batch 5 — durable validation/cleanup evidence and
-   deterministic remediation/retest integration.
-8. Add reviewed ATT&CK mappings and controlled comparison labs without expanding
-   execution beyond evidence-backed reviewed techniques.
-9. Continue broader Red acceptance comparison evidence while preserving the existing
-   authorization, evidence-honesty, approval, revocation, and bounded-execution rules.
+7. Keep Batch 5 — durable validation/cleanup evidence and deterministic
+   remediation/retest integration — as the verified lifecycle boundary.
+8. Complete and verify Batch 6 — reviewed ATT&CK relationships and controlled
+   comparison labs without expanding execution power.
+9. Evaluate v0.43 release acceptance and finalization while leaving unmeasured
+   live specialist-comparison categories explicitly open.
+10. Continue broader Red acceptance comparison evidence while preserving the existing
+    authorization, evidence-honesty, approval, revocation, and bounded-execution rules.
