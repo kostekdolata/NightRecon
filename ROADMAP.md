@@ -423,6 +423,44 @@ likelihood, impact, authentication access, compromise, or risk.
 
 See [V042_ATTACK_PATH_ATLAS.md](V042_ATTACK_PATH_ATLAS.md) and
 [V042_UNIFIED_EXPOSURE_INTELLIGENCE.md](V042_UNIFIED_EXPOSURE_INTELLIGENCE.md).
+### v0.43.0 — Controlled Validation Intelligence
+
+Status: active development.
+
+Product goal:
+
+Turn v0.42 proposal-only validation candidates into reviewed, bounded,
+explicitly selected controlled-validation plans while preserving independent
+authorization, approval, action-budget, revocation, evidence, and cleanup
+boundaries.
+
+Batch 1 — Reviewed Technique Registry:
+
+- metadata-only canonical technique definitions
+- explicit target kinds, expected non-secret evidence keys, impact and approval
+  metadata
+- optional strict ATT&CK-ID field without claiming unreviewed mappings
+- fixed `read-only-proof` adapter classification
+- deterministic bridge into the existing `ValidationDefinition` runtime object
+- no commands, payloads, scripts, credentials, automatic selection, or execution
+- high-impact metadata must declare approval
+- unknown techniques, target kinds, secret-like evidence fields, and invalid
+  mappings fail closed
+
+Planned follow-on v0.43 batches:
+
+- exact candidate-to-technique eligibility planning
+- explicit adapter/precondition/postcondition contracts
+- isolated revocable worker execution boundary
+- cleanup and retest evidence lifecycle
+- reviewed ATT&CK mappings and controlled comparison labs
+
+The v0.43 registry and planning layers do not grant permission to execute.
+Every later validation action must independently pass the existing
+`validation.run` authorization boundary.
+
+See [V043_CONTROLLED_VALIDATION_INTELLIGENCE.md](V043_CONTROLLED_VALIDATION_INTELLIGENCE.md).
+
 ## Generation 3 — Red Validation Engine
 
 Goal: controlled validation of authorized attack paths.
@@ -543,7 +581,8 @@ The engine will eventually require a production platform around it:
 The current execution order is:
 
 1. Keep Red Night v0.42.0 as the verified stable Cross-Domain Exposure Intelligence baseline.
-2. Continue broader Red acceptance work with live authorized specialist comparison
-   evidence and reviewed controlled-validation coverage.
-3. Begin the next Red milestone only from the verified v0.42.0 release checkpoint,
-   preserving the existing authorization, evidence-honesty, and no-auto-execution rules.
+2. Develop v0.43.0 Controlled Validation Intelligence in small verified batches.
+3. Complete and verify Batch 1 — the reviewed metadata-only validation technique registry.
+4. Add exact candidate-to-technique eligibility planning without automatic execution.
+5. Continue broader Red acceptance comparison evidence while preserving the existing
+   authorization, evidence-honesty, approval, revocation, and no-auto-execution rules.
