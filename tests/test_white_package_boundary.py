@@ -62,7 +62,7 @@ class WhitePackageBoundaryTests(unittest.TestCase):
         self.assertEqual(payload["project"]["version"], "0.1.0a3")
         self.assertEqual(
             set(payload["project"]["dependencies"]),
-            {"nightrecon-shared-core==0.41.0"},
+            {"nightrecon-shared-core==0.42.0"},
         )
         self.assertEqual(
             set(payload["tool"]["setuptools"]["packages"]["find"]["include"]),
@@ -81,7 +81,7 @@ class WhitePackageBoundaryTests(unittest.TestCase):
         self.assertEqual(
             dependencies,
             {
-                "nightrecon-shared-core==0.41.0",
+                "nightrecon-shared-core==0.42.0",
                 "nightrecon-white-engine==0.1.0a3",
             },
         )
