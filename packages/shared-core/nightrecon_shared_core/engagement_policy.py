@@ -305,6 +305,87 @@ class FileEngagementPolicyStore:
         return updated
 
 
+def evaluate_reserved_action(
+    policy: EngagementExecutionPolicy,
+    *,
+    engagement_status: str | None,
+    capability: str,
+    target: str,
+    impact: str = "standard",
+    approval_present: bool = False,
+    now: datetime | None = None,
+) -> AuthorizationDecision:
+    """Re-check a previously consumed action without reserving another slot.
+
+    This is intended for a live worker lease after an action has already been
+    authorized and consumed. It preserves status, revocation, validity-window,
+    capability, scope, and approval checks while intentionally not applying a
+    second action-budget gate to the already-reserved action.
+    """
+
+    _required_text(capability, "capability")
+    if _CAPABILITY_PATTERN.fullmatch(capability) is None:
+        raise ValueError("capability is invalid")
+    target_obj = parse_target(target)
+    if impact not in _VALID_IMPACTS:
+        raise ValueError("impact must be low, standard, or high")
+    current = datetime.now(timezone.utc) if now is None else now
+    if current.tzinfo is None:
+        raise ValueError("now must include a timezone")
+
+    reason_code = "authorized_reserved_action"
+    reason = "reserved action remains authorized by the active engagement policy"
+    allowed = True
+
+    if engagement_status != "active":
+        allowed = False
+        reason_code = "engagement_not_active"
+        reason = "engagement status is not active"
+    elif policy.revoked:
+        allowed = False
+        reason_code = "authorization_revoked"
+        reason = "engagement authorization has been revoked"
+    elif current < _parse_time(policy.valid_from):
+        allowed = False
+        reason_code = "authorization_not_started"
+        reason = "authorization validity window has not started"
+    elif current > _parse_time(policy.valid_until):
+        allowed = False
+        reason_code = "authorization_expired"
+        reason = "authorization validity window has expired"
+    elif capability not in policy.permitted_capabilities:
+        allowed = False
+        reason_code = "capability_not_permitted"
+        reason = "capability is not permitted by the engagement policy"
+    elif not Scope.from_values(list(policy.scope)).is_authorized(target_obj):
+        allowed = False
+        reason_code = "target_out_of_scope"
+        reason = "target is outside the engagement scope"
+    elif (
+        (impact == "high" or capability in policy.approval_required_capabilities)
+        and not approval_present
+    ):
+        allowed = False
+        reason_code = "approval_required"
+        reason = "action requires explicit operator approval"
+
+    used = policy.actions_used
+    remaining = max(0, policy.max_actions - used)
+    return AuthorizationDecision(
+        engagement_id=policy.engagement_id,
+        allowed=allowed,
+        reason_code=reason_code,
+        reason=reason,
+        capability=capability,
+        target=target_obj.value,
+        impact=impact,
+        approval_present=approval_present,
+        actions_used=used,
+        max_actions=policy.max_actions,
+        remaining_actions=remaining,
+    )
+
+
 def append_authorization_audit(
     path: str | Path,
     decision: AuthorizationDecision,

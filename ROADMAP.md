@@ -466,9 +466,22 @@ Batch 3 — Explicit Adapter + Precondition/Postcondition Contracts:
 - unexpected top-level evidence is rejected
 - no callable adapters, network activity, credentials, payloads, or execution
 
+Batch 4 — Isolated Revocable Worker Execution Boundary:
+
+- explicit operator-selected binding required before authorization
+- one canonical `validation.run` action consumed before worker start
+- fresh spawned process receives only a minimal typed reviewed request
+- fixed TCP, TLS fingerprint, and HTTP HEAD read-only proof adapters only
+- live policy rechecks reload revocation/status/window/capability/scope/approval
+  state while the worker runs
+- authorization change or lease failure terminates the child fail closed
+- hard runtime, adapter-I/O, polling, and serialized-result ceilings
+- Batch 3 postconditions validate all returned evidence before acceptance
+- no arbitrary commands, scripts, credentials, payloads, request templates,
+  high-impact techniques, or automatic technique selection
+
 Planned follow-on v0.43 batches:
 
-- isolated revocable worker execution boundary
 - cleanup and retest evidence lifecycle
 - reviewed ATT&CK mappings and controlled comparison labs
 
@@ -603,9 +616,11 @@ The current execution order is:
    the verified v0.43 foundation.
 4. Keep Batch 2 — exact candidate-to-technique eligibility planning — as a
    verified proposal-only planning layer.
-5. Complete and verify Batch 3 — explicit adapter and precondition/postcondition
-   contracts with no callable execution surface.
-6. Add an isolated revocable worker boundary only after the Batch 3 contract
-   checkpoint is verified.
-7. Continue broader Red acceptance comparison evidence while preserving the existing
-   authorization, evidence-honesty, approval, revocation, and no-auto-execution rules.
+5. Keep Batch 3 — explicit adapter and precondition/postcondition contracts —
+   as the verified execution-contract boundary.
+6. Complete and verify Batch 4 — isolated revocable execution for the reviewed
+   read-only proof techniques only.
+7. Add cleanup/evidence lifecycle and deterministic retest integration before
+   expanding validation coverage.
+8. Continue broader Red acceptance comparison evidence while preserving the existing
+   authorization, evidence-honesty, approval, revocation, and bounded-execution rules.
