@@ -134,6 +134,16 @@ class AttackPathAtlasTests(unittest.TestCase):
         self.assertEqual(len(bob_paths), 2)
         self.assertTrue(all(item.inferred_hops == 1 for item in bob_paths))
         self.assertTrue(all("rel-bob-perm" in item.evidence_ids for item in bob_paths))
+        self.assertTrue(all(
+            all(source.source_type == "engagement-evidence"
+                for source in item.provenance_sources)
+            for item in atlas.paths
+        ))
+        self.assertTrue(all(
+            {source.source_id for source in item.provenance_sources}
+            >= set(item.evidence_ids)
+            for item in atlas.paths
+        ))
 
         self.assertTrue(any(
             item.relationships[-1] == "supports-critical"
