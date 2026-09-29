@@ -19,4 +19,9 @@ fixed filters and attributes, explicit truncation metadata, user/computer/
 service identity classification, and zero provider calls when engagement
 authorization fails. See
 [V041_ACTIVE_DIRECTORY_PROVIDER.md](V041_ACTIVE_DIRECTORY_PROVIDER.md).
-The Entra adapter remains a later v0.41 batch.
+
+v0.41 also adds a bounded read-only Microsoft Entra provider using fixed
+Microsoft Graph v1.0 identity endpoints, dedicated Entra evidence namespacing,
+strict next-link validation, explicit request/runtime ceilings, and zero Graph
+calls when engagement authorization fails. See
+[V041_ENTRA_PROVIDER.md](V041_ENTRA_PROVIDER.md).

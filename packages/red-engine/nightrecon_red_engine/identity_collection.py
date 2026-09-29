@@ -200,9 +200,11 @@ def collect_authorized_identity_intelligence(
     if len(payload) > request.limits.max_serialized_bytes:
         raise ValueError("identity collection exceeds max_serialized_bytes")
 
+    namespace = "ad" if request.source_type == "active-directory" else "entra"
     imported = import_directory_snapshot(
         payload,
         source_id=request.source_id,
+        namespace=namespace,
         limits=DirectoryImportLimits(
             max_bytes=request.limits.max_serialized_bytes,
             max_entries=request.limits.max_entries,
