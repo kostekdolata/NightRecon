@@ -25,6 +25,7 @@ _NODE_TYPES = {
     "asset.observation": (GraphNodeKind.ASSET, "asset_key"),
     "identity.observation": (GraphNodeKind.IDENTITY, "identity_key"),
     "group.observation": (GraphNodeKind.GROUP, "group_key"),
+    "permission.observation": (GraphNodeKind.PERMISSION, "permission_key"),
     "service.observation": (GraphNodeKind.SERVICE, "service_key"),
 }
 _KIND_BY_VALUE = {item.value: item for item in GraphNodeKind}
