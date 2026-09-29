@@ -117,6 +117,39 @@ class IdentityCollectionTests(unittest.TestCase):
             self.assertEqual(len(result.evidence.memberships), 2)
             self.assertEqual(result.unresolved_members, 0)
 
+    def test_entra_collection_uses_separate_identity_namespace(self):
+        with tempfile.TemporaryDirectory() as root:
+            object_id = "11111111-1111-1111-1111-111111111111"
+            group_id = "22222222-2222-2222-2222-222222222222"
+            provider = FakeProvider((
+                DirectoryEntry(object_id, "user", "Cloud User"),
+                DirectoryEntry(group_id, "group", "Cloud Group", (object_id,)),
+            ))
+
+            result = collect_authorized_identity_intelligence(
+                workspace(root, scope=("tenant.example",)),
+                provider,
+                IdentityCollectionRequest(
+                    engagement_id="eng-identity",
+                    source_id="graph-readonly-1",
+                    source_type="entra-id",
+                    target="tenant.example",
+                ),
+                now=datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc),
+            )
+
+            self.assertEqual(
+                {item.identity_type for item in result.evidence.identities},
+                {"entra-user"},
+            )
+            self.assertTrue(
+                result.evidence.identities[0].natural_key.startswith("entra:user:")
+            )
+            self.assertTrue(
+                result.evidence.groups[0].natural_key.startswith("entra:group:")
+            )
+            self.assertEqual(len(result.evidence.memberships), 1)
+
     def test_provider_completeness_metadata_is_preserved(self):
         with tempfile.TemporaryDirectory() as root:
             provider = FakeProvider(IdentityProviderCollection(
