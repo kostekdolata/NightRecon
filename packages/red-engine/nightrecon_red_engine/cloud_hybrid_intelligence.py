@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Protocol
+import ipaddress
 import json
 
 from nightrecon_shared_core.contracts import EvidenceRecord
@@ -20,6 +21,42 @@ from nightrecon_shared_core.workspace import LocalWorkspace
 _SCHEMA_VERSION = 1
 _VALID_PROVIDERS = frozenset({"aws", "azure", "entra", "kubernetes"})
 _VALID_ENDPOINT_TYPES = frozenset({"identity", "resource"})
+_RESOURCE_CORRELATION_PROPERTIES = {
+    "aws": frozenset({
+        "aws_account_id", "aws_arn", "aws_instance_id",
+        "private_ip", "public_ip", "hostname",
+        "private_dns_name", "public_dns_name",
+    }),
+    "azure": frozenset({
+        "azure_tenant_id", "azure_subscription_id", "azure_resource_id",
+        "azure_vm_id", "private_ip", "public_ip", "hostname",
+        "private_dns_name", "public_dns_name",
+    }),
+    "entra": frozenset({
+        "entra_tenant_id", "entra_object_id", "entra_app_id",
+    }),
+    "kubernetes": frozenset({
+        "kubernetes_cluster_uid", "kubernetes_resource_uid",
+        "kubernetes_provider_id", "kubernetes_node_name",
+        "private_ip", "public_ip", "hostname",
+    }),
+}
+_IDENTITY_CORRELATION_PROPERTIES = {
+    "aws": frozenset({"aws_account_id", "aws_arn", "aws_principal_id"}),
+    "azure": frozenset({
+        "azure_tenant_id", "azure_object_id", "azure_client_id",
+    }),
+    "entra": frozenset({"entra_tenant_id", "entra_object_id", "entra_app_id"}),
+    "kubernetes": frozenset({
+        "kubernetes_cluster_uid", "kubernetes_identity_uid",
+        "kubernetes_namespace", "kubernetes_service_account_name",
+    }),
+}
+_IP_CORRELATION_PROPERTIES = frozenset({"private_ip", "public_ip"})
+_HOSTNAME_CORRELATION_PROPERTIES = frozenset({
+    "hostname", "private_dns_name", "public_dns_name",
+})
+_MAX_CORRELATION_PROPERTY_LENGTH = 512
 
 
 def _required(value: object, field: str) -> str:
@@ -42,6 +79,72 @@ def _provider(value: object) -> str:
     if provider not in _VALID_PROVIDERS:
         raise ValueError("unsupported cloud/hybrid provider")
     return provider
+
+
+def _correlation_properties(
+    value: object,
+    *,
+    endpoint_type: str,
+    provider: str,
+) -> tuple[tuple[str, str], ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, dict):
+        raise ValueError("cloud correlation properties must be an object")
+    allowlist = (
+        _RESOURCE_CORRELATION_PROPERTIES[provider]
+        if endpoint_type == "resource"
+        else _IDENTITY_CORRELATION_PROPERTIES[provider]
+    )
+    if not set(value).issubset(allowlist):
+        raise ValueError("cloud correlation properties contain unsupported fields")
+
+    normalized: list[tuple[str, str]] = []
+    for key in sorted(value):
+        item = _required(value[key], f"cloud correlation property {key}")
+        if len(item) > _MAX_CORRELATION_PROPERTY_LENGTH:
+            raise ValueError("cloud correlation property exceeds maximum length")
+        if key in _IP_CORRELATION_PROPERTIES:
+            try:
+                canonical = str(ipaddress.ip_address(item))
+            except ValueError as exc:
+                raise ValueError(f"{key} must be a canonical IP address") from exc
+            if canonical != item:
+                raise ValueError(f"{key} must be a canonical IP address")
+        elif key in _HOSTNAME_CORRELATION_PROPERTIES:
+            canonical = item.casefold().rstrip(".")
+            if (
+                canonical != item
+                or len(item) > 253
+                or any(character.isspace() for character in item)
+            ):
+                raise ValueError(f"{key} must be a canonical hostname")
+        normalized.append((key, item))
+    return tuple(normalized)
+
+
+def _resource_graph_properties(
+    provider: str,
+    identifier: str,
+    kind: str,
+    correlation: tuple[tuple[str, str], ...],
+) -> dict[str, str]:
+    return dict((
+        ("cloud_provider", provider),
+        ("cloud_resource_id", identifier),
+        ("cloud_resource_kind", kind),
+    ) + correlation)
+
+
+def _identity_graph_properties(
+    provider: str,
+    identifier: str,
+    correlation: tuple[tuple[str, str], ...],
+) -> dict[str, str]:
+    return dict((
+        ("cloud_provider", provider),
+        ("cloud_identity_id", identifier),
+    ) + correlation)
 
 
 @dataclass(frozen=True)
@@ -160,12 +263,23 @@ def import_cloud_hybrid_snapshot(
     endpoints: set[tuple[str, str, str]] = set()
 
     for item in resources:
-        if not isinstance(item, dict) or set(item) != {"provider", "id", "kind", "name"}:
+        required_fields = {"provider", "id", "kind", "name"}
+        allowed_fields = required_fields | {"properties"}
+        if (
+            not isinstance(item, dict)
+            or not required_fields.issubset(item)
+            or not set(item).issubset(allowed_fields)
+        ):
             raise ValueError("cloud resource has unsupported fields")
         provider = _provider(item["provider"])
         identifier = _required(item["id"], "resource id")
         kind = _required(item["kind"], "resource kind")
         name = _required(item["name"], "resource name")
+        correlation = _correlation_properties(
+            item.get("properties"),
+            endpoint_type="resource",
+            provider=provider,
+        )
         key = _asset_key(provider, identifier)
         providers.add(provider)
         endpoints.add(("resource", provider, identifier))
@@ -181,16 +295,30 @@ def import_cloud_hybrid_snapshot(
                 "label": name,
                 "provider": provider,
                 "resource_kind": kind,
+                "properties": _resource_graph_properties(
+                    provider, identifier, kind, correlation
+                ),
             },
             limitations=("Read-only normalized cloud inventory evidence.",),
         ))
 
     for item in identities:
-        if not isinstance(item, dict) or set(item) != {"provider", "id", "name"}:
+        required_fields = {"provider", "id", "name"}
+        allowed_fields = required_fields | {"properties"}
+        if (
+            not isinstance(item, dict)
+            or not required_fields.issubset(item)
+            or not set(item).issubset(allowed_fields)
+        ):
             raise ValueError("cloud identity has unsupported fields")
         provider = _provider(item["provider"])
         identifier = _required(item["id"], "identity id")
         name = _required(item["name"], "identity name")
+        correlation = _correlation_properties(
+            item.get("properties"),
+            endpoint_type="identity",
+            provider=provider,
+        )
         key = _identity_key(provider, identifier)
         providers.add(provider)
         endpoints.add(("identity", provider, identifier))
@@ -205,6 +333,9 @@ def import_cloud_hybrid_snapshot(
                 "identity_key": key,
                 "label": name,
                 "provider": provider,
+                "properties": _identity_graph_properties(
+                    provider, identifier, correlation
+                ),
             },
             limitations=("Read-only normalized cloud identity evidence.",),
         ))

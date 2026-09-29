@@ -125,6 +125,144 @@ class CloudHybridIntelligenceTests(unittest.TestCase):
                 LocalWorkspace(root).execution_policy("eng-cloud").actions_used, 1
             )
 
+
+    def test_allowlisted_correlation_properties_project_into_unified_graph(self):
+        payload = json.dumps({
+            "schema_version": 1,
+            "resources": [{
+                "provider": "azure",
+                "id": "/subscriptions/sub-1/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm-1",
+                "kind": "virtual-machine",
+                "name": "Finance VM",
+                "properties": {
+                    "azure_tenant_id": "tenant-1",
+                    "azure_subscription_id": "sub-1",
+                    "azure_resource_id": "/subscriptions/sub-1/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm-1",
+                    "private_ip": "10.20.30.40",
+                    "hostname": "finance-vm.example.test",
+                },
+            }],
+            "identities": [{
+                "provider": "entra",
+                "id": "object-1",
+                "name": "Managed Identity",
+                "properties": {
+                    "entra_tenant_id": "tenant-1",
+                    "entra_object_id": "object-1",
+                },
+            }],
+            "relationships": [],
+        }, separators=(",", ":")).encode()
+
+        imported = import_cloud_hybrid_snapshot(
+            payload,
+            engagement_id="eng-cloud",
+            source_id="cloud-correlation-contract",
+            observed_at="2026-09-29T14:00:00+00:00",
+        )
+        graph = build_unified_attack_graph(imported.records)
+        self.assertEqual(graph.unresolved_records, ())
+
+        resource = next(
+            node for node in graph.graph.nodes
+            if node.natural_key.startswith("cloud:azure:resource:")
+        )
+        self.assertEqual(
+            dict(resource.properties),
+            {
+                "azure_resource_id": "/subscriptions/sub-1/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm-1",
+                "azure_subscription_id": "sub-1",
+                "azure_tenant_id": "tenant-1",
+                "cloud_provider": "azure",
+                "cloud_resource_id": "/subscriptions/sub-1/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm-1",
+                "cloud_resource_kind": "virtual-machine",
+                "hostname": "finance-vm.example.test",
+                "private_ip": "10.20.30.40",
+            },
+        )
+
+        identity = next(
+            node for node in graph.graph.nodes
+            if node.natural_key == "cloud:entra:identity:object-1"
+        )
+        self.assertEqual(
+            dict(identity.properties),
+            {
+                "cloud_identity_id": "object-1",
+                "cloud_provider": "entra",
+                "entra_object_id": "object-1",
+                "entra_tenant_id": "tenant-1",
+            },
+        )
+
+    def test_provider_specific_correlation_properties_fail_closed(self):
+        bad = json.dumps({
+            "schema_version": 1,
+            "resources": [{
+                "provider": "aws",
+                "id": "i-123",
+                "kind": "virtual-machine",
+                "name": "App",
+                "properties": {"azure_resource_id": "/subscriptions/not-aws"},
+            }],
+            "identities": [],
+            "relationships": [],
+        }).encode()
+        with self.assertRaisesRegex(ValueError, "unsupported fields"):
+            import_cloud_hybrid_snapshot(
+                bad,
+                engagement_id="eng-cloud",
+                source_id="source",
+                observed_at="2026-09-29T14:00:00+00:00",
+            )
+
+    def test_secret_like_correlation_properties_are_rejected(self):
+        bad = json.dumps({
+            "schema_version": 1,
+            "resources": [{
+                "provider": "aws",
+                "id": "i-123",
+                "kind": "virtual-machine",
+                "name": "App",
+                "properties": {"access_token": "secret"},
+            }],
+            "identities": [],
+            "relationships": [],
+        }).encode()
+        with self.assertRaisesRegex(ValueError, "unsupported fields"):
+            import_cloud_hybrid_snapshot(
+                bad,
+                engagement_id="eng-cloud",
+                source_id="source",
+                observed_at="2026-09-29T14:00:00+00:00",
+            )
+
+    def test_network_correlation_values_must_already_be_canonical(self):
+        for properties in (
+            {"private_ip": "2001:0db8::1"},
+            {"hostname": "Finance-VM.Example.Test."},
+        ):
+            with self.subTest(properties=properties):
+                bad = json.dumps({
+                    "schema_version": 1,
+                    "resources": [{
+                        "provider": "azure",
+                        "id": "vm-1",
+                        "kind": "virtual-machine",
+                        "name": "Finance VM",
+                        "properties": properties,
+                    }],
+                    "identities": [],
+                    "relationships": [],
+                }).encode()
+                with self.assertRaisesRegex(ValueError, "canonical"):
+                    import_cloud_hybrid_snapshot(
+                        bad,
+                        engagement_id="eng-cloud",
+                        source_id="source",
+                        observed_at="2026-09-29T14:00:00+00:00",
+                    )
+
     def test_schema_rejects_secret_or_unexpected_fields(self):
         bad = json.dumps({
             "schema_version": 1,

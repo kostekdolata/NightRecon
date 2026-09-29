@@ -143,6 +143,38 @@ It does not establish exploitability, likelihood, impact, compromise,
 authentication access, or a validated attack path. Those require separate
 evidence or controlled validation.
 
+
+## Batch 4A — Cloud correlation evidence contract
+
+Before creating cloud correlation edges, Red Night now preserves a strict,
+provider-specific correlation-property channel through cloud snapshot import,
+engagement evidence, and unified graph projection.
+
+Every projected cloud resource carries deterministic common properties:
+
+- `cloud_provider`
+- `cloud_resource_id`
+- `cloud_resource_kind`
+
+Every projected cloud identity carries:
+
+- `cloud_provider`
+- `cloud_identity_id`
+
+Optional correlation properties are provider- and endpoint-specific allowlists
+for AWS, Azure, Entra, and Kubernetes. They cover only explicit correlation
+material such as provider resource/principal identifiers, tenant/account/cluster
+identifiers, canonical IP addresses, and canonical hostnames/DNS names.
+
+The importer rejects arbitrary fields, provider-mismatched properties,
+secret-like fields, non-string values, overlong values, and non-canonical
+network correlation values. It performs no DNS resolution and creates no new
+cross-surface correlation edge in this batch.
+
+This foundation exists so the next batch can join cloud resources to network
+and identity evidence only when both surfaces carry the same explicit,
+normalized evidence.
+
 ## Next v0.42 batches
 
 1. concrete AWS/Azure/Kubernetes correlation keys and cloud-to-network/identity joins
