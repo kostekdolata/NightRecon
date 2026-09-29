@@ -212,10 +212,54 @@ without an explicit provider-native shared identifier. Human-readable names,
 UPNs, display labels, application labels, IP adjacency, DNS resolution, and
 fuzzy/suffix matching are never used.
 
-## Next v0.42 batches
+## Batch 5 — Proposal-only controlled-validation candidates
 
-1. bounded controlled-validation candidates compiled from evidence-backed paths
-3. evidence-chain explanations and unified operator exposure review
-4. descriptive choke-point and blast-radius analysis
-5. remediation/retest impact on exposure paths
-6. reproducible specialist comparison labs
+Evidence-backed atlas paths can now be compiled into bounded deterministic
+validation candidates. Candidates preserve the exact path, edge, and engagement
+evidence identifiers while declaring `validation.run` as the required
+capability, mandatory approval review, scope review, and
+`execution_mode=proposal-only`.
+
+Candidate compilation never calls a validation adapter, resolves credentials,
+consumes an action budget, or mutates engagement state. A candidate remains a
+review artifact until a separate operator action passes the existing
+authorization boundary.
+
+## Batch 6 — Unified exposure review and structural concentration
+
+The exposure review combines returned atlas paths, proposal-only validation
+candidates, unresolved correlation evidence, and remediation/retest state.
+
+It reports:
+
+- observed and inferred hop counts per path
+- explicit inferred-path and unresolved-correlation evidence gaps
+- pending/regressed retest state
+- deterministic node/edge path participation
+- unique start and critical-target counts for structural concentration
+- before/after path-set differences for remediation/retest review
+
+These are descriptive counts only. They are not risk scores, priorities,
+probabilities, exploitability claims, or causal remediation claims.
+
+## Batch 7 — Reproducible comparison/runtime lab
+
+The v0.42 comparison harness measures an explicit deterministic fixture for:
+
+- expected/matched/missed/invented paths
+- expected/matched/missed/invented graph edges
+- evidence-complete versus incomplete paths
+- runtime
+- documented operator-step count
+- atlas truncation
+
+This is a fixture-based regression/comparison gate, not evidence of parity with
+a specialist product. Live authorized specialist comparison remains an open
+broader Red acceptance activity outside the v0.42 stable milestone.
+
+## v0.42 functional completion boundary
+
+Batches 1 through 7 are complete. Remaining work before the stable tag is
+release finalization only: coordinated version metadata, v0.42 acceptance and
+release notes, exact-head CI, finalization merge, post-merge CI, and guarded
+annotated tag creation.
