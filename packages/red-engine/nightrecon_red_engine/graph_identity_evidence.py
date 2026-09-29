@@ -42,55 +42,6 @@ class GroupEvidence:
 
 
 @dataclass(frozen=True)
-
-@dataclass(frozen=True)
-class RoleEvidence:
-    natural_key: str
-    label: str
-    source_id: str
-    properties: tuple[tuple[str, str], ...] = ()
-
-    def __post_init__(self) -> None:
-        _require(self.natural_key, "natural_key")
-        _require(self.label, "label")
-        _require(self.source_id, "source_id")
-
-
-@dataclass(frozen=True)
-class IdentityRelationshipEvidence:
-    source_kind: GraphNodeKind
-    source_key: str
-    target_kind: GraphNodeKind
-    target_key: str
-    relationship: str
-    source_id: str
-    evidence_state: GraphEvidenceState = GraphEvidenceState.OBSERVED
-    properties: tuple[tuple[str, str], ...] = ()
-
-    def __post_init__(self) -> None:
-        if self.source_kind not in {
-            GraphNodeKind.IDENTITY,
-            GraphNodeKind.GROUP,
-        }:
-            raise ValueError("identity relationship source must be identity or group")
-        if self.target_kind not in {
-            GraphNodeKind.IDENTITY,
-            GraphNodeKind.GROUP,
-            GraphNodeKind.PERMISSION,
-        }:
-            raise ValueError(
-                "identity relationship target must be identity, group, or permission"
-            )
-        _require(self.source_key, "source_key")
-        _require(self.target_key, "target_key")
-        relationship = _require(self.relationship, "relationship").lower()
-        if relationship not in {"owns", "assigned-role"}:
-            raise ValueError("identity relationship type is unsupported")
-        if self.source_kind == self.target_kind and self.source_key == self.target_key:
-            raise ValueError("identity relationships cannot be self-referential")
-        _require(self.source_id, "source_id")
-
-
 class GroupMembershipEvidence:
     member_kind: GraphNodeKind
     member_key: str
@@ -140,6 +91,54 @@ class PermissionEvidence:
             raise ValueError(
                 "permission targets must be asset, service, or critical-asset nodes"
             )
+
+
+@dataclass(frozen=True)
+class RoleEvidence:
+    natural_key: str
+    label: str
+    source_id: str
+    properties: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        _require(self.natural_key, "natural_key")
+        _require(self.label, "label")
+        _require(self.source_id, "source_id")
+
+
+@dataclass(frozen=True)
+class IdentityRelationshipEvidence:
+    source_kind: GraphNodeKind
+    source_key: str
+    target_kind: GraphNodeKind
+    target_key: str
+    relationship: str
+    source_id: str
+    evidence_state: GraphEvidenceState = GraphEvidenceState.OBSERVED
+    properties: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.source_kind not in {
+            GraphNodeKind.IDENTITY,
+            GraphNodeKind.GROUP,
+        }:
+            raise ValueError("identity relationship source must be identity or group")
+        if self.target_kind not in {
+            GraphNodeKind.IDENTITY,
+            GraphNodeKind.GROUP,
+            GraphNodeKind.PERMISSION,
+        }:
+            raise ValueError(
+                "identity relationship target must be identity, group, or permission"
+            )
+        _require(self.source_key, "source_key")
+        _require(self.target_key, "target_key")
+        relationship = _require(self.relationship, "relationship").lower()
+        if relationship not in {"owns", "assigned-role"}:
+            raise ValueError("identity relationship type is unsupported")
+        if self.source_kind == self.target_kind and self.source_key == self.target_key:
+            raise ValueError("identity relationships cannot be self-referential")
+        _require(self.source_id, "source_id")
 
 
 @dataclass(frozen=True)
