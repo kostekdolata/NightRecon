@@ -85,13 +85,43 @@ deterministic order. It never ranks, recommends, or automatically selects one.
 Missing exact target kinds and missing evidence prerequisites are returned as
 explicit rejections.
 
+## Batch 3 — Explicit adapter + precondition/postcondition contracts
+
+Batch 3 adds immutable metadata-only adapter contracts for each reviewed
+technique. The contract registry contains no adapter callables and exposes no
+execution entry point.
+
+Each contract binds:
+
+- one reviewed technique ID
+- the fixed `read-only-proof` adapter classification
+- exact supported target kinds
+- graph-property preconditions derived from reviewed eligibility metadata
+- top-level evidence postconditions derived from reviewed expected evidence
+- `side_effect_mode=none`
+- `execution_mode=contract-only`
+
+An eligibility option can be explicitly bound to its reviewed contract only
+after the current graph target, target classification, provenance,
+eligibility identifier, technique metadata, and preconditions are revalidated.
+Contract drift or stale target evidence fails closed.
+
+Postcondition checking is also pure and non-executing:
+
+- confirmed observations must contain every contract evidence key
+- unexpected top-level evidence keys are rejected
+- not-confirmed observations may be partial, but may not introduce evidence
+  outside the reviewed contract
+
+Batch 3 does not register callable adapters, invoke the existing validation
+runtime, consume authorization or action budgets, perform network activity,
+resolve credentials, or introduce command/payload templates.
+
 ## Planned follow-on batches
 
-1. Explicit adapter registration and precondition/postcondition contracts with
-   no arbitrary command or payload surface.
-2. Isolated worker and revocation boundary for approved validation execution.
-3. Cleanup/evidence lifecycle and deterministic retest integration.
-4. Reviewed ATT&CK mappings and controlled comparison labs.
+1. Isolated worker and revocation boundary for approved validation execution.
+2. Cleanup/evidence lifecycle and deterministic retest integration.
+3. Reviewed ATT&CK mappings and controlled comparison labs.
 
 Higher-impact techniques remain out of scope until the isolation, approval,
 cleanup, and revocation boundaries are independently verified.

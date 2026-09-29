@@ -178,7 +178,7 @@ def _canonical_host(value: str) -> bool:
         )
 
 
-def _target_kind(node: GraphNode) -> str | None:
+def classify_validation_target(node: GraphNode) -> str | None:
     if node.kind is GraphNodeKind.ASSET:
         return "asset"
 
@@ -325,7 +325,7 @@ def _provenance(
     )
 
 
-def _eligibility_id(
+def validationvalidation_eligibility_id(
     candidate_id: str,
     technique_id: str,
     target_node_id: str,
@@ -368,7 +368,7 @@ def plan_validation_eligibility(
         classified = tuple(
             (node, kind)
             for node in path_nodes
-            if (kind := _target_kind(node)) is not None
+            if (kind := classify_validation_target(node)) is not None
         )
         if len(classified) > active.max_targets_per_candidate:
             raise ValueError("validation eligibility target ceiling exceeded")
@@ -404,7 +404,7 @@ def plan_validation_eligibility(
 
             for node, kind in eligible:
                 options.append(ValidationEligibilityOption(
-                    eligibility_id=_eligibility_id(
+                    eligibility_id=validation_eligibility_id(
                         candidate.candidate_id,
                         technique.technique_id,
                         node.node_id,
