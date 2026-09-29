@@ -81,10 +81,10 @@ autonomous execution. Higher-impact future validation remains subject to the
 same explicit authorization, approval, budget, isolation, evidence, cleanup, and
 operator-stop requirements.
 
-## v0.41 identity-intelligence development state
+## v0.41 release state
 
-v0.41 development has moved the identity gate beyond the v0.40 fake-provider
-acceptance baseline.
+Red Night v0.41.0 moves the identity gate beyond the v0.40 fake-provider
+acceptance baseline with stable concrete AD/Entra provider and operator boundaries.
 
 Implemented and CI-covered work now includes:
 
@@ -105,8 +105,8 @@ Implemented and CI-covered work now includes:
 - deterministic label-free AD and Entra benchmark fixtures
 - authorization-first live operator commands with identity-safe default output
 
-This closes the v0.41 foundation work for concrete AD/Entra identity collection
-and selected relationship modeling. It does **not** close the broader Red
+The stable v0.41 milestone closes the concrete AD/Entra identity-provider
+foundation and selected relationship-modeling work. It does **not** close the broader Red
 completion standard by itself.
 
 Still-open acceptance work includes:
