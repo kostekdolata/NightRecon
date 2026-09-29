@@ -494,9 +494,9 @@ Delivered:
 
 ### White Batch 3 — Engagement, scope and ROE domain
 
-Status: active development.
+Status: implemented and PR-CI verified.
 
-Implemented on the development branch:
+Delivered:
 
 - immutable/versioned engagement definitions
 - authorized contacts and bounded role assignments
@@ -511,6 +511,13 @@ Implemented on the development branch:
 - deterministic JSON serialization and SHA-256 definition fingerprints
 - deterministic human-readable ROE rendering
 - installed-wheel smoke coverage for the domain
+- cross-platform regression verification against the merged Red v0.42
+  web/API correlation state
+
+Verification evidence: the rebased Batch 3 PR matrix completed 27/27 jobs
+successfully, including all four White distribution combinations, both full
+Python test jobs, Red distribution tests, and the current cross-domain and
+cross-surface Red correlation benchmarks.
 
 Batch 3 remains authoring-only. An engagement definition or rendered ROE does
 not itself grant execution authorization. Policy compilation begins in Batch 4.
