@@ -337,7 +337,7 @@ verification, then guarded annotated tag creation.
 
 ### v0.42.0 — Cross-Domain Exposure Intelligence
 
-Status: release finalization.
+Status: released, tagged, and verified stable.
 
 Product goal:
 
@@ -542,9 +542,8 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Finalize coordinated v0.42 package metadata and release documentation.
-2. Run the exact-head v0.42 release-finalization CI and distribution matrix.
-3. Merge the finalization PR and verify the exact master merge commit again.
-4. Add the verified immutable release commit to the guarded tag allowlist and
-   create the annotated v0.42.0 tag.
-5. Continue broader Red acceptance work without claiming unmeasured specialist parity.
+1. Keep Red Night v0.42.0 as the verified stable Cross-Domain Exposure Intelligence baseline.
+2. Continue broader Red acceptance work with live authorized specialist comparison
+   evidence and reviewed controlled-validation coverage.
+3. Begin the next Red milestone only from the verified v0.42.0 release checkpoint,
+   preserving the existing authorization, evidence-honesty, and no-auto-execution rules.

@@ -257,9 +257,12 @@ This is a fixture-based regression/comparison gate, not evidence of parity with
 a specialist product. Live authorized specialist comparison remains an open
 broader Red acceptance activity outside the v0.42 stable milestone.
 
-## v0.42 functional completion boundary
+## v0.42 stable milestone boundary
 
-Batches 1 through 7 are complete. Remaining work before the stable tag is
-release finalization only: coordinated version metadata, v0.42 acceptance and
-release notes, exact-head CI, finalization merge, post-merge CI, and guarded
-annotated tag creation.
+Batches 1 through 7 form the v0.42.0 stable milestone. Release acceptance is
+recorded in `V042_RELEASE_ACCEPTANCE.md` and release details in
+`V042_RELEASE_NOTES.md`.
+
+The milestone does not claim external specialist parity. Live authorized
+comparison evidence and broader Red completion work remain governed by
+`RED_ACCEPTANCE.md`.

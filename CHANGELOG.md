@@ -2,6 +2,52 @@
 
 All notable NightRecon/Red Night release milestones are recorded here.
 
+## [0.42.0] - 2026-09-29
+
+### Red Night
+
+- Added the bounded deterministic Cross-Domain Attack Path Atlas with explicit
+  observed/inferred hop counts, provenance, global budgets, and truncation.
+- Added exact AD computer/service to network-asset correlation using observed
+  DNS/SPN hostname evidence only.
+- Added exact web/API/GraphQL origin to observed network-service correlation
+  with no DNS resolution, fuzzy matching, or service guessing.
+- Added strict provider-specific AWS/Azure/Entra/Kubernetes correlation evidence
+  contracts and exact cloud-resource to network-asset correlation.
+- Preserved exact Entra tenant/object identifiers for deterministic
+  Azure/Entra cloud-identity correlation while keeping graph natural keys opaque.
+- Added proposal-only validation candidates compiled from evidence-backed paths;
+  candidates never execute adapters, resolve credentials, consume action budget,
+  or mutate engagement state.
+- Added unified exposure review with evidence gaps, remediation/retest state,
+  descriptive structural concentration, and before/after path-set comparison.
+- Added fixture-based comparison/runtime metrics for path/edge coverage,
+  invented/missed facts, evidence completeness, runtime, and operator steps.
+- Added dedicated Python 3.11/3.14 v0.42 exposure-intelligence runtime CI.
+
+### Compatibility
+
+- Versioned `nightrecon-red-night`, `nightrecon-red-engine`, and
+  `nightrecon-shared-core` together at 0.42.0.
+- Kept the legacy `nightrecon` compatibility distribution at 0.31.0 while
+  pinning Red engine/shared-core 0.42.0.
+- Preserved isolated Red installation and combined legacy/Red distribution
+  smoke coverage on Ubuntu and Windows with Python 3.11 and 3.14.
+
+### Safety
+
+- Cross-surface correlation is exact-evidence-only and fails closed on missing,
+  ambiguous, conflicting, or over-budget evidence.
+- Validation candidates are proposals only; normal scope, capability, approval,
+  action-budget, revocation, and audit checks remain authoritative for any later
+  controlled validation.
+- Structural path/concentration metrics are descriptive only and do not become
+  risk scores, priorities, exploitability, compromise, likelihood, or impact.
+- No automatic exploitation, cloud/directory writes, credential harvesting,
+  persistence, privilege changes, or autonomous execution were added.
+
+Detailed release notes: [V042_RELEASE_NOTES.md](V042_RELEASE_NOTES.md)
+
 ## [0.41.0] - 2026-09-29
 
 ### Red Night

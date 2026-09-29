@@ -121,3 +121,36 @@ Still-open acceptance work includes:
 No v0.41 work changes the rule that a graph path or privilege relationship is
 descriptive evidence, not an exploitability verdict.
 
+
+## v0.42 release state
+
+Red Night v0.42.0 is the Cross-Domain Exposure Intelligence milestone. It
+connects previously separate network, web/API, identity, cloud/hybrid,
+critical-asset, remediation, and retest evidence through deterministic graph
+correlation and bounded path review.
+
+Implemented and CI-covered v0.42 work includes:
+
+- bounded deterministic cross-domain attack-path atlas
+- exact AD identity to network-asset correlation
+- exact web/API origin to observed network-service correlation
+- strict cloud correlation evidence contracts for AWS, Azure, Entra, and Kubernetes
+- exact cloud-resource to network-asset and Azure/Entra identity correlation
+- proposal-only validation candidates that cannot execute automatically
+- unified exposure review with evidence gaps and remediation/retest state
+- descriptive path/node/edge concentration and path-set change reporting
+- fixture-based comparison/runtime metrics for missed/invented paths and edges,
+  evidence completeness, runtime, operator steps, and truncation
+- dedicated cross-platform/package and Python 3.11/3.14 quality gates
+
+The stable v0.42 milestone does **not** close the broader Red completion
+standard. Live authorized specialist-product comparison, broader
+ACL/security-descriptor coverage, broader discovery false-positive/performance
+baselines, professional multi-operator reporting, and a reviewed
+controlled-validation technique library remain open evidence-backed work.
+
+A path, correlation edge, validation candidate, concentration count, or
+fixture-comparison result remains descriptive/review evidence. None of these
+objects independently establishes exploitability, compromise, authentication
+access, likelihood, impact, risk, or permission to execute.
+
