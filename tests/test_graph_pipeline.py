@@ -17,6 +17,7 @@ from nightrecon.graph_identity_evidence import (
     PermissionEvidence,
 )
 from nightrecon.graph_models import GraphEvidenceState, GraphNodeKind
+from nightrecon.graph_web_surface import WebSurfaceEvidence
 from nightrecon.graph_pipeline import (
     build_correlated_identity_graph,
     build_identity_graph,
@@ -241,6 +242,55 @@ class GraphPipelineTests(unittest.TestCase):
         )
         self.assertEqual(edge.relationship, "correlates-to")
         self.assertIs(edge.evidence_state, GraphEvidenceState.INFERRED)
+
+    def test_correlated_pipeline_links_web_origin_to_exact_network_service(self):
+        inventory = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.76",
+                    first_seen="2026-09-29T04:00:00+00:00",
+                    last_seen="2026-09-29T04:00:00+00:00",
+                    last_checked_at="2026-09-29T04:00:00+00:00",
+                    hostnames=("app.example.test",),
+                    services=(
+                        AssetServiceRecord(port=443, service="https"),
+                    ),
+                    source_session_ids=("scan-web-correlation",),
+                ),
+            ),
+        )
+
+        result = build_correlated_identity_graph(
+            inventory=inventory,
+            web_surfaces=(
+                WebSurfaceEvidence(
+                    origin="https://app.example.test",
+                    source_id="crawl-web-correlation",
+                    surface_type="web",
+                ),
+            ),
+        )
+
+        self.assertEqual(result.unresolved, ())
+        self.assertEqual(len(result.correlated_edge_ids), 1)
+        edge = next(
+            item for item in result.graph.edges
+            if item.edge_id in result.correlated_edge_ids
+        )
+        source = next(
+            node for node in result.graph.nodes
+            if node.node_id == edge.source_node_id
+        )
+        target = next(
+            node for node in result.graph.nodes
+            if node.node_id == edge.target_node_id
+        )
+        self.assertEqual(source.natural_key, "192.0.2.76:443/tcp")
+        self.assertTrue(target.natural_key.startswith("web-surface:web:"))
+        self.assertEqual(
+            dict(edge.properties)["correlation_basis"],
+            "exact-origin-host-port",
+        )
 
     def test_pipeline_projects_critical_asset_evidence(self):
         inventory = AssetInventory(
