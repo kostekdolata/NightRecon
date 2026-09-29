@@ -359,19 +359,35 @@ Batch 1 — Cross-Domain Attack Path Atlas:
   expansion ceilings
 - deterministic no-network cross-domain runtime benchmark on Python 3.11/3.14
 
+Batch 2 — Exact Cross-Surface Correlation:
+
+- bounded identity correlation properties carried through provider,
+  normalization, engagement evidence, and graph projection
+- exact Active Directory computer/service to network-asset correlation using
+  observed DNS/SPN host evidence
+- inferred `correlates-to` edges only for one-to-one exact hostname matches
+- no fuzzy/display-name joins, DNS resolution, or exploitability inference
+- explicit no-match and ambiguous-correlation results
+- deterministic duplicate-proof aggregation and hard correlation ceilings
+- correlated direct and portable unified graph builders
+
 Planned follow-on v0.42 batches:
 
-- evidence correlation rules that create cross-domain links only from explicit
-  identifiers and provenance
+- exact web/API origin-to-network-service correlation
+- concrete AWS/Azure/Kubernetes correlation keys and cloud-to-network/identity joins
 - bounded validation-candidate compilation from evidence-backed paths
 - cross-domain engagement/path reporting with evidence gaps and retest state
-- concrete AWS/Azure/Kubernetes read-only collectors
+- choke-point and blast-radius analysis that remains descriptive rather than
+  an exploitability or risk score
 - reproducible specialist comparison labs measuring path coverage,
   false/invented edges, runtime, evidence completeness, and operator effort
 
-The v0.42 path atlas remains an evidence-review surface. Graph reachability does
-not establish exploitability, likelihood, impact, or risk.
+The v0.42 atlas and correlation layers remain evidence-review surfaces. Graph
+reachability or a `correlates-to` edge does not establish exploitability,
+likelihood, impact, authentication access, compromise, or risk.
 
+See [V042_ATTACK_PATH_ATLAS.md](V042_ATTACK_PATH_ATLAS.md) and
+[V042_UNIFIED_EXPOSURE_INTELLIGENCE.md](V042_UNIFIED_EXPOSURE_INTELLIGENCE.md).
 ## Generation 3 — Red Validation Engine
 
 Goal: controlled validation of authorized attack paths.
@@ -491,12 +507,12 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Build and verify v0.42 Batch 1 — Cross-Domain Attack Path Atlas.
-2. Add evidence correlation rules that connect specialist evidence only when
-   explicit identifiers/provenance support the relationship.
+1. Complete and verify v0.42 Batch 2 — Exact Cross-Surface Correlation.
+2. Extend exact correlation into web/API and concrete cloud resources.
 3. Compile bounded controlled-validation candidates from evidence-backed paths;
    never auto-execute them.
-4. Add cross-domain operator reporting and concrete cloud collectors.
+4. Add cross-domain operator reporting, evidence-gap review, and remediation
+   impact on exposure paths.
 5. Run reproducible comparison labs and keep Red Night as the active product
    track until the full [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md) standard is
    evidence-backed.

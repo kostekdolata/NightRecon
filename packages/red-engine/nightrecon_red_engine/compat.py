@@ -48,6 +48,7 @@ MIGRATED_MODULES = frozenset({
     "epss_provider",
     "graph_assessment",
     "graph_builder",
+    "graph_correlation",
     "graph_critical_asset",
     "graph_identity_evidence",
     "graph_identity_projection",

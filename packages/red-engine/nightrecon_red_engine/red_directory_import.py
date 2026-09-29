@@ -83,7 +83,7 @@ def import_directory_snapshot(
 
     Schema: {"schema_version": 1, "entries": [{"dn": str, "kind": "user",
     "computer", "service", "application", or "group", "name": str,
-    "members": [str, ...] (groups only)}]}.
+    "members": [str, ...] (groups only), "properties": {str: str} (optional)}]}.
     References must match a DN exactly in the same snapshot. Absent references
     are counted, never materialized as an observed membership.
     """
@@ -118,7 +118,10 @@ def import_directory_snapshot(
 
     for index, entry in enumerate(entries):
         if not isinstance(entry, dict) or set(entry) not in (
-            {"dn", "kind", "name"}, {"dn", "kind", "name", "members"},
+            {"dn", "kind", "name"},
+            {"dn", "kind", "name", "members"},
+            {"dn", "kind", "name", "properties"},
+            {"dn", "kind", "name", "members", "properties"},
         ):
             raise ValueError("directory entry has unsupported fields")
         dn = _required_text(entry["dn"], "dn")
@@ -134,6 +137,28 @@ def import_directory_snapshot(
             raise ValueError("directory export contains a duplicate DN")
         if kind != "group" and "members" in entry:
             raise ValueError("only group entries can declare group members")
+        properties = entry.get("properties", {})
+        if not isinstance(properties, dict):
+            raise ValueError("directory entry properties must be an object")
+        normalized_properties: list[tuple[str, str]] = []
+        allowed_property_keys = {"dns_hostname", "spn_hosts"}
+        for property_key, property_value in properties.items():
+            if (
+                not isinstance(property_key, str)
+                or not property_key
+                or property_key != property_key.strip()
+                or not isinstance(property_value, str)
+                or not property_value
+                or property_value != property_value.strip()
+            ):
+                raise ValueError(
+                    "directory entry properties must contain trimmed nonblank strings"
+                )
+            if property_key not in allowed_property_keys:
+                raise ValueError("directory entry property key is not allowlisted")
+            normalized_properties.append((property_key, property_value))
+        normalized_properties.sort()
+
         members = entry.get("members", [])
         if not isinstance(members, list):
             raise ValueError("group members must be a list")
@@ -160,10 +185,18 @@ def import_directory_snapshot(
                     name,
                     provenance,
                     identity_types[kind],
+                    tuple(normalized_properties),
                 )
             )
         else:
-            groups.append(GroupEvidence(key, name, provenance))
+            groups.append(
+                GroupEvidence(
+                    key,
+                    name,
+                    provenance,
+                    tuple(normalized_properties),
+                )
+            )
 
     memberships: list[GroupMembershipEvidence] = []
     unresolved = 0

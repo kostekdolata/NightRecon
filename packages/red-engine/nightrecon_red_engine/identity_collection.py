@@ -23,6 +23,7 @@ from nightrecon_shared_core.workspace import LocalWorkspace
 
 _VALID_SOURCE_TYPES = frozenset({"active-directory", "entra-id"})
 _VALID_ENTRY_KINDS = frozenset({"user", "computer", "service", "application", "group"})
+_VALID_CORRELATION_PROPERTY_KEYS = frozenset({"dns_hostname", "spn_hosts"})
 
 
 def _required(value: str, field: str) -> str:
@@ -37,6 +38,7 @@ class DirectoryEntry:
     kind: str
     name: str
     members: tuple[str, ...] = ()
+    properties: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         _required(self.distinguished_name, "distinguished_name")
@@ -51,6 +53,15 @@ class DirectoryEntry:
             raise ValueError("members must be unique")
         for member in self.members:
             _required(member, "member")
+        keys: set[str] = set()
+        for key, value in self.properties:
+            normalized_key = _required(key, "property key")
+            _required(value, "property value")
+            if normalized_key not in _VALID_CORRELATION_PROPERTY_KEYS:
+                raise ValueError("DirectoryEntry property key is not allowlisted")
+            if normalized_key in keys:
+                raise ValueError("DirectoryEntry properties must have unique keys")
+            keys.add(normalized_key)
 
 
 @dataclass(frozen=True)
@@ -155,6 +166,8 @@ def _snapshot(entries: tuple[DirectoryEntry, ...]) -> bytes:
         }
         if entry.kind == "group":
             record["members"] = list(entry.members)
+        if entry.properties:
+            record["properties"] = dict(entry.properties)
         payload_entries.append(record)
     return json.dumps(
         {"schema_version": 1, "entries": payload_entries},

@@ -10,6 +10,11 @@ from dataclasses import dataclass
 from typing import Mapping, Any
 
 from nightrecon_red_engine.graph_builder import GraphBuildLimits, IdentityGraphBuilder
+from nightrecon_red_engine.graph_correlation import (
+    CrossSurfaceCorrelationLimits,
+    CrossSurfaceUnresolved,
+    correlate_exact_cross_surface_evidence,
+)
 from nightrecon_red_engine.graph_models import (
     GraphEdge,
     GraphEvidenceState,
@@ -62,11 +67,29 @@ def _node(
     natural_key: str,
     label: str,
 ) -> GraphNode:
+    properties_value = record.data.get("properties", {})
+    if not isinstance(properties_value, Mapping):
+        raise ValueError("graph node properties must be an object")
+    properties: list[tuple[str, str]] = []
+    for key, value in properties_value.items():
+        if (
+            not isinstance(key, str)
+            or not key
+            or key != key.strip()
+            or not isinstance(value, str)
+            or not value
+            or value != value.strip()
+        ):
+            raise ValueError(
+                "graph node properties must contain trimmed nonblank strings"
+            )
+        properties.append((key, value))
     return GraphNode.create(
         kind=kind,
         natural_key=natural_key,
         label=label,
         provenance=_provenance(record),
+        properties=tuple(sorted(properties)),
     )
 
 
@@ -238,4 +261,37 @@ def explain_edge(graph: IdentityGraph, edge_id: str) -> GraphEdgeExplanation:
             "Graph relationship only; this edge is not an independent "
             "exploitability or compromise verdict."
         ),
+    )
+
+
+@dataclass(frozen=True)
+class CorrelatedUnifiedGraphBuildResult:
+    graph: IdentityGraph
+    projected_records: tuple[str, ...]
+    unresolved_records: tuple[str, ...]
+    ignored_records: tuple[str, ...]
+    correlated_edge_ids: tuple[str, ...]
+    unresolved_correlations: tuple[CrossSurfaceUnresolved, ...]
+
+
+def build_correlated_unified_attack_graph(
+    records: tuple[EvidenceRecord, ...],
+    *,
+    limits: GraphBuildLimits | None = None,
+    correlation_limits: CrossSurfaceCorrelationLimits | None = None,
+) -> CorrelatedUnifiedGraphBuildResult:
+    """Build the portable engagement graph and add exact cross-surface links."""
+
+    base = build_unified_attack_graph(records, limits=limits)
+    correlated = correlate_exact_cross_surface_evidence(
+        base.graph,
+        limits=correlation_limits,
+    )
+    return CorrelatedUnifiedGraphBuildResult(
+        graph=correlated.graph,
+        projected_records=base.projected_records,
+        unresolved_records=base.unresolved_records,
+        ignored_records=base.ignored_records,
+        correlated_edge_ids=correlated.correlated_edge_ids,
+        unresolved_correlations=correlated.unresolved,
     )

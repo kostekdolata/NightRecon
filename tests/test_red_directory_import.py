@@ -52,8 +52,10 @@ class DirectoryImportTests(unittest.TestCase):
 
     def test_computer_and_service_identities_project_as_observed_members(self):
         data = snapshot([
-            {"dn": COMPUTER_DN, "kind": "computer", "name": "ws01.example.test"},
-            {"dn": SERVICE_DN, "kind": "service", "name": "Web Service"},
+            {"dn": COMPUTER_DN, "kind": "computer", "name": "ws01.example.test",
+             "properties": {"dns_hostname": "ws01.example.test"}},
+            {"dn": SERVICE_DN, "kind": "service", "name": "Web Service",
+             "properties": {"spn_hosts": "web.example.test"}},
             {"dn": GROUP_DN, "kind": "group", "name": "Operators",
              "members": [COMPUTER_DN, SERVICE_DN]},
         ])
@@ -68,6 +70,18 @@ class DirectoryImportTests(unittest.TestCase):
             {"ad-computer", "ad-service"},
         )
         self.assertEqual(len(result.evidence.memberships), 2)
+        properties_by_type = {
+            item.identity_type: dict(item.properties)
+            for item in result.evidence.identities
+        }
+        self.assertEqual(
+            properties_by_type["ad-computer"]["dns_hostname"],
+            "ws01.example.test",
+        )
+        self.assertEqual(
+            properties_by_type["ad-service"]["spn_hosts"],
+            "web.example.test",
+        )
         self.assertTrue(all(
             item.member_kind is GraphNodeKind.IDENTITY
             for item in result.evidence.memberships
@@ -149,6 +163,10 @@ class DirectoryImportTests(unittest.TestCase):
                       {"dn": USER_DN, "kind": "user", "name": "Alice"}]),
             snapshot([{"dn": GROUP_DN, "kind": "group", "name": "Ops",
                        "members": [USER_DN, USER_DN]}]),
+            snapshot([{"dn": USER_DN, "kind": "user", "name": "Alice",
+                       "properties": []}]),
+            snapshot([{"dn": USER_DN, "kind": "user", "name": "Alice",
+                       "properties": {"": "value"}}]),
         ):
             with self.subTest(data=data):
                 with self.assertRaises(ValueError):

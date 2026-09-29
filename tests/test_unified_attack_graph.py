@@ -6,6 +6,7 @@ import unittest
 
 from nightrecon_red_engine.graph_models import GraphEvidenceState, GraphNodeKind
 from nightrecon_red_engine.unified_attack_graph import (
+    build_correlated_unified_attack_graph,
     build_unified_attack_graph,
     explain_edge,
 )
@@ -63,6 +64,40 @@ class UnifiedAttackGraphTests(unittest.TestCase):
             edge.provenance[0].source_type == "engagement-evidence"
             for edge in result.graph.edges
         ))
+
+    def test_portable_graph_preserves_properties_for_exact_correlation(self):
+        records = (
+            record("asset-1", "asset.observation", {
+                "asset_key": "10.0.0.10",
+                "label": "App Server",
+                "properties": {"hostnames": "app.example.test"},
+            }),
+            record("identity-1", "identity.observation", {
+                "identity_key": "ad:computer:opaque",
+                "label": "APP01",
+                "properties": {"dns_hostname": "app.example.test"},
+            }),
+        )
+
+        result = build_correlated_unified_attack_graph(records)
+
+        self.assertEqual(result.unresolved_records, ())
+        self.assertEqual(result.unresolved_correlations, ())
+        self.assertEqual(len(result.correlated_edge_ids), 1)
+        identity = next(
+            node for node in result.graph.nodes
+            if node.kind is GraphNodeKind.IDENTITY
+        )
+        self.assertEqual(
+            dict(identity.properties)["dns_hostname"],
+            "app.example.test",
+        )
+        edge = next(
+            item for item in result.graph.edges
+            if item.edge_id in result.correlated_edge_ids
+        )
+        self.assertEqual(edge.relationship, "correlates-to")
+        self.assertIs(edge.evidence_state, GraphEvidenceState.INFERRED)
 
     def test_missing_endpoint_stays_unresolved_without_fabricated_edge(self):
         result = build_unified_attack_graph((

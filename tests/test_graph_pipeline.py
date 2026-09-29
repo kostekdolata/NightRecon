@@ -17,7 +17,10 @@ from nightrecon.graph_identity_evidence import (
     PermissionEvidence,
 )
 from nightrecon.graph_models import GraphEvidenceState, GraphNodeKind
-from nightrecon.graph_pipeline import build_identity_graph
+from nightrecon.graph_pipeline import (
+    build_correlated_identity_graph,
+    build_identity_graph,
+)
 from nightrecon.software_identity import SoftwareIdentity
 from nightrecon.threat_context import ThreatContextResult
 from nightrecon.vulnerability_intelligence import (
@@ -199,6 +202,45 @@ class GraphPipelineTests(unittest.TestCase):
                 relationships
             )
         )
+
+    def test_correlated_pipeline_links_exact_ad_hostname_to_network_asset(self):
+        inventory = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.75",
+                    first_seen="2026-09-29T03:00:00+00:00",
+                    last_seen="2026-09-29T03:00:00+00:00",
+                    last_checked_at="2026-09-29T03:00:00+00:00",
+                    hostnames=("app.example.test",),
+                    source_session_ids=("scan-correlation",),
+                ),
+            ),
+        )
+        identity_evidence = IdentityEvidenceBundle(
+            identities=(
+                IdentityEvidence(
+                    natural_key="ad:computer:opaque",
+                    label="APP01",
+                    source_id="ad-correlation",
+                    identity_type="ad-computer",
+                    properties=(("dns_hostname", "app.example.test"),),
+                ),
+            ),
+        )
+
+        result = build_correlated_identity_graph(
+            inventory=inventory,
+            identity_evidence=identity_evidence,
+        )
+
+        self.assertEqual(result.unresolved, ())
+        self.assertEqual(len(result.correlated_edge_ids), 1)
+        edge = next(
+            item for item in result.graph.edges
+            if item.edge_id in result.correlated_edge_ids
+        )
+        self.assertEqual(edge.relationship, "correlates-to")
+        self.assertIs(edge.evidence_state, GraphEvidenceState.INFERRED)
 
     def test_pipeline_projects_critical_asset_evidence(self):
         inventory = AssetInventory(
