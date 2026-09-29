@@ -164,10 +164,47 @@ Batch 4 still provides no arbitrary command execution, shell, PowerShell, SQL,
 generic HTTP request builder, credential handling, exploit payload, persistence,
 privilege change, automatic technique selection, or high-impact technique.
 
+## Batch 5 — Cleanup / evidence lifecycle + deterministic retest integration
+
+Batch 5 makes Batch 4 worker outcomes durable before they can affect
+remediation state.
+
+Every bounded worker result is normalized into a deterministic portable
+`validation.worker-result` evidence record containing the exact reviewed
+binding, candidate/path context, contract, target, terminal worker state,
+reason, bounded evidence, and action-budget counters. Ephemeral worker process
+IDs are intentionally not persisted.
+
+Each validation record is paired with a deterministic `validation.cleanup`
+record. The current reviewed techniques all declare `cleanup_mode=none` and
+`side_effect_mode=none`, so the only accepted cleanup outcome in this batch is
+`cleanup_state=not-required` with zero cleanup actions. A forged or future
+side-effecting binding fails closed until a reviewed cleanup implementation
+exists.
+
+Validation and cleanup records are written together through the shared
+engagement store. Replaying the same lifecycle at the same observation time is
+idempotent: identical evidence IDs are recognized rather than duplicated, while
+conflicting evidence fails closed.
+
+Remediation/retest transitions now support exact persisted-evidence linkage:
+
+- `not-confirmed` validation evidence + completed/no-op cleanup -> `verified`
+- `confirmed` validation evidence + completed/no-op cleanup -> `regressed`
+- denied, revoked, timed-out, contract-rejected, or error evidence -> inconclusive
+  and remains `ready-for-retest`
+
+The remediation record retains the exact validation evidence ID, cleanup
+evidence ID, cleanup state, binding ID, and terminal validation state. Retest
+integration refuses lifecycle objects that are not present byte-for-byte in the
+engagement workspace.
+
+Batch 5 introduces no additional live validation technique, no cleanup mutation,
+no credential handling, and no expansion of the Batch 4 worker network surface.
+
 ## Planned follow-on batches
 
-1. Cleanup/evidence lifecycle and deterministic retest integration.
-2. Reviewed ATT&CK mappings and controlled comparison labs.
+1. Reviewed ATT&CK mappings and controlled comparison labs.
 
 Higher-impact techniques remain out of scope until the isolation, approval,
 cleanup, and revocation boundaries are independently verified.

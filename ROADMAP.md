@@ -480,9 +480,20 @@ Batch 4 — Isolated Revocable Worker Execution Boundary:
 - no arbitrary commands, scripts, credentials, payloads, request templates,
   high-impact techniques, or automatic technique selection
 
+Batch 5 — Cleanup / Evidence Lifecycle + Deterministic Retest:
+
+- deterministic portable validation worker-result evidence
+- deterministic explicit cleanup evidence paired to every persisted result
+- current no-side-effect techniques record cleanup as not-required with zero actions
+- side-effecting/cleanup-required bindings fail closed until reviewed support exists
+- idempotent shared-workspace persistence with conflict rejection
+- retest state changes derive only from exact persisted lifecycle records
+- exact validation/cleanup evidence IDs retained on remediation findings
+- confirmed -> regressed, not-confirmed -> verified, other worker states inconclusive
+- no new active technique, mutation, credential, or network capability
+
 Planned follow-on v0.43 batches:
 
-- cleanup and retest evidence lifecycle
 - reviewed ATT&CK mappings and controlled comparison labs
 
 The v0.43 registry and planning layers do not grant permission to execute.
@@ -618,9 +629,11 @@ The current execution order is:
    verified proposal-only planning layer.
 5. Keep Batch 3 — explicit adapter and precondition/postcondition contracts —
    as the verified execution-contract boundary.
-6. Complete and verify Batch 4 — isolated revocable execution for the reviewed
-   read-only proof techniques only.
-7. Add cleanup/evidence lifecycle and deterministic retest integration before
-   expanding validation coverage.
-8. Continue broader Red acceptance comparison evidence while preserving the existing
+6. Keep Batch 4 — isolated revocable execution — as the verified live worker
+   boundary for reviewed read-only proofs.
+7. Complete and verify Batch 5 — durable validation/cleanup evidence and
+   deterministic remediation/retest integration.
+8. Add reviewed ATT&CK mappings and controlled comparison labs without expanding
+   execution beyond evidence-backed reviewed techniques.
+9. Continue broader Red acceptance comparison evidence while preserving the existing
    authorization, evidence-honesty, approval, revocation, and bounded-execution rules.

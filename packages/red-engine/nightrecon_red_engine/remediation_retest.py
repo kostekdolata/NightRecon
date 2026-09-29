@@ -60,6 +60,9 @@ class RemediationFinding:
     updated_at: str
     last_validation_id: str | None = None
     last_retest_state: str | None = None
+    last_validation_evidence_id: str | None = None
+    last_cleanup_evidence_id: str | None = None
+    last_cleanup_state: str | None = None
 
     def __post_init__(self) -> None:
         _required(self.engagement_id, "engagement_id")
@@ -77,6 +80,28 @@ class RetestOutcome:
     validation_state: str
     conclusive: bool
     interpretation: str
+
+
+def _resolve_retest_state(
+    validation_state: str,
+) -> tuple[RemediationStatus | None, bool, str]:
+    if validation_state == ValidationState.NOT_CONFIRMED.value:
+        return (
+            RemediationStatus.VERIFIED,
+            True,
+            "The previously validated condition was not reproduced.",
+        )
+    if validation_state == ValidationState.CONFIRMED.value:
+        return (
+            RemediationStatus.REGRESSED,
+            True,
+            "The previously validated condition is still present.",
+        )
+    return (
+        None,
+        False,
+        "Retest was inconclusive; finding remains ready for retest.",
+    )
 
 
 class RemediationStore:
@@ -207,20 +232,10 @@ class RemediationStore:
         if timestamp.tzinfo is None:
             raise ValueError("now must include a timezone")
 
-        if result.state is ValidationState.NOT_CONFIRMED:
-            next_status = RemediationStatus.VERIFIED
-            conclusive = True
-            interpretation = "The previously validated condition was not reproduced."
-        elif result.state is ValidationState.CONFIRMED:
-            next_status = RemediationStatus.REGRESSED
-            conclusive = True
-            interpretation = "The previously validated condition is still present."
-        else:
-            next_status = finding.status
-            conclusive = False
-            interpretation = (
-                "Retest was inconclusive; finding remains ready for retest."
-            )
+        resolved_status, conclusive, interpretation = _resolve_retest_state(
+            result.state.value
+        )
+        next_status = finding.status if resolved_status is None else resolved_status
 
         updated = replace(
             finding,
@@ -237,6 +252,70 @@ class RemediationStore:
             resulting_status=next_status.value,
             validation_id=result.validation_id,
             validation_state=result.state.value,
+            conclusive=conclusive,
+            interpretation=interpretation,
+        )
+
+    def record_evidence_retest(
+        self,
+        finding_id: str,
+        *,
+        engagement_id: str,
+        validation_id: str,
+        validation_state: str,
+        validation_evidence_id: str,
+        cleanup_evidence_id: str,
+        cleanup_state: str,
+        now: datetime | None = None,
+    ) -> RetestOutcome:
+        """Record a retest from persisted validation/cleanup evidence IDs."""
+
+        finding = self.get(finding_id)
+        if finding.status is not RemediationStatus.READY_FOR_RETEST:
+            raise ValueError(
+                "finding must be ready-for-retest before recording a retest"
+            )
+        if engagement_id != finding.engagement_id:
+            raise ValueError("retest evidence belongs to a different engagement")
+        for value, field in (
+            (validation_id, "validation_id"),
+            (validation_state, "validation_state"),
+            (validation_evidence_id, "validation_evidence_id"),
+            (cleanup_evidence_id, "cleanup_evidence_id"),
+            (cleanup_state, "cleanup_state"),
+        ):
+            _required(value, field)
+        if cleanup_state not in {"not-required", "completed"}:
+            raise ValueError(
+                "retest cleanup evidence must be complete before state transition"
+            )
+
+        timestamp = datetime.now(timezone.utc) if now is None else now
+        if timestamp.tzinfo is None:
+            raise ValueError("now must include a timezone")
+
+        resolved_status, conclusive, interpretation = _resolve_retest_state(
+            validation_state
+        )
+        next_status = finding.status if resolved_status is None else resolved_status
+        updated = replace(
+            finding,
+            status=next_status,
+            updated_at=timestamp.isoformat(),
+            last_validation_id=validation_id,
+            last_retest_state=validation_state,
+            last_validation_evidence_id=validation_evidence_id,
+            last_cleanup_evidence_id=cleanup_evidence_id,
+            last_cleanup_state=cleanup_state,
+        )
+        self._findings[finding_id] = updated
+        self._persist()
+        return RetestOutcome(
+            finding_id=finding_id,
+            previous_status=finding.status.value,
+            resulting_status=next_status.value,
+            validation_id=validation_id,
+            validation_state=validation_state,
             conclusive=conclusive,
             interpretation=interpretation,
         )
