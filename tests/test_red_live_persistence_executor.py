@@ -34,6 +34,7 @@ from red_night_app.persistence_executor import (  # noqa: E402
     provision_workspace,
     safe_close_workspace,
     unlock_workspace,
+    unmount_workspace,
 )
 
 
@@ -332,6 +333,17 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
             [INSTALL, MOUNT],
         )
         self.assertTrue(all(call[1] is None for call in mount_runner.calls))
+
+    def test_unmount_workspace_preserves_preexisting_mapper(self):
+        config = self.make_config()
+        runner = FakeRunner()
+
+        unmount_workspace(config, runner=runner)
+
+        self.assertEqual(
+            [call[0] for call in runner.calls],
+            [(UMOUNT, config.mount_point)],
+        )
 
     def test_safe_close_unmounts_before_cryptsetup_close(self):
         config = self.make_config()
