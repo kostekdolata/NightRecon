@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nightrecon-white-engine"
-version = "0.1.0a5"
+version = "0.1.0a6"
 description = "White Night engagement and exercise-control engine foundation"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
-    "nightrecon-shared-core==0.42.0",
+    "nightrecon-shared-core==0.43.0",
 ]
 
 [tool.setuptools.packages.find]
