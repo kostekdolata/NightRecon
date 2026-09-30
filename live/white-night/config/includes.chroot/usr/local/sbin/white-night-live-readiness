@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+wheel_dir=/opt/nightrecon/wheels
+
+require_one() {
+    pattern=$1
+    set -- "$wheel_dir"/$pattern
+    if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+        echo "White Night Live readiness failed: expected exactly one $pattern" >&2
+        exit 1
+    fi
+}
+
+require_one 'nightrecon_shared_core-0.43.0-*.whl'
+require_one 'nightrecon_white_engine-0.1.0a6-*.whl'
+require_one 'nightrecon_white_night-0.1.0a6-*.whl'
+
+marker=WHITE_NIGHT_LIVE_BOOT_OK
+printf '%s\n' "$marker"
+if [ -w /dev/ttyS0 ]; then
+    printf '%s\n' "$marker" > /dev/ttyS0
+fi

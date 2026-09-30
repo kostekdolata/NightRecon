@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+lb config noauto \
+    --mode debian \
+    --distribution trixie \
+    --architecture amd64 \
+    --binary-image iso-hybrid \
+    --bootloaders grub-efi \
+    --uefi-secure-boot auto \
+    --debian-installer none \
+    --archive-areas main \
+    --apt-recommends false \
+    --checksums sha256 \
+    --bootappend-live "boot=live components console=tty0 console=ttyS0,115200n8 systemd.show_status=1"

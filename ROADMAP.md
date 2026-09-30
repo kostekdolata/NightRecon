@@ -4,6 +4,25 @@ NightRecon is being developed as an authorization-first adversarial security val
 
 This roadmap is directional. Release scope may be split into smaller verified increments when that reduces risk. Every release must preserve the authorization boundary, avoid unrelated refactors, pass the full automated test matrix, and leave `master` at a stable checkpoint before the next development branch begins.
 
+## Night product standard
+
+All Night product tracks are governed by
+[NIGHT_PRODUCT_STANDARD.md](NIGHT_PRODUCT_STANDARD.md).
+
+Every Night must be developed against three equal product pillars:
+
+1. **NightRecon stack capability** — first-class composition through shared,
+   versioned contracts without peer-engine runtime coupling.
+2. **Standalone capability** — a complete independently useful product, with
+   direct-device installation and Live/offline deployment where applicable,
+   using the same application/engine packages as the stack.
+3. **Domain-leading specialist capability** — complete professional workflows,
+   evidence/data quality, analysis, reporting, exports, integrations, and
+   measurable acceptance for that Night's assigned role.
+
+A Night is not considered mature if only one or two pillars are complete.
+The standard maturity gates are also the template for developing future Nights.
+
 ## Product delivery order
 
 Red Night v0.43.0 is the verified stable standalone baseline, with v0.44.0
@@ -638,8 +657,9 @@ decision evidence.
 
 ### White Batch 6 — Evidence custody and tamper-evident audit
 
-Status: replayed onto the current Red v0.44 master baseline as White
-`0.1.0a6`; current-matrix verification required before completion.
+Status: completed and merged to `master` as White `0.1.0a6`.
+The replayed current-baseline tree passed the full 39-job pull-request matrix,
+all four isolated White distribution combinations, and post-merge master CI.
 
 Current scope:
 
@@ -668,10 +688,20 @@ tamper evidence and deterministic integrity verification, not signer identity.
 
 ### White Batch 7 — White Night Live USB alpha
 
-Planned after Batch 6 verification: reproducible Debian-based `live-build`,
-x86-64 UEFI, immutable base image, LUKS2 workspace, Secure
-Workspace/Ephemeral/Recovery modes, package-based White installation, automatic
-White startup, and VM persistence tests.
+Status: active development.
+
+Live Batch 1 is completed and CI-verified: source-controlled Debian trixie
+`live-build` inputs, an x86-64 UEFI image, exact shared-core/White wheel
+artifacts staged into the immutable filesystem, checksum verification, retained
+ISO artifact, and an offline QEMU/OVMF userspace boot marker all pass while the
+complete NightRecon CI remains green.
+
+Live Batch 2 is now the next active increment: install those exact built White
+artifacts inside the immutable image and prove the booted system can execute the
+packaged White application boundary before adding appliance-style auto-start.
+Persistence, Secure Workspace/Ephemeral/Recovery behavior, LUKS2, host-storage
+workflows, Red composition, Secure Boot acceptance, and production hardening
+remain later verified slices.
 
 ### White Batches 8-12
 

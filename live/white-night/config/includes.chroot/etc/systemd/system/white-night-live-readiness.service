@@ -1,0 +1,12 @@
+[Unit]
+Description=White Night Live Batch 1 readiness marker
+After=local-fs.target
+ConditionPathIsDirectory=/opt/nightrecon/wheels
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/white-night-live-readiness
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

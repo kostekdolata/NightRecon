@@ -1,0 +1,106 @@
+name: White Night Live CI
+
+on:
+  push:
+    branches:
+      - master
+      - "v*-dev"
+    paths:
+      - ".github/workflows/white-live.yml"
+      - "live/white-night/**"
+      - "packages/shared-core/**"
+      - "packages/white-engine/**"
+      - "packages/white-night/**"
+      - "tests/test_white_live_build.py"
+      - "tests/white_live_vm_smoke.sh"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/white-live.yml"
+      - "live/white-night/**"
+      - "packages/shared-core/**"
+      - "packages/white-engine/**"
+      - "packages/white-night/**"
+      - "tests/test_white_live_build.py"
+      - "tests/white_live_vm_smoke.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: white-night-live-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-image:
+    name: Debian trixie x86-64 UEFI VM smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Build exact White Night package artifacts
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          mkdir -p /tmp/white-wheels
+          python -m pip wheel \
+            --no-deps \
+            --no-build-isolation \
+            --wheel-dir /tmp/white-wheels \
+            ./packages/shared-core \
+            ./packages/white-engine \
+            ./packages/white-night
+
+      - name: Build image in privileged Debian trixie live-build container
+        run: |
+          mkdir -p artifacts/live/white-night
+          docker run --rm --privileged \
+            -v "${GITHUB_WORKSPACE}:/repo:ro" \
+            -v "/tmp/white-wheels:/wheels:ro" \
+            -v "${GITHUB_WORKSPACE}/artifacts/live/white-night:/out" \
+            debian:trixie \
+            sh -lc '
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                ca-certificates \
+                live-build
+              rm -rf /var/lib/apt/lists/*
+              WHEEL_DIR=/wheels OUTPUT_DIR=/out /repo/live/white-night/build.sh
+            '
+
+      - name: Verify ISO checksum
+        run: |
+          cd artifacts/live/white-night
+          sha256sum -c WhiteNight-Live-0.1.0a6-amd64.iso.sha256
+
+      - name: Preserve White Live image
+        uses: actions/upload-artifact@v4
+        with:
+          name: white-night-live-0.1.0a6-amd64
+          path: |
+            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso
+            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Install QEMU and OVMF
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            ovmf \
+            qemu-system-x86
+
+      - name: Boot image with QEMU and OVMF
+        env:
+          WHITE_LIVE_VM_TIMEOUT: "240"
+        run: |
+          ./tests/white_live_vm_smoke.sh \
+            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso
