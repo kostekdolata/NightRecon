@@ -635,3 +635,52 @@ jobs:
 
       - name: Run v0.43 ATT&CK review/comparison gate
         run: python tests/v043_validation_attack_comparison_runtime.py
+
+  red-live-build-integration:
+    name: Red Night Live amd64 UEFI build + VM boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.13 build tooling
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install Python packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install Debian Live and UEFI VM tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            live-build \
+            qemu-system-x86 \
+            ovmf \
+            xorriso \
+            squashfs-tools \
+            dosfstools \
+            mtools
+
+      - name: Validate source-controlled Live skeleton
+        run: python -m unittest -v tests.test_red_live_build_skeleton
+
+      - name: Build Red Night Live ISO
+        env:
+          PYTHON_BUILD: python
+        run: bash live/red-night/build.sh
+
+      - name: Validate Red Night Live artifact manifest
+        run: |
+          python live/red-night/tests/artifact_smoke.py \
+            artifacts/live/red-night/RedNight-Live-v0.44.0-dev-amd64.iso \
+            artifacts/live/red-night/RedNight-Live-v0.44.0-dev-amd64.manifest.json
+
+      - name: Boot ISO with UEFI firmware in QEMU
+        run: |
+          bash live/red-night/tests/uefi_boot_smoke.sh \
+            artifacts/live/red-night/RedNight-Live-v0.44.0-dev-amd64.iso

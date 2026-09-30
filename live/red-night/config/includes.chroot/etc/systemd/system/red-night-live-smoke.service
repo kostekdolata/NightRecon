@@ -1,0 +1,18 @@
+[Unit]
+Description=Red Night Live boot verification
+After=systemd-user-sessions.service
+Before=getty.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/red-night-live-boot-smoke
+StandardOutput=journal+console
+StandardError=journal+console
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

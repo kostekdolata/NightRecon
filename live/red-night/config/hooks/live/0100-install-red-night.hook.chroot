@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+. /etc/nightrecon-live-build.env
+
+WHEELHOUSE=/opt/nightrecon/wheels
+VENV=/opt/nightrecon/venv
+
+test -d "${WHEELHOUSE}"
+python3 -m venv "${VENV}"
+
+"${VENV}/bin/python" -m pip install \
+  --disable-pip-version-check \
+  --no-index \
+  --find-links="${WHEELHOUSE}" \
+  "nightrecon-shared-core==${NIGHTRECON_SHARED_CORE_VERSION}" \
+  "nightrecon-red-engine==${NIGHTRECON_RED_ENGINE_VERSION}" \
+  "nightrecon-red-night==${NIGHTRECON_RED_NIGHT_VERSION}"
+
+"${VENV}/bin/python" -m pip check
+"${VENV}/bin/python" -c "from red_night_app.deployment import validate_red_deployment_contract; validate_red_deployment_contract()"
+"${VENV}/bin/red-night-app" --help >/dev/null
+
+ln -sfn "${VENV}/bin/red-night-app" /usr/local/bin/red-night-app
+
+install -d /etc/systemd/system/multi-user.target.wants
+ln -sfn ../red-night-live-smoke.service \
+  /etc/systemd/system/multi-user.target.wants/red-night-live-smoke.service

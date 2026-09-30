@@ -265,11 +265,21 @@ media restored from an approved encrypted backup.
 
 ### Batch 2 — Live build skeleton
 
+Status: implemented on the v0.44 development branch.
+
 - source-controlled Debian `live-build` configuration under `live/red-night/`;
-- minimal x86-64 UEFI bootable image;
-- install built shared-core/Red engine/Red app artifacts;
-- VM boot smoke;
-- no persistent engagement state yet.
+- Debian Trixie amd64 ISO-hybrid with GRUB EFI;
+- development Secure Boot explicitly disabled until the production hardening gate;
+- built shared-core/Red engine/Red app wheels embedded in the image;
+- Python 3.13-compatible runtime dependency wheelhouse staged for offline guest installation;
+- Red installed into an isolated `/opt/nightrecon/venv` from the embedded wheelhouse with no package-index access;
+- package/deployment contract checked inside the built guest;
+- UEFI boot smoke through QEMU + OVMF;
+- VM boot gate runs with no virtual NIC and waits for a guest systemd readiness marker;
+- external SHA-256 and deterministic build manifest emitted with package versions,
+  source revision, architecture, base distribution, and Secure Boot state;
+- no persistent engagement state, LUKS provisioning, automatic host-disk mounting,
+  peer-Night runtime dependency, or new Red execution capability.
 
 ### Batch 3 — application appliance session
 

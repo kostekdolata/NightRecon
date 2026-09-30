@@ -550,9 +550,20 @@ Batch 1 — Deployment Architecture Contracts:
 - unit + installed-wheel regression coverage proving no cross-Night runtime
   dependency.
 
+Batch 2 — Live Build Skeleton:
+
+- source-controlled Debian Trixie `live-build` configuration under
+  `live/red-night/`;
+- amd64 ISO-hybrid + GRUB EFI development image;
+- same built shared-core/Red engine/Red app wheels as normal installation;
+- embedded offline Python wheelhouse and isolated guest virtual environment;
+- source/package/image manifest + SHA-256 output;
+- QEMU + OVMF UEFI VM boot gate with no virtual NIC;
+- no persistence, LUKS provisioning, host-disk mounting, peer-Night runtime
+  dependency, or new Red execution capability.
+
 Planned follow-on v0.44 batches:
 
-- Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke;
 - Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes;
 - Batch 4: LUKS2 persistent workspace + reboot/ephemeral-state verification;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
@@ -683,10 +694,12 @@ The current execution order is:
 1. Keep Red Night v0.43.0 as the verified stable Controlled Validation Intelligence baseline.
 2. Develop v0.44.0 Standalone & Live Deployment Foundation in isolated,
    CI-verified Red batches.
-3. Complete Batch 1 deployment architecture contracts before introducing any
-   boot-image build machinery.
-4. Then build the Red Live skeleton from the same versioned Red/shared-core
-   artifacts used by normal installation.
-5. Continue broader Red acceptance work without weakening authorization,
+3. Keep Batch 1 deployment architecture contracts as the product-boundary
+   foundation.
+4. Complete and verify Batch 2: build the Red Live UEFI skeleton from the same
+   versioned Red/shared-core artifacts used by normal installation.
+5. Then add the appliance session and explicit Secure/Ephemeral/Recovery mode
+   selection without adding persistence yet.
+6. Continue broader Red acceptance work without weakening authorization,
    evidence-honesty, approval, revocation, isolated-worker, action-budget,
    cleanup, or bounded-execution rules.

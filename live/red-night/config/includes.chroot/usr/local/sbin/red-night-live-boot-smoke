@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+/opt/nightrecon/venv/bin/python - <<'PY'
+from red_night_app.deployment import (
+    RED_LIVE_USB_PROFILE,
+    RED_REQUIRED_DISTRIBUTIONS,
+    validate_red_deployment_contract,
+)
+
+validate_red_deployment_contract()
+assert RED_LIVE_USB_PROFILE.required_distributions == RED_REQUIRED_DISTRIBUTIONS
+assert RED_LIVE_USB_PROFILE.optional_peer_nights == ()
+assert RED_LIVE_USB_PROFILE.bootable_media is True
+assert RED_LIVE_USB_PROFILE.host_disk_policy == "no-automatic-mount"
+PY
+
+/opt/nightrecon/venv/bin/red-night-app --help >/dev/null
+printf '%s\n' "RED_NIGHT_LIVE_BOOT_OK"

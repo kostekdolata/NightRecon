@@ -222,3 +222,31 @@ Live USB capability is not considered complete merely because the application
 starts inside Linux. Red authorization, evidence, isolated validation workers,
 cleanup/retest, reporting, persistence, update, and recovery behavior must
 retain parity with the normal installation.
+
+
+### v0.44 Batch 2 — Live build skeleton acceptance
+
+Batch 2 moves the v0.44 deployment contract into an actual bootable development
+image without changing Red behavior.
+
+Acceptance requires:
+
+- source-controlled Debian `live-build` inputs under `live/red-night/`;
+- amd64 Debian Trixie ISO-hybrid configuration with GRUB EFI;
+- development Secure Boot explicitly disabled and not represented as production support;
+- shared-core, Red engine, and Red app built as normal wheels from the repository;
+- those exact Red wheels embedded in the image and installed in an isolated guest
+  virtual environment from the embedded wheelhouse with package-index access disabled;
+- the guest package set passes `pip check`, deployment-contract validation, and
+  `red-night-app --help`;
+- build output includes SHA-256 and a machine-readable manifest binding the image
+  to package versions and source revision;
+- QEMU + OVMF boots the built ISO through UEFI and observes the guest readiness marker;
+- the boot-smoke VM has no virtual NIC, proving basic boot/application readiness
+  does not require Internet or target connectivity;
+- no persistence, LUKS formatting, host-disk mounting, automatic target
+  authorization, or peer-Night runtime dependency exists in this batch.
+
+This gate proves a minimal bootable Red deployment skeleton. It does not yet
+prove appliance UX, encrypted persistence, Secure Boot, update signing, recovery,
+hardware compatibility, or full-stack Live composition.
