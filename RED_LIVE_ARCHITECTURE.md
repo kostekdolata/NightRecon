@@ -3,6 +3,11 @@
 Red Night Live is a deployment of the same Red Night product, not a separate
 codebase or a USB-specific fork.
 
+Red follows the project-wide privileged runtime rule in
+[NIGHT_PRIVILEGE_MODEL.md](NIGHT_PRIVILEGE_MODEL.md). Standalone, composed, and
+Live Red instances must all retain the OS privilege required for full Red
+capability; NightRecon authorization remains the separate policy boundary.
+
 The locked product rule is:
 
 - normal standalone Red installation;
@@ -279,7 +284,7 @@ Status: completed and merged.
 
 Status: completed and merged.
 
-- automatic non-root appliance controller on tty1;
+- automatic privileged appliance controller on tty1;
 - explicit Secure Workspace / Ephemeral Session / Recovery & Integrity selection;
 - no workspace mode is selected automatically;
 - Ephemeral Session launches only the existing Red application command boundary
@@ -321,8 +326,9 @@ Batch 4 slice 2 in active development:
 
 Remaining Batch 4 gates:
 
-- connect the non-root appliance to the privileged adapter through a constrained
-  service boundary rather than direct root execution;
+- connect Secure Workspace selection directly to the privileged persistence
+  executor while preserving canonical-plan, scope, approval, revocation, and
+  destructive-operation controls;
 - LUKS2 persistent workspace;
 - create/reopen a Red engagement across reboot;
 - prove ephemeral mode leaves no engagement state;
