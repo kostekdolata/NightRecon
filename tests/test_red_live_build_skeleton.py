@@ -101,8 +101,8 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             "systemctl enable red-night-live-appliance.service",
             enable_hook,
         )
-        self.assertIn("User=rednight", service)
-        self.assertIn("Group=rednight", service)
+        self.assertIn("User=red-night-appliance", service)
+        self.assertIn("Group=red-night-appliance", service)
         self.assertIn("TTYPath=/dev/tty1", service)
         self.assertIn("StandardInput=tty-force", service)
         self.assertIn("RuntimeDirectory=red-night", service)
@@ -111,6 +111,13 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             service,
         )
         self.assertNotIn("User=root", service)
+        sysusers = self.read(
+            "config/includes.chroot/usr/lib/sysusers.d/red-night-live.conf"
+        )
+        self.assertIn("red-night-appliance", sysusers)
+        self.assertIn("/usr/sbin/nologin", sysusers)
+        self.assertIn("systemd-sysusers", install_hook)
+        self.assertIn("getent passwd red-night-appliance", install_hook)
         boot_unit = self.read(
             "config/includes.chroot/etc/systemd/system/"
             "red-night-live-boot-smoke.service"
