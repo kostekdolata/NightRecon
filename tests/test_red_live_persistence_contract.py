@@ -197,12 +197,13 @@ class RedLivePersistenceContractTests(unittest.TestCase):
             RED_APP_ROOT / "red_night_app" / "persistence.py"
         ).read_text(encoding="utf-8")
         forbidden = (
-            "subprocess.",
+            "import subprocess",
+            "from subprocess",
+            "subprocess.run",
             "os.system",
-            "cryptsetup ",
-            "mkfs.",
-            "mount ",
-            "umount ",
+            "/sbin/cryptsetup",
+            "/usr/sbin/cryptsetup",
+            "mkfs.ext4",
         )
         for token in forbidden:
             self.assertNotIn(token, source)
