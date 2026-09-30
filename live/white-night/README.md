@@ -30,8 +30,16 @@ Batch 2 now adds the installed White application boundary:
 - readiness executes `white-night-app editions --json`;
 - the offline UEFI VM must emit `WHITE_NIGHT_LIVE_APP_OK`.
 
-This slice still does **not** auto-launch an operator session. Automatic
-application startup and appliance presentation are the follow-on Batch 2 slice.
+Batch 2 now also enables a systemd-managed White application bootstrap at boot.
+The bootstrap runs the packaged `/usr/local/bin/white-night-app`, validates its
+startup output, writes a transient runtime record under `/run`, and emits
+`WHITE_NIGHT_LIVE_AUTO_START_OK`. The final readiness service is ordered after
+that bootstrap and the VM smoke requires both the auto-start and application
+readiness markers.
+
+This is the alpha appliance-start contract, not the final graphical/operator UI.
+The bootstrap is intentionally nonpersistent and does not create engagement
+state.
 
 Persistence remains disabled. This batch does not configure LUKS2, mount or
 modify host disks, add target execution, add another Night runtime, or claim
