@@ -37,3 +37,17 @@ All active operations remain subject to shared-core scope, authorization
 windows, action budgets, approval requirements, revocation, and audit controls.
 
 Red Night v0.43 adds explicitly selected Controlled Validation Intelligence for the reviewed bounded read-only proof techniques. Execution remains subject to the shared-core authorization boundary and the isolated revocable worker, durable evidence, cleanup, and retest contracts documented in `V043_CONTROLLED_VALIDATION_INTELLIGENCE.md`.
+
+
+## v0.44 deployment foundation
+
+Red Night is being extended toward three deployment profiles using the same
+application and engine packages:
+
+- standalone installation;
+- composed NightRecon stack;
+- Red Night Live USB.
+
+The declarative profile contract lives in `red_night_app.deployment`. It does
+not create boot media and does not import any other Night runtime. See
+`RED_LIVE_ARCHITECTURE.md` for the Live development gates.

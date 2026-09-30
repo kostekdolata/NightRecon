@@ -286,6 +286,7 @@ def main() -> None:
         with zipfile.ZipFile(app_wheel) as archive:
             app_files = tuple(sorted(archive.namelist()))
         assert any(name.startswith("red_night_app/") for name in app_files)
+        assert "red_night_app/deployment.py" in app_files
         assert not any(name.startswith("nightrecon_red_engine/") for name in app_files)
         assert not any(name.startswith("nightrecon/") for name in app_files), app_files
 
@@ -345,6 +346,25 @@ def main() -> None:
                 install_args.extend(("--find-links", str(wheels)))
             check(*install_args, str(app_wheel), cwd=directory)
             verify_app(bin_dir, directory)
+            check(
+                str(python), "-c",
+                (
+                    "from red_night_app.deployment import "
+                    "RED_REQUIRED_DISTRIBUTIONS, RED_STANDALONE_PROFILE, "
+                    "RED_COMPOSED_PROFILE, RED_LIVE_USB_PROFILE, "
+                    "validate_red_deployment_contract; "
+                    "validate_red_deployment_contract(); "
+                    "assert RED_STANDALONE_PROFILE.required_distributions == RED_REQUIRED_DISTRIBUTIONS; "
+                    "assert RED_STANDALONE_PROFILE.optional_peer_nights == (); "
+                    "assert RED_LIVE_USB_PROFILE.optional_peer_nights == (); "
+                    "assert RED_LIVE_USB_PROFILE.bootable_media is True; "
+                    "assert RED_LIVE_USB_PROFILE.workspace_modes == "
+                    "('secure-workspace', 'ephemeral-session', 'recovery-integrity'); "
+                    "assert RED_COMPOSED_PROFILE.optional_peer_nights == "
+                    "('white', 'blue', 'purple', 'black')"
+                ),
+                cwd=directory,
+            )
 
             if mode == "isolated":
                 check(
