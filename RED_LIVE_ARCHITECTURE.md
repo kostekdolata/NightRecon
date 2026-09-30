@@ -265,21 +265,33 @@ media restored from an approved encrypted backup.
 
 ### Batch 2 — Live build skeleton
 
-Status: in development.
+Status: completed and merged.
 
 - source-controlled Debian `live-build` configuration under `live/red-night/`;
 - Debian 13 (trixie) amd64 hybrid ISO with GRUB EFI;
 - install built shared-core/Red engine/Red app wheel artifacts into an isolated venv;
 - headless QEMU/OVMF UEFI boot smoke with VM networking disabled;
 - boot marker validates the installed Red Live deployment contract;
+- exact-head PR CI and 40/40 post-merge master CI verified;
 - no persistent engagement state yet.
 
 ### Batch 3 — application appliance session
 
-- automatic Red application launch;
-- appliance-style operator session;
-- explicit Secure Workspace / Ephemeral / Recovery selection;
-- networking visible but no target automatically authorized.
+Status: active development.
+
+- automatic non-root appliance controller on tty1;
+- explicit Secure Workspace / Ephemeral Session / Recovery & Integrity selection;
+- no workspace mode is selected automatically;
+- Ephemeral Session launches only the existing Red application command boundary
+  from temporary runtime storage;
+- Recovery & Integrity validates local deployment contracts and does not launch
+  assessment commands;
+- Secure Workspace is visible but fails closed until Batch 4 supplies LUKS2
+  persistence;
+- appliance selection has `authorization_effect: none`; all active Red
+  operations retain normal shared-core authorization requirements;
+- networking may be visible to the operator but no target is automatically
+  authorized.
 
 ### Batch 4 — encrypted persistence
 
