@@ -27,6 +27,7 @@ MKFS_EXT4 = "/usr/sbin/mkfs.ext4"
 MOUNT = "/usr/bin/mount"
 UMOUNT = "/usr/bin/umount"
 INSTALL = "/usr/bin/install"
+BLKID = "/usr/sbin/blkid"
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class PrivilegedCommandResult:
 
 
 CommandRunner = Callable[[Sequence[str], bytes | None], PrivilegedCommandResult]
+TargetProbe = Callable[[str], bool]
 
 
 class PersistenceExecutionError(RuntimeError):
@@ -57,6 +59,28 @@ def _default_runner(
         check=False,
     )
     return PrivilegedCommandResult(returncode=int(completed.returncode))
+
+
+def _default_uninitialized_probe(device: str) -> bool:
+    """Return true only when blkid finds no existing on-disk signature."""
+
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is None or geteuid() != 0:
+        raise PermissionError("persistence target inspection requires root")
+    if not os.path.exists(device):
+        return False
+
+    completed = subprocess.run(
+        [BLKID, "-p", device],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if completed.returncode == 2:
+        return True
+    if completed.returncode == 0:
+        return False
+    raise PersistenceExecutionError("unable to verify persistence target is empty")
 
 
 def _validate_plan(
@@ -182,6 +206,7 @@ def provision_workspace(
     passphrase: bytes,
     destructive_confirmation: bool,
     runner: CommandRunner = _default_runner,
+    target_probe: TargetProbe = _default_uninitialized_probe,
 ) -> None:
     plan = plan_persistence_action(
         config,
@@ -189,6 +214,18 @@ def provision_workspace(
         action=RedPersistenceAction.PROVISION,
         destructive_confirmation=destructive_confirmation,
     )
+    if not plan.allowed:
+        execute_persistence_plan(
+            config,
+            plan,
+            passphrase=passphrase,
+            runner=runner,
+        )
+        return
+
+    if not target_probe(config.device):
+        raise ValueError("persistence target is not verified empty")
+
     execute_persistence_plan(
         config,
         plan,
