@@ -277,7 +277,7 @@ Status: completed and merged.
 
 ### Batch 3 — application appliance session
 
-Status: active development.
+Status: completed and merged.
 
 - automatic non-root appliance controller on tty1;
 - explicit Secure Workspace / Ephemeral Session / Recovery & Integrity selection;
@@ -295,6 +295,21 @@ Status: active development.
 
 ### Batch 4 — encrypted persistence
 
+Status: active development.
+
+First verified slice:
+
+- fail-closed persistence state machine and symbolic privileged-operation contract;
+- explicit stable partition selector required; no disk auto-discovery;
+- LUKS2 and workspace filesystem/mapping/mountpoint are fixed by contract;
+- provisioning is impossible without explicit destructive confirmation;
+- Secure Workspace remains unavailable until encrypted persistence is mounted;
+- safe-close ordering requires filesystem unmount before LUKS mapping close;
+- no cryptsetup, mkfs, mount, or block-device execution adapter exists in this slice.
+
+Remaining Batch 4 gates:
+
+- privileged LUKS2 execution adapter with explicit operator unlock/provision flow;
 - LUKS2 persistent workspace;
 - create/reopen a Red engagement across reboot;
 - prove ephemeral mode leaves no engagement state;

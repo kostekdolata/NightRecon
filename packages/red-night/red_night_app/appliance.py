@@ -3,8 +3,8 @@
 Batch 3 adds an explicit appliance session around the existing Red Night
 application without changing Red engine authorization or assessment behavior.
 
-Secure Workspace remains unavailable until Batch 4 provides the encrypted
-persistent workspace. Ephemeral Session runs Red commands from a temporary
+Secure Workspace remains unavailable until Batch 4's privileged persistence
+adapter supplies a mounted encrypted workspace. Ephemeral Session runs Red commands from a temporary
 runtime directory. Recovery & Integrity Check validates the installed Red
 deployment contract and never launches assessment commands.
 """
@@ -24,6 +24,7 @@ from tempfile import TemporaryDirectory
 from typing import Callable, Sequence
 
 from .deployment import validate_red_deployment_contract
+from .persistence import RedPersistenceState, secure_workspace_ready
 
 
 AUTHORIZATION_EFFECT = "none"
@@ -55,16 +56,28 @@ class RedLiveSessionDecision:
         }
 
 
-def session_decision(mode: RedLiveSessionMode | str) -> RedLiveSessionDecision:
+def session_decision(
+    mode: RedLiveSessionMode | str,
+    *,
+    persistence_state: RedPersistenceState | str | None = None,
+) -> RedLiveSessionDecision:
     selected = RedLiveSessionMode(mode)
     if selected is RedLiveSessionMode.SECURE_WORKSPACE:
+        ready = (
+            persistence_state is not None
+            and secure_workspace_ready(persistence_state)
+        )
         return RedLiveSessionDecision(
             mode=selected,
-            available=False,
-            launch_red_application=False,
-            persistent_workspace=False,
+            available=ready,
+            launch_red_application=ready,
+            persistent_workspace=ready,
             authorization_effect=AUTHORIZATION_EFFECT,
-            reason="encrypted-persistence-not-available-until-batch-4",
+            reason=(
+                "encrypted-persistence-mounted"
+                if ready
+                else "encrypted-persistence-not-mounted"
+            ),
         )
     if selected is RedLiveSessionMode.EPHEMERAL_SESSION:
         return RedLiveSessionDecision(
@@ -170,7 +183,7 @@ def run_recovery_integrity_check(
     output_fn("Recovery & Integrity Check")
     output_fn("Red deployment contract: OK")
     output_fn("Authorization effect: none")
-    output_fn("Encrypted persistence diagnostics arrive in Batch 4.")
+    output_fn("Encrypted persistence contract: available; privileged execution: not enabled.")
     return 0
 
 
@@ -209,7 +222,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if mode is RedLiveSessionMode.SECURE_WORKSPACE:
         print("Secure Workspace is not available yet.")
-        print("Batch 4 must provide and unlock the encrypted LUKS2 workspace first.")
+        print("A mounted encrypted LUKS2 workspace is required before launch.")
         print("No Red assessment session was started.")
         return 3
 

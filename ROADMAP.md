@@ -583,14 +583,20 @@ Completed v0.44 deployment batches:
 
 - Batch 1: deployment architecture contracts;
 - Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke, merged
-  after exact-head PR CI and 40/40 post-merge master verification.
+  after exact-head PR CI and 40/40 post-merge master verification;
+- Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes, merged
+  after exact-head 40/40 PR CI and 40/40 post-merge master verification.
 
 Active v0.44 follow-on:
 
-- Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes.
+- Batch 4: encrypted persistence. First slice defines the fail-closed LUKS2
+  state machine, explicit stable partition selection, destructive-confirmation
+  requirement, Secure Workspace readiness, and safe-close ordering without
+  executing cryptsetup/mkfs/mount operations.
 
 Planned later v0.44 batches:
-- Batch 4: LUKS2 persistent workspace + reboot/ephemeral-state verification;
+- Batch 4 continuation: privileged LUKS2 execution, engagement persistence
+  across reboot, ephemeral-state verification, and safe shutdown/removal;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
 - Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
   Secure Boot target, hardware compatibility and endurance testing.
