@@ -126,7 +126,8 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             "ephemeral-session",
             "recovery-integrity",
         ):
-            self.assertIn(f"--mode {mode} --dry-run", marker)
+            self.assertIn(f'check_mode "{mode}"', marker)
+        self.assertIn('"$APPLIANCE" --mode "$mode" --dry-run', marker)
         self.assertIn("authorization_effect", marker)
 
     def test_live_package_list_contains_only_base_appliance_dependencies(self):
