@@ -1,22 +1,41 @@
-# White Night Live — Batch 1 build skeleton
+# White Night Live — Batch 2 application runtime
 
-This directory contains the first source-controlled White Night Live deployment
-skeleton. It is a deployment layer for the same White Night product packages,
-not a fork of White-owned application or engine behavior.
+This directory contains the source-controlled White Night Live deployment layer.
+It uses the same versioned White Night and shared-core package artifacts as a
+normal standalone installation. It is not a fork of White-owned application or
+engine behavior.
 
-Batch 1 proves only:
+## Verified Batch 1 foundation
 
-- Debian live-build configuration is source controlled;
-- the target is x86-64 UEFI boot;
-- built nightrecon-shared-core, nightrecon-white-engine, and
-  nightrecon-white-night wheel artifacts are staged into the immutable image;
-- the image can boot in an offline QEMU/OVMF VM and emit a deterministic
-  readiness marker.
+Batch 1 established:
 
-Batch 1 deliberately does not install or auto-launch White Night, create
-persistent engagement state, configure LUKS2, mount host disks, enable Secure
-Boot claims, or add any target/network execution capability. Those belong to
-later Live batches and remain separately gated.
+- Debian trixie `live-build` configuration;
+- x86-64 UEFI boot;
+- exact `nightrecon-shared-core`, `nightrecon-white-engine`, and
+  `nightrecon-white-night` wheel staging;
+- checksum verification and retained ISO artifacts;
+- offline QEMU/OVMF userspace boot verification.
+
+## Batch 2 initial slice
+
+Batch 2 now adds the installed White application boundary:
+
+- `python3-venv` provides an isolated immutable-image runtime;
+- the three exact staged wheels are installed into `/opt/nightrecon/venv`;
+- installation uses `--no-index --no-deps`, so image construction does not
+  replace the staged White packages with repository packages from elsewhere;
+- `/usr/local/bin/white-night-app` points to the packaged application entry
+  point;
+- boot readiness verifies exact installed package versions;
+- readiness executes `white-night-app editions --json`;
+- the offline UEFI VM must emit `WHITE_NIGHT_LIVE_APP_OK`.
+
+This slice still does **not** auto-launch an operator session. Automatic
+application startup and appliance presentation are the follow-on Batch 2 slice.
+
+Persistence remains disabled. This batch does not configure LUKS2, mount or
+modify host disks, add target execution, add another Night runtime, or claim
+production Secure Boot acceptance.
 
 ## Local build
 
@@ -37,32 +56,28 @@ artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso
 artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso.sha256
 ```
 
-Verify UEFI boot without a VM network interface:
+Verify the installed White application after UEFI boot without a VM network
+interface:
 
 ```sh
 ./tests/white_live_vm_smoke.sh \
   artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso
 ```
 
-A passing smoke test observes `WHITE_NIGHT_LIVE_BOOT_OK` on the serial
-console. That marker means the immutable image booted and the expected wheel
-artifacts were present. It does not mean later White Live acceptance gates have
-passed.
+A passing smoke test observes `WHITE_NIGHT_LIVE_APP_OK` on the serial console.
 
 ## UEFI signing note
 
-Batch 1 uses Debian live-build's automatic UEFI Secure Boot mode so the builder
-may use Debian's signed GRUB/shim artifacts when they are available. This avoids
-relying on an unsigned-GRUB path for the alpha boot smoke, but it is **not** a
-claim that White Night has completed Secure Boot acceptance. Secure Boot,
-hardware compatibility, key/signing policy, and recovery remain later
-production-hardening gates.
+The alpha builder uses Debian live-build's automatic UEFI Secure Boot mode so
+Debian signed shim/GRUB artifacts may be used when available. This is not a claim
+that White Night has completed production Secure Boot acceptance. Hardware
+compatibility, project signing policy, recovery, and full Secure Boot testing
+remain later hardening gates.
 
 ## Headless CI boot selection
 
-The Live image keeps an interactive GRUB boot menu because later White Live
-batches will expose explicit Secure Workspace, Ephemeral Session, and Recovery
-modes there. The headless QEMU smoke therefore selects the default Live entry
-through QEMU's host-side monitor before waiting for the serial readiness marker.
-The VM still runs with `-nic none`; this CI input does not add guest networking
-or change the operator-visible image configuration.
+The Live image deliberately keeps an interactive GRUB boot menu because later
+White Live batches will expose Secure Workspace, Ephemeral Session, and Recovery
+modes. Headless CI selects the default entry through QEMU's local UNIX monitor
+before waiting for the serial readiness marker. The guest still runs with
+`-nic none`.
