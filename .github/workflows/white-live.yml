@@ -1,0 +1,92 @@
+name: White Night Live CI
+
+on:
+  push:
+    branches:
+      - master
+      - "v*-dev"
+    paths:
+      - ".github/workflows/white-live.yml"
+      - "live/white-night/**"
+      - "packages/shared-core/**"
+      - "packages/white-engine/**"
+      - "packages/white-night/**"
+      - "tests/test_white_live_build.py"
+      - "tests/white_live_vm_smoke.sh"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/white-live.yml"
+      - "live/white-night/**"
+      - "packages/shared-core/**"
+      - "packages/white-engine/**"
+      - "packages/white-night/**"
+      - "tests/test_white_live_build.py"
+      - "tests/white_live_vm_smoke.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: white-night-live-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-image:
+    name: Debian trixie x86-64 UEFI VM smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    container:
+      image: debian:trixie
+
+    steps:
+      - name: Install Live build and VM toolchain
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates \
+            git \
+            live-build \
+            ovmf \
+            python3 \
+            python3-pip \
+            python3-setuptools \
+            python3-venv \
+            python3-wheel \
+            qemu-system-x86
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Build exact White Night package artifacts
+        run: |
+          python3 -m venv --system-site-packages /tmp/white-venv
+          mkdir -p /tmp/white-wheels
+          /tmp/white-venv/bin/python -m pip wheel \
+            --no-index \
+            --no-deps \
+            --no-build-isolation \
+            --wheel-dir /tmp/white-wheels \
+            ./packages/shared-core \
+            ./packages/white-engine \
+            ./packages/white-night
+
+      - name: Build White Night Live Batch 1 image
+        env:
+          WHEEL_DIR: /tmp/white-wheels
+          OUTPUT_DIR: ${{ github.workspace }}/artifacts/live/white-night
+        run: ./live/white-night/build.sh
+
+      - name: Verify ISO checksum
+        run: |
+          cd artifacts/live/white-night
+          sha256sum -c WhiteNight-Live-0.1.0a6-amd64.iso.sha256
+
+      - name: Boot image with QEMU and OVMF
+        env:
+          WHITE_LIVE_VM_TIMEOUT: "240"
+        run: |
+          ./tests/white_live_vm_smoke.sh \
+            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso
