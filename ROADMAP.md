@@ -690,15 +690,18 @@ tamper evidence and deterministic integrity verification, not signer identity.
 
 Status: active development.
 
-The first verified slice is Live Batch 1 only: source-controlled Debian trixie
+Live Batch 1 is completed and CI-verified: source-controlled Debian trixie
 `live-build` inputs, an x86-64 UEFI image, exact shared-core/White wheel
-artifacts staged into the immutable filesystem, and an offline QEMU/OVMF boot
-smoke. This slice deliberately does not install or auto-launch White, add LUKS2
-persistence, mount host disks, enable target networking, or claim Secure Boot.
+artifacts staged into the immutable filesystem, checksum verification, retained
+ISO artifact, and an offline QEMU/OVMF userspace boot marker all pass while the
+complete NightRecon CI remains green.
 
-Later Live slices add application launch, Secure Workspace/Ephemeral/Recovery
-behavior, LUKS2 persistence and reboot tests, integrity/recovery, Red
-composition, and production hardening.
+Live Batch 2 is now the next active increment: install those exact built White
+artifacts inside the immutable image and prove the booted system can execute the
+packaged White application boundary before adding appliance-style auto-start.
+Persistence, Secure Workspace/Ephemeral/Recovery behavior, LUKS2, host-storage
+workflows, Red composition, Secure Boot acceptance, and production hardening
+remain later verified slices.
 
 ### White Batches 8-12
 
