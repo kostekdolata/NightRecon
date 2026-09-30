@@ -1,0 +1,24 @@
+[Unit]
+Description=Red Night Live appliance session
+After=live-config.service local-fs.target systemd-user-sessions.service
+Wants=live-config.service
+Conflicts=getty@tty1.service
+ConditionPathExists=/usr/local/bin/red-night-appliance
+
+[Service]
+Type=simple
+User=rednight
+Group=rednight
+ExecStart=/usr/local/bin/red-night-appliance
+Restart=always
+RestartSec=1
+RuntimeDirectory=red-night
+RuntimeDirectoryMode=0700
+Environment=HOME=/run/red-night
+TTYPath=/dev/tty1
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+
+[Install]
+WantedBy=multi-user.target
