@@ -2,6 +2,35 @@
 
 All notable NightRecon/Red Night release milestones are recorded here.
 
+## [0.43.0] - 2026-09-30
+
+### Red Night
+
+- Added a reviewed metadata-only controlled-validation technique registry with strict target, evidence, impact, approval, ATT&CK-ID, adapter, and cleanup metadata.
+- Added exact candidate-to-technique eligibility planning with no automatic selection.
+- Added immutable adapter precondition/postcondition contracts and deterministic eligibility-to-contract bindings.
+- Added explicit operator-selected isolated revocable workers for bounded TCP connection, TLS fingerprint, and HTTP HEAD response-policy proofs.
+- Added continuous shared-core policy rechecks, one consumed action per invocation, and hard runtime/I/O/result ceilings.
+- Added durable deterministic validation-result and explicit cleanup evidence with deterministic remediation/retest transitions.
+- Added reviewed ATT&CK relationship metadata: the selected-service TCP proof is related to T1046 without claiming full technique implementation; TLS and HTTP policy proofs are reviewed-unmapped.
+- Added deterministic controlled-validation fixture comparison for matched/missed/invented scenarios, evidence shape, cleanup state, ATT&CK disposition, operator steps, runtime, and reproducible fingerprints.
+
+### Compatibility
+
+- Versioned `nightrecon-red-night`, `nightrecon-red-engine`, and `nightrecon-shared-core` together at 0.43.0.
+- Kept legacy `nightrecon` at 0.31.0 while pinning Red engine/shared-core 0.43.0.
+- Preserved isolated and combined Red distribution smoke coverage on Ubuntu/Windows and Python 3.11/3.14.
+
+### Safety
+
+- Live validation requires explicit operator selection and independent `validation.run` authorization with scope, time-window, action-budget, approval, revocation, and audit enforcement.
+- Current execution remains limited to three reviewed read-only proof adapters in fresh spawned workers.
+- Durable lifecycle evidence is required before remediation/retest state changes; current no-side-effect techniques record cleanup as `not-required`.
+- ATT&CK mappings and fixture comparisons are descriptive review metadata, not parity or exploitability claims.
+- No arbitrary command/shell/SQL/HTTP-body surface, credential harvesting, exploit payload, persistence, privilege change, cloud/directory write, or autonomous execution was added.
+
+Detailed release notes: [V043_RELEASE_NOTES.md](V043_RELEASE_NOTES.md)
+
 ## [0.42.0] - 2026-09-29
 
 ### Red Night
