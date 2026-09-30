@@ -13,6 +13,10 @@ on:
       - "packages/white-night/**"
       - "tests/test_white_live_build.py"
       - "tests/test_white_live_modes.py"
+      - "tests/test_white_live_persistence_contract.py"
+      - "tests/test_white_live_luks_fixture.py"
+      - "tests/white_live_luks_fixture.sh"
+      - "WHITE_LIVE_PERSISTENCE.md"
       - "tests/white_live_vm_smoke.sh"
   pull_request:
     branches:
@@ -24,6 +28,11 @@ on:
       - "packages/white-engine/**"
       - "packages/white-night/**"
       - "tests/test_white_live_build.py"
+      - "tests/test_white_live_modes.py"
+      - "tests/test_white_live_persistence_contract.py"
+      - "tests/test_white_live_luks_fixture.py"
+      - "tests/white_live_luks_fixture.sh"
+      - "WHITE_LIVE_PERSISTENCE.md"
       - "tests/white_live_vm_smoke.sh"
 
 permissions:
@@ -34,6 +43,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  luks2-fixture:
+    name: Disposable LUKS2 workspace fixture
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Verify persistence contract and fixture boundaries
+        run: |
+          python tests/test_white_live_persistence_contract.py
+          python tests/test_white_live_luks_fixture.py
+
+      - name: Install encrypted-storage test dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            cryptsetup \
+            e2fsprogs
+
+      - name: Run disposable LUKS2 persistence fixture
+        run: |
+          sudo sh ./tests/white_live_luks_fixture.sh
+
   live-image:
     name: Debian trixie x86-64 UEFI VM smoke
     runs-on: ubuntu-latest
