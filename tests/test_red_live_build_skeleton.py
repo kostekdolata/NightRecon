@@ -134,6 +134,10 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             "systemctl is-active --quiet red-night-live-appliance.service",
             marker,
         )
+        self.assertIn("RED_NIGHT_LIVE_CHECK:appliance-root", marker)
+        self.assertIn("systemctl show -p MainPID", marker)
+        self.assertIn("/proc/$main_pid/status", marker)
+        self.assertIn('"$uid_line" = "0"', marker)
         for mode in (
             "secure-workspace",
             "ephemeral-session",
