@@ -67,6 +67,10 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             "config/includes.chroot/usr/local/sbin/red-night-live-boot-smoke"
         )
         self.assertIn("-nic none", smoke)
+        self.assertIn("if=pflash", smoke)
+        self.assertIn("OVMF_CODE_4M.fd", smoke)
+        self.assertIn("OVMF_VARS_4M.fd", smoke)
+        self.assertNotIn("-bios", smoke)
         self.assertIn("RED_NIGHT_LIVE_BOOT_OK", smoke)
         self.assertIn("validate_red_deployment_contract", marker)
         self.assertIn("no-automatic-mount", marker)
