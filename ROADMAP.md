@@ -4,6 +4,25 @@ NightRecon is being developed as an authorization-first adversarial security val
 
 This roadmap is directional. Release scope may be split into smaller verified increments when that reduces risk. Every release must preserve the authorization boundary, avoid unrelated refactors, pass the full automated test matrix, and leave `master` at a stable checkpoint before the next development branch begins.
 
+## Night product standard
+
+All Night product tracks are governed by
+[NIGHT_PRODUCT_STANDARD.md](NIGHT_PRODUCT_STANDARD.md).
+
+Every Night must be developed against three equal product pillars:
+
+1. **NightRecon stack capability** — first-class composition through shared,
+   versioned contracts without peer-engine runtime coupling.
+2. **Standalone capability** — a complete independently useful product, with
+   direct-device installation and Live/offline deployment where applicable,
+   using the same application/engine packages as the stack.
+3. **Domain-leading specialist capability** — complete professional workflows,
+   evidence/data quality, analysis, reporting, exports, integrations, and
+   measurable acceptance for that Night's assigned role.
+
+A Night is not considered mature if only one or two pillars are complete.
+The standard maturity gates are also the template for developing future Nights.
+
 ## Product delivery order
 
 Red Night v0.43.0 is the verified stable standalone baseline, with v0.44.0
