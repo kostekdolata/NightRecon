@@ -24,6 +24,7 @@ from tempfile import TemporaryDirectory
 from typing import Callable, Sequence
 
 from .deployment import validate_red_deployment_contract
+from .persistence import RedPersistenceState, secure_workspace_ready
 
 
 AUTHORIZATION_EFFECT = "none"
@@ -55,16 +56,28 @@ class RedLiveSessionDecision:
         }
 
 
-def session_decision(mode: RedLiveSessionMode | str) -> RedLiveSessionDecision:
+def session_decision(
+    mode: RedLiveSessionMode | str,
+    *,
+    persistence_state: RedPersistenceState | str | None = None,
+) -> RedLiveSessionDecision:
     selected = RedLiveSessionMode(mode)
     if selected is RedLiveSessionMode.SECURE_WORKSPACE:
+        ready = (
+            persistence_state is not None
+            and secure_workspace_ready(persistence_state)
+        )
         return RedLiveSessionDecision(
             mode=selected,
-            available=False,
-            launch_red_application=False,
-            persistent_workspace=False,
+            available=ready,
+            launch_red_application=ready,
+            persistent_workspace=ready,
             authorization_effect=AUTHORIZATION_EFFECT,
-            reason="encrypted-persistence-not-available-until-batch-4",
+            reason=(
+                "encrypted-persistence-mounted"
+                if ready
+                else "encrypted-persistence-not-mounted"
+            ),
         )
     if selected is RedLiveSessionMode.EPHEMERAL_SESSION:
         return RedLiveSessionDecision(
