@@ -9,6 +9,7 @@ stdin and are never included in argv, return values, or exception text.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 import subprocess
 from typing import Callable, Sequence
 
@@ -44,6 +45,10 @@ def _default_runner(
     argv: Sequence[str],
     stdin_bytes: bytes | None,
 ) -> PrivilegedCommandResult:
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is None or geteuid() != 0:
+        raise PermissionError("privileged persistence execution requires root")
+
     completed = subprocess.run(
         list(argv),
         input=stdin_bytes,
