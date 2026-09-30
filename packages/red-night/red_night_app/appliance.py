@@ -293,7 +293,7 @@ def run_recovery_integrity_check(
     output_fn("Recovery & Integrity Check")
     output_fn("Red deployment contract: OK")
     output_fn("Authorization effect: none")
-    output_fn("Encrypted persistence contract: available; privileged execution: not enabled.")
+    output_fn("Encrypted persistence: explicit existing LUKS2 Secure Workspace supported.")
     return 0
 
 
