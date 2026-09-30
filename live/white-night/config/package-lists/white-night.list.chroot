@@ -1,3 +1,4 @@
-# Minimal Batch 1 runtime foundation.
+# White Live Batch 2 runtime foundation.
 ca-certificates
 python3
+python3-venv

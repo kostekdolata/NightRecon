@@ -703,7 +703,7 @@ artifacts staged into the immutable filesystem, checksum verification, retained
 ISO artifact, and an offline QEMU/OVMF userspace boot marker all pass while the
 complete NightRecon CI remains green.
 
-Live Batch 2 is now the next active increment: install those exact built White
+Live Batch 2 is now active on `v0.1.0-white-live-batch2-dev`: install those exact built White
 artifacts inside the immutable image and prove the booted system can execute the
 packaged White application boundary before adding appliance-style auto-start.
 Persistence, Secure Workspace/Ephemeral/Recovery behavior, LUKS2, host-storage

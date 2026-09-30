@@ -1,0 +1,44 @@
+#!/bin/sh
+set -eu
+
+wheel_dir=/opt/nightrecon/wheels
+venv_dir=/opt/nightrecon/venv
+
+require_one_wheel() {
+    pattern=$1
+    set -- "$wheel_dir"/$pattern
+    if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+        echo "White Night Live install failed: expected exactly one $pattern" >&2
+        exit 1
+    fi
+    printf '%s\n' "$1"
+}
+
+shared_wheel=$(require_one_wheel 'nightrecon_shared_core-0.43.0-*.whl')
+engine_wheel=$(require_one_wheel 'nightrecon_white_engine-0.1.0a6-*.whl')
+app_wheel=$(require_one_wheel 'nightrecon_white_night-0.1.0a6-*.whl')
+
+python3 -m venv "$venv_dir"
+"$venv_dir/bin/python" -m pip install \
+    --disable-pip-version-check \
+    --no-index \
+    --no-deps \
+    "$shared_wheel" \
+    "$engine_wheel" \
+    "$app_wheel"
+
+"$venv_dir/bin/python" - <<'PY'
+import importlib.metadata as metadata
+import importlib.util
+
+assert metadata.version("nightrecon-shared-core") == "0.43.0"
+assert metadata.version("nightrecon-white-engine") == "0.1.0a6"
+assert metadata.version("nightrecon-white-night") == "0.1.0a6"
+assert importlib.util.find_spec("white_night_app") is not None
+assert importlib.util.find_spec("nightrecon_white_engine") is not None
+assert importlib.util.find_spec("nightrecon_shared_core") is not None
+assert importlib.util.find_spec("nightrecon_red_engine") is None
+PY
+
+test -x "$venv_dir/bin/white-night-app"
+ln -sf "$venv_dir/bin/white-night-app" /usr/local/bin/white-night-app

@@ -401,7 +401,7 @@ remain later Live batches and are not claimed by Batch 1.
 
 ### Live Batch 2 — application launch
 
-Status: next active Live increment.
+Status: active implementation on `v0.1.0-white-live-batch2-dev`.
 
 Initial verified slice:
 
