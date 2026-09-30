@@ -638,8 +638,9 @@ decision evidence.
 
 ### White Batch 6 — Evidence custody and tamper-evident audit
 
-Status: replayed onto the current Red v0.44 master baseline as White
-`0.1.0a6`; current-matrix verification required before completion.
+Status: completed and merged to `master` as White `0.1.0a6`.
+The replayed current-baseline tree passed the full 39-job pull-request matrix,
+all four isolated White distribution combinations, and post-merge master CI.
 
 Current scope:
 
@@ -668,10 +669,17 @@ tamper evidence and deterministic integrity verification, not signer identity.
 
 ### White Batch 7 — White Night Live USB alpha
 
-Planned after Batch 6 verification: reproducible Debian-based `live-build`,
-x86-64 UEFI, immutable base image, LUKS2 workspace, Secure
-Workspace/Ephemeral/Recovery modes, package-based White installation, automatic
-White startup, and VM persistence tests.
+Status: active development.
+
+The first verified slice is Live Batch 1 only: source-controlled Debian trixie
+`live-build` inputs, an x86-64 UEFI image, exact shared-core/White wheel
+artifacts staged into the immutable filesystem, and an offline QEMU/OVMF boot
+smoke. This slice deliberately does not install or auto-launch White, add LUKS2
+persistence, mount host disks, enable target networking, or claim Secure Boot.
+
+Later Live slices add application launch, Secure Workspace/Ephemeral/Recovery
+behavior, LUKS2 persistence and reboot tests, integrity/recovery, Red
+composition, and production hardening.
 
 ### White Batches 8-12
 
