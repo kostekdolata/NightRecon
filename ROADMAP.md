@@ -579,13 +579,17 @@ Batch 1 — Deployment Architecture Contracts (completed):
 - unit + installed-wheel regression coverage proving no cross-Night runtime
   dependency.
 
+Completed v0.44 deployment batches:
+
+- Batch 1: deployment architecture contracts;
+- Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke, merged
+  after exact-head PR CI and 40/40 post-merge master verification.
+
 Active v0.44 follow-on:
 
-- Batch 2 (in development): Debian `live-build` skeleton + x86-64 UEFI VM boot smoke;
+- Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes.
 
 Planned later v0.44 batches:
-
-- Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes;
 - Batch 4: LUKS2 persistent workspace + reboot/ephemeral-state verification;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
 - Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
