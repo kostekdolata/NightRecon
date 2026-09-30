@@ -40,6 +40,25 @@ class WhiteLiveBuildTests(unittest.TestCase):
             LIVE
             / "config"
             / "includes.chroot"
+            / "etc"
+            / "systemd"
+            / "system"
+            / "white-night-live-app.service",
+            LIVE
+            / "config"
+            / "includes.chroot"
+            / "usr"
+            / "local"
+            / "sbin"
+            / "white-night-live-app-start",
+            LIVE
+            / "config"
+            / "hooks"
+            / "live"
+            / "0300-enable-white-app.hook.chroot",
+            LIVE
+            / "config"
+            / "includes.chroot"
             / "usr"
             / "local"
             / "sbin"
@@ -152,11 +171,29 @@ class WhiteLiveBuildTests(unittest.TestCase):
         self.assertIn("-nic none", smoke)
         self.assertIn("sendkey ret", smoke)
         self.assertIn("server=on,wait=off", smoke)
-        self.assertIn("WHITE_NIGHT_LIVE_APP_OK", smoke)
+        self.assertIn("WHITE_NIGHT_LIVE_AUTO_START_OK", smoke)\n        self.assertIn("WHITE_NIGHT_LIVE_APP_OK", smoke)
         self.assertNotIn("-net user", smoke)
         self.assertNotIn("-nic user", smoke)
 
-    def test_profile_declares_installed_app_without_auto_launch(self) -> None:
+
+    def test_auto_start_uses_packaged_white_application(self) -> None:
+        start = self.read(
+            "config/includes.chroot/usr/local/sbin/white-night-live-app-start"
+        )
+        service = self.read(
+            "config/includes.chroot/etc/systemd/system/white-night-live-app.service"
+        )
+        readiness_service = self.read(
+            "config/includes.chroot/etc/systemd/system/white-night-live-readiness.service"
+        )
+        self.assertIn("white_app=/usr/local/bin/white-night-app", start)
+        self.assertIn('"$white_app" > "$output"', start)
+        self.assertIn("WHITE_NIGHT_LIVE_AUTO_START_OK", start)
+        self.assertIn("ExecStart=/usr/local/sbin/white-night-live-app-start", service)
+        self.assertIn("Requires=white-night-live-app.service", readiness_service)
+        self.assertIn("After=local-fs.target white-night-live-app.service", readiness_service)
+
+    def test_profile_declares_installed_app_with_auto_launch(self) -> None:
         profile = self.read(
             "config/includes.chroot/etc/nightrecon-live-profile.json"
         )
@@ -166,7 +203,7 @@ class WhiteLiveBuildTests(unittest.TestCase):
         self.assertIn('"persistence": false', profile)
         self.assertIn('"runtime": "isolated-venv"', profile)
         self.assertIn('"application_installed": true', profile)
-        self.assertIn('"application_auto_launch": false', profile)
+        self.assertIn('"application_auto_launch": true', profile)
 
 
 if __name__ == "__main__":
