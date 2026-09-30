@@ -4,8 +4,6 @@ set -eu
 WHEEL_DIR=/opt/nightrecon/wheels
 VENV_DIR=/opt/nightrecon/venv
 
-systemd-sysusers /usr/lib/sysusers.d/red-night-live.conf
-getent passwd red-night-appliance >/dev/null
 
 require_one_wheel() {
     pattern="$1"
