@@ -44,7 +44,7 @@ class RedLiveApplianceTests(unittest.TestCase):
         self.assertFalse(decision.available)
         self.assertFalse(decision.launch_red_application)
         self.assertFalse(decision.persistent_workspace)
-        self.assertIn("batch-4", decision.reason)
+        self.assertEqual(decision.reason, "encrypted-persistence-not-mounted")
 
     def test_ephemeral_session_launches_only_after_explicit_selection(self):
         outputs = []
