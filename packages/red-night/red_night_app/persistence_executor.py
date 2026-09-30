@@ -334,6 +334,19 @@ def mount_workspace(
     execute_persistence_plan(config, plan, runner=runner)
 
 
+def unmount_workspace(
+    config: RedPersistenceConfig,
+    *,
+    runner: CommandRunner = _default_runner,
+) -> None:
+    plan = plan_persistence_action(
+        config,
+        state="mounted",
+        action=RedPersistenceAction.UNMOUNT,
+    )
+    execute_persistence_plan(config, plan, runner=runner)
+
+
 def safe_close_workspace(
     config: RedPersistenceConfig,
     *,
