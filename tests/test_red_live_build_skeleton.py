@@ -105,7 +105,21 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
         self.assertIn("Group=rednight", service)
         self.assertIn("TTYPath=/dev/tty1", service)
         self.assertIn("StandardInput=tty-force", service)
+        self.assertIn("RuntimeDirectory=red-night", service)
+        self.assertIn(
+            "Environment=NIGHTRECON_EPHEMERAL_ROOT=/run/red-night",
+            service,
+        )
         self.assertNotIn("User=root", service)
+        boot_unit = self.read(
+            "config/includes.chroot/etc/systemd/system/"
+            "red-night-live-boot-smoke.service"
+        )
+        self.assertIn(
+            "After=local-fs.target red-night-live-appliance.service",
+            boot_unit,
+        )
+        self.assertIn("Wants=red-night-live-appliance.service", boot_unit)
         self.assertIn("systemctl is-active --quiet red-night-live-appliance.service", marker)
         for mode in (
             "secure-workspace",
