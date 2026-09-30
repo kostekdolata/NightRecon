@@ -63,3 +63,19 @@ one-shot systemd unit validates the installed Red deployment contract and emits
 This marker proves the Batch 2 image reached userspace and loaded the installed
 Red package contract. It is not a claim that persistence, Secure Boot, hardware
 compatibility, update recovery, or later Live acceptance gates are complete.
+
+
+## Batch 3 appliance session
+
+Batch 3 keeps the Batch 2 image/build path and adds an appliance controller on
+tty1. The service runs as the Live `rednight` user, not root, and presents all
+three workspace modes explicitly.
+
+No mode grants authorization. Ephemeral Session stores its default runtime state
+under a temporary `/run` workspace; Recovery & Integrity does not execute Red
+assessment commands; Secure Workspace fails closed until encrypted persistence
+is implemented in Batch 4.
+
+The CI boot marker now also verifies that the appliance service is enabled and
+active and that all three installed mode contracts report
+`authorization_effect: none`.
