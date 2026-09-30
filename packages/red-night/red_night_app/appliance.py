@@ -124,8 +124,12 @@ def run_ephemeral_operator_session(
     output_fn: Callable[[str], None] = print,
     command_runner: Callable[[Sequence[str], Path], int] = _default_command_runner,
 ) -> int:
-    base = runtime_root if runtime_root is not None else Path("/run")
-    base.mkdir(parents=True, exist_ok=True)
+    base = runtime_root
+    if base is None:
+        configured_root = os.environ.get("NIGHTRECON_EPHEMERAL_ROOT")
+        base = Path(configured_root) if configured_root else None
+    if base is not None:
+        base.mkdir(parents=True, exist_ok=True)
 
     with TemporaryDirectory(prefix="red-night-ephemeral-", dir=base) as raw_workspace:
         workspace = Path(raw_workspace)
