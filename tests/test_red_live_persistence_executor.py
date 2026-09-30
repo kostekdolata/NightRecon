@@ -6,6 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +29,7 @@ from red_night_app.persistence_executor import (  # noqa: E402
     PersistenceExecutionError,
     PrivilegedCommandResult,
     execute_persistence_plan,
+    inspect_persistence_state,
     mount_workspace,
     provision_workspace,
     safe_close_workspace,
@@ -52,6 +54,155 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
         return RedPersistenceConfig(
             device="/dev/disk/by-partuuid/1111-2222"
         )
+
+    def test_inspector_returns_missing_for_absent_explicit_device(self):
+        config = self.make_config()
+        with (
+            patch("red_night_app.persistence_executor.os.geteuid", return_value=0, create=True),
+            patch("red_night_app.persistence_executor.os.path.exists", return_value=False),
+        ):
+            self.assertEqual(
+                inspect_persistence_state(config),
+                RedPersistenceState.MISSING,
+            )
+
+    def test_inspector_identifies_locked_luks2_workspace(self):
+        config = self.make_config()
+
+        def run(argv, **_kwargs):
+            if argv[0].endswith("findmnt"):
+                return type("Result", (), {"returncode": 1, "stdout": ""})()
+            if argv[0].endswith("cryptsetup"):
+                return type("Result", (), {"returncode": 0, "stdout": ""})()
+            raise AssertionError(argv)
+
+        with (
+            patch("red_night_app.persistence_executor.os.geteuid", return_value=0, create=True),
+            patch(
+                "red_night_app.persistence_executor.os.path.exists",
+                side_effect=lambda path: path == config.device,
+            ),
+            patch("red_night_app.persistence_executor.subprocess.run", side_effect=run),
+        ):
+            self.assertEqual(
+                inspect_persistence_state(config),
+                RedPersistenceState.LUKS2_LOCKED,
+            )
+
+    def test_inspector_identifies_open_unmounted_workspace(self):
+        config = self.make_config()
+        mapper = f"/dev/mapper/{config.mapper_name}"
+
+        with (
+            patch("red_night_app.persistence_executor.os.geteuid", return_value=0, create=True),
+            patch(
+                "red_night_app.persistence_executor.os.path.exists",
+                side_effect=lambda path: path in {config.device, mapper},
+            ),
+            patch(
+                "red_night_app.persistence_executor.subprocess.run",
+                return_value=type("Result", (), {"returncode": 1, "stdout": ""})(),
+            ),
+        ):
+            self.assertEqual(
+                inspect_persistence_state(config),
+                RedPersistenceState.LUKS2_OPEN,
+            )
+
+    def test_inspector_identifies_expected_mounted_workspace(self):
+        config = self.make_config()
+        mapper = f"/dev/mapper/{config.mapper_name}"
+
+        with (
+            patch("red_night_app.persistence_executor.os.geteuid", return_value=0, create=True),
+            patch("red_night_app.persistence_executor.os.path.exists", return_value=True),
+            patch("red_night_app.persistence_executor.os.path.realpath", side_effect=lambda value: value),
+            patch(
+                "red_night_app.persistence_executor.subprocess.run",
+                return_value=type(
+                    "Result",
+                    (),
+                    {"returncode": 0, "stdout": mapper + "\n"},
+                )(),
+            ),
+        ):
+            self.assertEqual(
+                inspect_persistence_state(config),
+                RedPersistenceState.MOUNTED,
+            )
+
+    def test_inspector_identifies_empty_uninitialized_target(self):
+        config = self.make_config()
+
+        responses = iter(
+            (
+                type("Result", (), {"returncode": 1, "stdout": ""})(),
+                type("Result", (), {"returncode": 1, "stdout": ""})(),
+                type("Result", (), {"returncode": 2, "stdout": ""})(),
+            )
+        )
+        with (
+            patch("red_night_app.persistence_executor.os.geteuid", return_value=0, create=True),
+            patch(
+                "red_night_app.persistence_executor.os.path.exists",
+                side_effect=lambda path: path == config.device,
+            ),
+            patch("red_night_app.persistence_executor.subprocess.run", side_effect=lambda *_a, **_k: next(responses)),
+        ):
+            self.assertEqual(
+                inspect_persistence_state(config),
+                RedPersistenceState.UNINITIALIZED,
+            )
+
+    def test_inspector_rejects_unexpected_existing_signature(self):
+        config = self.make_config()
+
+        responses = iter(
+            (
+                type("Result", (), {"returncode": 1, "stdout": ""})(),
+                type("Result", (), {"returncode": 1, "stdout": ""})(),
+                type("Result", (), {"returncode": 0, "stdout": ""})(),
+            )
+        )
+        with (
+            patch("red_night_app.persistence_executor.os.geteuid", return_value=0, create=True),
+            patch(
+                "red_night_app.persistence_executor.os.path.exists",
+                side_effect=lambda path: path == config.device,
+            ),
+            patch("red_night_app.persistence_executor.subprocess.run", side_effect=lambda *_a, **_k: next(responses)),
+        ):
+            with self.assertRaises(PersistenceExecutionError):
+                inspect_persistence_state(config)
+
+    def test_inspector_rejects_unexpected_mount_source(self):
+        config = self.make_config()
+        mapper = f"/dev/mapper/{config.mapper_name}"
+
+        with (
+            patch("red_night_app.persistence_executor.os.geteuid", return_value=0, create=True),
+            patch("red_night_app.persistence_executor.os.path.exists", return_value=True),
+            patch("red_night_app.persistence_executor.os.path.realpath", side_effect=lambda value: value),
+            patch(
+                "red_night_app.persistence_executor.subprocess.run",
+                return_value=type(
+                    "Result",
+                    (),
+                    {"returncode": 0, "stdout": "/dev/mapper/not-red-night\n"},
+                )(),
+            ),
+        ):
+            with self.assertRaises(PersistenceExecutionError):
+                inspect_persistence_state(config)
+
+    def test_inspector_requires_root(self):
+        with patch(
+            "red_night_app.persistence_executor.os.geteuid",
+            return_value=1000,
+            create=True,
+        ):
+            with self.assertRaises(PermissionError):
+                inspect_persistence_state(self.make_config())
 
     def test_provision_uses_fixed_order_and_secret_only_on_stdin(self):
         config = self.make_config()
