@@ -189,7 +189,7 @@ class WhiteLiveBuildTests(unittest.TestCase):
         self.assertIn("white_app=/usr/local/bin/white-night-app", start)
         self.assertIn('"$white_app" > "$output"', start)
         self.assertIn("WHITE_NIGHT_LIVE_AUTO_START_OK", start)
-        self.assertIn("ExecStart=/usr/local/sbin/white-night-live-app-start", service)
+        self.assertIn("ExecStart=/bin/sh /usr/local/sbin/white-night-live-app-start", service)
         self.assertIn("Requires=white-night-live-app.service", readiness_service)
         self.assertIn("After=local-fs.target white-night-live-app.service", readiness_service)
 
