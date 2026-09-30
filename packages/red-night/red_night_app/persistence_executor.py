@@ -17,6 +17,7 @@ from .persistence import (
     RedPersistenceAction,
     RedPersistenceConfig,
     RedPersistencePlan,
+    RedPersistenceState,
     RedPersistenceStep,
     plan_persistence_action,
 )
@@ -28,6 +29,7 @@ MOUNT = "/usr/bin/mount"
 UMOUNT = "/usr/bin/umount"
 INSTALL = "/usr/bin/install"
 BLKID = "/usr/sbin/blkid"
+FINDMNT = "/usr/bin/findmnt"
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,72 @@ def _default_uninitialized_probe(device: str) -> bool:
     if completed.returncode == 0:
         return False
     raise PersistenceExecutionError("unable to verify persistence target is empty")
+
+
+def inspect_persistence_state(config: RedPersistenceConfig) -> RedPersistenceState:
+    """Inspect only the explicitly configured persistence target."""
+
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is None or geteuid() != 0:
+        raise PermissionError("persistence state inspection requires root")
+
+    if not os.path.exists(config.device):
+        return RedPersistenceState.MISSING
+
+    mapper_device = f"/dev/mapper/{config.mapper_name}"
+    mapper_exists = os.path.exists(mapper_device)
+
+    mounted = subprocess.run(
+        [FINDMNT, "-rn", "-M", config.mount_point, "-o", "SOURCE"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if mounted.returncode == 0:
+        source = mounted.stdout.strip()
+        if not mapper_exists:
+            raise PersistenceExecutionError(
+                "workspace mountpoint is occupied without the expected mapper"
+            )
+        if not source:
+            raise PersistenceExecutionError(
+                "workspace mountpoint source could not be verified"
+            )
+        if os.path.realpath(source) != os.path.realpath(mapper_device):
+            raise PersistenceExecutionError(
+                "workspace mountpoint is occupied by an unexpected source"
+            )
+        return RedPersistenceState.MOUNTED
+    if mounted.returncode not in (1,):
+        raise PersistenceExecutionError("unable to inspect workspace mountpoint")
+
+    if mapper_exists:
+        return RedPersistenceState.LUKS2_OPEN
+
+    luks = subprocess.run(
+        [CRYPTSETUP, "isLuks", "--type", "luks2", config.device],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if luks.returncode == 0:
+        return RedPersistenceState.LUKS2_LOCKED
+    if luks.returncode not in (1,):
+        raise PersistenceExecutionError("unable to inspect LUKS2 state")
+
+    signature = subprocess.run(
+        [BLKID, "-p", config.device],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if signature.returncode == 2:
+        return RedPersistenceState.UNINITIALIZED
+    if signature.returncode == 0:
+        raise PersistenceExecutionError(
+            "persistence target has an unsupported existing signature"
+        )
+    raise PersistenceExecutionError("unable to inspect persistence target signature")
 
 
 def _validate_plan(
