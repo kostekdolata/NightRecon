@@ -103,6 +103,8 @@ class WhiteLiveBuildTests(unittest.TestCase):
         )
         self.assertIn("OVMF_CODE", smoke)
         self.assertIn("-nic none", smoke)
+        self.assertIn("sendkey ret", smoke)
+        self.assertIn("server=on,wait=off", smoke)
         self.assertIn("WHITE_NIGHT_LIVE_BOOT_OK", smoke)
         self.assertNotIn("-net user", smoke)
         self.assertNotIn("-nic user", smoke)
