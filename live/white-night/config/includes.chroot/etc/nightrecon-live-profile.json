@@ -1,12 +1,14 @@
 {
   "schema_version": 1,
   "night": "white",
-  "live_batch": 1,
+  "live_batch": 2,
   "architecture": "amd64",
   "boot": "uefi",
   "network_default": "offline-test",
   "host_disk_policy": "no-automatic-mount",
   "persistence": false,
+  "runtime": "isolated-venv",
+  "application_installed": true,
   "application_auto_launch": false,
   "authorization_effect": "none"
 }
