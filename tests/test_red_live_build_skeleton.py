@@ -16,10 +16,10 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
 
     def test_live_build_targets_trixie_amd64_uefi_hybrid_iso(self):
         config = self.read("auto/config")
-        self.assertIn("--architectures amd64", config)
+        self.assertIn("--architecture amd64", config)
         self.assertIn("--distribution trixie", config)
-        self.assertIn("--binary-images iso-hybrid", config)
-        self.assertIn('--bootloaders "grub-efi"', config)
+        self.assertIn("--binary-image iso-hybrid", config)
+        self.assertIn('--bootloaders "grub-efi"', config)\n        self.assertNotIn("--architectures ", config)\n        self.assertNotIn("--binary-images ", config)
         self.assertIn("console=ttyS0,115200n8", config)
 
     def test_image_stages_only_required_red_wheels(self):
