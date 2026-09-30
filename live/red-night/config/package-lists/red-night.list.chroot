@@ -7,3 +7,5 @@ ca-certificates
 iproute2
 iputils-ping
 network-manager
+cryptsetup
+e2fsprogs
