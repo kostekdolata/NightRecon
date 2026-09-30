@@ -16,6 +16,8 @@ if str(RED_APP_ROOT) not in sys.path:
     sys.path.insert(0, str(RED_APP_ROOT))
 
 from red_night_app.appliance import (  # noqa: E402
+    REQUIRED_OS_PRIVILEGE,
+    require_privileged_runtime,
     AUTHORIZATION_EFFECT,
     RedLiveSessionMode,
     main,
@@ -23,6 +25,20 @@ from red_night_app.appliance import (  # noqa: E402
     run_ephemeral_operator_session,
     session_decision,
 )
+
+
+class RedLivePrivilegeTests(unittest.TestCase):
+    def test_required_os_privilege_is_root(self):
+        self.assertEqual(REQUIRED_OS_PRIVILEGE, "root")
+
+    def test_privileged_runtime_accepts_root(self):
+        with unittest.mock.patch("red_night_app.appliance.os.geteuid", return_value=0):
+            require_privileged_runtime()
+
+    def test_privileged_runtime_rejects_non_root(self):
+        with unittest.mock.patch("red_night_app.appliance.os.geteuid", return_value=1000):
+            with self.assertRaises(PermissionError):
+                require_privileged_runtime()
 
 
 class RedLiveApplianceTests(unittest.TestCase):
