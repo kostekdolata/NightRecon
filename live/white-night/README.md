@@ -57,3 +57,12 @@ relying on an unsigned-GRUB path for the alpha boot smoke, but it is **not** a
 claim that White Night has completed Secure Boot acceptance. Secure Boot,
 hardware compatibility, key/signing policy, and recovery remain later
 production-hardening gates.
+
+## Headless CI boot selection
+
+The Live image keeps an interactive GRUB boot menu because later White Live
+batches will expose explicit Secure Workspace, Ephemeral Session, and Recovery
+modes there. The headless QEMU smoke therefore selects the default Live entry
+through QEMU's host-side monitor before waiting for the serial readiness marker.
+The VM still runs with `-nic none`; this CI input does not add guest networking
+or change the operator-visible image configuration.
