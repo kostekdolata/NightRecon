@@ -32,11 +32,15 @@ class RedLivePrivilegeTests(unittest.TestCase):
         self.assertEqual(REQUIRED_OS_PRIVILEGE, "root")
 
     def test_privileged_runtime_accepts_root(self):
-        with patch("red_night_app.appliance.os.geteuid", return_value=0):
+        with patch("red_night_app.appliance.require_platform_privilege") as guard:
             require_privileged_runtime()
+        guard.assert_called_once_with()
 
     def test_privileged_runtime_rejects_non_root(self):
-        with patch("red_night_app.appliance.os.geteuid", return_value=1000):
+        with patch(
+            "red_night_app.appliance.require_platform_privilege",
+            side_effect=PermissionError("privilege required"),
+        ):
             with self.assertRaises(PermissionError):
                 require_privileged_runtime()
 
@@ -114,7 +118,7 @@ class RedLiveApplianceTests(unittest.TestCase):
     def test_secure_mode_cli_refuses_when_persistence_is_not_mounted(self):
         with (
             patch("builtins.print"),
-            patch("red_night_app.appliance.os.geteuid", return_value=0),
+            patch("red_night_app.appliance.require_platform_privilege"),
         ):
             code = main(["--mode", "secure-workspace"])
         self.assertEqual(code, 3)
