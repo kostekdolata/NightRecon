@@ -7,8 +7,6 @@ ConditionPathExists=/usr/local/bin/red-night-appliance
 
 [Service]
 Type=simple
-User=red-night-appliance
-Group=red-night-appliance
 ExecStart=/usr/local/bin/red-night-appliance
 Restart=always
 RestartSec=1
@@ -16,6 +14,7 @@ RuntimeDirectory=red-night
 RuntimeDirectoryMode=0700
 Environment=HOME=/run/red-night
 Environment=NIGHTRECON_EPHEMERAL_ROOT=/run/red-night
+Environment=NIGHTRECON_OS_PRIVILEGE=required
 TTYPath=/dev/tty1
 StandardInput=tty-force
 StandardOutput=tty
