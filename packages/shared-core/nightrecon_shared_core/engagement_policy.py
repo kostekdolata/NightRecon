@@ -17,6 +17,7 @@ from nightrecon_shared_core.authorization import Scope, parse_target
 _POLICY_SCHEMA_VERSION = 1
 _AUDIT_SCHEMA_VERSION = 1
 _VALID_IMPACTS = frozenset({"low", "standard", "high"})
+_IMPACT_RANK = {"low": 0, "standard": 1, "high": 2}
 _CAPABILITY_PATTERN = re.compile(r"^[a-z][a-z0-9_.-]{0,63}$")
 
 
@@ -60,6 +61,7 @@ class EngagementExecutionPolicy:
     valid_until: str
     max_actions: int
     permitted_capabilities: tuple[str, ...]
+    max_impact: str = "high"
     approval_required_capabilities: tuple[str, ...] = ()
     revoked: bool = False
     actions_used: int = 0
@@ -83,6 +85,8 @@ class EngagementExecutionPolicy:
         if self.actions_used < 0 or self.actions_used > self.max_actions:
             raise ValueError("actions_used must be between zero and max_actions")
         permitted = _capabilities(self.permitted_capabilities, "permitted_capabilities")
+        if self.max_impact not in _VALID_IMPACTS:
+            raise ValueError("max_impact must be low, standard, or high")
         required = tuple(sorted(self.approval_required_capabilities))
         if len(required) != len(set(required)):
             raise ValueError("approval_required_capabilities must not contain duplicates")
@@ -100,12 +104,13 @@ class EngagementExecutionPolicy:
     def from_dict(cls, payload: Mapping[str, Any]) -> "EngagementExecutionPolicy":
         if not isinstance(payload, Mapping):
             raise ValueError("engagement execution policy must be an object")
-        required = {
+        legacy_required = {
             "schema_version", "engagement_id", "scope", "valid_from", "valid_until",
             "max_actions", "permitted_capabilities", "approval_required_capabilities",
             "revoked", "actions_used",
         }
-        if set(payload) != required:
+        current_required = legacy_required | {"max_impact"}
+        if set(payload) not in (legacy_required, current_required):
             raise ValueError("engagement execution policy schema is not supported")
         return cls(
             schema_version=payload["schema_version"],
@@ -115,6 +120,7 @@ class EngagementExecutionPolicy:
             valid_until=payload["valid_until"],
             max_actions=payload["max_actions"],
             permitted_capabilities=tuple(payload["permitted_capabilities"]),
+            max_impact=payload.get("max_impact", "high"),
             approval_required_capabilities=tuple(payload["approval_required_capabilities"]),
             revoked=payload["revoked"],
             actions_used=payload["actions_used"],
@@ -170,6 +176,8 @@ def evaluate_action(
         allowed, reason_code, reason = False, "authorization_expired", "authorization validity window has expired"
     elif capability not in policy.permitted_capabilities:
         allowed, reason_code, reason = False, "capability_not_permitted", "capability is not permitted by the engagement policy"
+    elif _IMPACT_RANK[impact] > _IMPACT_RANK[policy.max_impact]:
+        allowed, reason_code, reason = False, "impact_exceeds_policy", "action impact exceeds the engagement policy ceiling"
     elif not Scope.from_values(list(policy.scope)).is_authorized(target_obj):
         allowed, reason_code, reason = False, "target_out_of_scope", "target is outside the engagement scope"
     elif policy.actions_used >= policy.max_actions:
