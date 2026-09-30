@@ -31,6 +31,7 @@ from red_night_app.persistence_executor import (  # noqa: E402
     PersistenceExecutionError,
     provision_workspace,
     safe_close_workspace,
+    unlock_workspace,
 )
 
 
