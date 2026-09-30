@@ -5,6 +5,8 @@ wheel_dir=/opt/nightrecon/wheels
 venv_dir=/opt/nightrecon/venv
 python="$venv_dir/bin/python"
 white_app="$venv_dir/bin/white-night-app"
+mode_state=/run/white-night-live-mode.json
+output=/run/white-night-live-app-start.txt
 
 require_one() {
     pattern=$1
@@ -15,6 +17,14 @@ require_one() {
     fi
 }
 
+emit_marker() {
+    marker=$1
+    printf '%s\n' "$marker"
+    if [ -w /dev/ttyS0 ]; then
+        printf '%s\n' "$marker" > /dev/ttyS0
+    fi
+}
+
 require_one 'nightrecon_shared_core-0.43.0-*.whl'
 require_one 'nightrecon_white_engine-0.1.0a6-*.whl'
 require_one 'nightrecon_white_night-0.1.0a6-*.whl'
@@ -22,8 +32,7 @@ require_one 'nightrecon_white_night-0.1.0a6-*.whl'
 test -x "$python"
 test -x "$white_app"
 test -L /usr/local/bin/white-night-app
-test -s /run/white-night-live-app-start.txt
-grep -Fq "White Night command boundary" /run/white-night-live-app-start.txt
+test -s "$mode_state"
 
 "$python" - <<'PY'
 import importlib.metadata as metadata
@@ -35,22 +44,46 @@ assert metadata.version("nightrecon-white-night") == "0.1.0a6"
 assert importlib.util.find_spec("nightrecon_red_engine") is None
 PY
 
-editions=/run/white-night-live-editions.json
-"$white_app" editions --json > "$editions"
+mode=$("$python" - "$mode_state" <<'PY'
+import json
+import sys
 
-"$python" - "$editions" <<'PY'
+with open(sys.argv[1], encoding="utf-8") as handle:
+    state = json.load(handle)
+print(state["mode"])
+PY
+)
+
+case "$mode" in
+    ephemeral)
+        test -s "$output"
+        grep -Fq "White Night command boundary" "$output"
+
+        editions=/run/white-night-live-editions.json
+        "$white_app" editions --json > "$editions"
+        "$python" - "$editions" <<'PY'
 import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as handle:
     catalog = json.load(handle)
-
 white = next(item for item in catalog if item["name"] == "White Night")
 assert white["name"] == "White Night"
 PY
-
-marker=WHITE_NIGHT_LIVE_APP_OK
-printf '%s\n' "$marker"
-if [ -w /dev/ttyS0 ]; then
-    printf '%s\n' "$marker" > /dev/ttyS0
-fi
+        emit_marker WHITE_NIGHT_LIVE_MODE_OK=ephemeral
+        emit_marker WHITE_NIGHT_LIVE_APP_OK
+        ;;
+    recovery)
+        test ! -e "$output"
+        emit_marker WHITE_NIGHT_LIVE_MODE_OK=recovery
+        emit_marker WHITE_NIGHT_LIVE_RECOVERY_OK
+        ;;
+    secure-workspace)
+        echo "White Night Live Secure Workspace is blocked until encrypted persistence is configured." >&2
+        exit 78
+        ;;
+    *)
+        echo "Unsupported White Night Live mode state: $mode" >&2
+        exit 64
+        ;;
+esac

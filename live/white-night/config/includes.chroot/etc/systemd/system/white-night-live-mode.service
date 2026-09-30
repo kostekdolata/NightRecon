@@ -1,0 +1,12 @@
+[Unit]
+Description=White Night Live boot-mode selection
+After=local-fs.target
+Before=white-night-live-app.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/nightrecon/venv/bin/python /usr/local/sbin/white-night-live-mode-select
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,14 +1,23 @@
 {
   "schema_version": 1,
   "night": "white",
-  "live_batch": 2,
+  "live_batch": 3,
   "architecture": "amd64",
   "boot": "uefi",
   "network_default": "offline-test",
   "host_disk_policy": "no-automatic-mount",
   "persistence": false,
+  "encrypted_persistence_configured": false,
   "runtime": "isolated-venv",
   "application_installed": true,
   "application_auto_launch": true,
+  "application_auto_launch_policy": "mode-dependent",
+  "default_boot_mode": "ephemeral",
+  "supported_boot_modes": [
+    "secure-workspace",
+    "ephemeral",
+    "recovery"
+  ],
+  "secure_workspace_ready": false,
   "authorization_effect": "none"
 }

@@ -12,6 +12,7 @@ on:
       - "packages/white-engine/**"
       - "packages/white-night/**"
       - "tests/test_white_live_build.py"
+      - "tests/test_white_live_modes.py"
       - "tests/white_live_vm_smoke.sh"
   pull_request:
     branches:
@@ -36,7 +37,7 @@ jobs:
   live-image:
     name: Debian trixie x86-64 UEFI VM smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
 
     steps:
       - name: Check out repository
@@ -98,9 +99,26 @@ jobs:
             ovmf \
             qemu-system-x86
 
-      - name: Boot image with QEMU and OVMF
+      - name: Boot Ephemeral mode with QEMU and OVMF
         env:
           WHITE_LIVE_VM_TIMEOUT: "240"
         run: |
           ./tests/white_live_vm_smoke.sh \
-            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso
+            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso \
+            ephemeral
+
+      - name: Boot Recovery mode with QEMU and OVMF
+        env:
+          WHITE_LIVE_VM_TIMEOUT: "240"
+        run: |
+          ./tests/white_live_vm_smoke.sh \
+            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso \
+            recovery
+
+      - name: Verify Secure Workspace fails closed with QEMU and OVMF
+        env:
+          WHITE_LIVE_VM_TIMEOUT: "240"
+        run: |
+          ./tests/white_live_vm_smoke.sh \
+            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso \
+            secure-workspace

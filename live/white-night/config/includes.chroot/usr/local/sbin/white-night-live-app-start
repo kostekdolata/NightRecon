@@ -1,18 +1,52 @@
 #!/bin/sh
 set -eu
 
+python=/opt/nightrecon/venv/bin/python
 white_app=/usr/local/bin/white-night-app
+mode_state=/run/white-night-live-mode.json
 output=/run/white-night-live-app-start.txt
-marker=WHITE_NIGHT_LIVE_AUTO_START_OK
 
+test -x "$python"
 test -x "$white_app"
+test -s "$mode_state"
 
-"$white_app" > "$output"
+mode=$("$python" - "$mode_state" <<'PY'
+import json
+import sys
 
-grep -Fq "White Night command boundary" "$output"
-grep -Fq "foundation capabilities:" "$output"
+with open(sys.argv[1], encoding="utf-8") as handle:
+    state = json.load(handle)
+print(state["mode"])
+PY
+)
 
-printf '%s\n' "$marker"
-if [ -w /dev/ttyS0 ]; then
-    printf '%s\n' "$marker" > /dev/ttyS0
-fi
+emit_marker() {
+    marker=$1
+    printf '%s\n' "$marker"
+    if [ -w /dev/ttyS0 ]; then
+        printf '%s\n' "$marker" > /dev/ttyS0
+    fi
+}
+
+case "$mode" in
+    ephemeral)
+        "$white_app" > "$output"
+        grep -Fq "White Night command boundary" "$output"
+        grep -Fq "foundation capabilities:" "$output"
+        emit_marker WHITE_NIGHT_LIVE_AUTO_START_OK
+        ;;
+    recovery)
+        rm -f "$output"
+        emit_marker WHITE_NIGHT_LIVE_RECOVERY_READY
+        ;;
+    secure-workspace)
+        rm -f "$output"
+        emit_marker WHITE_NIGHT_LIVE_SECURE_WORKSPACE_BLOCKED
+        echo "Encrypted persistence is not configured in this Batch 3 slice." >&2
+        exit 78
+        ;;
+    *)
+        echo "Unsupported White Night Live mode state: $mode" >&2
+        exit 64
+        ;;
+esac

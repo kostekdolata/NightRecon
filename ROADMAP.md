@@ -568,7 +568,7 @@ Locked rules:
 - no deployment profile weakens scope, authorization, approval, budget,
   revocation, evidence, cleanup, or worker-isolation controls.
 
-Batch 1 — Deployment Architecture Contracts (completed):
+Batch 1 — Deployment Architecture Contracts:
 
 - immutable Red deployment-profile metadata for standalone, composed, and
   Live USB modes;
@@ -579,24 +579,11 @@ Batch 1 — Deployment Architecture Contracts (completed):
 - unit + installed-wheel regression coverage proving no cross-Night runtime
   dependency.
 
-Completed v0.44 deployment batches:
+Planned follow-on v0.44 batches:
 
-- Batch 1: deployment architecture contracts;
-- Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke, merged
-  after exact-head PR CI and 40/40 post-merge master verification;
-- Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes, merged
-  after exact-head 40/40 PR CI and 40/40 post-merge master verification.
-
-Active v0.44 follow-on:
-
-- Batch 4: encrypted persistence. First slice defines the fail-closed LUKS2
-  state machine, explicit stable partition selection, destructive-confirmation
-  requirement, Secure Workspace readiness, and safe-close ordering without
-  executing cryptsetup/mkfs/mount operations.
-
-Planned later v0.44 batches:
-- Batch 4 continuation: privileged LUKS2 execution, engagement persistence
-  across reboot, ephemeral-state verification, and safe shutdown/removal;
+- Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke;
+- Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes;
+- Batch 4: LUKS2 persistent workspace + reboot/ephemeral-state verification;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
 - Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
   Secure Boot target, hardware compatibility and endurance testing.
@@ -709,12 +696,18 @@ artifacts staged into the immutable filesystem, checksum verification, retained
 ISO artifact, and an offline QEMU/OVMF userspace boot marker all pass while the
 complete NightRecon CI remains green.
 
-Live Batch 2 is now active on `v0.1.0-white-live-batch2-dev`: install those exact built White
-artifacts inside the immutable image and prove the booted system can execute the
-packaged White application boundary before adding appliance-style auto-start.
-Persistence, Secure Workspace/Ephemeral/Recovery behavior, LUKS2, host-storage
-workflows, Red composition, Secure Boot acceptance, and production hardening
-remain later verified slices.
+Live Batch 2 is active on `v0.1.0-white-live-batch2-dev`: install the exact
+built White artifacts inside the immutable image, prove the booted system can
+execute the packaged White application boundary, and verify automatic
+nonpersistent application startup.
+
+The next isolated child slice,
+`v0.1.0-white-live-batch3-modes-dev`, establishes the fail-closed
+Secure Workspace / Ephemeral / Recovery runtime contract. Ephemeral is the safe
+default, Recovery suppresses operator-app auto-launch, and Secure Workspace is
+recognized but remains blocked until LUKS2 encrypted persistence is delivered.
+Host-storage workflows, Red composition, Secure Boot acceptance, and production
+hardening remain later verified slices.
 
 ### White Batches 8-12
 

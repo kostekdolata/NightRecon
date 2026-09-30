@@ -1,16 +1,41 @@
 #!/bin/sh
 set -eu
 
-marker=WHITE_NIGHT_LIVE_APP_OK
-auto_marker=WHITE_NIGHT_LIVE_AUTO_START_OK
 timeout_seconds=${WHITE_LIVE_VM_TIMEOUT:-240}
 
-if [ "$#" -ne 1 ]; then
-    echo "usage: $0 <WhiteNight-Live-*.iso>" >&2
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+    echo "usage: $0 <WhiteNight-Live-*.iso> [ephemeral|recovery|secure-workspace]" >&2
     exit 2
 fi
 
 iso=$1
+mode=${2:-ephemeral}
+
+case "$mode" in
+    ephemeral)
+        menu_down=0
+        expected_one=WHITE_NIGHT_LIVE_MODE_OK=ephemeral
+        expected_two=WHITE_NIGHT_LIVE_AUTO_START_OK
+        expected_three=WHITE_NIGHT_LIVE_APP_OK
+        ;;
+    recovery)
+        menu_down=1
+        expected_one=WHITE_NIGHT_LIVE_MODE_OK=recovery
+        expected_two=WHITE_NIGHT_LIVE_RECOVERY_READY
+        expected_three=WHITE_NIGHT_LIVE_RECOVERY_OK
+        ;;
+    secure-workspace)
+        menu_down=2
+        expected_one=WHITE_NIGHT_LIVE_MODE=secure-workspace
+        expected_two=WHITE_NIGHT_LIVE_SECURE_WORKSPACE_BLOCKED
+        expected_three=
+        ;;
+    *)
+        echo "unsupported White Night Live VM mode: $mode" >&2
+        exit 2
+        ;;
+esac
+
 if [ ! -f "$iso" ]; then
     echo "ISO image not found: $iso" >&2
     exit 2
@@ -73,17 +98,20 @@ qemu-system-x86_64 \
     >"$log" 2>&1 &
 pid=$!
 
-# Debian Live presents an interactive GRUB entry before the kernel starts.
-# CI is headless, so select the default Live entry through QEMU's host-side
-# monitor. The guest still has no NIC and the image itself keeps its normal
-# interactive boot menu for real operators.
-python3 - "$monitor" <<'PY'
+# Wait until the White Night GRUB menu is visible, then select by position.
+# Positional arrow-key selection avoids collisions with GRUB's built-in edit
+# shortcuts (notably the "e" key).
+python3 - "$monitor" "$log" "$menu_down" <<'PY'
+import os
 import socket
 import sys
 import time
 
 path = sys.argv[1]
-for _ in range(40):
+log_path = sys.argv[2]
+down_count = int(sys.argv[3])
+
+for _ in range(80):
     try:
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         client.connect(path)
@@ -93,24 +121,44 @@ for _ in range(40):
 else:
     raise SystemExit("QEMU monitor socket did not become ready")
 
+menu_text = "White Night — Ephemeral Session"
+for _ in range(120):
+    try:
+        if menu_text in open(log_path, encoding="utf-8", errors="ignore").read():
+            break
+    except FileNotFoundError:
+        pass
+    time.sleep(0.25)
+else:
+    raise SystemExit("White Night GRUB menu did not become visible")
+
 with client:
-    for _ in range(5):
-        time.sleep(2)
-        client.sendall(b"sendkey ret\n")
+    time.sleep(0.3)
+    for _ in range(down_count):
+        client.sendall(b"sendkey down\n")
+        time.sleep(0.35)
+    # Give GRUB time to commit the highlighted entry before Enter. Without
+    # this pause the serial UI can visibly move while the following Enter is
+    # still lost by the firmware/GRUB input transition.
+    time.sleep(0.75)
+    client.sendall(b"sendkey ret\n")
+    time.sleep(0.5)
 PY
 
 elapsed=0
 while [ "$elapsed" -lt "$timeout_seconds" ]; do
-    if grep -Fq "$marker" "$log" && grep -Fq "$auto_marker" "$log"; then
-        printf 'White Night Live UEFI VM smoke: passed (%s, %s)\n' "$auto_marker" "$marker"
-        exit 0
+    if grep -Fq "$expected_one" "$log" && grep -Fq "$expected_two" "$log"; then
+        if [ -z "$expected_three" ] || grep -Fq "$expected_three" "$log"; then
+            printf 'White Night Live UEFI VM smoke: passed mode=%s\n' "$mode"
+            exit 0
+        fi
     fi
 
     if ! kill -0 "$pid" 2>/dev/null; then
         wait "$pid" 2>/dev/null || true
         pid=
-        echo "White Night Live VM exited before readiness marker." >&2
-        tail -n 120 "$log" >&2 || true
+        echo "White Night Live VM exited before expected mode markers ($mode)." >&2
+        tail -n 160 "$log" >&2 || true
         exit 1
     fi
 
@@ -118,6 +166,6 @@ while [ "$elapsed" -lt "$timeout_seconds" ]; do
     elapsed=$((elapsed + 1))
 done
 
-echo "White Night Live VM did not emit readiness marker within ${timeout_seconds}s." >&2
-tail -n 120 "$log" >&2 || true
+echo "White Night Live VM did not emit expected mode markers within ${timeout_seconds}s ($mode)." >&2
+tail -n 160 "$log" >&2 || true
 exit 1
