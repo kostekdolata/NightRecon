@@ -48,3 +48,12 @@ A passing smoke test observes `WHITE_NIGHT_LIVE_BOOT_OK` on the serial
 console. That marker means the immutable image booted and the expected wheel
 artifacts were present. It does not mean later White Live acceptance gates have
 passed.
+
+## UEFI signing note
+
+Batch 1 uses Debian live-build's automatic UEFI Secure Boot mode so the builder
+may use Debian's signed GRUB/shim artifacts when they are available. This avoids
+relying on an unsigned-GRUB path for the alpha boot smoke, but it is **not** a
+claim that White Night has completed Secure Boot acceptance. Secure Boot,
+hardware compatibility, key/signing policy, and recovery remain later
+production-hardening gates.
