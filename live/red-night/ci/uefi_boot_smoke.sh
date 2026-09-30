@@ -21,31 +21,35 @@ command -v timeout >/dev/null 2>&1 || {
     exit 2
 }
 
-OVMF=
-for candidate in \
-    /usr/share/OVMF/OVMF_CODE_4M.fd \
-    /usr/share/OVMF/OVMF_CODE.fd
-do
-    if [ -f "$candidate" ]; then
-        OVMF="$candidate"
-        break
-    fi
-done
+OVMF_CODE=
+OVMF_VARS_TEMPLATE=
 
-[ -n "$OVMF" ] || {
-    echo "OVMF UEFI firmware was not found" >&2
+if [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] &&
+   [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
+    OVMF_CODE=/usr/share/OVMF/OVMF_CODE_4M.fd
+    OVMF_VARS_TEMPLATE=/usr/share/OVMF/OVMF_VARS_4M.fd
+elif [ -f /usr/share/OVMF/OVMF_CODE.fd ] &&
+     [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
+    OVMF_CODE=/usr/share/OVMF/OVMF_CODE.fd
+    OVMF_VARS_TEMPLATE=/usr/share/OVMF/OVMF_VARS.fd
+else
+    echo "matching OVMF UEFI CODE/VARS firmware was not found" >&2
     exit 2
-}
+fi
 
-LOG=$(mktemp)
-trap 'rm -f "$LOG"' EXIT INT TERM
+WORK_DIR=$(mktemp -d)
+LOG="$WORK_DIR/serial.log"
+OVMF_VARS="$WORK_DIR/OVMF_VARS.fd"
+cp "$OVMF_VARS_TEMPLATE" "$OVMF_VARS"
+trap 'rm -rf "$WORK_DIR"' EXIT INT TERM
 
 set +e
 timeout 240s qemu-system-x86_64 \
     -machine q35,accel=tcg \
     -m 1536 \
     -smp 2 \
-    -bios "$OVMF" \
+    -drive "if=pflash,format=raw,unit=0,readonly=on,file=$OVMF_CODE" \
+    -drive "if=pflash,format=raw,unit=1,file=$OVMF_VARS" \
     -cdrom "$ISO" \
     -boot d \
     -display none \
