@@ -18,6 +18,7 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             "auto/clean",
             "config/package-lists/red-night.list.chroot",
             "config/hooks/live/0100-install-red-night.hook.chroot",
+            "config/hooks/live/0900-serial-grub.hook.binary",
             "config/includes.chroot/etc/systemd/system/red-night-live-smoke.service",
             "config/includes.chroot/usr/local/sbin/red-night-live-boot-smoke",
             "build.sh",
@@ -41,6 +42,18 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
         ):
             self.assertIn(required, config)
         self.assertNotIn("persistence", config.lower())
+
+    def test_headless_uefi_grub_is_serial_and_noninteractive(self):
+        grub_hook = (
+            LIVE / "config" / "hooks" / "live" /
+            "0900-serial-grub.hook.binary"
+        ).read_text(encoding="utf-8")
+        self.assertIn("set timeout=0", grub_hook)
+        self.assertIn("terminal_input serial", grub_hook)
+        self.assertIn("terminal_output serial", grub_hook)
+        self.assertIn("linux /live/vmlinuz", grub_hook)
+        self.assertIn("initrd /live/initrd.img", grub_hook)
+        self.assertIn("console=ttyS0,115200n8", grub_hook)
 
     def test_image_installs_built_red_wheels_offline(self):
         build = (LIVE / "build.sh").read_text(encoding="utf-8")

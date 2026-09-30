@@ -20,7 +20,7 @@ directly into the runtime.
 Batch 2 intentionally provides:
 
 - Debian Trixie amd64 base;
-- GRUB EFI boot path;
+- GRUB EFI boot path with a deterministic serial-console, zero-timeout Live entry;
 - ISO-hybrid output;
 - Secure Boot disabled for the development gate;
 - immutable Live root filesystem;
@@ -90,3 +90,11 @@ validating the installed Red deployment contract and launching
 
 The VM is started with no virtual NIC for this boot gate; boot success therefore
 does not depend on network access or authorize any assessment activity.
+
+
+### Headless UEFI boot behavior
+
+The binary-stage hook rewrites the generated GRUB configuration to a single
+non-interactive Red Night Live entry, routes GRUB to COM1 at 115200 baud, and
+sets `timeout=0`. This is required so the UEFI VM gate proves the kernel boot
+path without relying on an invisible graphical GRUB menu.
