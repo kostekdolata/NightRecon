@@ -7,7 +7,7 @@ lb config noauto \
     --architecture amd64 \
     --binary-image iso-hybrid \
     --bootloaders grub-efi \
-    --uefi-secure-boot disable \
+    --uefi-secure-boot auto \
     --debian-installer none \
     --archive-areas main \
     --apt-recommends false \
