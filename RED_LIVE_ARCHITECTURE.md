@@ -324,15 +324,27 @@ Batch 4 slice 2 in active development:
   Ephemeral non-modification, wrong-secret failure, and cleanup without touching
   a physical host disk.
 
+Batch 4 Secure Workspace integration in active development:
+
+- Secure Workspace requires an explicit stable persistence partition selector;
+- the selected target alone is inspected as missing, uninitialized, locked
+  LUKS2, open LUKS2, or mounted;
+- no disk enumeration, guessing, or automatic first-use provisioning occurs;
+- locked LUKS2 workspaces prompt for a passphrase without echo, then unlock and
+  mount through the guarded canonical persistence executor;
+- Red commands run with the encrypted mountpoint as their persistent workspace;
+- session-owned mounts/mappings are cleaned up in ownership-safe order;
+- pre-mounted workspaces are not unmounted by a session that did not create the
+  mount;
+- pre-opened mappings mounted by the session are unmounted but not closed;
+- disposable file-backed LUKS2 CI exercises the actual Secure Workspace path.
+
 Remaining Batch 4 gates:
 
-- connect Secure Workspace selection directly to the privileged persistence
-  executor while preserving canonical-plan, scope, approval, revocation, and
-  destructive-operation controls;
-- LUKS2 persistent workspace;
+- explicit first-use provisioning UX remains a separate destructive workflow;
 - create/reopen a Red engagement across reboot;
-- prove ephemeral mode leaves no engagement state;
-- safe shutdown/removal flow.
+- prove Ephemeral mode leaves no engagement state;
+- safe shutdown/removal and interruption recovery flow.
 
 ### Batch 5 — composition
 
