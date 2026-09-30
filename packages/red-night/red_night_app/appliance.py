@@ -25,9 +25,11 @@ from typing import Callable, Sequence
 
 from .deployment import validate_red_deployment_contract
 from .persistence import RedPersistenceState, secure_workspace_ready
+from .privilege import require_platform_privilege
 
 
 AUTHORIZATION_EFFECT = "none"
+REQUIRED_OS_PRIVILEGE = "root"
 
 
 class RedLiveSessionMode(str, Enum):
@@ -187,6 +189,12 @@ def run_recovery_integrity_check(
     return 0
 
 
+def require_privileged_runtime() -> None:
+    """Fail closed if the Live appliance lacks required platform privilege."""
+
+    require_platform_privilege()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="red-night-appliance",
@@ -219,6 +227,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.dry_run:
         print(json.dumps(decision.to_dict(), sort_keys=True))
         return 0
+
+    require_privileged_runtime()
 
     if mode is RedLiveSessionMode.SECURE_WORKSPACE:
         print("Secure Workspace is not available yet.")

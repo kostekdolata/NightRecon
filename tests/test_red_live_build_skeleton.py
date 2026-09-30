@@ -81,7 +81,7 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
         self.assertIn("validate_red_deployment_contract", marker)
         self.assertIn("no-automatic-mount", marker)
 
-    def test_batch_three_appliance_service_is_explicit_and_non_root(self):
+    def test_red_live_appliance_runs_with_required_os_privilege(self):
         install_hook = self.read(
             "config/hooks/live/010-install-red-night.hook.chroot"
         )
@@ -101,8 +101,13 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             "systemctl enable red-night-live-appliance.service",
             enable_hook,
         )
-        self.assertIn("User=red-night-appliance", service)
-        self.assertIn("Group=red-night-appliance", service)
+        # systemd services run as root by default when User=/Group= are absent.
+        self.assertNotIn("User=", service)
+        self.assertNotIn("Group=", service)
+        self.assertIn(
+            "Environment=NIGHTRECON_OS_PRIVILEGE=required",
+            service,
+        )
         self.assertIn("TTYPath=/dev/tty1", service)
         self.assertIn("StandardInput=tty-force", service)
         self.assertIn("RuntimeDirectory=red-night", service)
@@ -110,14 +115,12 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             "Environment=NIGHTRECON_EPHEMERAL_ROOT=/run/red-night",
             service,
         )
-        self.assertNotIn("User=root", service)
-        sysusers = self.read(
-            "config/includes.chroot/usr/lib/sysusers.d/red-night-live.conf"
+        self.assertNotIn("systemd-sysusers", install_hook)
+        self.assertNotIn("getent passwd red-night-appliance", install_hook)
+        self.assertFalse(
+            (LIVE_ROOT / "config/includes.chroot/usr/lib/sysusers.d/"
+             "red-night-live.conf").exists()
         )
-        self.assertIn("red-night-appliance", sysusers)
-        self.assertIn("/usr/sbin/nologin", sysusers)
-        self.assertIn("systemd-sysusers", install_hook)
-        self.assertIn("getent passwd red-night-appliance", install_hook)
         boot_unit = self.read(
             "config/includes.chroot/etc/systemd/system/"
             "red-night-live-boot-smoke.service"
@@ -127,7 +130,14 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             boot_unit,
         )
         self.assertIn("Wants=red-night-live-appliance.service", boot_unit)
-        self.assertIn("systemctl is-active --quiet red-night-live-appliance.service", marker)
+        self.assertIn(
+            "systemctl is-active --quiet red-night-live-appliance.service",
+            marker,
+        )
+        self.assertIn("RED_NIGHT_LIVE_CHECK:appliance-root", marker)
+        self.assertIn("systemctl show -p MainPID", marker)
+        self.assertIn("/proc/$main_pid/status", marker)
+        self.assertIn('"$uid_line" = "0"', marker)
         for mode in (
             "secure-workspace",
             "ephemeral-session",
@@ -136,6 +146,7 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             self.assertIn(f'check_mode "{mode}"', marker)
         self.assertIn('"$APPLIANCE" --mode "$mode" --dry-run', marker)
         self.assertIn("authorization_effect", marker)
+
 
     def test_live_package_list_contains_only_base_appliance_dependencies(self):
         packages = {

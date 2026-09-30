@@ -16,6 +16,8 @@ if str(RED_APP_ROOT) not in sys.path:
     sys.path.insert(0, str(RED_APP_ROOT))
 
 from red_night_app.appliance import (  # noqa: E402
+    REQUIRED_OS_PRIVILEGE,
+    require_privileged_runtime,
     AUTHORIZATION_EFFECT,
     RedLiveSessionMode,
     main,
@@ -23,6 +25,24 @@ from red_night_app.appliance import (  # noqa: E402
     run_ephemeral_operator_session,
     session_decision,
 )
+
+
+class RedLivePrivilegeTests(unittest.TestCase):
+    def test_required_os_privilege_is_root(self):
+        self.assertEqual(REQUIRED_OS_PRIVILEGE, "root")
+
+    def test_privileged_runtime_accepts_root(self):
+        with patch("red_night_app.appliance.require_platform_privilege") as guard:
+            require_privileged_runtime()
+        guard.assert_called_once_with()
+
+    def test_privileged_runtime_rejects_non_root(self):
+        with patch(
+            "red_night_app.appliance.require_platform_privilege",
+            side_effect=PermissionError("privilege required"),
+        ):
+            with self.assertRaises(PermissionError):
+                require_privileged_runtime()
 
 
 class RedLiveApplianceTests(unittest.TestCase):
@@ -95,8 +115,11 @@ class RedLiveApplianceTests(unittest.TestCase):
         self.assertFalse(payload["persistent_workspace"])
         self.assertEqual(payload["authorization_effect"], "none")
 
-    def test_secure_mode_cli_refuses_to_start_before_batch_four(self):
-        with patch("builtins.print"):
+    def test_secure_mode_cli_refuses_when_persistence_is_not_mounted(self):
+        with (
+            patch("builtins.print"),
+            patch("red_night_app.appliance.require_platform_privilege"),
+        ):
             code = main(["--mode", "secure-workspace"])
         self.assertEqual(code, 3)
 

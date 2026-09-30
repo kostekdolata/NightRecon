@@ -51,6 +51,7 @@ class RedDeploymentProfile:
     bootable_media: bool
     host_disk_policy: str = "no-automatic-mount"
     dependency_rule: str = "red-app->red-engine->shared-core"
+    os_privilege_policy: str = "required-platform-privileged"
 
     def __post_init__(self) -> None:
         if self.required_distributions != RED_REQUIRED_DISTRIBUTIONS:
@@ -71,6 +72,8 @@ class RedDeploymentProfile:
             raise ValueError("Red dependency direction is fixed")
         if not self.offline_capable:
             raise ValueError("Red deployment profiles must not require Internet access")
+        if self.os_privilege_policy != "required-platform-privileged":
+            raise ValueError("every Red deployment profile must require privileged OS execution")
         if self.mode is RedDeploymentMode.LIVE_USB and not self.bootable_media:
             raise ValueError("live-usb profile must be bootable media")
         if self.mode is not RedDeploymentMode.LIVE_USB and self.bootable_media:
@@ -86,6 +89,7 @@ class RedDeploymentProfile:
             "bootable_media": self.bootable_media,
             "host_disk_policy": self.host_disk_policy,
             "dependency_rule": self.dependency_rule,
+            "os_privilege_policy": self.os_privilege_policy,
         }
 
 
@@ -154,6 +158,11 @@ def validate_red_deployment_contract() -> None:
         raise ValueError("standalone Red must not require peer Nights")
     if RED_LIVE_USB_PROFILE.optional_peer_nights:
         raise ValueError("Red-only Live USB must not require peer Nights")
+    if any(
+        item.os_privilege_policy != "required-platform-privileged"
+        for item in RED_DEPLOYMENT_PROFILES
+    ):
+        raise ValueError("Red OS privilege policy has drifted across deployment modes")
 
 
 validate_red_deployment_contract()

@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,44 @@ def check(*args: str, cwd: Path, env: dict[str, str] | None = None) -> str:
     return completed.stdout
 
 
+def privileged_args(*args: str) -> tuple[str, ...]:
+    if os.name == "nt":
+        return tuple(args)
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is not None and geteuid() == 0:
+        return tuple(args)
+    sudo = shutil.which("sudo")
+    if sudo is None:
+        raise AssertionError("Red distribution smoke requires sudo for privileged launch")
+    return (sudo, "--", *args)
+
+
+def check_privileged(
+    *args: str,
+    cwd: Path,
+    env: dict[str, str] | None = None,
+) -> str:
+    return check(*privileged_args(*args), cwd=cwd, env=env)
+
+
+def restore_test_ownership(path: Path) -> None:
+    if os.name == "nt":
+        return
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is None or geteuid() == 0:
+        return
+    sudo = shutil.which("sudo")
+    if sudo is None:
+        raise AssertionError("Red distribution smoke requires sudo to restore test ownership")
+    subprocess.run(
+        (sudo, "--", "chown", "-R", f"{os.getuid()}:{os.getgid()}", str(path)),
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
 def scripts(directory: Path) -> tuple[Path, Path]:
     bin_dir = directory / ("Scripts" if os.name == "nt" else "bin")
     return bin_dir, bin_dir / ("python.exe" if os.name == "nt" else "python")
@@ -42,10 +81,23 @@ def command(bin_dir: Path, name: str) -> str:
 
 def verify_app(bin_dir: Path, directory: Path) -> None:
     app = command(bin_dir, "red-night-app")
-    help_text = check(app, "--help", cwd=directory)
+
+    if os.name != "nt" and getattr(os, "geteuid", lambda: 1)() != 0:
+        unprivileged = subprocess.run(
+            [app, "--help"],
+            cwd=directory,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        assert unprivileged.returncode != 0
+        assert "requires privileged OS execution" in unprivileged.stderr
+
+    help_text = check_privileged(app, "--help", cwd=directory)
     assert "Red Night command boundary" in help_text
     assert "scan" in help_text
-    catalog = json.loads(check(app, "editions", "--json", cwd=directory))
+    catalog = json.loads(check_privileged(app, "editions", "--json", cwd=directory))
     assert len(catalog) == 5
     standalone = {item["name"]: item["standalone_available"] for item in catalog}
     assert standalone["Red Night"] is True
@@ -54,8 +106,8 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
         for name, available in standalone.items()
         if name != "Red Night"
     )
-    assert "--scope" in check(app, "scan", "--help", cwd=directory)
-    live_identity_help = check(
+    assert "--scope" in check_privileged(app, "scan", "--help", cwd=directory)
+    live_identity_help = check_privileged(
         app, "identity", "collect", "--help", cwd=directory,
     )
     assert "ad" in live_identity_help
@@ -70,14 +122,14 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
              "name": "Operator"},
         ],
     }), encoding="utf-8")
-    imported = json.loads(check(
+    imported = json.loads(check_privileged(
         app, "identity", "import", str(snapshot), "--source-id", "packaged-smoke",
         cwd=directory,
     ))
     assert imported["identities"] == 1
     assert "graph" not in imported
     assert imported["observed_memberships"] == 0
-    envelope = json.loads(check(
+    envelope = json.loads(check_privileged(
         app, "identity", "import", str(snapshot),
         "--source-id", "packaged-smoke",
         "--engagement-id", "eng-packaged-smoke",
@@ -95,7 +147,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert "No live directory collection performed" in record["limitations"]
 
     store_path = directory / f"engagement-store-{bin_dir.parent.name}.json"
-    persisted = json.loads(check(
+    persisted = json.loads(check_privileged(
         app, "identity", "import", str(snapshot),
         "--source-id", "packaged-smoke-store",
         "--engagement-id", "eng-packaged-smoke",
@@ -105,7 +157,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert persisted["identities"] == 1
     assert store_path.exists()
 
-    stored = json.loads(check(
+    stored = json.loads(check_privileged(
         app, "identity", "store-list", str(store_path),
         "--engagement-id", "eng-packaged-smoke",
         "--source-night", "red",
@@ -116,7 +168,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert len(stored["records"]) == 1
     assert stored["records"][0]["source_night"] == "red"
 
-    metadata = json.loads(check(
+    metadata = json.loads(check_privileged(
         app, "identity", "store-metadata", str(store_path),
         "--engagement-id", "eng-packaged-smoke",
         "--name", "Packaged smoke engagement",
@@ -128,7 +180,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert metadata["authorization_reference"] == "approval://packaged-smoke"
 
     export_path = directory / f"engagement-export-{bin_dir.parent.name}.json"
-    exported = json.loads(check(
+    exported = json.loads(check_privileged(
         app, "identity", "store-export", str(store_path),
         "--engagement-id", "eng-packaged-smoke",
         "--output", str(export_path),
@@ -139,13 +191,13 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert exported_envelope["metadata"]["name"] == "Packaged smoke engagement"
 
     imported_store = directory / f"engagement-import-{bin_dir.parent.name}.json"
-    imported_store_result = json.loads(check(
+    imported_store_result = json.loads(check_privileged(
         app, "identity", "store-import", str(imported_store), str(export_path),
         cwd=directory,
     ))
     assert imported_store_result["engagement_id"] == "eng-packaged-smoke"
     assert imported_store_result["source_nights"] == ["red"]
-    imported_envelope = json.loads(check(
+    imported_envelope = json.loads(check_privileged(
         app, "identity", "store-list", str(imported_store),
         "--engagement-id", "eng-packaged-smoke",
         cwd=directory,
@@ -154,7 +206,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert len(imported_envelope["records"]) == 1
 
     workspace_root = directory / f"workspace-{bin_dir.parent.name}"
-    created_workspace = json.loads(check(
+    created_workspace = json.loads(check_privileged(
         app, "workspace", "create", str(workspace_root),
         "--engagement-id", "eng-workspace-life",
         "--name", "Packaged workspace lifecycle",
@@ -162,14 +214,14 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
         cwd=directory,
     ))
     assert created_workspace["status"] == "planned"
-    active_workspace = json.loads(check(
+    active_workspace = json.loads(check_privileged(
         app, "workspace", "status", str(workspace_root),
         "--engagement-id", "eng-workspace-life", "--set", "active",
         cwd=directory,
     ))
     assert active_workspace["status"] == "active"
 
-    policy = json.loads(check(
+    policy = json.loads(check_privileged(
         app, "workspace", "policy-set", str(workspace_root),
         "--engagement-id", "eng-workspace-life",
         "--scope", "192.0.2.0/24",
@@ -182,7 +234,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
         cwd=directory,
     ))
     assert policy["max_actions"] == 2
-    denied_policy = json.loads(check(
+    denied_policy = json.loads(check_privileged(
         app, "workspace", "authorize", str(workspace_root),
         "--engagement-id", "eng-workspace-life",
         "--capability", "discovery", "--target", "198.51.100.1",
@@ -190,7 +242,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     ))
     assert denied_policy["allowed"] is False
     assert denied_policy["reason_code"] == "target_out_of_scope"
-    allowed_policy = json.loads(check(
+    allowed_policy = json.loads(check_privileged(
         app, "workspace", "authorize", str(workspace_root),
         "--engagement-id", "eng-workspace-life",
         "--capability", "discovery", "--target", "192.0.2.10", "--consume",
@@ -198,7 +250,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     ))
     assert allowed_policy["allowed"] is True
     assert allowed_policy["actions_used"] == 1
-    audit_policy = json.loads(check(
+    audit_policy = json.loads(check_privileged(
         app, "workspace", "audit", str(workspace_root),
         "--engagement-id", "eng-workspace-life",
         cwd=directory,
@@ -207,33 +259,33 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
         "target_out_of_scope", "authorized",
     ]
 
-    workspace_import = json.loads(check(
+    workspace_import = json.loads(check_privileged(
         app, "workspace", "import", str(workspace_root), str(export_path),
         cwd=directory,
     ))
     assert workspace_import["applied"] is True
-    workspace_list = json.loads(check(
+    workspace_list = json.loads(check_privileged(
         app, "workspace", "list", str(workspace_root), cwd=directory,
     ))
     by_engagement = {item["engagement_id"]: item for item in workspace_list}
     assert set(by_engagement) == {"eng-workspace-life", "eng-packaged-smoke"}
     assert by_engagement["eng-workspace-life"]["status"] == "active"
     assert by_engagement["eng-packaged-smoke"]["source_nights"] == ["red"]
-    workspace_show = json.loads(check(
+    workspace_show = json.loads(check_privileged(
         app, "workspace", "show", str(workspace_root),
         "--engagement-id", "eng-packaged-smoke",
         cwd=directory,
     ))
     assert workspace_show["summary"]["record_count"] == 1
     assert workspace_show["breakdown"]["source_night_counts"] == [["red", 1]]
-    workspace_timeline = json.loads(check(
+    workspace_timeline = json.loads(check_privileged(
         app, "workspace", "timeline", str(workspace_root),
         "--engagement-id", "eng-packaged-smoke", cwd=directory,
     ))
     assert len(workspace_timeline) == 1
     assert workspace_timeline[0]["evidence_type"] == "identity.directory-snapshot"
     workspace_export_path = directory / f"workspace-export-{bin_dir.parent.name}.json"
-    workspace_export = json.loads(check(
+    workspace_export = json.loads(check_privileged(
         app, "workspace", "export", str(workspace_root),
         "--engagement-id", "eng-packaged-smoke",
         "--output", str(workspace_export_path),
@@ -243,8 +295,12 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
     assert json.loads(workspace_export_path.read_text(encoding="utf-8"))["engagement_id"] == "eng-packaged-smoke"
 
     denied = subprocess.run(
-        [app, "unknown-command"], cwd=directory, capture_output=True,
-        text=True, timeout=20, check=False,
+        privileged_args(app, "unknown-command"),
+        cwd=directory,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
     )
     assert denied.returncode == 2, denied
     assert "Command is not available in this edition" in denied.stderr
@@ -346,6 +402,7 @@ def main() -> None:
                 install_args.extend(("--find-links", str(wheels)))
             check(*install_args, str(app_wheel), cwd=directory)
             verify_app(bin_dir, directory)
+            restore_test_ownership(directory)
             check(
                 str(python), "-c",
                 (
@@ -415,7 +472,9 @@ def main() -> None:
                 "pywinrm", "psycopg", "mysql-connector-python",
             ):
                 assert extra_dependency in metadata
-            check(str(python), "-m", "red_night_app", "--help", cwd=directory)
+            check_privileged(
+                str(python), "-m", "red_night_app", "--help", cwd=directory
+            )
 
             if mode == "combined":
                 check(str(python), "-m", "pip", "uninstall", "--yes",
@@ -431,6 +490,8 @@ def main() -> None:
                     "assert nightrecon_red_engine is not None",
                     cwd=directory,
                 )
+
+            restore_test_ownership(directory)
 
     print("Red Night separate-distribution installations: passed")
 

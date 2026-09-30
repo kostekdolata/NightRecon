@@ -32,6 +32,13 @@ emit "RED_NIGHT_LIVE_CHECK:appliance-active"
 sleep 1
 systemctl is-active --quiet red-night-live-appliance.service || fail "appliance-not-active"
 
+emit "RED_NIGHT_LIVE_CHECK:appliance-root"
+main_pid=$(systemctl show -p MainPID --value red-night-live-appliance.service)
+[ -n "$main_pid" ] || fail "appliance-mainpid-missing"
+[ "$main_pid" -gt 0 ] 2>/dev/null || fail "appliance-mainpid-invalid"
+uid_line=$(awk '/^Uid:/{print $2}' "/proc/$main_pid/status" 2>/dev/null) || fail "appliance-uid-unavailable"
+[ "$uid_line" = "0" ] || fail "appliance-not-root"
+
 check_mode() {
     mode="$1"
     validation="$2"

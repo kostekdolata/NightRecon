@@ -49,6 +49,10 @@ class RedDeploymentContractTests(unittest.TestCase):
                 profile.dependency_rule,
                 "red-app->red-engine->shared-core",
             )
+            self.assertEqual(
+                profile.os_privilege_policy,
+                "required-platform-privileged",
+            )
 
     def test_standalone_and_live_require_no_peer_night(self):
         self.assertEqual(RED_STANDALONE_PROFILE.optional_peer_nights, ())
