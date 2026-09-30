@@ -28,6 +28,7 @@ from .persistence import RedPersistenceState, secure_workspace_ready
 
 
 AUTHORIZATION_EFFECT = "none"
+REQUIRED_OS_PRIVILEGE = "root"
 
 
 class RedLiveSessionMode(str, Enum):
@@ -187,6 +188,17 @@ def run_recovery_integrity_check(
     return 0
 
 
+def require_privileged_runtime() -> None:
+    """Fail closed if the Live appliance is launched without required OS privilege."""
+
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is None or geteuid() != 0:
+        raise PermissionError(
+            "Red Night Live requires root OS privilege; "
+            "NightRecon authorization controls remain independently enforced"
+        )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="red-night-appliance",
@@ -219,6 +231,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.dry_run:
         print(json.dumps(decision.to_dict(), sort_keys=True))
         return 0
+
+    require_privileged_runtime()
 
     if mode is RedLiveSessionMode.SECURE_WORKSPACE:
         print("Secure Workspace is not available yet.")
