@@ -3,9 +3,9 @@ set -eu
 
 lb config noauto \
   --mode debian \
-  --architectures amd64 \
+  --architecture amd64 \
   --distribution trixie \
-  --binary-images iso-hybrid \
+  --binary-image iso-hybrid \
   --bootloaders "grub-efi" \
   --archive-areas "main" \
   --debian-installer none \
