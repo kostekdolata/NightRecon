@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-marker=WHITE_NIGHT_LIVE_BOOT_OK
+marker=WHITE_NIGHT_LIVE_APP_OK
 timeout_seconds=${WHITE_LIVE_VM_TIMEOUT:-240}
 
 if [ "$#" -ne 1 ]; then
