@@ -572,8 +572,7 @@ Completed v0.44 deployment batches:
 
 - Batch 1: deployment architecture contracts;
 - Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke;
-- Batch 3: non-root appliance session with explicit
-  Secure/Ephemeral/Recovery modes;
+- Batch 3: appliance session with explicit Secure/Ephemeral/Recovery modes;
 - Batch 4 slice 1: fail-closed LUKS2 persistence contract, explicit stable
   partition selection, destructive-confirmation requirement, Secure Workspace
   readiness state, and safe-close ordering.
@@ -590,9 +589,9 @@ Active v0.44 work:
 
 Remaining v0.44 sequence:
 
-- Batch 4 continuation: constrained non-root appliance -> privileged service
-  boundary, reboot persistence verification, Ephemeral-state verification, and
-  safe shutdown/removal;
+- Batch 4 continuation: privileged Secure Workspace integration, reboot
+  persistence verification, Ephemeral-state verification, and safe
+  shutdown/removal;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
 - Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
   Secure Boot target, hardware compatibility and endurance testing.
