@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+white_app=/usr/local/bin/white-night-app
+output=/run/white-night-live-app-start.txt
+marker=WHITE_NIGHT_LIVE_AUTO_START_OK
+
+test -x "$white_app"
+
+"$white_app" > "$output"
+
+grep -Fq "White Night command boundary" "$output"
+grep -Fq "foundation capabilities:" "$output"
+
+printf '%s\n' "$marker"
+if [ -w /dev/ttyS0 ]; then
+    printf '%s\n' "$marker" > /dev/ttyS0
+fi

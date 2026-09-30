@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-marker=WHITE_NIGHT_LIVE_BOOT_OK
+marker=WHITE_NIGHT_LIVE_APP_OK
+auto_marker=WHITE_NIGHT_LIVE_AUTO_START_OK
 timeout_seconds=${WHITE_LIVE_VM_TIMEOUT:-240}
 
 if [ "$#" -ne 1 ]; then
@@ -100,8 +101,8 @@ PY
 
 elapsed=0
 while [ "$elapsed" -lt "$timeout_seconds" ]; do
-    if grep -Fq "$marker" "$log"; then
-        printf 'White Night Live UEFI VM smoke: passed (%s)\n' "$marker"
+    if grep -Fq "$marker" "$log" && grep -Fq "$auto_marker" "$log"; then
+        printf 'White Night Live UEFI VM smoke: passed (%s, %s)\n' "$auto_marker" "$marker"
         exit 0
     fi
 

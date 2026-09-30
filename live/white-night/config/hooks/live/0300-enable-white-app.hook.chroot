@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+mkdir -p /etc/systemd/system/multi-user.target.wants
+ln -sf \
+    /etc/systemd/system/white-night-live-app.service \
+    /etc/systemd/system/multi-user.target.wants/white-night-live-app.service
