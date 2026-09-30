@@ -19,7 +19,9 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
         self.assertIn("--architecture amd64", config)
         self.assertIn("--distribution trixie", config)
         self.assertIn("--binary-image iso-hybrid", config)
-        self.assertIn('--bootloaders "grub-efi"', config)\n        self.assertNotIn("--architectures ", config)\n        self.assertNotIn("--binary-images ", config)
+        self.assertIn('--bootloaders "grub-efi"', config)
+        self.assertNotIn("--architectures ", config)
+        self.assertNotIn("--binary-images ", config)
         self.assertIn("console=ttyS0,115200n8", config)
 
     def test_image_stages_only_required_red_wheels(self):
