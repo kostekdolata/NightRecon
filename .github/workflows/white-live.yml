@@ -15,6 +15,7 @@ on:
       - "tests/test_white_live_modes.py"
       - "tests/test_white_live_persistence_contract.py"
       - "tests/test_white_live_luks_fixture.py"
+      - "tests/test_white_live_provisioning_helper.py"
       - "tests/white_live_luks_fixture.sh"
       - "WHITE_LIVE_PERSISTENCE.md"
       - "tests/white_live_vm_smoke.sh"
@@ -31,6 +32,7 @@ on:
       - "tests/test_white_live_modes.py"
       - "tests/test_white_live_persistence_contract.py"
       - "tests/test_white_live_luks_fixture.py"
+      - "tests/test_white_live_provisioning_helper.py"
       - "tests/white_live_luks_fixture.sh"
       - "WHITE_LIVE_PERSISTENCE.md"
       - "tests/white_live_vm_smoke.sh"
@@ -61,6 +63,7 @@ jobs:
         run: |
           python tests/test_white_live_persistence_contract.py
           python tests/test_white_live_luks_fixture.py
+          python tests/test_white_live_provisioning_helper.py
 
       - name: Install encrypted-storage test dependencies
         run: |
