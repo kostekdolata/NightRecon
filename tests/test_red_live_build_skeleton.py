@@ -81,6 +81,40 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
         self.assertIn("validate_red_deployment_contract", marker)
         self.assertIn("no-automatic-mount", marker)
 
+    def test_batch_three_appliance_service_is_explicit_and_non_root(self):
+        install_hook = self.read(
+            "config/hooks/live/010-install-red-night.hook.chroot"
+        )
+        enable_hook = self.read(
+            "config/hooks/live/020-enable-boot-smoke.hook.chroot"
+        )
+        service = self.read(
+            "config/includes.chroot/etc/systemd/system/"
+            "red-night-live-appliance.service"
+        )
+        marker = self.read(
+            "config/includes.chroot/usr/local/sbin/red-night-live-boot-smoke"
+        )
+
+        self.assertIn("red-night-appliance", install_hook)
+        self.assertIn(
+            "systemctl enable red-night-live-appliance.service",
+            enable_hook,
+        )
+        self.assertIn("User=rednight", service)
+        self.assertIn("Group=rednight", service)
+        self.assertIn("TTYPath=/dev/tty1", service)
+        self.assertIn("StandardInput=tty-force", service)
+        self.assertNotIn("User=root", service)
+        self.assertIn("systemctl is-active --quiet red-night-live-appliance.service", marker)
+        for mode in (
+            "secure-workspace",
+            "ephemeral-session",
+            "recovery-integrity",
+        ):
+            self.assertIn(f"--mode {mode} --dry-run", marker)
+        self.assertIn("authorization_effect", marker)
+
     def test_live_package_list_contains_only_base_appliance_dependencies(self):
         packages = {
             line.strip()
