@@ -48,7 +48,7 @@ class WhiteLiveBuildTests(unittest.TestCase):
         self.assertIn("--binary-image iso-hybrid", config)
         self.assertIn("--bootloaders grub-efi", config)
         self.assertIn("--debian-installer none", config)
-        self.assertIn("--uefi-secure-boot disable", config)
+        self.assertIn("--uefi-secure-boot auto", config)
         self.assertIn("console=ttyS0,115200n8", config)
 
     def test_image_stages_exact_current_white_package_artifacts(self) -> None:
