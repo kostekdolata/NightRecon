@@ -63,6 +63,7 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
             passphrase=secret,
             destructive_confirmation=True,
             runner=runner,
+            target_probe=lambda _device: True,
         )
 
         argv = [call[0] for call in runner.calls]
@@ -131,6 +132,19 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
                 passphrase=b"secret",
                 destructive_confirmation=False,
                 runner=runner,
+                target_probe=lambda _device: True,
+            )
+        self.assertEqual(runner.calls, [])
+
+    def test_provision_refuses_target_with_existing_signature(self):
+        runner = FakeRunner()
+        with self.assertRaises(ValueError):
+            provision_workspace(
+                self.make_config(),
+                passphrase=b"secret",
+                destructive_confirmation=True,
+                runner=runner,
+                target_probe=lambda _device: False,
             )
         self.assertEqual(runner.calls, [])
 
@@ -261,6 +275,7 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
                 passphrase=secret,
                 destructive_confirmation=True,
                 runner=runner,
+                target_probe=lambda _device: True,
             )
 
         self.assertEqual(len(runner.calls), 2)
