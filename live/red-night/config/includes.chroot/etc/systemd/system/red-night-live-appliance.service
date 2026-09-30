@@ -7,8 +7,8 @@ ConditionPathExists=/usr/local/bin/red-night-appliance
 
 [Service]
 Type=simple
-User=rednight
-Group=rednight
+User=red-night-appliance
+Group=red-night-appliance
 ExecStart=/usr/local/bin/red-night-appliance
 Restart=always
 RestartSec=1
