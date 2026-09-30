@@ -13,8 +13,8 @@ import zipfile
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-WHITE_VERSION = "0.1.0a5"
-SHARED_CORE_VERSION = "0.42.0"
+WHITE_VERSION = "0.1.0a6"
+SHARED_CORE_VERSION = "0.43.0"
 
 
 def check(*args: str, cwd: Path) -> str:
@@ -592,8 +592,8 @@ def main() -> None:
         )
         assert metadata.count(WHITE_VERSION) >= 2
         assert SHARED_CORE_VERSION in metadata
-        assert "nightrecon-white-engine==0.1.0a5" in metadata
-        assert "nightrecon-shared-core==0.42.0" in metadata
+        assert "nightrecon-white-engine==0.1.0a6" in metadata
+        assert "nightrecon-shared-core==0.43.0" in metadata
         assert "nightrecon-red" not in metadata
         assert "nightrecon==" not in metadata
 
