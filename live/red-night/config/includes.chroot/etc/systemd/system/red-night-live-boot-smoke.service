@@ -1,6 +1,7 @@
 [Unit]
 Description=Red Night Live Batch 2 boot smoke marker
-After=local-fs.target
+After=local-fs.target red-night-live-appliance.service
+Wants=red-night-live-appliance.service
 ConditionPathExists=/opt/nightrecon/venv/bin/python
 
 [Service]
