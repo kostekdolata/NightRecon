@@ -265,10 +265,13 @@ media restored from an approved encrypted backup.
 
 ### Batch 2 — Live build skeleton
 
+Status: in development.
+
 - source-controlled Debian `live-build` configuration under `live/red-night/`;
-- minimal x86-64 UEFI bootable image;
-- install built shared-core/Red engine/Red app artifacts;
-- VM boot smoke;
+- Debian 13 (trixie) amd64 hybrid ISO with GRUB EFI;
+- install built shared-core/Red engine/Red app wheel artifacts into an isolated venv;
+- headless QEMU/OVMF UEFI boot smoke with VM networking disabled;
+- boot marker validates the installed Red Live deployment contract;
 - no persistent engagement state yet.
 
 ### Batch 3 — application appliance session

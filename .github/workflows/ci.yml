@@ -671,3 +671,67 @@ jobs:
 
       - name: Run v0.43 ATT&CK review/comparison gate
         run: python tests/v043_validation_attack_comparison_runtime.py
+
+
+  red-live-build-integration:
+    name: Red Night Live UEFI boot smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Upgrade wheel build tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Build Red package wheels
+        shell: bash
+        run: |
+          mkdir -p live/red-night/.wheelhouse
+          python -m pip wheel --no-deps \
+            --wheel-dir live/red-night/.wheelhouse \
+            ./packages/shared-core ./packages/red-engine ./packages/red-night
+
+      - name: Verify Red Live skeleton contract
+        run: python -m unittest tests.test_red_live_build_skeleton -v
+
+      - name: Install Debian 13 Live build and UEFI VM tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates curl cpio debootstrap debian-archive-keyring apt-utils bzip2 file rsync wget xz-utils \
+            qemu-system-x86 ovmf xorriso squashfs-tools
+
+          LIVE_BUILD_VERSION="20250505+deb13u1"
+          LIVE_BUILD_DEB="$RUNNER_TEMP/live-build_${LIVE_BUILD_VERSION}_all.deb"
+          LIVE_BUILD_SHA256="58e09779881cbcc631c49ceb703413e0247a87db01823e597b2a1c40a2afd8f4"
+
+          curl -fsSL \
+            "https://deb.debian.org/debian/pool/main/l/live-build/live-build_${LIVE_BUILD_VERSION}_all.deb" \
+            -o "$LIVE_BUILD_DEB"
+          echo "$LIVE_BUILD_SHA256  $LIVE_BUILD_DEB" | sha256sum -c -
+          sudo dpkg -i "$LIVE_BUILD_DEB"
+
+          test "$(dpkg-query -W -f='${Version}' live-build)" = "1:${LIVE_BUILD_VERSION}"
+          lb --version
+
+      - name: Build Red Night Live image
+        shell: bash
+        run: |
+          sudo ./live/red-night/build-image.sh \
+            --wheel-dir "$PWD/live/red-night/.wheelhouse" \
+            --output "$RUNNER_TEMP/RedNight-Live-v0.44.0-dev-amd64.iso"
+
+      - name: Boot Red Night Live in UEFI VM
+        shell: bash
+        run: |
+          ./live/red-night/ci/uefi_boot_smoke.sh \
+            "$RUNNER_TEMP/RedNight-Live-v0.44.0-dev-amd64.iso"

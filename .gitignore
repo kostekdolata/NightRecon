@@ -26,3 +26,8 @@ workspace/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Red Night Live transient build data
+live/red-night/.wheelhouse/
+live/red-night/config/includes.chroot/opt/nightrecon/wheels/
+live/red-night/live-image-*.iso
