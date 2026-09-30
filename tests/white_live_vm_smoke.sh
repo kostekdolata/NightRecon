@@ -42,6 +42,7 @@ fi
 
 tmp=$(mktemp -d -t white-night-live-vm.XXXXXX)
 log="$tmp/serial.log"
+monitor="$tmp/qemu-monitor.sock"
 vars_copy="$tmp/OVMF_VARS.fd"
 cp "$ovmf_vars" "$vars_copy"
 
@@ -65,11 +66,36 @@ qemu-system-x86_64 \
     -boot order=d \
     -nic none \
     -display none \
-    -monitor none \
+    -monitor "unix:$monitor,server=on,wait=off" \
     -serial stdio \
     -no-reboot \
     >"$log" 2>&1 &
 pid=$!
+
+# Debian Live presents an interactive GRUB entry before the kernel starts.
+# CI is headless, so select the default Live entry through QEMU's host-side
+# monitor. The guest still has no NIC and the image itself keeps its normal
+# interactive boot menu for real operators.
+python3 - "$monitor" <<'PY'
+import socket
+import sys
+import time
+
+path = sys.argv[1]
+for _ in range(40):
+    try:
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client.connect(path)
+        break
+    except (FileNotFoundError, ConnectionRefusedError):
+        time.sleep(0.25)
+else:
+    raise SystemExit("QEMU monitor socket did not become ready")
+
+with client:
+    time.sleep(2)
+    client.sendall(b"sendkey ret\n")
+PY
 
 elapsed=0
 while [ "$elapsed" -lt "$timeout_seconds" ]; do
