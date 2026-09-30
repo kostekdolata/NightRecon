@@ -51,3 +51,23 @@ application and engine packages:
 The declarative profile contract lives in `red_night_app.deployment`. It does
 not create boot media and does not import any other Night runtime. See
 `RED_LIVE_ARCHITECTURE.md` for the Live development gates.
+
+
+### v0.44 Batch 3 appliance session
+
+The development package also exposes `red-night-appliance` for the Live
+deployment layer. The appliance controller requires an explicit workspace mode
+selection and does not grant target authorization.
+
+Current Batch 3 behavior:
+
+- Secure Workspace is listed but refuses to start until Batch 4 provides LUKS2
+  persistence;
+- Ephemeral Session provides a constrained Red command prompt that invokes only
+  the existing `red-night-app` command boundary, never an operating-system
+  shell, from temporary runtime storage;
+- Recovery & Integrity Check validates the Red deployment contract without
+  launching assessment commands.
+
+The appliance layer does not change Red engine scope, approvals, budgets,
+revocation, evidence, cleanup, or worker-isolation behavior.

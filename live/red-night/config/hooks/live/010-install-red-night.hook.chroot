@@ -4,6 +4,9 @@ set -eu
 WHEEL_DIR=/opt/nightrecon/wheels
 VENV_DIR=/opt/nightrecon/venv
 
+systemd-sysusers /usr/lib/sysusers.d/red-night-live.conf
+getent passwd red-night-appliance >/dev/null
+
 require_one_wheel() {
     pattern="$1"
     set -- "$WHEEL_DIR"/$pattern
@@ -25,5 +28,10 @@ python3 -m venv "$VENV_DIR"
 
 "$VENV_DIR/bin/python" -c "from red_night_app.deployment import validate_red_deployment_contract; validate_red_deployment_contract()"
 
+test -x "$VENV_DIR/bin/red-night-app"
+test -x "$VENV_DIR/bin/red-night-appliance"
+"$VENV_DIR/bin/red-night-appliance" --mode recovery-integrity --dry-run >/dev/null
+
 ln -sf "$VENV_DIR/bin/red-night-app" /usr/local/bin/red-night-app
+ln -sf "$VENV_DIR/bin/red-night-appliance" /usr/local/bin/red-night-appliance
 rm -rf "$WHEEL_DIR"

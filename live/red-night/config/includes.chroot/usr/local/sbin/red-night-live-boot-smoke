@@ -1,12 +1,53 @@
 #!/bin/sh
-set -eu
+set -u
 
 PYTHON=/opt/nightrecon/venv/bin/python
+APPLIANCE=/usr/local/bin/red-night-appliance
 MARKER=RED_NIGHT_LIVE_BOOT_OK
 
-"$PYTHON" -c "from red_night_app.deployment import RED_LIVE_USB_PROFILE, validate_red_deployment_contract; validate_red_deployment_contract(); assert RED_LIVE_USB_PROFILE.bootable_media; assert RED_LIVE_USB_PROFILE.host_disk_policy == 'no-automatic-mount'"
+emit() {
+    message="$1"
+    printf '%s\n' "$message" > /dev/console 2>/dev/null || true
+    if [ -w /dev/ttyS0 ]; then
+        printf '%s\n' "$message" > /dev/ttyS0
+    fi
+}
 
-printf '%s\n' "$MARKER" > /dev/console || true
-if [ -w /dev/ttyS0 ]; then
-    printf '%s\n' "$MARKER" > /dev/ttyS0
-fi
+fail() {
+    emit "RED_NIGHT_LIVE_BOOT_FAIL:$1"
+    systemctl status red-night-live-appliance.service --no-pager 2>&1 | tail -n 40 > /dev/ttyS0 2>/dev/null || true
+    exit 1
+}
+
+emit "RED_NIGHT_LIVE_CHECK:deployment-contract"
+"$PYTHON" -c "from red_night_app.deployment import RED_LIVE_USB_PROFILE, validate_red_deployment_contract; validate_red_deployment_contract(); assert RED_LIVE_USB_PROFILE.bootable_media; assert RED_LIVE_USB_PROFILE.host_disk_policy == 'no-automatic-mount'" || fail "deployment-contract"
+
+emit "RED_NIGHT_LIVE_CHECK:appliance-entrypoint"
+[ -x "$APPLIANCE" ] || fail "appliance-entrypoint-missing"
+
+emit "RED_NIGHT_LIVE_CHECK:appliance-enabled"
+systemctl is-enabled --quiet red-night-live-appliance.service || fail "appliance-not-enabled"
+
+emit "RED_NIGHT_LIVE_CHECK:appliance-active"
+sleep 1
+systemctl is-active --quiet red-night-live-appliance.service || fail "appliance-not-active"
+
+check_mode() {
+    mode="$1"
+    validation="$2"
+    emit "RED_NIGHT_LIVE_CHECK:mode:$mode"
+    output=$("$APPLIANCE" --mode "$mode" --dry-run 2>&1) || {
+        emit "$output"
+        fail "mode-command:$mode"
+    }
+    printf '%s\n' "$output" | "$PYTHON" -c "$validation" || {
+        emit "$output"
+        fail "mode-contract:$mode"
+    }
+}
+
+check_mode "ephemeral-session" "import json,sys; d=json.load(sys.stdin); assert d['mode']=='ephemeral-session'; assert d['available'] is True; assert d['launch_red_application'] is True; assert d['persistent_workspace'] is False; assert d['authorization_effect']=='none'"
+check_mode "secure-workspace" "import json,sys; d=json.load(sys.stdin); assert d['mode']=='secure-workspace'; assert d['available'] is False; assert d['launch_red_application'] is False; assert d['persistent_workspace'] is False; assert d['authorization_effect']=='none'"
+check_mode "recovery-integrity" "import json,sys; d=json.load(sys.stdin); assert d['mode']=='recovery-integrity'; assert d['available'] is True; assert d['launch_red_application'] is False; assert d['authorization_effect']=='none'"
+
+emit "$MARKER"

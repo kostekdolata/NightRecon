@@ -2,3 +2,4 @@
 set -eu
 
 systemctl enable red-night-live-boot-smoke.service
+systemctl enable red-night-live-appliance.service

@@ -37,6 +37,7 @@ all = [
 
 [project.scripts]
 red-night-app = "red_night_app:main"
+red-night-appliance = "red_night_app.appliance:main"
 
 [tool.setuptools.packages.find]
 include = ["red_night_app*"]
