@@ -521,6 +521,46 @@ authorization boundary and explicit operator-selection rules.
 
 See [V043_CONTROLLED_VALIDATION_INTELLIGENCE.md](V043_CONTROLLED_VALIDATION_INTELLIGENCE.md).
 
+### v0.44.0 — Standalone & Live Deployment Foundation
+
+Status: active development.
+
+Goal: make Red Night deployable as the same independently versioned product in
+normal standalone installs, composed NightRecon stacks, and a future bootable
+Red Night Live USB environment.
+
+Locked rules:
+
+- stable v0.43.0 remains the functional baseline;
+- Live USB is a deployment layer, not a Red-engine fork;
+- Red depends only on Red engine + shared core, never another Night runtime;
+- composed installs gain interoperability through shared contracts/services;
+- peer Nights remain independently installable/removable;
+- no deployment profile weakens scope, authorization, approval, budget,
+  revocation, evidence, cleanup, or worker-isolation controls.
+
+Batch 1 — Deployment Architecture Contracts:
+
+- immutable Red deployment-profile metadata for standalone, composed, and
+  Live USB modes;
+- identical mandatory Red/shared-core package set across all profiles;
+- explicit optional peer-Night composition contract;
+- offline-capable/no-auto-host-disk-mount deployment invariants;
+- Red-specific Live architecture document and acceptance gates;
+- unit + installed-wheel regression coverage proving no cross-Night runtime
+  dependency.
+
+Planned follow-on v0.44 batches:
+
+- Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke;
+- Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes;
+- Batch 4: LUKS2 persistent workspace + reboot/ephemeral-state verification;
+- Batch 5: Red+White and selected/full-stack package composition profiles;
+- Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
+  Secure Boot target, hardware compatibility and endurance testing.
+
+See [RED_LIVE_ARCHITECTURE.md](RED_LIVE_ARCHITECTURE.md).
+
 ## Generation 3 — Red Validation Engine
 
 Goal: controlled validation of authorized attack paths.
@@ -641,9 +681,12 @@ The engine will eventually require a production platform around it:
 The current execution order is:
 
 1. Keep Red Night v0.43.0 as the verified stable Controlled Validation Intelligence baseline.
-2. Continue broader Red acceptance work from that immutable release checkpoint,
-   especially live authorized specialist comparisons, broader relationship coverage,
-   and professional reporting/collaboration evidence.
-3. Preserve the existing authorization, evidence-honesty, approval, revocation,
-   isolated-worker, action-budget, cleanup, and bounded-execution rules before any
-   future validation technique expands live capability.
+2. Develop v0.44.0 Standalone & Live Deployment Foundation in isolated,
+   CI-verified Red batches.
+3. Complete Batch 1 deployment architecture contracts before introducing any
+   boot-image build machinery.
+4. Then build the Red Live skeleton from the same versioned Red/shared-core
+   artifacts used by normal installation.
+5. Continue broader Red acceptance work without weakening authorization,
+   evidence-honesty, approval, revocation, isolated-worker, action-budget,
+   cleanup, or bounded-execution rules.

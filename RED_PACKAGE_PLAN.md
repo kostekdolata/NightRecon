@@ -1,8 +1,8 @@
 # Red Night Package Boundary Plan
 
-This plan converts already implemented NightRecon assessment capabilities into
-an independently installable Red Night application without copying or rebuilding
-the engines.
+This plan records Red Night's independently installable package boundary and
+extends it into standalone, composed-stack, and Live USB deployment parity
+without copying or rebuilding the engines.
 
 ## Current verified state
 
@@ -16,6 +16,33 @@ part of the Red app runtime dependency chain.
 
 The existing Red-owned modules and optional runtime dependencies are defined in
 `nightrecon.red_ownership` and documented in `RED_OWNERSHIP.md`.
+
+## One product, three deployment profiles
+
+Starting with v0.44, Red development treats these as deployment profiles of one
+product rather than separate implementations:
+
+1. **Standalone Red**
+   - `nightrecon-red-night` + `nightrecon-red-engine` + compatible
+     `nightrecon-shared-core`;
+   - no legacy monolith or other Night required.
+
+2. **Composed NightRecon stack**
+   - the same Red packages installed beside any compatible peer Nights;
+   - shared workspace/services may be used through shared-core contracts;
+   - peer Nights remain optional, independently removable components.
+
+3. **Red Night Live USB**
+   - the same versioned Red packages installed into a source-controlled bootable
+     appliance image;
+   - Live owns boot, hardware, persistence, update, and recovery only;
+   - Red-owned assessment/validation behavior is not forked.
+
+The code-level contract is defined in
+`packages/red-night/red_night_app/deployment.py`. It deliberately contains no
+boot-media creation or cross-Night imports.
+
+See [RED_LIVE_ARCHITECTURE.md](RED_LIVE_ARCHITECTURE.md).
 
 ## Dependency audit result
 
@@ -34,7 +61,7 @@ package boundary. `tests/test_red_package_boundary.py` enforces that result.
 
 ## Existing Red optional extras
 
-The future standalone package already mirrors the existing runtime versions:
+The standalone/Live package profiles use the existing optional runtime versions:
 
 - `browser`: Playwright
 - `api`: PyYAML
@@ -161,3 +188,30 @@ The task is package separation and import migration, not feature recreation.
 Genuinely new Red capability work resumes only after the package boundary is
 stable, focused on the open acceptance gaps such as live AD/Entra collection and
 controlled validation/emulation.
+
+
+## v0.44 deployment batches
+
+### Batch 1 — deployment architecture contracts
+
+Status: implemented in the v0.44 development branch.
+
+- code-level standalone/composed/Live profile metadata in the Red app package;
+- exact shared-core/Red-engine/Red-app package parity across profiles;
+- peer Nights optional only in composed mode;
+- no-cross-Night-runtime import regression test;
+- installed-wheel distribution smoke for the deployment contract;
+- Red-specific Live architecture and acceptance gates.
+
+### Batch 2 — Live build skeleton
+
+Planned:
+
+- source-controlled Debian `live-build` configuration under `live/red-night/`;
+- minimal x86-64 UEFI bootable image;
+- install versioned Red/shared-core wheel artifacts;
+- VM boot smoke;
+- no persistent engagement state yet.
+
+Later batches add appliance launch, encrypted persistence, composition profiles,
+integrity/update/recovery, Secure Boot evidence, and hardware validation.

@@ -187,3 +187,38 @@ Metasploit, Cobalt Strike, Nmap, Burp/ZAP, BloodHound, or another specialist
 product. Live authorized specialist comparisons, broader discovery/identity
 coverage, and professional multi-operator reporting remain open until measured
 under the same documented authorized lab conditions.
+
+
+## v0.44 deployment development state
+
+Red Night v0.43.0 remains the stable functional baseline while v0.44 develops
+deployment parity.
+
+The target is one Red product with three verified deployment profiles:
+
+- standalone Red installation;
+- Red inside a composed NightRecon stack;
+- Red Night Live USB.
+
+Batch 1 acceptance requires:
+
+- all profiles identify the same mandatory Red/shared-core package set;
+- standalone and Red-only Live profiles require no peer Night;
+- composed mode treats White/Blue/Purple/Black as optional peers only;
+- Red app/engine Python sources contain no peer-Night runtime imports;
+- every profile is offline-capable and preserves the same authorization-first
+  shared-core dependency direction;
+- Live declares no automatic host-disk mounting;
+- Live workspace modes are explicit Secure Workspace, Ephemeral Session, and
+  Recovery/Integrity;
+- the installed Red wheel exposes the deployment contract in the existing
+  four-platform Red distribution smoke.
+
+Later Live acceptance requires a reproducible bootable image, VM boot proof,
+encrypted persistence, recovery/integrity handling, signed update metadata,
+composition testing, Secure Boot evidence, and a hardware compatibility matrix.
+
+Live USB capability is not considered complete merely because the application
+starts inside Linux. Red authorization, evidence, isolated validation workers,
+cleanup/retest, reporting, persistence, update, and recovery behavior must
+retain parity with the normal installation.

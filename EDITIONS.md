@@ -12,7 +12,7 @@ and `black` for CLI routing and future evidence contracts.
 | --- | --- | --- |
 | White Night | Engagement scope, rules of engagement, approvals, audit, evidence custody, exercise control, and emergency stop | Shared scope/audit foundations exist; standalone application not available |
 | Blue Night | Defensive telemetry, control validation, detection coverage, and remediation retests | Planned; standalone application not available |
-| Red Night | Authorized reconnaissance, exposure and attack-path analysis, bounded validation, and controlled emulation | Stable v0.41.0 standalone application available with mandatory shared safety core |
+| Red Night | Authorized reconnaissance, exposure and attack-path analysis, bounded validation, and controlled emulation | Stable v0.43.0 standalone application available; v0.44 Live deployment foundation in development |
 | Purple Night | Match approved Red Night actions to Blue Night prevention, alerts, telemetry, and detection gaps | Planned; standalone application not available |
 | Black Night | Authorized outside-in assessment from a deliberately limited starting knowledge set | External reconnaissance foundations exist; standalone application not available |
 
@@ -20,7 +20,7 @@ and `black` for CLI routing and future evidence contracts.
 catalog. It is informational only: it does not select, install, enable, or
 authorize an edition. The existing `nightrecon` CLI continues to work as before.
 Installing the legacy NightRecon compatibility distribution creates a
-`red-night` command. The stable Red Night v0.41.0 application is also
+`red-night` command. The stable Red Night v0.43.0 application is also
 independently installable and exposes `red-night-app`. Both routes preserve the
 same fail-closed Red command boundary and shared authorization policy. Existing
 target scope and assessment policies still apply.
@@ -35,8 +35,8 @@ and a reproducible graph fingerprint without listing people. Add
 this can disclose identity data. The command reads at most 1 MB, makes no
 directory connection, and never treats an absent member as an observed edge.
 
-`packages/red-night/` is the separately built stable Red Night v0.41.0
-application distribution. Installing its wheel with matching v0.41.0 Red-engine
+`packages/red-night/` is the separately built stable Red Night v0.43.0
+application distribution. Installing its wheel with matching v0.43.0 Red-engine
 and shared-core wheels supplies `red-night-app` without any other Night
 application. The existing `red-night` entry point remains in the legacy package
 for compatibility; the distinct script names prevent package installation or
@@ -60,6 +60,27 @@ The `red_host_discovery`, `red_tcp_scanner`, and `red_service_detection`
 modules are thin ownership facades over the existing proven implementations;
 they do not duplicate engine code. The detailed ownership map is maintained in
 `RED_OWNERSHIP.md`. Existing authorization/scope behavior is unchanged.
+
+## Deployment parity contract
+
+Every Night follows the same product-level deployment rule:
+
+- its normal standalone installation uses only that Night's application/engine
+  packages plus compatible shared core;
+- the same packages may be composed beside other Nights in a full-stack install;
+- the same packages should ultimately be usable in that Night's Live USB image;
+- Live USB support is a deployment layer, not a fork of Night-owned behavior;
+- no Night may import another Night's runtime merely to become standalone,
+  composed, or Live-capable.
+
+Red Night is the first stable Night to formalize this as code-level deployment
+profiles. v0.44 Batch 1 defines standalone, composed, and Live USB contracts in
+`red_night_app.deployment` while keeping the stable v0.43 packages unchanged.
+
+Full-stack installations may share workspace, authorization, evidence, update,
+and reporting services only through explicitly shared contracts/components.
+Shared evidence or state never becomes implicit authorization for a Night's
+active operation.
 
 ## Stack composition contract
 
