@@ -372,10 +372,22 @@ destroying the wrong device.
 
 ### Live Batch 1 — build skeleton
 
-- source-controlled `live-build` configuration;
-- minimal x86-64 UEFI bootable image;
-- shared core + White package placeholders;
-- VM boot smoke.
+Status: active implementation on `v0.1.0-white-live-batch1-dev`.
+
+Acceptance slice:
+
+- source-controlled Debian trixie `live-build` configuration;
+- minimal x86-64 UEFI bootable image using GRUB EFI;
+- exact built shared-core + White engine/app wheel artifacts staged into the
+  immutable image, without installing or auto-launching White yet;
+- explicit non-authoritative, nonpersistent Batch 1 Live profile metadata;
+- offline QEMU/OVMF VM boot smoke using `-nic none`;
+- deterministic serial readiness marker proving the expected package artifacts
+  are present in the booted image.
+
+LUKS2 persistence, application auto-launch, Secure Workspace/Ephemeral/Recovery
+runtime behavior, Secure Boot support, host-storage workflows, and composition
+remain later Live batches and are not claimed by Batch 1.
 
 ### Live Batch 2 — application launch
 
