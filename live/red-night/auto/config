@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+lb config noauto \
+  --mode debian \
+  --architectures amd64 \
+  --distribution trixie \
+  --binary-images iso-hybrid \
+  --bootloaders "grub-efi" \
+  --archive-areas "main" \
+  --debian-installer none \
+  --apt-recommends false \
+  --apt-indices false \
+  --memtest none \
+  --checksums sha256 \
+  --iso-application "Red Night Live" \
+  --iso-publisher "NightRecon Project" \
+  --bootappend-live "boot=live components hostname=red-night-live username=rednight console=tty0 console=ttyS0,115200n8"

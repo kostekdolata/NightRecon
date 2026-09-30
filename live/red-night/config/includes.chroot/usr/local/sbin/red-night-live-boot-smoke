@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+PYTHON=/opt/nightrecon/venv/bin/python
+MARKER=RED_NIGHT_LIVE_BOOT_OK
+
+"$PYTHON" -c "from red_night_app.deployment import RED_LIVE_USB_PROFILE, validate_red_deployment_contract; validate_red_deployment_contract(); assert RED_LIVE_USB_PROFILE.bootable_media; assert RED_LIVE_USB_PROFILE.host_disk_policy == 'no-automatic-mount'"
+
+printf '%s\n' "$MARKER" > /dev/console || true
+if [ -w /dev/ttyS0 ]; then
+    printf '%s\n' "$MARKER" > /dev/ttyS0
+fi

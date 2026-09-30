@@ -539,7 +539,7 @@ Locked rules:
 - no deployment profile weakens scope, authorization, approval, budget,
   revocation, evidence, cleanup, or worker-isolation controls.
 
-Batch 1 — Deployment Architecture Contracts:
+Batch 1 — Deployment Architecture Contracts (completed):
 
 - immutable Red deployment-profile metadata for standalone, composed, and
   Live USB modes;
@@ -550,9 +550,12 @@ Batch 1 — Deployment Architecture Contracts:
 - unit + installed-wheel regression coverage proving no cross-Night runtime
   dependency.
 
-Planned follow-on v0.44 batches:
+Active v0.44 follow-on:
 
-- Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke;
+- Batch 2 (in development): Debian `live-build` skeleton + x86-64 UEFI VM boot smoke;
+
+Planned later v0.44 batches:
+
 - Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes;
 - Batch 4: LUKS2 persistent workspace + reboot/ephemeral-state verification;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
