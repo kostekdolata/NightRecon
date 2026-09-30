@@ -22,6 +22,8 @@ require_one 'nightrecon_white_night-0.1.0a6-*.whl'
 test -x "$python"
 test -x "$white_app"
 test -L /usr/local/bin/white-night-app
+test -s /run/white-night-live-app-start.txt
+grep -Fq "White Night command boundary" /run/white-night-live-app-start.txt
 
 "$python" - <<'PY'
 import importlib.metadata as metadata
