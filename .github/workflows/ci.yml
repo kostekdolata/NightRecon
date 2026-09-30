@@ -701,10 +701,27 @@ jobs:
       - name: Verify Red Live skeleton contract
         run: python -m unittest tests.test_red_live_build_skeleton -v
 
-      - name: Install Live build and UEFI VM tools
+      - name: Install Debian 13 Live build and UEFI VM tools
+        shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y live-build qemu-system-x86 ovmf
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates curl cpio debootstrap apt-utils bzip2 file rsync wget xz-utils \
+            qemu-system-x86 ovmf xorriso squashfs-tools
+
+          LIVE_BUILD_VERSION="20250505+deb13u1"
+          LIVE_BUILD_DEB="$RUNNER_TEMP/live-build_${LIVE_BUILD_VERSION}_all.deb"
+          LIVE_BUILD_SHA256="58e09779881cbcc631c49ceb703413e0247a87db01823e597b2a1c40a2afd8f4"
+
+          curl -fsSL \
+            "https://deb.debian.org/debian/pool/main/l/live-build/live-build_${LIVE_BUILD_VERSION}_all.deb" \
+            -o "$LIVE_BUILD_DEB"
+          echo "$LIVE_BUILD_SHA256  $LIVE_BUILD_DEB" | sha256sum -c -
+          sudo dpkg -i "$LIVE_BUILD_DEB"
+
+          test "$(dpkg-query -W -f='${Version}' live-build)" = "1:${LIVE_BUILD_VERSION}"
+          lb --version
 
       - name: Build Red Night Live image
         shell: bash
