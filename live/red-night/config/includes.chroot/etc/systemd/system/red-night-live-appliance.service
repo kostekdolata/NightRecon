@@ -15,6 +15,7 @@ RestartSec=1
 RuntimeDirectory=red-night
 RuntimeDirectoryMode=0700
 Environment=HOME=/run/red-night
+Environment=NIGHTRECON_EPHEMERAL_ROOT=/run/red-night
 TTYPath=/dev/tty1
 StandardInput=tty-force
 StandardOutput=tty
