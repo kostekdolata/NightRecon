@@ -127,6 +127,20 @@ class RedLivePersistenceContractTests(unittest.TestCase):
         )
         self.assertFalse(mount.requires_passphrase)
 
+    def test_explicit_unmount_does_not_close_existing_mapping(self):
+        config = self.make_config()
+        plan = plan_persistence_action(
+            config,
+            state=RedPersistenceState.MOUNTED,
+            action=RedPersistenceAction.UNMOUNT,
+        )
+        self.assertTrue(plan.allowed)
+        self.assertFalse(plan.destructive)
+        self.assertEqual(
+            plan.steps,
+            (RedPersistenceStep.FILESYSTEM_UNMOUNT,),
+        )
+
     def test_safe_close_unmounts_before_closing_luks_mapping(self):
         config = self.make_config()
         plan = plan_persistence_action(
