@@ -18,6 +18,7 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             "auto/clean",
             "config/package-lists/red-night.list.chroot",
             "config/hooks/live/0100-install-red-night.hook.chroot",
+            "config/hooks/live/9000-red-night-grub.hook.binary",
             "config/hooks/live/0900-serial-grub.hook.binary",
             "config/includes.chroot/etc/systemd/system/red-night-live-smoke.service",
             "config/includes.chroot/usr/local/sbin/red-night-live-boot-smoke",
@@ -54,6 +55,18 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
         self.assertIn("linux /live/vmlinuz", grub_hook)
         self.assertIn("initrd /live/initrd.img", grub_hook)
         self.assertIn("console=ttyS0,115200n8", grub_hook)
+
+    def test_binary_grub_hook_auto_boots_without_graphics_dependency(self):
+        hook = (
+            LIVE / "config" / "hooks" / "live" /
+            "9000-red-night-grub.hook.binary"
+        ).read_text(encoding="utf-8")
+        self.assertIn('set timeout=0', hook)
+        self.assertIn('/live/vmlinuz', hook)
+        self.assertIn('/live/initrd.img', hook)
+        self.assertIn('console=ttyS0,115200n8', hook)
+        self.assertNotIn('unicode.pf2', hook)
+        self.assertNotIn('loadfont', hook)
 
     def test_image_installs_built_red_wheels_offline(self):
         build = (LIVE / "build.sh").read_text(encoding="utf-8")

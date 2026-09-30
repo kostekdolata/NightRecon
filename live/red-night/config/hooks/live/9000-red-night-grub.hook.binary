@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+GRUB_CFG="binary/boot/grub/grub.cfg"
+if [ ! -d "binary/boot/grub" ]; then
+  echo "Red Night Live GRUB directory is missing" >&2
+  exit 1
+fi
+
+cat > "${GRUB_CFG}" <<'EOF'
+set default=0
+set timeout=0
+
+menuentry "Red Night Live" {
+    search --no-floppy --set=root --file /live/vmlinuz
+    linux /live/vmlinuz boot=live components hostname=red-night-live username=rednight console=tty0 console=ttyS0,115200n8
+    initrd /live/initrd.img
+}
+EOF
