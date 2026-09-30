@@ -24,6 +24,12 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
         self.assertNotIn("--binary-images ", config)
         self.assertIn("console=ttyS0,115200n8", config)
 
+    def test_grub_default_entry_has_bounded_autoboot_timeout(self):
+        grub = self.read("config/bootloaders/grub-pc/config.cfg")
+        self.assertIn("set default=0", grub)
+        self.assertIn("set timeout_style=menu", grub)
+        self.assertIn("set timeout=3", grub)
+
     def test_image_stages_only_required_red_wheels(self):
         build = self.read("build-image.sh")
         hook = self.read(
