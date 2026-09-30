@@ -2,9 +2,18 @@
 set -eu
 
 PYTHON=/opt/nightrecon/venv/bin/python
+APPLIANCE=/usr/local/bin/red-night-appliance
 MARKER=RED_NIGHT_LIVE_BOOT_OK
 
 "$PYTHON" -c "from red_night_app.deployment import RED_LIVE_USB_PROFILE, validate_red_deployment_contract; validate_red_deployment_contract(); assert RED_LIVE_USB_PROFILE.bootable_media; assert RED_LIVE_USB_PROFILE.host_disk_policy == 'no-automatic-mount'"
+
+test -x "$APPLIANCE"
+systemctl is-enabled --quiet red-night-live-appliance.service
+systemctl is-active --quiet red-night-live-appliance.service
+
+"$APPLIANCE" --mode ephemeral-session --dry-run | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); assert d['mode']=='ephemeral-session'; assert d['available'] is True; assert d['launch_red_application'] is True; assert d['persistent_workspace'] is False; assert d['authorization_effect']=='none'"
+"$APPLIANCE" --mode secure-workspace --dry-run | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); assert d['mode']=='secure-workspace'; assert d['available'] is False; assert d['launch_red_application'] is False; assert d['persistent_workspace'] is False; assert d['authorization_effect']=='none'"
+"$APPLIANCE" --mode recovery-integrity --dry-run | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); assert d['mode']=='recovery-integrity'; assert d['available'] is True; assert d['launch_red_application'] is False; assert d['authorization_effect']=='none'"
 
 printf '%s\n' "$MARKER" > /dev/console || true
 if [ -w /dev/ttyS0 ]; then
