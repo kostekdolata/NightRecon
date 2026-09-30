@@ -26,12 +26,11 @@ from red_night_app.persistence import (  # noqa: E402
     WORKSPACE_MAPPER_NAME,
     WORKSPACE_MOUNT_POINT,
 )
+from red_night_app.appliance import run_secure_workspace_session  # noqa: E402
 from red_night_app.persistence_executor import (  # noqa: E402
     PersistenceExecutionError,
-    mount_workspace,
     provision_workspace,
     safe_close_workspace,
-    unlock_workspace,
 )
 
 
@@ -67,8 +66,9 @@ def main() -> int:
         image = temp / "workspace.img"
         selector = by_id_dir / f"red-night-ci-{os.getpid()}-part1"
         state_file = mountpoint / "engagements" / "ci-state.txt"
-        secret = os.urandom(48)
-        wrong_secret = os.urandom(48)
+        secret_text = os.urandom(32).hex()
+        secret = secret_text.encode("ascii")
+        wrong_secret = os.urandom(32).hex().encode("ascii")
 
         subprocess.run(
             ["truncate", "-s", "96M", str(image)],
@@ -95,11 +95,28 @@ def main() -> int:
             if mapper.exists():
                 raise RuntimeError("mapper remained after safe close")
 
-            unlock_workspace(config, passphrase=secret)
-            mount_workspace(config)
-            if sha256(state_file) != persisted_hash:
-                raise RuntimeError("persisted Red workspace state changed")
-            safe_close_workspace(config, mounted=True)
+            commands = iter(("verify", "exit"))
+
+            def secure_runner(args, cwd):
+                if tuple(args) != ("verify",):
+                    raise RuntimeError(f"unexpected Secure Workspace command: {args!r}")
+                if Path(cwd) != mountpoint:
+                    raise RuntimeError("Secure Workspace command used unexpected cwd")
+                if sha256(state_file) != persisted_hash:
+                    raise RuntimeError("persisted Red workspace state changed")
+                return 0
+
+            secure_code = run_secure_workspace_session(
+                device=str(selector),
+                input_fn=lambda _prompt: next(commands),
+                output_fn=lambda _message: None,
+                passphrase_fn=lambda _prompt: secret_text,
+                command_runner=secure_runner,
+            )
+            if secure_code != 0:
+                raise RuntimeError("Secure Workspace session did not exit cleanly")
+            if mapper.exists():
+                raise RuntimeError("Secure Workspace left mapper open")
 
             image_hash_before = sha256(image)
             ephemeral = temp / "ephemeral-state.txt"
