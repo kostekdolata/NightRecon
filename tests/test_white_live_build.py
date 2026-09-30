@@ -171,7 +171,8 @@ class WhiteLiveBuildTests(unittest.TestCase):
         self.assertIn("-nic none", smoke)
         self.assertIn("sendkey ret", smoke)
         self.assertIn("server=on,wait=off", smoke)
-        self.assertIn("WHITE_NIGHT_LIVE_AUTO_START_OK", smoke)\n        self.assertIn("WHITE_NIGHT_LIVE_APP_OK", smoke)
+        self.assertIn("WHITE_NIGHT_LIVE_AUTO_START_OK", smoke)
+        self.assertIn("WHITE_NIGHT_LIVE_APP_OK", smoke)
         self.assertNotIn("-net user", smoke)
         self.assertNotIn("-nic user", smoke)
 
