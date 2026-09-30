@@ -32,11 +32,11 @@ class RedLivePrivilegeTests(unittest.TestCase):
         self.assertEqual(REQUIRED_OS_PRIVILEGE, "root")
 
     def test_privileged_runtime_accepts_root(self):
-        with unittest.mock.patch("red_night_app.appliance.os.geteuid", return_value=0):
+        with patch("red_night_app.appliance.os.geteuid", return_value=0):
             require_privileged_runtime()
 
     def test_privileged_runtime_rejects_non_root(self):
-        with unittest.mock.patch("red_night_app.appliance.os.geteuid", return_value=1000):
+        with patch("red_night_app.appliance.os.geteuid", return_value=1000):
             with self.assertRaises(PermissionError):
                 require_privileged_runtime()
 
