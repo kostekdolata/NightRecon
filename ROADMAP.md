@@ -555,8 +555,8 @@ See [V043_CONTROLLED_VALIDATION_INTELLIGENCE.md](V043_CONTROLLED_VALIDATION_INTE
 Status: active development.
 
 Goal: make Red Night deployable as the same independently versioned product in
-normal standalone installs, composed NightRecon stacks, and a future bootable
-Red Night Live USB environment.
+normal standalone installs, composed NightRecon stacks, and a bootable Red Night
+Live USB environment.
 
 Locked rules:
 
@@ -568,22 +568,31 @@ Locked rules:
 - no deployment profile weakens scope, authorization, approval, budget,
   revocation, evidence, cleanup, or worker-isolation controls.
 
-Batch 1 — Deployment Architecture Contracts:
+Completed v0.44 deployment batches:
 
-- immutable Red deployment-profile metadata for standalone, composed, and
-  Live USB modes;
-- identical mandatory Red/shared-core package set across all profiles;
-- explicit optional peer-Night composition contract;
-- offline-capable/no-auto-host-disk-mount deployment invariants;
-- Red-specific Live architecture document and acceptance gates;
-- unit + installed-wheel regression coverage proving no cross-Night runtime
-  dependency.
-
-Planned follow-on v0.44 batches:
-
+- Batch 1: deployment architecture contracts;
 - Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke;
-- Batch 3: appliance session + explicit Secure/Ephemeral/Recovery modes;
-- Batch 4: LUKS2 persistent workspace + reboot/ephemeral-state verification;
+- Batch 3: non-root appliance session with explicit
+  Secure/Ephemeral/Recovery modes;
+- Batch 4 slice 1: fail-closed LUKS2 persistence contract, explicit stable
+  partition selection, destructive-confirmation requirement, Secure Workspace
+  readiness state, and safe-close ordering.
+
+Active v0.44 work:
+
+- Batch 4 slice 2: guarded root-only LUKS2 executor using canonical plans only;
+- passphrases supplied on stdin and never in argv;
+- empty-target signature preflight before destructive provisioning;
+- fixed LUKS2 -> mapper -> ext4 -> fixed mountpoint order;
+- disposable file-backed integration fixture proving provision/reopen,
+  persistence, Ephemeral non-modification, wrong-secret failure, and cleanup;
+- Red Live image includes cryptsetup/e2fsprogs runtime support.
+
+Remaining v0.44 sequence:
+
+- Batch 4 continuation: constrained non-root appliance -> privileged service
+  boundary, reboot persistence verification, Ephemeral-state verification, and
+  safe shutdown/removal;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
 - Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
   Secure Boot target, hardware compatibility and endurance testing.

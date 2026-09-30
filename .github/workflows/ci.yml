@@ -673,6 +673,38 @@ jobs:
         run: python tests/v043_validation_attack_comparison_runtime.py
 
 
+  red-live-luks2-integration:
+    name: Red Night disposable LUKS2 executor
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Verify Red persistence contracts and executor
+        run: |
+          python -m unittest \
+            tests.test_red_live_persistence_contract \
+            tests.test_red_live_persistence_executor -v
+
+      - name: Install encrypted workspace test dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            cryptsetup \
+            e2fsprogs
+
+      - name: Run disposable Red LUKS2 executor fixture
+        run: |
+          sudo python tests/red_live_luks_executor_runtime.py
+
+
   red-live-build-integration:
     name: Red Night Live UEFI boot smoke
     runs-on: ubuntu-latest
@@ -698,8 +730,13 @@ jobs:
             --wheel-dir live/red-night/.wheelhouse \
             ./packages/shared-core ./packages/red-engine ./packages/red-night
 
-      - name: Verify Red Live deployment and appliance contracts
-        run: python -m unittest tests.test_red_live_build_skeleton tests.test_red_live_appliance -v
+      - name: Verify Red Live deployment, appliance, and persistence contracts
+        run: |
+          python -m unittest \
+            tests.test_red_live_build_skeleton \
+            tests.test_red_live_appliance \
+            tests.test_red_live_persistence_contract \
+            tests.test_red_live_persistence_executor -v
 
       - name: Install Debian 13 Live build and UEFI VM tools
         shell: bash

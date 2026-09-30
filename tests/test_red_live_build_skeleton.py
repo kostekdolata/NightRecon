@@ -157,6 +157,8 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
                 "iproute2",
                 "iputils-ping",
                 "network-manager",
+                "cryptsetup",
+                "e2fsprogs",
             },
         )
 

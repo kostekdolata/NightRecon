@@ -307,9 +307,22 @@ First verified slice:
 - safe-close ordering requires filesystem unmount before LUKS mapping close;
 - no cryptsetup, mkfs, mount, or block-device execution adapter exists in this slice.
 
+Batch 4 slice 2 in active development:
+
+- guarded root-only LUKS2 execution adapter consuming only canonical persistence plans;
+- no shell execution and no passphrase in argv;
+- explicit empty-target preflight before destructive provisioning;
+- fixed LUKS2 -> mapper -> ext4 -> fixed mountpoint command ordering;
+- safe-close unmounts before LUKS close;
+- Red Live image includes cryptsetup/e2fsprogs runtime support;
+- disposable file-backed CI fixture exercises provision, reopen, persistence,
+  Ephemeral non-modification, wrong-secret failure, and cleanup without touching
+  a physical host disk.
+
 Remaining Batch 4 gates:
 
-- privileged LUKS2 execution adapter with explicit operator unlock/provision flow;
+- connect the non-root appliance to the privileged adapter through a constrained
+  service boundary rather than direct root execution;
 - LUKS2 persistent workspace;
 - create/reopen a Red engagement across reboot;
 - prove ephemeral mode leaves no engagement state;
