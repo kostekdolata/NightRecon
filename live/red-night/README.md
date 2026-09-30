@@ -37,17 +37,25 @@ and full-stack Live composition are later v0.44 batches.
 
 ## Build prerequisites
 
-The CI job installs:
+The CI build runs `live-build` inside a privileged `debian:trixie`
+container so the build toolchain matches the target Debian release. This avoids
+the obsolete `live-build` package currently shipped by the Ubuntu hosted-runner
+base image.
+
+The Debian build environment installs:
 
 - `live-build`
-- `qemu-system-x86`
-- `ovmf`
+- `python3`, `python3-pip`, `python3-setuptools`, and `python3-wheel`
 - `xorriso`
 - `squashfs-tools`
 - `dosfstools`
 - `mtools`
 
-Python packaging tools are required on the build host.
+The host independently installs `qemu-system-x86`, `ovmf`, and `xorriso`
+for the UEFI boot check.
+
+A native Debian Trixie build host can run `build.sh` directly as root or
+through `sudo`.
 
 ## Build
 

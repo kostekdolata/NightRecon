@@ -15,6 +15,16 @@ for command in lb git sha256sum "${PYTHON_BUILD}"; do
   fi
 done
 
+if [[ "${EUID}" -eq 0 ]]; then
+  ROOT_CMD=()
+else
+  if ! command -v sudo >/dev/null 2>&1; then
+    echo "Red Live build requires root or sudo for live-build" >&2
+    exit 2
+  fi
+  ROOT_CMD=(sudo)
+fi
+
 if [[ -n "${RED_LIVE_WORK_DIR:-}" ]]; then
   WORK_DIR="${RED_LIVE_WORK_DIR}"
   rm -rf -- "${WORK_DIR}"
@@ -27,7 +37,7 @@ fi
 
 cleanup() {
   if [[ "${CLEANUP_WORK}" == "1" && "${KEEP_WORK}" != "1" ]]; then
-    sudo rm -rf -- "${WORK_DIR}" || true
+    "${ROOT_CMD[@]}" rm -rf -- "${WORK_DIR}" || true
   fi
 }
 trap cleanup EXIT
@@ -115,7 +125,7 @@ PY
 
 pushd "${WORK_DIR}" >/dev/null
 ./auto/config
-sudo lb build
+"${ROOT_CMD[@]}" lb build
 ISO_SOURCE="$(find . -maxdepth 1 -type f -name '*.iso' -print | LC_ALL=C sort | head -n 1)"
 if [[ -z "${ISO_SOURCE}" || ! -s "${ISO_SOURCE}" ]]; then
   echo "live-build did not produce an ISO" >&2

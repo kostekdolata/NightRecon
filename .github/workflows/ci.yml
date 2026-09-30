@@ -654,25 +654,41 @@ jobs:
       - name: Install Python packaging tools
         run: python -m pip install --upgrade pip setuptools wheel
 
-      - name: Install Debian Live and UEFI VM tooling
+      - name: Install UEFI VM tooling
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            live-build \
             qemu-system-x86 \
             ovmf \
-            xorriso \
-            squashfs-tools \
-            dosfstools \
-            mtools
+            xorriso
 
       - name: Validate source-controlled Live skeleton
         run: python -m unittest -v tests.test_red_live_build_skeleton
 
-      - name: Build Red Night Live ISO
-        env:
-          PYTHON_BUILD: python
-        run: bash live/red-night/build.sh
+      - name: Build Red Night Live ISO with Debian Trixie live-build
+        run: |
+          docker run --privileged --rm \
+            -v "$PWD:/repo" \
+            -w /repo \
+            debian:trixie \
+            bash -lc '
+              set -eux
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build \
+                ca-certificates \
+                git \
+                python3 \
+                python3-pip \
+                python3-setuptools \
+                python3-wheel \
+                xorriso \
+                squashfs-tools \
+                dosfstools \
+                mtools
+              git config --global --add safe.directory /repo
+              PYTHON_BUILD=python3 bash live/red-night/build.sh
+            '
 
       - name: Validate Red Night Live artifact manifest
         run: |
