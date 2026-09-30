@@ -698,8 +698,8 @@ jobs:
             --wheel-dir live/red-night/.wheelhouse \
             ./packages/shared-core ./packages/red-engine ./packages/red-night
 
-      - name: Verify Red Live skeleton contract
-        run: python -m unittest tests.test_red_live_build_skeleton -v
+      - name: Verify Red Live deployment and appliance contracts
+        run: python -m unittest tests.test_red_live_build_skeleton tests.test_red_live_appliance -v
 
       - name: Install Debian 13 Live build and UEFI VM tools
         shell: bash
