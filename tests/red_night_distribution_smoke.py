@@ -52,6 +52,24 @@ def check_privileged(
     return check(*privileged_args(*args), cwd=cwd, env=env)
 
 
+def restore_test_ownership(path: Path) -> None:
+    if os.name == "nt":
+        return
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is None or geteuid() == 0:
+        return
+    sudo = shutil.which("sudo")
+    if sudo is None:
+        raise AssertionError("Red distribution smoke requires sudo to restore test ownership")
+    subprocess.run(
+        (sudo, "--", "chown", "-R", f"{os.getuid()}:{os.getgid()}", str(path)),
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
 def scripts(directory: Path) -> tuple[Path, Path]:
     bin_dir = directory / ("Scripts" if os.name == "nt" else "bin")
     return bin_dir, bin_dir / ("python.exe" if os.name == "nt" else "python")
@@ -384,6 +402,7 @@ def main() -> None:
                 install_args.extend(("--find-links", str(wheels)))
             check(*install_args, str(app_wheel), cwd=directory)
             verify_app(bin_dir, directory)
+            restore_test_ownership(directory)
             check(
                 str(python), "-c",
                 (
@@ -471,6 +490,8 @@ def main() -> None:
                     "assert nightrecon_red_engine is not None",
                     cwd=directory,
                 )
+
+            restore_test_ownership(directory)
 
     print("Red Night separate-distribution installations: passed")
 
