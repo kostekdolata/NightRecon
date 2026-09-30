@@ -27,14 +27,14 @@ class RedPlatformPrivilegeTests(unittest.TestCase):
     def test_posix_root_is_privileged(self):
         with (
             patch("red_night_app.privilege.os.name", "posix"),
-            patch("red_night_app.privilege.os.geteuid", return_value=0),
+            patch("red_night_app.privilege.os.geteuid", return_value=0, create=True),
         ):
             self.assertTrue(is_platform_privileged())
 
     def test_posix_non_root_is_not_privileged(self):
         with (
             patch("red_night_app.privilege.os.name", "posix"),
-            patch("red_night_app.privilege.os.geteuid", return_value=1000),
+            patch("red_night_app.privilege.os.geteuid", return_value=1000, create=True),
         ):
             self.assertFalse(is_platform_privileged())
 
