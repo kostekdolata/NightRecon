@@ -42,6 +42,7 @@ class RedPersistenceAction(str, Enum):
     PROVISION = "provision"
     UNLOCK = "unlock"
     MOUNT = "mount"
+    UNMOUNT = "unmount"
     SAFE_CLOSE = "safe-close"
 
 
@@ -228,6 +229,27 @@ def plan_persistence_action(
             False,
             (RedPersistenceStep.FILESYSTEM_MOUNT,),
             "explicit-workspace-mount",
+        )
+
+    if requested is RedPersistenceAction.UNMOUNT:
+        if current is not RedPersistenceState.MOUNTED:
+            return RedPersistencePlan(
+                requested,
+                current,
+                False,
+                False,
+                False,
+                (),
+                "unmount-requires-mounted-workspace",
+            )
+        return RedPersistencePlan(
+            requested,
+            current,
+            True,
+            False,
+            False,
+            (RedPersistenceStep.FILESYSTEM_UNMOUNT,),
+            "explicit-workspace-unmount",
         )
 
     if current is RedPersistenceState.MOUNTED:
