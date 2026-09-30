@@ -3,9 +3,9 @@
 Batch 3 adds an explicit appliance session around the existing Red Night
 application without changing Red engine authorization or assessment behavior.
 
-Secure Workspace remains unavailable until Batch 4's privileged persistence
-adapter supplies a mounted encrypted workspace. Ephemeral Session runs Red commands from a temporary
-runtime directory. Recovery & Integrity Check validates the installed Red
+Secure Workspace opens only an explicitly selected existing LUKS2 workspace.
+It never discovers or provisions storage automatically. Ephemeral Session runs
+Red commands from a temporary runtime directory. Recovery & Integrity Check validates the installed Red
 deployment contract and never launches assessment commands.
 """
 
@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 import os
+from getpass import getpass
 from pathlib import Path
 import shlex
 import subprocess
@@ -24,7 +25,18 @@ from tempfile import TemporaryDirectory
 from typing import Callable, Sequence
 
 from .deployment import validate_red_deployment_contract
-from .persistence import RedPersistenceState, secure_workspace_ready
+from .persistence import (
+    RedPersistenceConfig,
+    RedPersistenceState,
+    secure_workspace_ready,
+)
+from .persistence_executor import (
+    inspect_persistence_state,
+    mount_workspace,
+    safe_close_workspace,
+    unlock_workspace,
+    unmount_workspace,
+)
 from .privilege import require_platform_privilege
 
 
@@ -132,6 +144,35 @@ def _default_command_runner(args: Sequence[str], cwd: Path) -> int:
     return int(completed.returncode)
 
 
+def _run_operator_loop(
+    workspace: Path,
+    *,
+    input_fn: Callable[[str], str],
+    output_fn: Callable[[str], None],
+    command_runner: Callable[[Sequence[str], Path], int],
+) -> int:
+    while True:
+        try:
+            raw = input_fn("red-night> ")
+        except EOFError:
+            return 0
+        command = raw.strip()
+        if not command:
+            continue
+        if command in {"exit", "quit"}:
+            return 0
+        try:
+            args = shlex.split(command)
+        except ValueError as exc:
+            output_fn(f"Input error: {exc}")
+            continue
+        if not args:
+            continue
+        if args == ["help"]:
+            args = ["--help"]
+        command_runner(args, workspace)
+
+
 def run_ephemeral_operator_session(
     *,
     runtime_root: Path | None = None,
@@ -155,26 +196,93 @@ def run_ephemeral_operator_session(
         )
         output_fn("Type 'help' for Red Night CLI help or 'exit' to leave the session.")
 
-        while True:
+        return _run_operator_loop(
+            workspace,
+            input_fn=input_fn,
+            output_fn=output_fn,
+            command_runner=command_runner,
+        )
+
+
+def run_secure_workspace_session(
+    *,
+    device: str,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+    passphrase_fn: Callable[[str], str] = getpass,
+    command_runner: Callable[[Sequence[str], Path], int] = _default_command_runner,
+    state_inspector: Callable[[RedPersistenceConfig], RedPersistenceState] = inspect_persistence_state,
+    unlock_fn: Callable[..., None] = unlock_workspace,
+    mount_fn: Callable[..., None] = mount_workspace,
+    unmount_fn: Callable[..., None] = unmount_workspace,
+    safe_close_fn: Callable[..., None] = safe_close_workspace,
+) -> int:
+    """Open one explicitly selected existing encrypted workspace."""
+
+    config = RedPersistenceConfig(device=device)
+    initial_state = state_inspector(config)
+
+    if initial_state is RedPersistenceState.MISSING:
+        output_fn("Secure Workspace device is not present.")
+        return 4
+    if initial_state is RedPersistenceState.UNINITIALIZED:
+        output_fn(
+            "Selected device is uninitialized. "
+            "Explicit first-use provisioning is required separately."
+        )
+        return 4
+
+    opened_by_session = False
+    mounted_by_session = False
+    state = initial_state
+
+    try:
+        if state is RedPersistenceState.LUKS2_LOCKED:
+            raw_secret = passphrase_fn("Secure Workspace passphrase: ")
+            if not raw_secret:
+                output_fn("Secure Workspace passphrase is required.")
+                return 4
+            secret = bytearray(raw_secret.encode("utf-8"))
+            raw_secret = ""
             try:
-                raw = input_fn("red-night> ")
-            except EOFError:
-                return 0
-            command = raw.strip()
-            if not command:
-                continue
-            if command in {"exit", "quit"}:
-                return 0
-            try:
-                args = shlex.split(command)
-            except ValueError as exc:
-                output_fn(f"Input error: {exc}")
-                continue
-            if not args:
-                continue
-            if args == ["help"]:
-                args = ["--help"]
-            command_runner(args, workspace)
+                unlock_fn(config, passphrase=bytes(secret))
+            finally:
+                for index in range(len(secret)):
+                    secret[index] = 0
+            opened_by_session = True
+            state = state_inspector(config)
+            if state is not RedPersistenceState.LUKS2_OPEN:
+                raise RuntimeError(
+                    "Secure Workspace did not reach the expected open LUKS2 state"
+                )
+
+        if state is RedPersistenceState.LUKS2_OPEN:
+            mount_fn(config)
+            mounted_by_session = True
+            state = state_inspector(config)
+
+        if state is not RedPersistenceState.MOUNTED:
+            raise RuntimeError(
+                "Secure Workspace did not reach the expected mounted state"
+            )
+
+        os.environ["NIGHTRECON_LIVE_MODE"] = RedLiveSessionMode.SECURE_WORKSPACE.value
+        output_fn("Secure Workspace active.")
+        output_fn(
+            "Encrypted workspace mounted. Active Red operations still require "
+            "normal Red/shared-core authorization."
+        )
+        return _run_operator_loop(
+            Path(config.mount_point),
+            input_fn=input_fn,
+            output_fn=output_fn,
+            command_runner=command_runner,
+        )
+    finally:
+        if opened_by_session:
+            safe_close_fn(config, mounted=mounted_by_session)
+        elif mounted_by_session:
+            unmount_fn(config)
 
 
 def run_recovery_integrity_check(
@@ -206,6 +314,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Explicit Live session mode. Omit only for the interactive selector.",
     )
     parser.add_argument(
+        "--persistence-device",
+        help=(
+            "Explicit stable Secure Workspace partition selector "
+            "(/dev/disk/by-partuuid/... or partition-qualified /dev/disk/by-id/...)."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the selected session contract as JSON without starting a session.",
@@ -231,10 +346,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     require_privileged_runtime()
 
     if mode is RedLiveSessionMode.SECURE_WORKSPACE:
-        print("Secure Workspace is not available yet.")
-        print("A mounted encrypted LUKS2 workspace is required before launch.")
-        print("No Red assessment session was started.")
-        return 3
+        device = args.persistence_device
+        if not device and args.mode is None:
+            device = input("Secure Workspace partition: ").strip()
+        if not device:
+            print("Secure Workspace requires an explicit persistence device.")
+            print("No disk discovery or automatic provisioning was performed.")
+            return 4
+        return run_secure_workspace_session(device=device)
 
     if mode is RedLiveSessionMode.RECOVERY_INTEGRITY:
         return run_recovery_integrity_check()
