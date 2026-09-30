@@ -9,6 +9,6 @@
   "persistence": false,
   "runtime": "isolated-venv",
   "application_installed": true,
-  "application_auto_launch": false,
+  "application_auto_launch": true,
   "authorization_effect": "none"
 }
