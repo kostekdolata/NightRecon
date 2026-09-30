@@ -1,0 +1,12 @@
+[Unit]
+Description=White Night Live Batch 2 application bootstrap
+After=local-fs.target
+ConditionPathExists=/usr/local/bin/white-night-app
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/white-night-live-app-start
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
