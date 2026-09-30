@@ -5,7 +5,7 @@ ConditionPathExists=/usr/local/bin/white-night-app
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/sbin/white-night-live-app-start
+ExecStart=/bin/sh /usr/local/sbin/white-night-live-app-start
 RemainAfterExit=yes
 
 [Install]
