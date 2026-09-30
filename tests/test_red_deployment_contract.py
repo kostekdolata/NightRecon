@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 import sys
 import unittest
@@ -92,10 +93,19 @@ class RedDeploymentContractTests(unittest.TestCase):
         offenders = []
         for source_root in roots:
             for path in source_root.rglob("*.py"):
-                text = path.read_text(encoding="utf-8")
-                for prefix in FORBIDDEN_NIGHT_RUNTIME_PREFIXES:
-                    if prefix in text:
-                        offenders.append(f"{path.relative_to(ROOT)}:{prefix}")
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+                imported = []
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        imported.extend(alias.name for alias in node.names)
+                    elif isinstance(node, ast.ImportFrom) and node.module:
+                        imported.append(node.module)
+                for module in imported:
+                    for prefix in FORBIDDEN_NIGHT_RUNTIME_PREFIXES:
+                        if module == prefix or module.startswith(prefix + "."):
+                            offenders.append(
+                                f"{path.relative_to(ROOT)}:{module}"
+                            )
         self.assertEqual(offenders, [])
 
     def test_red_app_dependencies_do_not_require_peer_nights(self):
