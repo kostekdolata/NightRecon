@@ -111,8 +111,11 @@ class RedLiveApplianceTests(unittest.TestCase):
         self.assertFalse(payload["persistent_workspace"])
         self.assertEqual(payload["authorization_effect"], "none")
 
-    def test_secure_mode_cli_refuses_to_start_before_batch_four(self):
-        with patch("builtins.print"):
+    def test_secure_mode_cli_refuses_when_persistence_is_not_mounted(self):
+        with (
+            patch("builtins.print"),
+            patch("red_night_app.appliance.os.geteuid", return_value=0),
+        ):
             code = main(["--mode", "secure-workspace"])
         self.assertEqual(code, 3)
 
