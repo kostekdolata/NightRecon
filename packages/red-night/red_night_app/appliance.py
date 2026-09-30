@@ -25,6 +25,7 @@ from typing import Callable, Sequence
 
 from .deployment import validate_red_deployment_contract
 from .persistence import RedPersistenceState, secure_workspace_ready
+from .privilege import require_platform_privilege
 
 
 AUTHORIZATION_EFFECT = "none"
@@ -189,14 +190,9 @@ def run_recovery_integrity_check(
 
 
 def require_privileged_runtime() -> None:
-    """Fail closed if the Live appliance is launched without required OS privilege."""
+    """Fail closed if the Live appliance lacks required platform privilege."""
 
-    geteuid = getattr(os, "geteuid", None)
-    if geteuid is None or geteuid() != 0:
-        raise PermissionError(
-            "Red Night Live requires root OS privilege; "
-            "NightRecon authorization controls remain independently enforced"
-        )
+    require_platform_privilege()
 
 
 def build_parser() -> argparse.ArgumentParser:
