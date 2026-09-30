@@ -93,8 +93,9 @@ else:
     raise SystemExit("QEMU monitor socket did not become ready")
 
 with client:
-    time.sleep(2)
-    client.sendall(b"sendkey ret\n")
+    for _ in range(5):
+        time.sleep(2)
+        client.sendall(b"sendkey ret\n")
 PY
 
 elapsed=0
