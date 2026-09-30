@@ -372,7 +372,17 @@ destroying the wrong device.
 
 ### Live Batch 1 — build skeleton
 
-Status: active implementation on `v0.1.0-white-live-batch1-dev`.
+Status: completed and CI-verified on `v0.1.0-white-live-batch1-dev`.
+
+Verified acceptance evidence:
+
+- exact White/shared-core wheels built from repository package sources;
+- Debian trixie amd64 hybrid ISO built successfully;
+- generated ISO SHA-256 sidecar verified;
+- image retained as a CI artifact for inspection;
+- OVMF/QEMU UEFI boot reaches the deterministic
+  `WHITE_NIGHT_LIVE_BOOT_OK` userspace marker with `-nic none`;
+- complete NightRecon CI remains green on the Batch 1 head.
 
 Acceptance slice:
 
@@ -391,8 +401,20 @@ remain later Live batches and are not claimed by Batch 1.
 
 ### Live Batch 2 — application launch
 
-- White application package installed from build artifacts;
-- automatic application start;
+Status: next active Live increment.
+
+Initial verified slice:
+
+- install the exact staged shared-core, White engine, and White app wheels into
+  an isolated runtime inside the immutable image;
+- expose the packaged `white-night-app` entry point;
+- prove the booted image can execute the White application boundary and load the
+  expected package versions with networking disabled;
+- keep persistence disabled and host disks untouched.
+
+Follow-on slice:
+
+- automatic White application start;
 - appliance-style session;
 - no persistent engagement state yet.
 
