@@ -48,14 +48,15 @@ class RedLiveApplianceTests(unittest.TestCase):
 
     def test_ephemeral_session_launches_only_after_explicit_selection(self):
         outputs = []
+        selections = iter(["wrong", "2"])
         selected = prompt_for_mode(
-            input_fn=iter(["wrong", "2"]).__next__,
+            input_fn=lambda _prompt: next(selections),
             output_fn=outputs.append,
         )
         self.assertIs(selected, RedLiveSessionMode.EPHEMERAL_SESSION)
         self.assertTrue(any("Invalid selection" in item for item in outputs))
 
-    def test_ephemeral_operator_loop_never_invokes_an_os_shell(self):
+    def test_ephemeral_operator_loop_routes_only_red_command_arguments(self):
         calls = []
         states = iter(["--version", "help", "exit"])
 
