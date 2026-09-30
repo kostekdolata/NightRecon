@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Fail-closed White Night Live boot-mode selector."""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import sys
+
+
+PARAMETER = "nightrecon.live_mode"
+DEFAULT_MODE = "ephemeral"
+SUPPORTED_MODES = (
+    "secure-workspace",
+    "ephemeral",
+    "recovery",
+)
+
+
+def select_mode(cmdline: str) -> str:
+    values = [
+        token.split("=", 1)[1]
+        for token in cmdline.split()
+        if token.startswith(f"{PARAMETER}=")
+    ]
+    if not values:
+        return DEFAULT_MODE
+    if len(values) != 1:
+        raise ValueError("White Night Live boot mode must be specified at most once")
+    mode = values[0].strip()
+    if mode not in SUPPORTED_MODES:
+        raise ValueError(f"unsupported White Night Live boot mode: {mode}")
+    return mode
+
+
+def mode_state(mode: str) -> dict[str, object]:
+    if mode == "ephemeral":
+        return {
+            "schema_version": 1,
+            "mode": mode,
+            "ready": True,
+            "persistence_required": False,
+            "application_auto_launch": True,
+            "maintenance_only": False,
+            "authorization_effect": "none",
+        }
+    if mode == "recovery":
+        return {
+            "schema_version": 1,
+            "mode": mode,
+            "ready": True,
+            "persistence_required": False,
+            "application_auto_launch": False,
+            "maintenance_only": True,
+            "authorization_effect": "none",
+        }
+    if mode == "secure-workspace":
+        return {
+            "schema_version": 1,
+            "mode": mode,
+            "ready": False,
+            "persistence_required": True,
+            "application_auto_launch": False,
+            "maintenance_only": False,
+            "blocked_reason": "encrypted-persistence-not-configured",
+            "authorization_effect": "none",
+        }
+    raise ValueError(f"unsupported White Night Live boot mode: {mode}")
+
+
+def main() -> int:
+    cmdline_path = Path(
+        os.environ.get("NIGHTRECON_CMDLINE_FILE", "/proc/cmdline")
+    )
+    state_path = Path(
+        os.environ.get(
+            "NIGHTRECON_MODE_STATE",
+            "/run/white-night-live-mode.json",
+        )
+    )
+    try:
+        mode = select_mode(cmdline_path.read_text(encoding="utf-8"))
+        state = mode_state(mode)
+    except (OSError, UnicodeError, ValueError) as exc:
+        print(f"White Night Live mode selection failed: {exc}", file=sys.stderr)
+        return 2
+
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(
+        json.dumps(state, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    marker = f"WHITE_NIGHT_LIVE_MODE={mode}"
+    print(marker)
+    try:
+        tty = Path("/dev/ttyS0")
+        if tty.exists() and os.access(tty, os.W_OK):
+            tty.write_text(marker + "\n", encoding="utf-8")
+    except OSError:
+        pass
+    if not state["ready"]:
+        print(
+            "WHITE_NIGHT_LIVE_MODE_BLOCKED="
+            + str(state.get("blocked_reason", "unavailable"))
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

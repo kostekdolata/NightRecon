@@ -1,6 +1,7 @@
 [Unit]
-Description=White Night Live Batch 2 application bootstrap
-After=local-fs.target
+Description=White Night Live application bootstrap and mode gate
+After=local-fs.target white-night-live-mode.service
+Requires=white-night-live-mode.service
 ConditionPathExists=/usr/local/bin/white-night-app
 
 [Service]

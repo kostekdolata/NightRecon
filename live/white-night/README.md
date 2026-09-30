@@ -1,4 +1,4 @@
-# White Night Live — Batch 2 application runtime
+# White Night Live — Batch 3 mode foundation
 
 This directory contains the source-controlled White Night Live deployment layer.
 It uses the same versioned White Night and shared-core package artifacts as a
@@ -89,3 +89,50 @@ White Live batches will expose Secure Workspace, Ephemeral Session, and Recovery
 modes. Headless CI selects the default entry through QEMU's local UNIX monitor
 before waiting for the serial readiness marker. The guest still runs with
 `-nic none`.
+
+
+## Batch 3 mode foundation
+
+This slice establishes the runtime contract for the three White Night Live modes
+before encrypted persistence is introduced.
+
+The kernel command-line parameter is:
+
+`nightrecon.live_mode=<mode>`
+
+Recognized values are:
+
+- `ephemeral` — the safe default when no explicit mode is supplied. White
+  auto-starts, state remains nonpersistent, and the existing offline VM gate
+  exercises this path.
+- `recovery` — maintenance-only. The mode selector succeeds but the White
+  operator application is not auto-launched.
+- `secure-workspace` — recognized but deliberately blocked in this slice.
+  It requires encrypted persistence and therefore cannot become ready until the
+  LUKS2 workspace batch is implemented and verified.
+
+Unknown values and duplicate `nightrecon.live_mode` parameters fail closed.
+Mode state is written only under `/run` and has
+`"authorization_effect": "none"`.
+
+This mode foundation still does not create filesystems, mount host disks, or
+claim persistent Secure Workspace capability.
+
+
+## UEFI mode menu
+
+Batch 3 exposes the three runtime modes directly in the GRUB/UEFI menu:
+
+1. White Night — Ephemeral Session
+2. White Night — Recovery & Integrity Check
+3. White Night — Secure Workspace
+
+Ephemeral is entry 0 and remains the unattended default. Recovery is explicitly
+maintenance-only. Secure Workspace is selectable so the operator can see the
+intended production path, but the current runtime intentionally blocks it until
+LUKS2 encrypted persistence has been implemented and verified.
+
+The menu is source-controlled under
+`config/bootloaders/grub-pc/` and uses live-build's kernel/initrd/append
+placeholders, so it is generated as part of the normal reproducible image build.
+CI boots all three entries with QEMU/OVMF and networking disabled.

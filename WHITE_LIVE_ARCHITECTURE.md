@@ -418,11 +418,29 @@ Follow-on slice:
 - appliance-style session;
 - no persistent engagement state yet.
 
-### Live Batch 3 — encrypted persistence
+### Live Batch 3 — boot modes and encrypted persistence
 
-- LUKS2 workspace;
+Status: mode-contract implementation active on
+`v0.1.0-white-live-batch3-modes-dev`, stacked on the Batch 2 application
+runtime until Batch 2 acceptance completes.
+
+First verified slice:
+
+- recognize `secure-workspace`, `ephemeral`, and `recovery` through a
+  fail-closed runtime mode selector;
+- default to Ephemeral when no explicit mode is supplied;
+- auto-launch White only in Ephemeral during this pre-persistence slice;
+- keep Recovery maintenance-only with no White operator-app auto-launch;
+- recognize but block Secure Workspace until encrypted persistence exists;
+- reject duplicate or unknown mode parameters;
+- keep mode state transient under `/run` with no authorization effect.
+
+Follow-on persistence slice:
+
+- add LUKS2 workspace support;
+- make Secure Workspace ready only after successful encrypted-workspace unlock;
 - create/reopen engagement across reboot;
-- prove ephemeral mode leaves no engagement state behind;
+- prove Ephemeral leaves no engagement state behind;
 - safe shutdown/removal workflow.
 
 ### Live Batch 4 — integrity/recovery
