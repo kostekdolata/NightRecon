@@ -81,6 +81,16 @@ jobs:
           cd artifacts/live/white-night
           sha256sum -c WhiteNight-Live-0.1.0a6-amd64.iso.sha256
 
+      - name: Preserve White Live image
+        uses: actions/upload-artifact@v4
+        with:
+          name: white-night-live-0.1.0a6-amd64
+          path: |
+            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso
+            artifacts/live/white-night/WhiteNight-Live-0.1.0a6-amd64.iso.sha256
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Install QEMU and OVMF
         run: |
           sudo apt-get update
