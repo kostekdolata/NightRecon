@@ -6,19 +6,24 @@ This roadmap is directional. Release scope may be split into smaller verified in
 
 ## Product delivery order
 
-Red Night is the only active Night product track until it passes the complete
-[Red Night acceptance standard](RED_ACCEPTANCE.md) and documented, repeatable
-comparison labs. For each relevant specialist category, measure coverage,
-false positives, safety, repeatability, usability, and operational evidence.
-The goal is to exceed leading tools where Red Night can demonstrate a material
-advantage and meet their essential capability baseline elsewhere. Never claim
-universal superiority from a feature checklist or a passing unit-test count.
+Red Night v0.43.0 is the verified stable standalone baseline, with v0.44.0
+Standalone & Live Deployment Foundation continuing as a separate verified Red
+development track under [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md).
 
-After Red Night reaches that evidence-backed gate, choose the next Night using
-its own acceptance and comparison plan. Blue Night, White Night, Purple Night,
-and Black Night remain distinct future applications, not parallel delivery
-tracks. Maintenance of the shared authorization core continues throughout;
-it cannot wait for the separate White Night application.
+White Night is the second standalone product track. Its development may proceed
+in parallel from verified Red checkpoints provided White work does not refactor,
+weaken, or silently change Red execution behavior. White is governed by
+[WHITE_ACCEPTANCE.md](WHITE_ACCEPTANCE.md),
+[WHITE_OWNERSHIP.md](WHITE_OWNERSHIP.md),
+[WHITE_PACKAGE_PLAN.md](WHITE_PACKAGE_PLAN.md), and
+[WHITE_LIVE_ARCHITECTURE.md](WHITE_LIVE_ARCHITECTURE.md).
+
+White must remain one product across standalone installation, composed
+full-stack installation, and bootable White Night Live USB.
+
+Blue Night, Purple Night, and Black Night remain distinct later standalone
+applications. Shared authorization/safety enforcement remains Night-neutral and
+must work without White installed.
 
 ## Operating Modes
 
@@ -33,6 +38,11 @@ edition architecture and honest availability status are in [EDITIONS.md](EDITION
 - **White Night** — authorization, scope, rules of engagement, approvals, safety controls, audit, evidence, exercise control, and emergency stop.
 - **Black Night** — deliberately knowledge-limited external assessment beginning from an explicitly authorized starting scope.
 - **Purple Night** — correlation of approved Red Night actions with Blue Night prevention, telemetry, alerts, and detection coverage, usable on its own with exported evidence or alongside Red Night and Blue Night.
+
+White Night additionally has a locked deployment requirement: the same White
+application/engine code and versioned contracts must support standalone install,
+full-stack composition, and a bootable encrypted Live USB. No Night may become
+a mandatory runtime dependency of another.
 
 ## Locked Safety Principles
 
@@ -585,7 +595,94 @@ Planned capabilities:
 
 High-impact actions must never be exposed as ordinary scan options.
 
-## Generation 4 — Blue Defensive Validation
+## Generation 4 — White Night Command and Exercise Control
+
+Goal: make authorization, engagement governance, evidence custody, exercise
+control, and emergency-stop management a first-class standalone product while
+preserving shared-core enforcement when White is absent.
+
+Locked architecture:
+
+- one White product across standalone install, full-stack install, and Live USB;
+- `White application -> White engine -> shared core`;
+- no White-to-Red/Blue/Purple/Black runtime imports;
+- no Red/Blue/Purple/Black dependency on White;
+- shared-core scope, budget, impact, stop, and secret-handling enforcement
+  remains authoritative;
+- imported evidence never grants authorization.
+
+### White Batch 1 — Foundation and acceptance
+
+Status: completed documentation foundation.
+
+### White Batch 2 — Package skeleton
+
+Status: implemented and PR-CI verified.
+
+### White Batch 3 — Engagement, scope and ROE domain
+
+Status: implemented and PR-CI verified.
+
+### White Batch 4 — Deterministic policy compiler
+
+Status: implemented and PR-CI verified on the earlier shared-core baseline.
+
+### White Batch 5 — Approval workflow engine
+
+Status: implemented and PR-CI verified.
+
+Delivered single/dual/quorum approval, role eligibility, separation of duties,
+bounded delegation without authority multiplication, expiry, rejection,
+escalation, revocation, action-bound grants, replay protection, and hash-linked
+decision evidence.
+
+### White Batch 6 — Evidence custody and tamper-evident audit
+
+Status: replayed onto the current Red v0.44 master baseline as White
+`0.1.0a6`; current-matrix verification required before completion.
+
+Current scope:
+
+- govern the existing shared-core `EvidenceRecord` contract instead of creating
+  a White-only evidence schema;
+- classification and retention inherited from engagement data-handling policy;
+- evidence-record SHA-256 fingerprints and integrity-bound custody wrappers;
+- derived-evidence parent lineage with parents required to already be in custody;
+- current and historical custodian projection;
+- append-only hash-linked custody events for intake, derivation, transfer, and
+  governed export;
+- metadata-only evidence manifests that omit evidence payload data;
+- portable export bundles binding manifest, custody case, and shared-core records;
+- explicit `authorization_effect: none` in custody/export contracts;
+- export refusal when engagement policy forbids export or retention has expired;
+- backend-neutral custody/audit store protocols plus atomic local file stores;
+- append-only logical audit trails with actor, subject, outcome, reason code,
+  timestamp, secret-safe details, event fingerprints, and trail fingerprints;
+- semantic and cryptographic verification on import/reopen;
+- secret-safe custody/audit summaries;
+- local `evidence` and `audit` CLI operations only;
+- no target execution, network activity, or cross-Night runtime dependency.
+
+Digital signatures/authenticity remain a later hardening layer. Batch 6 provides
+tamper evidence and deterministic integrity verification, not signer identity.
+
+### White Batch 7 — White Night Live USB alpha
+
+Planned after Batch 6 verification: reproducible Debian-based `live-build`,
+x86-64 UEFI, immutable base image, LUKS2 workspace, Secure
+Workspace/Ephemeral/Recovery modes, package-based White installation, automatic
+White startup, and VM persistence tests.
+
+### White Batches 8-12
+
+Exercise Director, Mission Control/emergency stop management, Red composition,
+professional workspace/reporting, then hardened standalone/composed/Live
+deployment acceptance.
+
+White remains independently useful for its own control-plane responsibility.
+Full-stack capability comes from composition, not duplicated engines.
+
+## Generation 5 — Blue Defensive Validation
 
 Goal: test whether defensive controls actually prevent or detect approved activity.
 
@@ -608,32 +705,6 @@ Planned integrations and capabilities:
 - remediation and re-test loops
 
 Purple Night workflows will correlate approved Red Night activity with Blue Night telemetry and detections.
-
-## Generation 5 — White Team Command Layer
-
-Goal: make authorization and exercise control a first-class product capability.
-
-Planned capabilities:
-
-- engagements and projects
-- authorization records
-- target allowlists and exclusions
-- testing windows
-- allowed techniques
-- maximum intrusiveness
-- approval chains
-- request/action budgets
-- worker permissions
-- encrypted credential/secrets handling
-- immutable audit evidence
-- exercise control and scoring
-- emergency stop and worker revocation
-- data-retention policy
-- evidence custody and export
-
-The separate White Night application will provide engagement administration
-and exercise control. Mandatory shared-core authorization and safety remain
-available to Red Night before White Night exists as an application.
 
 ## Generation 6 — Black-Box / External Attack Surface
 
@@ -690,3 +761,15 @@ The current execution order is:
 5. Continue broader Red acceptance work without weakening authorization,
    evidence-honesty, approval, revocation, isolated-worker, action-budget,
    cleanup, or bounded-execution rules.
+
+White Night proceeds as a separate non-breaking product track:
+
+1. Verify Batch 6 custody, manifest, export, audit, retention, and tamper-detection
+   semantics against the current Red v0.44 master baseline.
+2. Require the full current Red/general matrix plus all four isolated White
+   distribution combinations before marking Batch 6 complete.
+3. Keep evidence explicitly non-authoritative: imports, manifests, and exports
+   never expand scope or satisfy an approval by themselves.
+4. Keep Batch 6 integrity-only; signer authenticity and key-management remain a
+   later explicit hardening step rather than being implied by SHA-256 hashes.
+5. Begin White Batch 7 only after Batch 6 is green on the current baseline.
