@@ -15,7 +15,7 @@ import zipfile
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 LEGACY_VERSION = "0.31.0"
-RED_VERSION = "0.42.0"
+RED_VERSION = "0.43.0"
 
 
 def check(*args: str, cwd: Path, env: dict[str, str] | None = None) -> str:

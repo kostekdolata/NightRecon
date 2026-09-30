@@ -1,15 +1,15 @@
 # Red Night Runtime Boundary
 
-This document records the stable v0.42.0 Red Night package boundary.
+This document records the stable v0.43.0 Red Night package boundary.
 
 ## Current package boundary
 
 Red Night is independently installable through three coordinated distributions:
 
-- `nightrecon-red-night==0.42.0` — application launcher and Red command surface
-- `nightrecon-red-engine==0.42.0` — Red-owned assessment, evidence, graph,
+- `nightrecon-red-night==0.43.0` — application launcher and Red command surface
+- `nightrecon-red-engine==0.43.0` — Red-owned assessment, evidence, graph,
   validation, planning, remediation, checks, identity, and cloud/hybrid logic
-- `nightrecon-shared-core==0.42.0` — mandatory network-free authorization,
+- `nightrecon-shared-core==0.43.0` — mandatory network-free authorization,
   edition policy, evidence contracts, engagement policy, storage, and workspace
   coordination
 
@@ -50,14 +50,17 @@ It never grants authorization for active activity.
 
 The Red engine owns the Red assessment/runtime surface used by the standalone
 application, including the migrated discovery/service foundations plus the
-v0.33-v0.42 engagement, live Active Directory and Microsoft Entra identity,
-identity benchmark/operator, controlled-validation, graph, planning,
-remediation/retest, check-ecosystem, and cloud/hybrid boundaries.
+v0.33-v0.43 engagement, live Active Directory and Microsoft Entra identity,
+identity benchmark/operator, controlled-validation, isolated revocable validation
+workers, durable validation/cleanup evidence, graph, planning, remediation/retest,
+check-ecosystem, cloud/hybrid, and ATT&CK/comparison boundaries.
 
-The stable v0.42 package boundary does not imply unrestricted offensive
-execution. The current operator is plan-only, validation adapters are
-capability-gated, and the release does not add exploit payloads, credential
-harvesting, arbitrary command execution, cloud writes, persistence, privilege
+The stable v0.43 package boundary does not imply unrestricted offensive
+execution. Planning remains proposal-only until an operator explicitly selects a
+reviewed binding; the only live controlled-validation adapters are bounded
+read-only TCP, TLS-fingerprint, and HTTP HEAD proofs executed in isolated
+revocable workers. The release does not add arbitrary command execution, exploit
+payloads, credential harvesting, cloud/directory writes, persistence, privilege
 changes, or autonomous execution.
 
 ## Standalone and compatibility verification

@@ -1,8 +1,8 @@
 # NightRecon Shared Core
 
 Stable shared-safety package for capabilities that must remain common across
-independently installable NightRecon applications. The v0.42.0 release is the
-mandatory shared core beneath the standalone Red Night v0.42.0 application.
+independently installable NightRecon applications. The v0.43.0 release is the
+mandatory shared core beneath the standalone Red Night v0.43.0 application.
 
 Current exported surface:
 

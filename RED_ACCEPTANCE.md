@@ -156,10 +156,11 @@ access, likelihood, impact, risk, or permission to execute.
 
 
 
-## v0.43 development state
+## v0.43 release state
 
-Red Night v0.43 Controlled Validation Intelligence now has a reviewed,
-evidence-backed validation chain from proposal through lifecycle comparison:
+Red Night v0.43.0 is the stable Controlled Validation Intelligence milestone.
+It has a reviewed, evidence-backed validation chain from proposal through
+explicit bounded execution, durable lifecycle evidence, retest, and comparison:
 
 - reviewed symbolic technique registry
 - exact candidate-to-technique eligibility
@@ -178,9 +179,11 @@ evidence-backed validation chain from proposal through lifecycle comparison:
   disposition, operator steps, runtime, and a reproducible comparison
   fingerprint
 
-The v0.43 controlled comparison lab remains an internal deterministic fixture
-lab. It does **not** close the live authorized specialist-comparison gates in
-this completion standard and does not establish parity with ATT&CK, Caldera,
+The stable v0.43 milestone closes the release-specific controlled-validation
+chain for the current reviewed read-only proofs, but it does **not** close the
+broader Red completion standard. The v0.43 comparison lab remains an internal
+deterministic fixture lab and does not establish parity with ATT&CK, Caldera,
 Metasploit, Cobalt Strike, Nmap, Burp/ZAP, BloodHound, or another specialist
-product. External comparison categories remain open until measured under the
-same documented authorized lab conditions.
+product. Live authorized specialist comparisons, broader discovery/identity
+coverage, and professional multi-operator reporting remain open until measured
+under the same documented authorized lab conditions.

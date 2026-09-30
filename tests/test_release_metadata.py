@@ -14,7 +14,7 @@ from nightrecon.cli import main
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_VERSION = "0.31.0"
-RED_EXPECTED_VERSION = "0.42.0"
+RED_EXPECTED_VERSION = "0.43.0"
 
 
 class ReleaseMetadataTests(unittest.TestCase):
@@ -56,7 +56,7 @@ class ReleaseMetadataTests(unittest.TestCase):
 
         self.assertIn(f"**Red Night v{RED_EXPECTED_VERSION}**", readme)
         self.assertIn(
-            f"### v{RED_EXPECTED_VERSION} — Cross-Domain Exposure Intelligence",
+            f"### v{RED_EXPECTED_VERSION} — Controlled Validation Intelligence",
             roadmap,
         )
         self.assertIn(f"## [{RED_EXPECTED_VERSION}]", changelog)
@@ -72,8 +72,8 @@ class ReleaseMetadataTests(unittest.TestCase):
             f"nightrecon-shared-core=={RED_EXPECTED_VERSION}",
             runtime,
         )
-        self.assertTrue((ROOT / "V042_RELEASE_ACCEPTANCE.md").is_file())
-        self.assertTrue((ROOT / "V042_RELEASE_NOTES.md").is_file())
+        self.assertTrue((ROOT / "V043_RELEASE_ACCEPTANCE.md").is_file())
+        self.assertTrue((ROOT / "V043_RELEASE_NOTES.md").is_file())
 
     def test_cli_reports_package_version(self):
         output = io.StringIO()

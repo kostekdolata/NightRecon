@@ -1,5 +1,7 @@
 # v0.43.0 Controlled Validation Intelligence
 
+Status: released, tagged, and verified stable.
+
 Red Night v0.43 starts from the verified v0.42.0 Cross-Domain Exposure
 Intelligence release and develops reviewed controlled-validation coverage
 without weakening the existing authorization boundary.
@@ -238,12 +240,16 @@ Metasploit, Cobalt Strike, or another specialist product.
 Batch 6 adds no worker technique, network request, credential surface, payload,
 cleanup mutation, automatic technique selection, or high-impact behavior.
 
-## Planned follow-on batches
+## Release acceptance
 
-No additional v0.43 execution expansion is implied by Batch 6. Release
-finalization should evaluate the full v0.43 acceptance state and leave live
-authorized specialist-product comparisons open where external evidence has not
-yet been collected.
+The six-batch v0.43 train is release-complete. Stable release acceptance requires
+coordinated 0.43.0 package metadata, the integrated deterministic v0.43 release
+acceptance test, the full cross-platform CI/runtime/distribution matrix on the
+exact finalization head, a verified merge commit on `master`, and guarded
+annotated tag creation.
 
-Higher-impact techniques remain out of scope until the isolation, approval,
-cleanup, and revocation boundaries are independently verified.
+No additional execution power is introduced by release finalization. Live
+authorized specialist-product comparisons remain broader Red acceptance work
+where external evidence has not yet been collected. Higher-impact techniques
+remain out of scope until the isolation, approval, cleanup, and revocation
+boundaries are independently verified for those techniques.

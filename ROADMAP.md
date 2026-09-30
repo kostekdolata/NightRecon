@@ -425,7 +425,7 @@ See [V042_ATTACK_PATH_ATLAS.md](V042_ATTACK_PATH_ATLAS.md) and
 [V042_UNIFIED_EXPOSURE_INTELLIGENCE.md](V042_UNIFIED_EXPOSURE_INTELLIGENCE.md).
 ### v0.43.0 — Controlled Validation Intelligence
 
-Status: active development.
+Status: released, tagged, and verified stable.
 
 Product goal:
 
@@ -505,14 +505,19 @@ Batch 6 — Reviewed ATT&CK Mappings + Controlled Comparison Labs:
 - fixture results explicitly do not claim parity with specialist products
 - no new worker technique, credential, payload, cleanup mutation or execution power
 
-Planned follow-on v0.43 work:
+Release acceptance:
 
-- release acceptance/finalization
-- live authorized specialist comparisons remain broader Red acceptance work
+- all six Controlled Validation Intelligence batches are integrated
+- coordinated Red Night, Red engine, and shared-core distributions are 0.43.0
+- the legacy compatibility distribution remains 0.31.0 with matching Red pins
+- the integrated v0.43 release-acceptance test and complete cross-platform
+  release matrix pass before the guarded tag is created
+- live authorized specialist-product comparisons remain broader Red acceptance
+  work and are not implied by the v0.43 fixture comparison lab
 
 The v0.43 registry and planning layers do not grant permission to execute.
-Every later validation action must independently pass the existing
-`validation.run` authorization boundary.
+Every live validation action independently passes the existing `validation.run`
+authorization boundary and explicit operator-selection rules.
 
 See [V043_CONTROLLED_VALIDATION_INTELLIGENCE.md](V043_CONTROLLED_VALIDATION_INTELLIGENCE.md).
 
@@ -635,21 +640,10 @@ The engine will eventually require a production platform around it:
 
 The current execution order is:
 
-1. Keep Red Night v0.42.0 as the verified stable Cross-Domain Exposure Intelligence baseline.
-2. Develop v0.43.0 Controlled Validation Intelligence in small verified batches.
-3. Keep Batch 1 — the reviewed metadata-only validation technique registry — as
-   the verified v0.43 foundation.
-4. Keep Batch 2 — exact candidate-to-technique eligibility planning — as a
-   verified proposal-only planning layer.
-5. Keep Batch 3 — explicit adapter and precondition/postcondition contracts —
-   as the verified execution-contract boundary.
-6. Keep Batch 4 — isolated revocable execution — as the verified live worker
-   boundary for reviewed read-only proofs.
-7. Keep Batch 5 — durable validation/cleanup evidence and deterministic
-   remediation/retest integration — as the verified lifecycle boundary.
-8. Complete and verify Batch 6 — reviewed ATT&CK relationships and controlled
-   comparison labs without expanding execution power.
-9. Evaluate v0.43 release acceptance and finalization while leaving unmeasured
-   live specialist-comparison categories explicitly open.
-10. Continue broader Red acceptance comparison evidence while preserving the existing
-    authorization, evidence-honesty, approval, revocation, and bounded-execution rules.
+1. Keep Red Night v0.43.0 as the verified stable Controlled Validation Intelligence baseline.
+2. Continue broader Red acceptance work from that immutable release checkpoint,
+   especially live authorized specialist comparisons, broader relationship coverage,
+   and professional reporting/collaboration evidence.
+3. Preserve the existing authorization, evidence-honesty, approval, revocation,
+   isolated-worker, action-budget, cleanup, and bounded-execution rules before any
+   future validation technique expands live capability.
