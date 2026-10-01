@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "profile_id": "red-white",
+  "nights": ["red", "white"],
+  "shared_contract_backend": "nightrecon-shared-core",
+  "required_distributions": [
+    "nightrecon-shared-core",
+    "nightrecon-red-engine",
+    "nightrecon-red-night",
+    "nightrecon-white-engine",
+    "nightrecon-white-night"
+  ],
+  "authorization_effect": "none",
+  "os_privilege_policy": "required-platform-privileged",
+  "host_disk_policy": "no-automatic-mount",
+  "offline_capable": true,
+  "direct_night_runtime_dependencies": false
+}
