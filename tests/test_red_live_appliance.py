@@ -23,8 +23,10 @@ from red_night_app.appliance import (  # noqa: E402
     main,
     prompt_for_mode,
     run_ephemeral_operator_session,
+    run_secure_workspace_session,
     session_decision,
 )
+from red_night_app.persistence import RedPersistenceConfig, RedPersistenceState  # noqa: E402
 
 
 class RedLivePrivilegeTests(unittest.TestCase):
@@ -43,6 +45,85 @@ class RedLivePrivilegeTests(unittest.TestCase):
         ):
             with self.assertRaises(PermissionError):
                 require_privileged_runtime()
+
+
+class RedSecureWorkspaceIntegrationTests(unittest.TestCase):
+    def config(self):
+        return RedPersistenceConfig(
+            device="/dev/disk/by-partuuid/1111-2222"
+        )
+
+    def test_locked_workspace_unlocks_mounts_runs_and_closes(self):
+        calls = []
+        commands = []
+        states = iter(["--version", "exit"])
+
+        def unlocker(config, *, passphrase):
+            calls.append(("unlock", config.device, passphrase))
+
+        def mounter(config):
+            calls.append(("mount", config.mount_point))
+
+        def closer(config, *, mounted):
+            calls.append(("close", config.mount_point, mounted))
+
+        def runner(args, cwd):
+            commands.append((tuple(args), cwd))
+            return 0
+
+        code = run_secure_workspace_session(
+            self.config(),
+            input_fn=lambda _prompt: next(states),
+            output_fn=lambda _message: None,
+            passphrase_fn=lambda _prompt: b"secret",
+            command_runner=runner,
+            state_probe=lambda _config: RedPersistenceState.LUKS2_LOCKED,
+            unlocker=unlocker,
+            mounter=mounter,
+            closer=closer,
+        )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(calls[0][0], "unlock")
+        self.assertEqual(calls[0][2], b"secret")
+        self.assertEqual(calls[1][0], "mount")
+        self.assertEqual(calls[2], ("close", "/run/red-night-secure", True))
+        self.assertEqual(commands[0][0], ("--version",))
+        self.assertEqual(commands[0][1].as_posix(), "/run/red-night-secure")
+
+    def test_already_mounted_workspace_is_reused_without_close(self):
+        calls = []
+        code = run_secure_workspace_session(
+            self.config(),
+            input_fn=lambda _prompt: "exit",
+            output_fn=lambda _message: None,
+            state_probe=lambda _config: RedPersistenceState.MOUNTED,
+            unlocker=lambda *_args, **_kwargs: calls.append("unlock"),
+            mounter=lambda *_args, **_kwargs: calls.append("mount"),
+            closer=lambda *_args, **_kwargs: calls.append("close"),
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(calls, [])
+
+    def test_missing_uninitialized_and_open_unmounted_fail_closed(self):
+        for state in (
+            RedPersistenceState.MISSING,
+            RedPersistenceState.UNINITIALIZED,
+            RedPersistenceState.LUKS2_OPEN,
+        ):
+            with self.subTest(state=state):
+                calls = []
+                code = run_secure_workspace_session(
+                    self.config(),
+                    input_fn=lambda _prompt: "exit",
+                    output_fn=lambda _message: None,
+                    state_probe=lambda _config, value=state: value,
+                    unlocker=lambda *_args, **_kwargs: calls.append("unlock"),
+                    mounter=lambda *_args, **_kwargs: calls.append("mount"),
+                    closer=lambda *_args, **_kwargs: calls.append("close"),
+                )
+                self.assertEqual(code, 3)
+                self.assertEqual(calls, [])
 
 
 class RedLiveApplianceTests(unittest.TestCase):
@@ -115,13 +196,23 @@ class RedLiveApplianceTests(unittest.TestCase):
         self.assertFalse(payload["persistent_workspace"])
         self.assertEqual(payload["authorization_effect"], "none")
 
-    def test_secure_mode_cli_refuses_when_persistence_is_not_mounted(self):
+    def test_secure_mode_cli_uses_explicit_persistence_device(self):
         with (
-            patch("builtins.print"),
             patch("red_night_app.appliance.require_platform_privilege"),
+            patch(
+                "red_night_app.appliance.run_secure_workspace_session",
+                return_value=3,
+            ) as secure,
         ):
-            code = main(["--mode", "secure-workspace"])
+            code = main([
+                "--mode",
+                "secure-workspace",
+                "--persistence-device",
+                "/dev/disk/by-partuuid/1111-2222",
+            ])
         self.assertEqual(code, 3)
+        config = secure.call_args.args[0]
+        self.assertEqual(config.device, "/dev/disk/by-partuuid/1111-2222")
 
 
 if __name__ == "__main__":

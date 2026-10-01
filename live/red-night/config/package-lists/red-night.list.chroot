@@ -9,3 +9,4 @@ iputils-ping
 network-manager
 cryptsetup
 e2fsprogs
+util-linux
