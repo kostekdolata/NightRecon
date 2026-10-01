@@ -12,6 +12,7 @@ deployment contract and never launches assessment commands.
 from __future__ import annotations
 
 import argparse
+import getpass
 from dataclasses import dataclass
 from enum import Enum
 import json
@@ -24,7 +25,14 @@ from tempfile import TemporaryDirectory
 from typing import Callable, Sequence
 
 from .deployment import validate_red_deployment_contract
-from .persistence import RedPersistenceState, secure_workspace_ready
+from .persistence import RedPersistenceConfig, RedPersistenceState, secure_workspace_ready
+from .persistence_executor import (
+    PersistenceExecutionError,
+    mount_workspace,
+    probe_workspace_state,
+    safe_close_workspace,
+    unlock_workspace,
+)
 from .privilege import require_platform_privilege
 
 
@@ -177,6 +185,95 @@ def run_ephemeral_operator_session(
             command_runner(args, workspace)
 
 
+def _read_passphrase(prompt: str) -> bytes:
+    value = getpass.getpass(prompt)
+    if not value:
+        raise ValueError("Secure Workspace passphrase must not be empty")
+    return value.encode()
+
+
+def run_secure_workspace_session(
+    config: RedPersistenceConfig,
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+    passphrase_fn: Callable[[str], bytes] = _read_passphrase,
+    command_runner: Callable[[Sequence[str], Path], int] = _default_command_runner,
+    state_probe: Callable[[RedPersistenceConfig], RedPersistenceState] = probe_workspace_state,
+    unlocker: Callable[..., None] = unlock_workspace,
+    mounter: Callable[..., None] = mount_workspace,
+    closer: Callable[..., None] = safe_close_workspace,
+) -> int:
+    """Open an existing encrypted workspace and run Red from that mount."""
+
+    state = state_probe(config)
+    if state is RedPersistenceState.MISSING:
+        output_fn("Secure Workspace device is not present.")
+        return 3
+    if state is RedPersistenceState.UNINITIALIZED:
+        output_fn(
+            "Secure Workspace is uninitialized. Explicit provisioning is required "
+            "before it can be launched."
+        )
+        return 3
+    if state is RedPersistenceState.LUKS2_OPEN:
+        output_fn(
+            "Secure Workspace mapping is already open but not mounted; "
+            "refusing ambiguous ownership state."
+        )
+        return 3
+
+    opened_here = False
+    if state is RedPersistenceState.LUKS2_LOCKED:
+        secret = passphrase_fn("Secure Workspace passphrase: ")
+        try:
+            unlocker(config, passphrase=secret)
+        finally:
+            secret = b""
+        mounter(config)
+        opened_here = True
+        state = RedPersistenceState.MOUNTED
+
+    if state is not RedPersistenceState.MOUNTED:
+        output_fn("Secure Workspace did not reach a mounted state.")
+        return 3
+
+    workspace = Path(config.mount_point)
+    output_fn("Secure Workspace active.")
+    output_fn(
+        "Red Night is running from encrypted persistent storage. "
+        "NightRecon authorization controls remain unchanged."
+    )
+    os.environ["NIGHTRECON_LIVE_MODE"] = RedLiveSessionMode.SECURE_WORKSPACE.value
+    os.environ["NIGHTRECON_SECURE_WORKSPACE"] = config.mount_point
+
+    try:
+        while True:
+            try:
+                raw = input_fn("red-night-secure> ")
+            except EOFError:
+                return 0
+            command = raw.strip()
+            if not command:
+                continue
+            if command in {"exit", "quit"}:
+                return 0
+            try:
+                args = shlex.split(command)
+            except ValueError as exc:
+                output_fn(f"Input error: {exc}")
+                continue
+            if not args:
+                continue
+            if args == ["help"]:
+                args = ["--help"]
+            command_runner(args, workspace)
+    finally:
+        os.environ.pop("NIGHTRECON_SECURE_WORKSPACE", None)
+        if opened_here:
+            closer(config, mounted=True)
+
+
 def run_recovery_integrity_check(
     *,
     output_fn: Callable[[str], None] = print,
@@ -210,6 +307,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print the selected session contract as JSON without starting a session.",
     )
+    parser.add_argument(
+        "--persistence-device",
+        help=(
+            "Explicit stable Secure Workspace partition selector. "
+            "Must use /dev/disk/by-partuuid/... or partition-qualified /dev/disk/by-id/...."
+        ),
+    )
     return parser
 
 
@@ -231,10 +335,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     require_privileged_runtime()
 
     if mode is RedLiveSessionMode.SECURE_WORKSPACE:
-        print("Secure Workspace is not available yet.")
-        print("A mounted encrypted LUKS2 workspace is required before launch.")
-        print("No Red assessment session was started.")
-        return 3
+        device = args.persistence_device
+        if device is None:
+            device = input(
+                "Secure Workspace partition "
+                "(/dev/disk/by-partuuid/... or /dev/disk/by-id/...-partN): "
+            ).strip()
+        try:
+            config = RedPersistenceConfig(device=device)
+            return run_secure_workspace_session(config)
+        except (ValueError, PersistenceExecutionError) as exc:
+            print(f"Secure Workspace unavailable: {exc}")
+            print("No Red assessment session was started.")
+            return 3
 
     if mode is RedLiveSessionMode.RECOVERY_INTEGRITY:
         return run_recovery_integrity_check()
