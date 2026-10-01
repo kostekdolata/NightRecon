@@ -11,15 +11,101 @@ from nightrecon_red_engine.udp_scanner import (
     MAX_UDP_RETRIES,
     MAX_UDP_ATTEMPTS_PER_SCAN,
     UdpPortResult,
+    UdpScanSummary,
     identify_udp_service,
     udp_probe_payload_for_port,
     validate_udp_response,
     scan_udp_port,
     scan_udp_ports,
+    summarize_udp_results,
 )
 
 
 class UdpScannerTests(unittest.TestCase):
+    def test_udp_summary_is_deterministic_and_non_networking(self):
+        results = (
+            UdpPortResult(
+                address="192.0.2.10",
+                port=53,
+                state="open",
+                service_hint="dns",
+                protocol_match=True,
+                attempts=2,
+            ),
+            UdpPortResult(
+                address="192.0.2.10",
+                port=123,
+                state="open|filtered",
+                service_hint="ntp",
+                attempts=3,
+            ),
+            UdpPortResult(
+                address="192.0.2.10",
+                port=161,
+                state="closed",
+                service_hint="snmp",
+                attempts=1,
+            ),
+            UdpPortResult(
+                address="192.0.2.10",
+                port=65000,
+                state="error",
+                service_hint="unknown",
+                attempts=1,
+            ),
+        )
+
+        summary = summarize_udp_results(results)
+
+        self.assertEqual(
+            summary,
+            UdpScanSummary(
+                total_results=4,
+                total_attempts=7,
+                open_count=1,
+                open_filtered_count=1,
+                closed_count=1,
+                error_count=1,
+                protocol_confirmed_count=1,
+                service_hint_counts=(
+                    ("dns", 1),
+                    ("ntp", 1),
+                    ("snmp", 1),
+                    ("unknown", 1),
+                ),
+            ),
+        )
+
+    def test_udp_summary_rejects_invalid_state_and_attempt_count(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Unsupported UDP result state",
+        ):
+            summarize_udp_results(
+                (
+                    UdpPortResult(
+                        address="192.0.2.10",
+                        port=53,
+                        state="unexpected",
+                    ),
+                )
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "attempts must be at least 1",
+        ):
+            summarize_udp_results(
+                (
+                    UdpPortResult(
+                        address="192.0.2.10",
+                        port=53,
+                        state="open",
+                        attempts=0,
+                    ),
+                )
+            )
+
     def test_timeout_retry_can_recover_with_positive_response(self):
         fake_socket = MagicMock()
         response = bytearray(12)
