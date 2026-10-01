@@ -335,9 +335,20 @@ Batch 4 Secure Workspace integration:
 - no disk discovery or automatic provisioning is performed;
 - real disposable CI proves uninitialized/locked/open/mounted state detection.
 
+Batch 4 first-use provisioning:
+
+- an uninitialized selected partition can be provisioned only after the operator
+  types the exact device-bound phrase `PROVISION <stable-device-selector>`;
+- a new Secure Workspace passphrase must be entered and confirmed;
+- the existing executor still re-checks the selected target is signature-free
+  before LUKS2 formatting;
+- successful provisioning immediately enters the mounted encrypted Secure
+  Workspace and safely closes it on session exit;
+- cancellation performs no storage mutation;
+- no disk discovery, automatic target choice, or silent formatting exists.
+
 Remaining Batch 4 gates:
 
-- explicit first-use provisioning UX for an uninitialized selected partition;
 - reboot persistence verification and Ephemeral-state verification;
 - safe shutdown/removal and recovery testing;
 - LUKS2 persistent workspace production qualification;
