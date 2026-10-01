@@ -23,12 +23,14 @@ if str(RED_APP_ROOT) not in sys.path:
 
 from red_night_app.persistence import (  # noqa: E402
     RedPersistenceConfig,
+    RedPersistenceState,
     WORKSPACE_MAPPER_NAME,
     WORKSPACE_MOUNT_POINT,
 )
 from red_night_app.persistence_executor import (  # noqa: E402
     PersistenceExecutionError,
     mount_workspace,
+    probe_workspace_state,
     provision_workspace,
     safe_close_workspace,
     unlock_workspace,
@@ -81,11 +83,16 @@ def main() -> int:
         config = RedPersistenceConfig(device=str(selector))
 
         try:
+            if probe_workspace_state(config) is not RedPersistenceState.UNINITIALIZED:
+                raise RuntimeError("fresh disposable workspace was not uninitialized")
+
             provision_workspace(
                 config,
                 passphrase=secret,
                 destructive_confirmation=True,
             )
+            if probe_workspace_state(config) is not RedPersistenceState.MOUNTED:
+                raise RuntimeError("provisioned workspace was not mounted")
             state_file.parent.mkdir(parents=True, exist_ok=True)
             state_file.write_text("red-night-persisted\n", encoding="utf-8")
             persisted_hash = sha256(state_file)
@@ -94,9 +101,15 @@ def main() -> int:
             safe_close_workspace(config, mounted=True)
             if mapper.exists():
                 raise RuntimeError("mapper remained after safe close")
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+                raise RuntimeError("closed workspace was not detected as locked LUKS2")
 
             unlock_workspace(config, passphrase=secret)
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_OPEN:
+                raise RuntimeError("unlocked workspace was not detected as open")
             mount_workspace(config)
+            if probe_workspace_state(config) is not RedPersistenceState.MOUNTED:
+                raise RuntimeError("remounted workspace was not detected as mounted")
             if sha256(state_file) != persisted_hash:
                 raise RuntimeError("persisted Red workspace state changed")
             safe_close_workspace(config, mounted=True)
