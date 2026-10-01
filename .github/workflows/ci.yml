@@ -737,7 +737,8 @@ jobs:
             tests.test_red_live_appliance \
             tests.test_red_live_persistence_contract \
             tests.test_red_live_persistence_executor \
-            tests.test_night_privilege_model -v
+            tests.test_night_privilege_model \
+            tests.test_stack_composition_contract -v
 
       - name: Install Debian 13 Live build and UEFI VM tools
         shell: bash
