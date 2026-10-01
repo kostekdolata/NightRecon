@@ -89,7 +89,7 @@ class RedSecureWorkspaceIntegrationTests(unittest.TestCase):
         self.assertEqual(calls[1][0], "mount")
         self.assertEqual(calls[2], ("close", "/run/red-night-secure", True))
         self.assertEqual(commands[0][0], ("--version",))
-        self.assertEqual(str(commands[0][1]), "/run/red-night-secure")
+        self.assertEqual(commands[0][1].as_posix(), "/run/red-night-secure")
 
     def test_already_mounted_workspace_is_reused_without_close(self):
         calls = []
