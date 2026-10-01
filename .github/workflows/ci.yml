@@ -126,6 +126,27 @@ jobs:
         run: python tests/white_night_distribution_smoke.py
 
 
+  red-white-composition:
+    name: Red + White composition isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Verify Red + White composed installation and isolation
+        run: python tests/red_white_composition_smoke.py
+
+
   api-schema-integration:
     name: API YAML schema integration
     runs-on: ubuntu-latest

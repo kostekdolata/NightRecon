@@ -300,7 +300,7 @@ Status: completed and merged.
 
 ### Batch 4 — encrypted persistence
 
-Status: active development.
+Status: completed and post-merge CI verified.
 
 First verified slice:
 
@@ -383,17 +383,34 @@ Batch 4 safe-removal, recovery, and production qualification:
   active-state recovery, persisted-state continuity, and filesystem integrity
   without touching physical host media.
 
-Remaining Batch 4 gate:
+Batch 4 release gate:
 
-- exact-head and post-merge production CI must remain fully green before Batch 4
-  is closed and Batch 5 composition begins.
+- safe-removal/recovery qualification merged at `2f7c4c96348c95e9e5b660c5f0d6efd2568c8a10`;
+- current master production CI passed 41/41 jobs;
+- encrypted persistence, reboot continuity, Ephemeral non-modification,
+  first-use provisioning, safe removal, interrupted-session recovery, and
+  filesystem integrity are therefore closed for the v0.44 Batch 4 scope.
 
 ### Batch 5 — composition
 
-- Red+White image profile once White's compatible standalone boundary is ready;
-- shared engagement contracts/backend only;
-- no Red->White or White->Red runtime imports;
-- package removal/isolation tests in normal composed installs;
+Status: active development.
+
+First slice:
+
+- compose the current Red and White package artifacts beside one compatible
+  shared-core installation in a clean normal-install environment;
+- prove both application boundaries launch independently;
+- prove Red contains no White-engine import and White contains no Red-engine
+  import;
+- uninstall White and prove Red + shared-core remain usable;
+- reinstall White, uninstall Red, and prove White + shared-core remain usable;
+- no shared evidence or event exchange is implied by package co-installation.
+
+Follow-on slices:
+
+- shared engagement/evidence contracts/backend only;
+- Red+White Live image profile once White's Live persistence boundary is
+  compatible and independently verified;
 - prepare selected-Night and eventual full-stack image profiles.
 
 ### Batch 6 — production hardening
