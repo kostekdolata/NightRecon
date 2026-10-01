@@ -58,7 +58,7 @@ def require_root() -> None:
 
 
 def require_tools() -> None:
-    for name in ("cryptsetup", "mkfs.ext4", "mount", "umount", "mountpoint"):
+    for name in ("cryptsetup", "mkfs.ext4", "e2fsck", "mount", "umount", "mountpoint"):
         if shutil.which(name) is None:
             raise SystemExit(f"required command not found: {name}")
 
@@ -225,6 +225,45 @@ def run_fixture() -> int:
             if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
                 raise RuntimeError("reattached workspace did not return to safe locked state")
             print("RED_NIGHT_SAFE_REMOVAL_RECOVERY_OK")
+
+            unlock_workspace(config, passphrase=secret)
+            mount_workspace(config)
+            interrupted_output: list[str] = []
+            interrupted_code = run_recovery_integrity_check(
+                config=config,
+                output_fn=interrupted_output.append,
+            )
+            if interrupted_code != 0:
+                raise RuntimeError("active-state recovery inspection returned non-zero")
+            if "Persistence state: mounted" not in interrupted_output:
+                raise RuntimeError("Recovery & Integrity did not report mounted state")
+            if "Safe removal ready: no" not in interrupted_output:
+                raise RuntimeError("Recovery & Integrity incorrectly marked mounted state safe")
+            if probe_workspace_state(config) is not RedPersistenceState.MOUNTED:
+                raise RuntimeError("read-only recovery inspection changed mounted workspace state")
+            safe_close_workspace(config, mounted=True)
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+                raise RuntimeError("interrupted-state recovery did not return workspace to locked")
+            print("RED_NIGHT_ACTIVE_STATE_RECOVERY_OK")
+
+            unlock_workspace(config, passphrase=secret)
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_OPEN:
+                raise RuntimeError("filesystem integrity phase did not open LUKS2 mapping")
+            fsck = subprocess.run(
+                ["e2fsck", "-f", "-n", str(mapper)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            if fsck.returncode != 0:
+                raise RuntimeError(
+                    "read-only ext4 integrity check failed: "
+                    + fsck.stderr.decode("utf-8", errors="replace")
+                )
+            safe_close_workspace(config, mounted=False)
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+                raise RuntimeError("filesystem integrity phase did not restore locked state")
+            print("RED_NIGHT_FILESYSTEM_INTEGRITY_OK")
 
             image_hash_before_ephemeral = sha256(image)
             ephemeral_paths: list[Path] = []
