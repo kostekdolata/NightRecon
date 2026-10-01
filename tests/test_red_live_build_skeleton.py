@@ -170,6 +170,7 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
                 "network-manager",
                 "cryptsetup",
                 "e2fsprogs",
+                "util-linux",
             },
         )
 
