@@ -30,11 +30,20 @@ UMOUNT = "/usr/bin/umount"
 INSTALL = "/usr/bin/install"
 BLKID = "/usr/sbin/blkid"
 FINDMNT = "/usr/bin/findmnt"
+E2FSCK = "/usr/sbin/e2fsck"
 
 
 @dataclass(frozen=True)
 class PrivilegedCommandResult:
     returncode: int
+
+
+@dataclass(frozen=True)
+class FilesystemIntegrityResult:
+    clean: bool
+    issues_detected: bool
+    returncode: int
+    reason: str
 
 
 CommandRunner = Callable[[Sequence[str], bytes | None], PrivilegedCommandResult]
@@ -336,3 +345,66 @@ def safe_close_workspace(
         action=RedPersistenceAction.SAFE_CLOSE,
     )
     execute_persistence_plan(config, plan, runner=runner)
+
+
+def safe_close_and_verify_workspace(
+    config: RedPersistenceConfig,
+    *,
+    mounted: bool,
+    runner: CommandRunner = _default_runner,
+    state_probe: Callable[[RedPersistenceConfig], RedPersistenceState] = probe_workspace_state,
+) -> RedPersistenceState:
+    """Safely close a workspace and prove it returned to locked LUKS2 state."""
+
+    safe_close_workspace(config, mounted=mounted, runner=runner)
+    observed = state_probe(config)
+    if observed is not RedPersistenceState.LUKS2_LOCKED:
+        raise PersistenceExecutionError(
+            "persistence workspace did not reach verified locked state"
+        )
+    return observed
+
+
+def inspect_locked_workspace_integrity(
+    config: RedPersistenceConfig,
+    *,
+    passphrase: bytes,
+    runner: CommandRunner = _default_runner,
+    state_probe: Callable[[RedPersistenceConfig], RedPersistenceState] = probe_workspace_state,
+) -> FilesystemIntegrityResult:
+    """Read-only ext4 integrity inspection for an explicitly selected locked workspace."""
+
+    if state_probe(config) is not RedPersistenceState.LUKS2_LOCKED:
+        raise ValueError("filesystem integrity inspection requires locked LUKS2 state")
+
+    unlock_workspace(config, passphrase=passphrase, runner=runner)
+    mapper_device = f"/dev/mapper/{config.mapper_name}"
+    result: PrivilegedCommandResult | None = None
+
+    try:
+        result = runner((E2FSCK, "-f", "-n", mapper_device), None)
+    finally:
+        safe_close_workspace(config, mounted=False, runner=runner)
+
+    if state_probe(config) is not RedPersistenceState.LUKS2_LOCKED:
+        raise PersistenceExecutionError(
+            "filesystem integrity inspection did not restore locked state"
+        )
+    if result is None:
+        raise PersistenceExecutionError("filesystem integrity inspection did not run")
+
+    returncode = int(result.returncode)
+    if returncode < 0 or returncode & (8 | 16 | 32 | 128):
+        raise PersistenceExecutionError("filesystem integrity inspection failed operationally")
+
+    clean = returncode == 0
+    return FilesystemIntegrityResult(
+        clean=clean,
+        issues_detected=not clean,
+        returncode=returncode,
+        reason=(
+            "filesystem-clean"
+            if clean
+            else "filesystem-integrity-issues-detected-no-repair-performed"
+        ),
+    )
