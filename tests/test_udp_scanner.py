@@ -280,7 +280,7 @@ class UdpScannerTests(unittest.TestCase):
         )
 
     def test_multi_port_results_are_deterministically_sorted(self):
-        def fake_scan(address, port, timeout, *, payload=b""):
+        def fake_scan(address, port, timeout, *, payload=b"", retries=0):
             states = {
                 53: "open",
                 123: "open|filtered",
