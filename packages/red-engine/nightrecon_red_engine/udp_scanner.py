@@ -73,6 +73,67 @@ class UdpPortResult:
         return self.state == "open"
 
 
+@dataclass(frozen=True)
+class UdpScanSummary:
+    """Deterministic aggregate metadata for one completed UDP result set."""
+
+    total_results: int
+    total_attempts: int
+    open_count: int
+    open_filtered_count: int
+    closed_count: int
+    error_count: int
+    protocol_confirmed_count: int
+    service_hint_counts: tuple[tuple[str, int], ...]
+
+
+def summarize_udp_results(
+    results: tuple[UdpPortResult, ...],
+) -> UdpScanSummary:
+    """Summarize completed UDP results without changing scan behavior."""
+
+    state_counts = {
+        "open": 0,
+        "open|filtered": 0,
+        "closed": 0,
+        "error": 0,
+    }
+    service_counts: dict[str, int] = {}
+    total_attempts = 0
+    protocol_confirmed_count = 0
+
+    for result in results:
+        if not isinstance(result, UdpPortResult):
+            raise TypeError("results must contain only UdpPortResult values.")
+
+        if result.state not in state_counts:
+            raise ValueError(f"Unsupported UDP result state: {result.state!r}.")
+
+        if result.attempts < 1:
+            raise ValueError("UDP result attempts must be at least 1.")
+
+        state_counts[result.state] += 1
+        total_attempts += result.attempts
+
+        if result.protocol_match is True:
+            protocol_confirmed_count += 1
+
+        service_counts[result.service_hint] = (
+            service_counts.get(result.service_hint, 0) + 1
+        )
+
+    return UdpScanSummary(
+        total_results=len(results),
+        total_attempts=total_attempts,
+        open_count=state_counts["open"],
+        open_filtered_count=state_counts["open|filtered"],
+        closed_count=state_counts["closed"],
+        error_count=state_counts["error"],
+        protocol_confirmed_count=protocol_confirmed_count,
+        service_hint_counts=tuple(sorted(service_counts.items())),
+    )
+
+
 def identify_udp_service(port: int) -> str:
     """Return a deterministic well-known UDP service hint."""
 
