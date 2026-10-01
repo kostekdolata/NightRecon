@@ -1,10 +1,14 @@
 """Disposable Red Night encrypted-workspace lifecycle integration fixture.
 
 CI creates a regular-file LUKS2 container and exposes it through a temporary
-/dev/disk/by-id/...-part1 selector. The test proves first-use provisioning,
-a fresh-process reboot boundary, persisted state recovery, real Ephemeral
-Session isolation, wrong-secret rejection, and cleanup without touching a
-physical host disk.
+/dev/disk/by-id/...-part1 selector. The fixture proves first-use provisioning,
+fresh-process restart persistence, real Ephemeral Session isolation, verified
+safe-close, interrupted-process recovery, read-only filesystem integrity
+inspection, wrong-secret rejection, and cleanup without touching physical media.
+
+The interrupted-process case is not presented as electrical power-loss proof.
+True power-loss/media-pull qualification remains a later fault-injection or
+hardware acceptance gate.
 """
 
 from __future__ import annotations
@@ -33,9 +37,11 @@ from red_night_app.persistence import (  # noqa: E402
 )
 from red_night_app.persistence_executor import (  # noqa: E402
     PersistenceExecutionError,
+    inspect_locked_workspace_integrity,
     mount_workspace,
     probe_workspace_state,
     provision_workspace,
+    safe_close_and_verify_workspace,
     safe_close_workspace,
     unlock_workspace,
 )
@@ -55,7 +61,7 @@ def require_root() -> None:
 
 
 def require_tools() -> None:
-    for name in ("cryptsetup", "mkfs.ext4", "mount", "umount"):
+    for name in ("cryptsetup", "mkfs.ext4", "mount", "umount", "e2fsck"):
         if shutil.which(name) is None:
             raise SystemExit(f"required command not found: {name}")
 
@@ -63,12 +69,12 @@ def require_tools() -> None:
 def read_secret_from_stdin() -> bytes:
     secret = sys.stdin.buffer.readline().rstrip(b"\n")
     if not secret or b"\x00" in secret:
-        raise RuntimeError("invalid reboot verification secret")
+        raise RuntimeError("invalid verification secret")
     return secret
 
 
 def verify_reboot_phase(selector: str, expected_hash: str) -> int:
-    """Act as a fresh boot/process and verify the encrypted workspace."""
+    """Act as a fresh process and verify the encrypted workspace."""
 
     require_root()
     require_tools()
@@ -88,21 +94,43 @@ def verify_reboot_phase(selector: str, expected_hash: str) -> int:
         if probe_workspace_state(config) is not RedPersistenceState.MOUNTED:
             raise RuntimeError("reboot phase did not mount Secure Workspace")
         if not state_file.is_file() or sha256(state_file) != expected_hash:
-            raise RuntimeError("persisted Red workspace state did not survive reboot boundary")
+            raise RuntimeError("persisted Red workspace state did not survive restart boundary")
 
         reboot_file.write_text("fresh-process-reboot-verified\n", encoding="utf-8")
         subprocess.run(["sync"], check=True)
     finally:
-        if probe_workspace_state(config) is RedPersistenceState.MOUNTED:
-            safe_close_workspace(config, mounted=True)
-        elif probe_workspace_state(config) is RedPersistenceState.LUKS2_OPEN:
-            safe_close_workspace(config, mounted=False)
-
-    if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
-        raise RuntimeError("reboot phase did not safely return workspace to locked state")
+        state = probe_workspace_state(config)
+        if state is RedPersistenceState.MOUNTED:
+            safe_close_and_verify_workspace(config, mounted=True)
+        elif state is RedPersistenceState.LUKS2_OPEN:
+            safe_close_and_verify_workspace(config, mounted=False)
 
     print("RED_NIGHT_REBOOT_PERSISTENCE_OK")
     return 0
+
+
+def simulate_interruption_phase(selector: str) -> int:
+    """Exit without workspace cleanup to emulate an interrupted Red process."""
+
+    require_root()
+    require_tools()
+    config = RedPersistenceConfig(device=selector)
+    interrupted_file = (
+        Path(WORKSPACE_MOUNT_POINT) / "engagements" / "ci-interrupted-process.txt"
+    )
+    secret = read_secret_from_stdin()
+
+    if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+        raise RuntimeError("interruption phase did not begin from locked LUKS2 state")
+
+    unlock_workspace(config, passphrase=secret)
+    mount_workspace(config)
+    interrupted_file.write_text("interrupted-process-state\n", encoding="utf-8")
+    subprocess.run(["sync"], check=True)
+
+    sys.stdout.write("RED_NIGHT_INTERRUPTION_CREATED_OK\n")
+    sys.stdout.flush()
+    os._exit(0)
 
 
 def run_fixture() -> int:
@@ -119,6 +147,9 @@ def run_fixture() -> int:
         selector = by_id_dir / f"red-night-ci-{os.getpid()}-part1"
         state_file = mountpoint / "engagements" / "ci-state.txt"
         reboot_file = mountpoint / "engagements" / "ci-reboot.txt"
+        interrupted_file = (
+            mountpoint / "engagements" / "ci-interrupted-process.txt"
+        )
         secret = os.urandom(48).hex().encode("ascii")
         wrong_secret = os.urandom(48).hex().encode("ascii")
 
@@ -146,11 +177,10 @@ def run_fixture() -> int:
             persisted_hash = sha256(state_file)
             subprocess.run(["sync"], check=True)
 
-            safe_close_workspace(config, mounted=True)
+            safe_close_and_verify_workspace(config, mounted=True)
             if mapper.exists():
-                raise RuntimeError("mapper remained after initial safe close")
-            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
-                raise RuntimeError("initial close did not leave locked LUKS2 workspace")
+                raise RuntimeError("mapper remained after verified initial close")
+            print("RED_NIGHT_SAFE_CLOSE_VERIFIED_OK")
 
             reboot = subprocess.run(
                 [
@@ -210,13 +240,54 @@ def run_fixture() -> int:
                 raise RuntimeError("Ephemeral Session changed encrypted workspace state")
             print("RED_NIGHT_EPHEMERAL_ISOLATION_OK")
 
+            interruption = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).resolve()),
+                    "--simulate-interruption",
+                    str(selector),
+                ],
+                input=secret + b"\n",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            if interruption.returncode != 0:
+                raise RuntimeError(
+                    "interrupted-process simulation failed: "
+                    + interruption.stderr.decode("utf-8", errors="replace")
+                )
+            if b"RED_NIGHT_INTERRUPTION_CREATED_OK" not in interruption.stdout:
+                raise RuntimeError("interrupted-process marker missing")
+            if probe_workspace_state(config) is not RedPersistenceState.MOUNTED:
+                raise RuntimeError(
+                    "interrupted Red process did not leave expected mounted workspace"
+                )
+
+            safe_close_and_verify_workspace(config, mounted=True)
+            if mapper.exists():
+                raise RuntimeError("verified recovery close left mapper open")
+            print("RED_NIGHT_INTERRUPTED_PROCESS_RECOVERY_OK")
+
+            integrity = inspect_locked_workspace_integrity(
+                config,
+                passphrase=secret,
+            )
+            if not integrity.clean or integrity.issues_detected:
+                raise RuntimeError(
+                    "read-only filesystem integrity inspection did not report clean"
+                )
+            print("RED_NIGHT_FILESYSTEM_INTEGRITY_OK")
+
             unlock_workspace(config, passphrase=secret)
             mount_workspace(config)
             if sha256(state_file) != persisted_hash:
-                raise RuntimeError("persisted Red workspace state changed after Ephemeral Session")
+                raise RuntimeError("persisted Red workspace state changed")
             if reboot_file.read_text(encoding="utf-8") != "fresh-process-reboot-verified\n":
                 raise RuntimeError("fresh-process reboot marker did not persist")
-            safe_close_workspace(config, mounted=True)
+            if interrupted_file.read_text(encoding="utf-8") != "interrupted-process-state\n":
+                raise RuntimeError("interrupted-process marker did not persist")
+            safe_close_and_verify_workspace(config, mounted=True)
 
             try:
                 unlock_workspace(config, passphrase=wrong_secret)
@@ -242,7 +313,9 @@ def run_fixture() -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--verify-reboot", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--verify-reboot", action="store_true")
+    mode.add_argument("--simulate-interruption", action="store_true")
     parser.add_argument("selector", nargs="?")
     parser.add_argument("expected_hash", nargs="?")
     return parser
@@ -254,6 +327,10 @@ def main() -> int:
         if not args.selector or not args.expected_hash:
             raise SystemExit("--verify-reboot requires selector and expected_hash")
         return verify_reboot_phase(args.selector, args.expected_hash)
+    if args.simulate_interruption:
+        if not args.selector or args.expected_hash is not None:
+            raise SystemExit("--simulate-interruption requires selector only")
+        return simulate_interruption_phase(args.selector)
     if args.selector is not None or args.expected_hash is not None:
         raise SystemExit("unexpected positional arguments")
     return run_fixture()
