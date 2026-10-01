@@ -264,9 +264,9 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
                     )
                 self.assertEqual(runner.calls, [])
 
-    def test_failed_privileged_command_stops_sequence_and_redacts_secret(self):
+    def test_failed_privileged_command_stops_sequence_redacts_secret_and_closes_mapper(self):
         config = self.make_config()
-        runner = FakeRunner(fail_at=2)
+        runner = FakeRunner(fail_at=3)
         secret = b"top-secret-passphrase"
 
         with self.assertRaises(PersistenceExecutionError) as caught:
@@ -278,7 +278,12 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
                 target_probe=lambda _device: True,
             )
 
-        self.assertEqual(len(runner.calls), 2)
+        self.assertEqual(len(runner.calls), 4)
+        self.assertEqual(
+            runner.calls[-1][0],
+            (CRYPTSETUP, "close", config.mapper_name),
+        )
+        self.assertIsNone(runner.calls[-1][1])
         self.assertNotIn(secret.decode(), str(caught.exception))
         self.assertNotIn(config.device, str(caught.exception))
 
