@@ -23,6 +23,7 @@ from red_night_app.appliance import (  # noqa: E402
     main,
     prompt_for_mode,
     run_ephemeral_operator_session,
+    run_recovery_integrity_check,
     run_secure_workspace_session,
     session_decision,
 )
@@ -199,6 +200,72 @@ class RedSecureWorkspaceIntegrationTests(unittest.TestCase):
                 from red_night_app.appliance import _read_new_passphrase
                 _read_new_passphrase("ignored")
 
+class RedRecoveryIntegrityTests(unittest.TestCase):
+    def config(self):
+        return RedPersistenceConfig(
+            device="/dev/disk/by-partuuid/1111-2222"
+        )
+
+    def test_locked_workspace_clean_integrity_is_reported_without_repair(self):
+        outputs = []
+        seen = []
+
+        def inspector(config, *, passphrase):
+            seen.append((config.device, passphrase))
+            return type("Result", (), {"clean": True})()
+
+        code = run_recovery_integrity_check(
+            persistence_config=self.config(),
+            output_fn=outputs.append,
+            passphrase_fn=lambda _prompt: b"secret",
+            integrity_inspector=inspector,
+            state_probe=lambda _config: RedPersistenceState.LUKS2_LOCKED,
+        )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            seen,
+            [("/dev/disk/by-partuuid/1111-2222", b"secret")],
+        )
+        self.assertTrue(any("integrity: clean" in item for item in outputs))
+        self.assertTrue(any("No repair was performed" in item for item in outputs))
+
+    def test_integrity_issues_are_reported_without_repair(self):
+        outputs = []
+        code = run_recovery_integrity_check(
+            persistence_config=self.config(),
+            output_fn=outputs.append,
+            passphrase_fn=lambda _prompt: b"secret",
+            integrity_inspector=lambda *_args, **_kwargs: type(
+                "Result", (), {"clean": False}
+            )(),
+            state_probe=lambda _config: RedPersistenceState.LUKS2_LOCKED,
+        )
+
+        self.assertEqual(code, 4)
+        self.assertTrue(any("issues detected" in item for item in outputs))
+        self.assertTrue(any("No repair was performed" in item for item in outputs))
+
+    def test_recovery_refuses_non_locked_workspace_without_inspection(self):
+        calls = []
+        code = run_recovery_integrity_check(
+            persistence_config=self.config(),
+            output_fn=lambda _message: None,
+            passphrase_fn=lambda _prompt: calls.append("passphrase") or b"secret",
+            integrity_inspector=lambda *_args, **_kwargs: calls.append("inspect"),
+            state_probe=lambda _config: RedPersistenceState.MOUNTED,
+        )
+
+        self.assertEqual(code, 3)
+        self.assertEqual(calls, [])
+
+    def test_recovery_without_device_checks_deployment_only(self):
+        outputs = []
+        code = run_recovery_integrity_check(output_fn=outputs.append)
+        self.assertEqual(code, 0)
+        self.assertTrue(any("not requested" in item for item in outputs))
+
+
 class RedLiveApplianceTests(unittest.TestCase):
     def test_modes_are_explicit_and_non_authoritative(self):
         self.assertEqual(
@@ -268,6 +335,24 @@ class RedLiveApplianceTests(unittest.TestCase):
         self.assertTrue(payload["launch_red_application"])
         self.assertFalse(payload["persistent_workspace"])
         self.assertEqual(payload["authorization_effect"], "none")
+
+    def test_recovery_mode_uses_explicit_persistence_device(self):
+        with (
+            patch("red_night_app.appliance.require_platform_privilege"),
+            patch(
+                "red_night_app.appliance.run_recovery_integrity_check",
+                return_value=0,
+            ) as recovery,
+        ):
+            code = main([
+                "--mode",
+                "recovery-integrity",
+                "--persistence-device",
+                "/dev/disk/by-partuuid/1111-2222",
+            ])
+        self.assertEqual(code, 0)
+        config = recovery.call_args.kwargs["persistence_config"]
+        self.assertEqual(config.device, "/dev/disk/by-partuuid/1111-2222")
 
     def test_secure_mode_cli_uses_explicit_persistence_device(self):
         with (

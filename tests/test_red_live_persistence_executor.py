@@ -21,6 +21,7 @@ from red_night_app.persistence import (  # noqa: E402
 )
 from red_night_app.persistence_executor import (  # noqa: E402
     CRYPTSETUP,
+    E2FSCK,
     INSTALL,
     MKFS_EXT4,
     MOUNT,
@@ -28,8 +29,10 @@ from red_night_app.persistence_executor import (  # noqa: E402
     PersistenceExecutionError,
     PrivilegedCommandResult,
     execute_persistence_plan,
+    inspect_locked_workspace_integrity,
     mount_workspace,
     provision_workspace,
+    safe_close_and_verify_workspace,
     safe_close_workspace,
     unlock_workspace,
 )
@@ -207,6 +210,116 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
             [(CRYPTSETUP, "close", config.mapper_name)],
         )
 
+    def test_safe_close_and_verify_requires_locked_final_state(self):
+        config = self.make_config()
+        runner = FakeRunner()
+
+        observed = safe_close_and_verify_workspace(
+            config,
+            mounted=True,
+            runner=runner,
+            state_probe=lambda _config: RedPersistenceState.LUKS2_LOCKED,
+        )
+
+        self.assertIs(observed, RedPersistenceState.LUKS2_LOCKED)
+        self.assertEqual(
+            [call[0] for call in runner.calls],
+            [
+                (UMOUNT, config.mount_point),
+                (CRYPTSETUP, "close", config.mapper_name),
+            ],
+        )
+
+        with self.assertRaises(PersistenceExecutionError):
+            safe_close_and_verify_workspace(
+                config,
+                mounted=False,
+                runner=FakeRunner(),
+                state_probe=lambda _config: RedPersistenceState.LUKS2_OPEN,
+            )
+
+    def test_integrity_inspection_is_read_only_and_restores_locked_state(self):
+        config = self.make_config()
+        runner = FakeRunner()
+
+        result = inspect_locked_workspace_integrity(
+            config,
+            passphrase=b"secret",
+            runner=runner,
+            state_probe=lambda _config: RedPersistenceState.LUKS2_LOCKED,
+        )
+
+        self.assertTrue(result.clean)
+        self.assertFalse(result.issues_detected)
+        self.assertEqual(result.reason, "filesystem-clean")
+        self.assertEqual(
+            [call[0] for call in runner.calls],
+            [
+                (
+                    CRYPTSETUP,
+                    "open",
+                    "--type",
+                    "luks2",
+                    "--key-file",
+                    "-",
+                    config.device,
+                    config.mapper_name,
+                ),
+                (
+                    E2FSCK,
+                    "-f",
+                    "-n",
+                    f"/dev/mapper/{config.mapper_name}",
+                ),
+                (CRYPTSETUP, "close", config.mapper_name),
+            ],
+        )
+        self.assertEqual(runner.calls[0][1], b"secret")
+        self.assertTrue(all(call[1] is None for call in runner.calls[1:]))
+
+    def test_integrity_inspection_reports_issues_without_repair(self):
+        config = self.make_config()
+        calls = []
+
+        def runner(argv, stdin_bytes):
+            calls.append((tuple(argv), stdin_bytes))
+            if argv[0] == E2FSCK:
+                return PrivilegedCommandResult(returncode=4)
+            return PrivilegedCommandResult(returncode=0)
+
+        result = inspect_locked_workspace_integrity(
+            config,
+            passphrase=b"secret",
+            runner=runner,
+            state_probe=lambda _config: RedPersistenceState.LUKS2_LOCKED,
+        )
+
+        self.assertFalse(result.clean)
+        self.assertTrue(result.issues_detected)
+        self.assertEqual(result.returncode, 4)
+        self.assertIn("no-repair-performed", result.reason)
+        self.assertEqual(calls[-1][0], (CRYPTSETUP, "close", config.mapper_name))
+
+    def test_integrity_inspection_operational_failure_still_closes_mapper(self):
+        config = self.make_config()
+        calls = []
+
+        def runner(argv, stdin_bytes):
+            calls.append((tuple(argv), stdin_bytes))
+            if argv[0] == E2FSCK:
+                return PrivilegedCommandResult(returncode=8)
+            return PrivilegedCommandResult(returncode=0)
+
+        with self.assertRaises(PersistenceExecutionError):
+            inspect_locked_workspace_integrity(
+                config,
+                passphrase=b"secret",
+                runner=runner,
+                state_probe=lambda _config: RedPersistenceState.LUKS2_LOCKED,
+            )
+
+        self.assertEqual(calls[-1][0], (CRYPTSETUP, "close", config.mapper_name))
+
     def test_executor_rejects_tampered_plan(self):
         config = self.make_config()
         canonical = plan_persistence_action(
@@ -298,9 +411,15 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
         self.assertIn("RED_NIGHT_REBOOT_PERSISTENCE_OK", source)
         self.assertIn("run_ephemeral_operator_session", source)
         self.assertIn("RED_NIGHT_EPHEMERAL_ISOLATION_OK", source)
+        self.assertIn("RED_NIGHT_SAFE_CLOSE_VERIFIED_OK", source)
+        self.assertIn("--simulate-interruption", source)
+        self.assertIn("RED_NIGHT_INTERRUPTED_PROCESS_RECOVERY_OK", source)
+        self.assertIn("RED_NIGHT_FILESYSTEM_INTEGRITY_OK", source)
+        self.assertIn("inspect_locked_workspace_integrity", source)
         self.assertIn("sha256(image)", source)
         self.assertIn("input=secret + b", source)
         self.assertNotIn("secret.decode()", source)
+        self.assertIn("not presented as electrical power-loss proof", source)
 
 
 if __name__ == "__main__":

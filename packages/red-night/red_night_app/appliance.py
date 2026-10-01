@@ -28,10 +28,11 @@ from .deployment import validate_red_deployment_contract
 from .persistence import RedPersistenceConfig, RedPersistenceState, secure_workspace_ready
 from .persistence_executor import (
     PersistenceExecutionError,
+    inspect_locked_workspace_integrity,
     mount_workspace,
     probe_workspace_state,
     provision_workspace,
-    safe_close_workspace,
+    safe_close_and_verify_workspace,
     unlock_workspace,
 )
 from .privilege import require_platform_privilege
@@ -229,7 +230,7 @@ def run_secure_workspace_session(
     provisioner: Callable[..., None] = provision_workspace,
     unlocker: Callable[..., None] = unlock_workspace,
     mounter: Callable[..., None] = mount_workspace,
-    closer: Callable[..., None] = safe_close_workspace,
+    closer: Callable[..., None] = safe_close_and_verify_workspace,
 ) -> int:
     """Open an existing encrypted workspace and run Red from that mount."""
 
@@ -316,14 +317,48 @@ def run_secure_workspace_session(
 
 def run_recovery_integrity_check(
     *,
+    persistence_config: RedPersistenceConfig | None = None,
     output_fn: Callable[[str], None] = print,
+    passphrase_fn: Callable[[str], bytes] = _read_passphrase,
+    integrity_inspector: Callable[..., object] = inspect_locked_workspace_integrity,
+    state_probe: Callable[[RedPersistenceConfig], RedPersistenceState] = probe_workspace_state,
 ) -> int:
     validate_red_deployment_contract()
     output_fn("Recovery & Integrity Check")
     output_fn("Red deployment contract: OK")
     output_fn("Authorization effect: none")
-    output_fn("Encrypted persistence contract: available; privileged execution: not enabled.")
-    return 0
+
+    if persistence_config is None:
+        output_fn(
+            "Encrypted workspace inspection: not requested; "
+            "provide an explicit persistence device to inspect it."
+        )
+        return 0
+
+    if state_probe(persistence_config) is not RedPersistenceState.LUKS2_LOCKED:
+        output_fn(
+            "Encrypted workspace inspection unavailable: "
+            "workspace must be in locked LUKS2 state."
+        )
+        return 3
+
+    secret = passphrase_fn("Secure Workspace passphrase for integrity inspection: ")
+    try:
+        result = integrity_inspector(
+            persistence_config,
+            passphrase=secret,
+        )
+    finally:
+        secret = b""
+
+    if bool(getattr(result, "clean", False)):
+        output_fn("Encrypted workspace filesystem integrity: clean.")
+        output_fn("No repair was performed.")
+        return 0
+
+    output_fn("Encrypted workspace filesystem integrity: issues detected.")
+    output_fn("No repair was performed.")
+    return 4
 
 
 def require_privileged_runtime() -> None:
@@ -390,7 +425,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 3
 
     if mode is RedLiveSessionMode.RECOVERY_INTEGRITY:
-        return run_recovery_integrity_check()
+        try:
+            config = (
+                RedPersistenceConfig(device=args.persistence_device)
+                if args.persistence_device
+                else None
+            )
+            return run_recovery_integrity_check(
+                persistence_config=config,
+            )
+        except (ValueError, PersistenceExecutionError) as exc:
+            print(f"Recovery & Integrity Check unavailable: {exc}")
+            return 3
 
     os.environ["NIGHTRECON_LIVE_MODE"] = mode.value
     return run_ephemeral_operator_session()
