@@ -290,6 +290,18 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
         self.assertNotIn("os.system", source)
         self.assertNotIn("shlex", source)
 
+    def test_disposable_fixture_proves_reboot_and_ephemeral_boundaries(self):
+        source = (
+            ROOT / "tests" / "red_live_luks_executor_runtime.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("--verify-reboot", source)
+        self.assertIn("RED_NIGHT_REBOOT_PERSISTENCE_OK", source)
+        self.assertIn("run_ephemeral_operator_session", source)
+        self.assertIn("RED_NIGHT_EPHEMERAL_ISOLATION_OK", source)
+        self.assertIn("sha256(image)", source)
+        self.assertIn("input=secret + b", source)
+        self.assertNotIn("secret.decode()", source)
+
 
 if __name__ == "__main__":
     unittest.main()
