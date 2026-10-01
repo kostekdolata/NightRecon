@@ -10,12 +10,41 @@ from nightrecon_red_engine.udp_scanner import (
     MAX_UDP_PROBE_BYTES,
     UdpPortResult,
     identify_udp_service,
+    udp_probe_payload_for_port,
     scan_udp_port,
     scan_udp_ports,
 )
 
 
 class UdpScannerTests(unittest.TestCase):
+    def test_probe_profiles_are_small_and_service_specific(self):
+        dns_payload = udp_probe_payload_for_port(53)
+        ntp_payload = udp_probe_payload_for_port(123)
+
+        self.assertGreater(len(dns_payload), 0)
+        self.assertGreater(len(ntp_payload), 0)
+        self.assertLessEqual(len(dns_payload), MAX_UDP_PROBE_BYTES)
+        self.assertLessEqual(len(ntp_payload), MAX_UDP_PROBE_BYTES)
+        self.assertEqual(udp_probe_payload_for_port(161), b"")
+
+    def test_default_scan_uses_defined_service_probe_profile(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.return_value = b"reply"
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket",
+            return_value=fake_socket,
+        ):
+            scan_udp_port(
+                "192.0.2.10",
+                123,
+                0.5,
+            )
+
+        fake_socket.send.assert_called_once_with(
+            udp_probe_payload_for_port(123)
+        )
+
     def test_common_udp_service_hints_are_deterministic(self):
         self.assertEqual(identify_udp_service(53), "dns")
         self.assertEqual(identify_udp_service(123), "ntp")
