@@ -9,6 +9,7 @@ from nightrecon_red_engine.udp_scanner import (
     MAX_UDP_PORTS_PER_SCAN,
     MAX_UDP_PROBE_BYTES,
     MAX_UDP_RETRIES,
+    MAX_UDP_ATTEMPTS_PER_SCAN,
     UdpPortResult,
     identify_udp_service,
     udp_probe_payload_for_port,
@@ -311,6 +312,69 @@ class UdpScannerTests(unittest.TestCase):
             tuple(result.state for result in results),
             ("open", "open|filtered", "closed"),
         )
+
+    def test_duplicate_ports_are_rejected_before_network_use(self):
+        with patch(
+            "nightrecon_red_engine.udp_scanner.scan_udp_port"
+        ) as scan_port:
+            with self.assertRaisesRegex(
+                ValueError,
+                "must not contain duplicates",
+            ):
+                scan_udp_ports(
+                    "192.0.2.10",
+                    (53, 53),
+                    0.5,
+                )
+
+        scan_port.assert_not_called()
+
+    def test_attempt_budget_accounts_for_retries(self):
+        port_count = (MAX_UDP_ATTEMPTS_PER_SCAN // 2) + 1
+        ports = tuple(range(1, port_count + 1))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "UDP attempt budget exceeds",
+        ):
+            scan_udp_ports(
+                "192.0.2.10",
+                ports,
+                0.5,
+                retries=1,
+            )
+
+    def test_attempt_budget_allows_bounded_configuration(self):
+        port_count = MAX_UDP_ATTEMPTS_PER_SCAN // 2
+        ports = tuple(range(1, port_count + 1))
+
+        def fake_scan(
+            address,
+            port,
+            timeout,
+            *,
+            payload=None,
+            retries=0,
+        ):
+            return UdpPortResult(
+                address=address,
+                port=port,
+                state="open|filtered",
+            )
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.scan_udp_port",
+            side_effect=fake_scan,
+        ):
+            results = scan_udp_ports(
+                "192.0.2.10",
+                ports,
+                0.5,
+                retries=1,
+                max_workers=8,
+            )
+
+        self.assertEqual(len(results), port_count)
 
     def test_port_count_budget_is_enforced(self):
         ports = tuple(range(1, MAX_UDP_PORTS_PER_SCAN + 2))
