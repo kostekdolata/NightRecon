@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from nightrecon_red_engine.udp_scanner import (
     MAX_UDP_PORTS_PER_SCAN,
     MAX_UDP_PROBE_BYTES,
+    MAX_UDP_RETRIES,
     UdpPortResult,
     identify_udp_service,
     udp_probe_payload_for_port,
@@ -18,6 +19,52 @@ from nightrecon_red_engine.udp_scanner import (
 
 
 class UdpScannerTests(unittest.TestCase):
+    def test_timeout_retry_can_recover_with_positive_response(self):
+        fake_socket = MagicMock()
+        response = bytearray(12)
+        response[2] = 0x80
+        fake_socket.recv.side_effect = [
+            socket.timeout(),
+            bytes(response),
+        ]
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket",
+            return_value=fake_socket,
+        ):
+            result = scan_udp_port(
+                "192.0.2.10",
+                53,
+                0.25,
+                retries=1,
+            )
+
+        self.assertEqual(result.state, "open")
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(fake_socket.send.call_count, 2)
+
+    def test_exhausted_retries_preserve_open_filtered_uncertainty(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket",
+            return_value=fake_socket,
+        ):
+            result = scan_udp_port(
+                "192.0.2.10",
+                161,
+                0.25,
+                retries=MAX_UDP_RETRIES,
+            )
+
+        self.assertEqual(result.state, "open|filtered")
+        self.assertEqual(result.attempts, MAX_UDP_RETRIES + 1)
+        self.assertIn(
+            f"{MAX_UDP_RETRIES + 1} attempts",
+            result.evidence,
+        )
+
     def test_probe_profiles_are_small_and_service_specific(self):
         dns_payload = udp_probe_payload_for_port(53)
         ntp_payload = udp_probe_payload_for_port(123)
@@ -129,6 +176,7 @@ class UdpScannerTests(unittest.TestCase):
                     "DNS response shorter than 12-byte header"
                 ),
                 protocol_match=False,
+                attempts=1,
             ),
         )
         self.assertTrue(result.is_open)
@@ -317,6 +365,14 @@ class UdpScannerTests(unittest.TestCase):
                     (53,),
                     0.5,
                     max_workers=0,
+                )
+
+            with self.assertRaises(ValueError):
+                scan_udp_port(
+                    "192.0.2.10",
+                    53,
+                    0.5,
+                    retries=MAX_UDP_RETRIES + 1,
                 )
 
         socket_factory.assert_not_called()
