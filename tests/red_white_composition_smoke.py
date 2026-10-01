@@ -192,6 +192,56 @@ def verify_both(bin_dir: Path, python: Path, directory: Path) -> None:
     )
 
 
+def verify_shared_workspace_exchange(
+    python: Path,
+    directory: Path,
+) -> None:
+    run(
+        str(python),
+        "-c",
+        (
+            "import tempfile; "
+            "from pathlib import Path; "
+            "from nightrecon_shared_core.contracts import "
+            "EngagementEnvelope, EngagementMetadata, EvidenceRecord; "
+            "from nightrecon_shared_core.workspace import LocalWorkspace; "
+            "root = Path(tempfile.mkdtemp(prefix='red-white-workspace-')); "
+            "workspace = LocalWorkspace(root); "
+            "metadata = EngagementMetadata("
+            "engagement_id='eng-composed', name='Composed lab', "
+            "created_at='2026-10-01T00:00:00+00:00', "
+            "authorization_reference='approval://eng-composed', status='active'); "
+            "red = EvidenceRecord("
+            "engagement_id='eng-composed', evidence_id='red-1', source_night='red', "
+            "evidence_type='asset.observation', observed_at='2026-10-01T00:01:00+00:00', "
+            "provenance='red://fixture/asset-1', data={'asset_id':'asset-1'}, "
+            "limitations=('red fixture only',)); "
+            "white = EvidenceRecord("
+            "engagement_id='eng-composed', evidence_id='white-1', source_night='white', "
+            "evidence_type='authorization.observation', observed_at='2026-10-01T00:02:00+00:00', "
+            "provenance='white://fixture/approval-1', data={'approval_ref':'approval-1'}, "
+            "limitations=('white fixture only',)); "
+            "assert workspace.merge_envelope(EngagementEnvelope("
+            "engagement_id='eng-composed', metadata=metadata, records=(red,))).applied; "
+            "assert workspace.merge_envelope(EngagementEnvelope("
+            "engagement_id='eng-composed', metadata=metadata, records=(white,))).applied; "
+            "reopened = LocalWorkspace(root); "
+            "envelope = reopened.envelope('eng-composed'); "
+            "assert tuple(r.source_night for r in envelope.records) == ('red','white'); "
+            "assert {r.provenance for r in envelope.records} == "
+            "{'red://fixture/asset-1','white://fixture/approval-1'}; "
+            "assert {r.limitations for r in envelope.records} == "
+            "{('red fixture only',),('white fixture only',)}; "
+            "future = envelope.to_dict(); future['schema_version'] = 2; "
+            "failed_closed = False; "
+            "try:\n EngagementEnvelope.from_dict(future)\n"
+            "except ValueError:\n failed_closed = True\n"
+            "assert failed_closed"
+        ),
+        cwd=directory,
+    )
+
+
 def verify_red_survives_white_removal(
     bin_dir: Path,
     python: Path,
@@ -263,6 +313,7 @@ def main() -> None:
             wheels["white_app"],
         )
         verify_both(bin_dir, python, directory)
+        verify_shared_workspace_exchange(python, directory)
 
         verify_red_survives_white_removal(bin_dir, python, directory)
 
