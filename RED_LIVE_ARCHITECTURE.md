@@ -324,12 +324,23 @@ Batch 4 slice 2 in active development:
   Ephemeral non-modification, wrong-secret failure, and cleanup without touching
   a physical host disk.
 
+Batch 4 Secure Workspace integration:
+
+- Secure Workspace accepts only an explicit stable /dev/disk/by-* partition;
+- existing locked LUKS2 workspaces are unlocked, mounted, used as the Red
+  working directory, then safely unmounted and closed when the session exits;
+- already-mounted Red workspaces may be reused without taking ownership of
+  their teardown;
+- missing, uninitialized, and ambiguous open-but-unmounted states fail closed;
+- no disk discovery or automatic provisioning is performed;
+- real disposable CI proves uninitialized/locked/open/mounted state detection.
+
 Remaining Batch 4 gates:
 
-- connect Secure Workspace selection directly to the privileged persistence
-  executor while preserving canonical-plan, scope, approval, revocation, and
-  destructive-operation controls;
-- LUKS2 persistent workspace;
+- explicit first-use provisioning UX for an uninitialized selected partition;
+- reboot persistence verification and Ephemeral-state verification;
+- safe shutdown/removal and recovery testing;
+- LUKS2 persistent workspace production qualification;
 - create/reopen a Red engagement across reboot;
 - prove ephemeral mode leaves no engagement state;
 - safe shutdown/removal flow.
