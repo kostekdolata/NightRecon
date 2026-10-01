@@ -69,8 +69,8 @@ def main() -> int:
         image = temp / "workspace.img"
         selector = by_id_dir / f"red-night-ci-{os.getpid()}-part1"
         state_file = mountpoint / "engagements" / "ci-state.txt"
-        secret = os.urandom(48)
-        wrong_secret = os.urandom(48)
+        secret = os.urandom(48).hex().encode("ascii")
+        wrong_secret = os.urandom(48).hex().encode("ascii")
 
         subprocess.run(
             ["truncate", "-s", "96M", str(image)],
