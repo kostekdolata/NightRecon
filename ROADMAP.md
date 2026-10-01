@@ -591,10 +591,16 @@ Active v0.44 continuation:
   confirmed new passphrase, guarded LUKS2 creation, immediate Secure Workspace
   entry, and safe close on exit.
 
+Active v0.44 continuation:
+
+- Batch 4 reboot/Ephemeral verification: fresh-process encrypted-workspace
+  reopen, persisted-state hash verification, reboot marker persistence, real
+  Ephemeral Session cleanup, and encrypted-image non-modification proof.
+
 Remaining v0.44 sequence:
 
-- Batch 4 continuation: reboot persistence verification, Ephemeral-state
-  verification, and safe shutdown/removal;
+- Batch 4 continuation: safe shutdown/removal, unsafe-removal/power-loss
+  recovery testing, and persistent-workspace production qualification;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
 - Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
   Secure Boot target, hardware compatibility and endurance testing.

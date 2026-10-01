@@ -1,12 +1,15 @@
-"""Disposable root-only Red Night LUKS2 executor integration fixture.
+"""Disposable Red Night encrypted-workspace lifecycle integration fixture.
 
-CI creates a regular-file encrypted container and exposes it through a temporary
-/dev/disk/by-id/...-part1 symlink so the real Red persistence executor exercises
-its production selector contract without touching any physical host disk.
+CI creates a regular-file LUKS2 container and exposes it through a temporary
+/dev/disk/by-id/...-part1 selector. The test proves first-use provisioning,
+a fresh-process reboot boundary, persisted state recovery, real Ephemeral
+Session isolation, wrong-secret rejection, and cleanup without touching a
+physical host disk.
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import os
 from pathlib import Path
@@ -21,6 +24,7 @@ RED_APP_ROOT = ROOT / "packages" / "red-night"
 if str(RED_APP_ROOT) not in sys.path:
     sys.path.insert(0, str(RED_APP_ROOT))
 
+from red_night_app.appliance import run_ephemeral_operator_session  # noqa: E402
 from red_night_app.persistence import (  # noqa: E402
     RedPersistenceConfig,
     RedPersistenceState,
@@ -56,7 +60,52 @@ def require_tools() -> None:
             raise SystemExit(f"required command not found: {name}")
 
 
-def main() -> int:
+def read_secret_from_stdin() -> bytes:
+    secret = sys.stdin.buffer.readline().rstrip(b"\n")
+    if not secret or b"\x00" in secret:
+        raise RuntimeError("invalid reboot verification secret")
+    return secret
+
+
+def verify_reboot_phase(selector: str, expected_hash: str) -> int:
+    """Act as a fresh boot/process and verify the encrypted workspace."""
+
+    require_root()
+    require_tools()
+    config = RedPersistenceConfig(device=selector)
+    state_file = Path(WORKSPACE_MOUNT_POINT) / "engagements" / "ci-state.txt"
+    reboot_file = Path(WORKSPACE_MOUNT_POINT) / "engagements" / "ci-reboot.txt"
+    secret = read_secret_from_stdin()
+
+    if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+        raise RuntimeError("reboot phase did not begin from locked LUKS2 state")
+
+    try:
+        unlock_workspace(config, passphrase=secret)
+        if probe_workspace_state(config) is not RedPersistenceState.LUKS2_OPEN:
+            raise RuntimeError("reboot phase did not observe open LUKS2 mapping")
+        mount_workspace(config)
+        if probe_workspace_state(config) is not RedPersistenceState.MOUNTED:
+            raise RuntimeError("reboot phase did not mount Secure Workspace")
+        if not state_file.is_file() or sha256(state_file) != expected_hash:
+            raise RuntimeError("persisted Red workspace state did not survive reboot boundary")
+
+        reboot_file.write_text("fresh-process-reboot-verified\n", encoding="utf-8")
+        subprocess.run(["sync"], check=True)
+    finally:
+        if probe_workspace_state(config) is RedPersistenceState.MOUNTED:
+            safe_close_workspace(config, mounted=True)
+        elif probe_workspace_state(config) is RedPersistenceState.LUKS2_OPEN:
+            safe_close_workspace(config, mounted=False)
+
+    if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+        raise RuntimeError("reboot phase did not safely return workspace to locked state")
+
+    print("RED_NIGHT_REBOOT_PERSISTENCE_OK")
+    return 0
+
+
+def run_fixture() -> int:
     require_root()
     require_tools()
 
@@ -69,13 +118,11 @@ def main() -> int:
         image = temp / "workspace.img"
         selector = by_id_dir / f"red-night-ci-{os.getpid()}-part1"
         state_file = mountpoint / "engagements" / "ci-state.txt"
+        reboot_file = mountpoint / "engagements" / "ci-reboot.txt"
         secret = os.urandom(48).hex().encode("ascii")
         wrong_secret = os.urandom(48).hex().encode("ascii")
 
-        subprocess.run(
-            ["truncate", "-s", "96M", str(image)],
-            check=True,
-        )
+        subprocess.run(["truncate", "-s", "96M", str(image)], check=True)
 
         by_id_dir.mkdir(parents=True, exist_ok=True)
         selector.symlink_to(image)
@@ -93,6 +140,7 @@ def main() -> int:
             )
             if probe_workspace_state(config) is not RedPersistenceState.MOUNTED:
                 raise RuntimeError("provisioned workspace was not mounted")
+
             state_file.parent.mkdir(parents=True, exist_ok=True)
             state_file.write_text("red-night-persisted\n", encoding="utf-8")
             persisted_hash = sha256(state_file)
@@ -100,25 +148,75 @@ def main() -> int:
 
             safe_close_workspace(config, mounted=True)
             if mapper.exists():
-                raise RuntimeError("mapper remained after safe close")
+                raise RuntimeError("mapper remained after initial safe close")
             if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
-                raise RuntimeError("closed workspace was not detected as locked LUKS2")
+                raise RuntimeError("initial close did not leave locked LUKS2 workspace")
+
+            reboot = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).resolve()),
+                    "--verify-reboot",
+                    str(selector),
+                    persisted_hash,
+                ],
+                input=secret + b"\n",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            if reboot.returncode != 0:
+                raise RuntimeError(
+                    "fresh-process reboot verification failed: "
+                    + reboot.stderr.decode("utf-8", errors="replace")
+                )
+            if b"RED_NIGHT_REBOOT_PERSISTENCE_OK" not in reboot.stdout:
+                raise RuntimeError("fresh-process reboot verification marker missing")
+            if mapper.exists():
+                raise RuntimeError("fresh-process reboot phase left mapper open")
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+                raise RuntimeError("workspace was not locked after reboot verification")
+
+            image_hash_before_ephemeral = sha256(image)
+            ephemeral_paths: list[Path] = []
+            inputs = iter(["ci-ephemeral-write", "exit"])
+
+            def ephemeral_runner(args, cwd):
+                ephemeral_paths.append(cwd)
+                if tuple(args) != ("ci-ephemeral-write",):
+                    raise RuntimeError("unexpected Ephemeral Session command")
+                (cwd / "ephemeral-state.txt").write_text(
+                    "temporary-only\n",
+                    encoding="utf-8",
+                )
+                return 0
+
+            ephemeral_root = temp / "ephemeral-runtime"
+            result = run_ephemeral_operator_session(
+                runtime_root=ephemeral_root,
+                input_fn=lambda _prompt: next(inputs),
+                output_fn=lambda _message: None,
+                command_runner=ephemeral_runner,
+            )
+            if result != 0:
+                raise RuntimeError("Ephemeral Session returned non-zero status")
+            if not ephemeral_paths:
+                raise RuntimeError("Ephemeral Session did not execute its command")
+            if any(path.exists() for path in ephemeral_paths):
+                raise RuntimeError("Ephemeral Session workspace survived session exit")
+            if sha256(image) != image_hash_before_ephemeral:
+                raise RuntimeError("Ephemeral Session modified encrypted workspace image")
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+                raise RuntimeError("Ephemeral Session changed encrypted workspace state")
+            print("RED_NIGHT_EPHEMERAL_ISOLATION_OK")
 
             unlock_workspace(config, passphrase=secret)
-            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_OPEN:
-                raise RuntimeError("unlocked workspace was not detected as open")
             mount_workspace(config)
-            if probe_workspace_state(config) is not RedPersistenceState.MOUNTED:
-                raise RuntimeError("remounted workspace was not detected as mounted")
             if sha256(state_file) != persisted_hash:
-                raise RuntimeError("persisted Red workspace state changed")
+                raise RuntimeError("persisted Red workspace state changed after Ephemeral Session")
+            if reboot_file.read_text(encoding="utf-8") != "fresh-process-reboot-verified\n":
+                raise RuntimeError("fresh-process reboot marker did not persist")
             safe_close_workspace(config, mounted=True)
-
-            image_hash_before = sha256(image)
-            ephemeral = temp / "ephemeral-state.txt"
-            ephemeral.write_text("temporary\n", encoding="utf-8")
-            if sha256(image) != image_hash_before:
-                raise RuntimeError("ephemeral phase modified encrypted workspace")
 
             try:
                 unlock_workspace(config, passphrase=wrong_secret)
@@ -140,6 +238,25 @@ def main() -> int:
                 stderr=subprocess.DEVNULL,
             )
             selector.unlink(missing_ok=True)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verify-reboot", action="store_true")
+    parser.add_argument("selector", nargs="?")
+    parser.add_argument("expected_hash", nargs="?")
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    if args.verify_reboot:
+        if not args.selector or not args.expected_hash:
+            raise SystemExit("--verify-reboot requires selector and expected_hash")
+        return verify_reboot_phase(args.selector, args.expected_hash)
+    if args.selector is not None or args.expected_hash is not None:
+        raise SystemExit("unexpected positional arguments")
+    return run_fixture()
 
 
 if __name__ == "__main__":

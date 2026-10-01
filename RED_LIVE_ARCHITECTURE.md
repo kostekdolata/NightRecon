@@ -347,14 +347,29 @@ Batch 4 first-use provisioning:
 - cancellation performs no storage mutation;
 - no disk discovery, automatic target choice, or silent formatting exists.
 
+Batch 4 reboot and Ephemeral verification:
+
+- the disposable LUKS2 fixture now closes the workspace and launches a fresh
+  Python process to model a reboot/process boundary;
+- the fresh process must observe locked LUKS2 state, unlock and mount the
+  selected workspace, verify the pre-reboot persisted-state hash, write a
+  reboot-verification marker, then safely return the workspace to locked state;
+- the real Ephemeral Session helper runs against temporary runtime storage,
+  executes a temporary write, and proves its session directory is removed on
+  exit;
+- the encrypted workspace image is SHA-256 identical before and after the
+  Ephemeral Session while remaining locked;
+- Secure Workspace is reopened after Ephemeral mode to prove both the original
+  state and fresh-process reboot marker still persist;
+- secrets cross the fresh-process test boundary through stdin, never argv.
+
 Remaining Batch 4 gates:
 
-- reboot persistence verification and Ephemeral-state verification;
 - safe shutdown/removal and recovery testing;
 - LUKS2 persistent workspace production qualification;
-- create/reopen a Red engagement across reboot;
-- prove ephemeral mode leaves no engagement state;
-- safe shutdown/removal flow.
+- explicit unsafe-removal/power-loss recovery cases and filesystem-integrity
+  evidence;
+- production media lifecycle/operational guidance.
 
 ### Batch 5 — composition
 

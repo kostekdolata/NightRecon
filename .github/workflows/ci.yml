@@ -700,7 +700,7 @@ jobs:
             cryptsetup \
             e2fsprogs
 
-      - name: Run disposable Red LUKS2 executor fixture
+      - name: Run disposable Red LUKS2 reboot and Ephemeral fixture
         run: |
           sudo python tests/red_live_luks_executor_runtime.py
 
