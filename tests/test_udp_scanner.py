@@ -9,12 +9,19 @@ from nightrecon_red_engine.udp_scanner import (
     MAX_UDP_PORTS_PER_SCAN,
     MAX_UDP_PROBE_BYTES,
     UdpPortResult,
+    identify_udp_service,
     scan_udp_port,
     scan_udp_ports,
 )
 
 
 class UdpScannerTests(unittest.TestCase):
+    def test_common_udp_service_hints_are_deterministic(self):
+        self.assertEqual(identify_udp_service(53), "dns")
+        self.assertEqual(identify_udp_service(123), "ntp")
+        self.assertEqual(identify_udp_service(161), "snmp")
+        self.assertEqual(identify_udp_service(65000), "unknown")
+
     def test_response_is_positive_open_evidence(self):
         fake_socket = MagicMock()
         fake_socket.recv.return_value = b"reply"
@@ -38,6 +45,9 @@ class UdpScannerTests(unittest.TestCase):
                 state="open",
                 response_size=5,
                 error_code=0,
+                service_hint="dns",
+                confidence="high",
+                evidence="received 5 UDP response bytes",
             ),
         )
         self.assertTrue(result.is_open)
@@ -69,6 +79,9 @@ class UdpScannerTests(unittest.TestCase):
         self.assertEqual(result.state, "open|filtered")
         self.assertFalse(result.is_open)
         self.assertIsNone(result.error_code)
+        self.assertEqual(result.service_hint, "snmp")
+        self.assertEqual(result.confidence, "low")
+        self.assertIn("unresolved", result.evidence)
 
     def test_icmp_unreachable_style_error_marks_port_closed(self):
         fake_socket = MagicMock()
@@ -89,6 +102,8 @@ class UdpScannerTests(unittest.TestCase):
 
         self.assertEqual(result.state, "closed")
         self.assertEqual(result.error_code, errno.ECONNREFUSED)
+        self.assertEqual(result.confidence, "high")
+        self.assertIn("socket refusal", result.evidence)
 
     def test_unclassified_socket_error_is_not_misreported_closed(self):
         fake_socket = MagicMock()
@@ -109,6 +124,8 @@ class UdpScannerTests(unittest.TestCase):
 
         self.assertEqual(result.state, "error")
         self.assertEqual(result.error_code, errno.ENETUNREACH)
+        self.assertEqual(result.confidence, "low")
+        self.assertIn("socket error code", result.evidence)
 
     def test_ipv6_uses_ipv6_datagram_socket(self):
         fake_socket = MagicMock()
