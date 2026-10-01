@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import secrets
 from pathlib import Path
 import shutil
 import subprocess
@@ -69,8 +70,8 @@ def main() -> int:
         image = temp / "workspace.img"
         selector = by_id_dir / f"red-night-ci-{os.getpid()}-part1"
         state_file = mountpoint / "engagements" / "ci-state.txt"
-        secret = os.urandom(48)
-        wrong_secret = os.urandom(48)
+        secret = b"correct-" + secrets.token_hex(32).encode("ascii")
+        wrong_secret = b"wrong-" + secrets.token_hex(32).encode("ascii")
 
         subprocess.run(
             ["truncate", "-s", "96M", str(image)],

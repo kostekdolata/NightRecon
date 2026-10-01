@@ -283,12 +283,19 @@ def provision_workspace(
     if not target_probe(config.device):
         raise ValueError("persistence target is not verified empty")
 
-    execute_persistence_plan(
-        config,
-        plan,
-        passphrase=passphrase,
-        runner=runner,
-    )
+    try:
+        execute_persistence_plan(
+            config,
+            plan,
+            passphrase=passphrase,
+            runner=runner,
+        )
+    except PersistenceExecutionError:
+        # Provisioning may have opened the mapper before a later filesystem or
+        # mount step failed. Best-effort close prevents a failed first-use
+        # attempt from leaving encrypted storage unlocked.
+        runner((CRYPTSETUP, "close", config.mapper_name), None)
+        raise
 
 
 def unlock_workspace(
