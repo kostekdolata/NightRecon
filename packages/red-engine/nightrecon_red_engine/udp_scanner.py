@@ -18,6 +18,7 @@ MAX_UDP_PORTS_PER_SCAN = 256
 MAX_UDP_WORKERS = 64
 MAX_UDP_PROBE_BYTES = 512
 MAX_UDP_RETRIES = 2
+MAX_UDP_ATTEMPTS_PER_SCAN = 384
 
 COMMON_UDP_SERVICES = {
     53: "dns",
@@ -339,6 +340,16 @@ def scan_udp_ports(
     if retries < 0 or retries > MAX_UDP_RETRIES:
         raise ValueError(
             f"retries must be between 0 and {MAX_UDP_RETRIES}."
+        )
+
+    if len(set(ports)) != len(ports):
+        raise ValueError("UDP port list must not contain duplicates.")
+
+    planned_attempts = len(ports) * (retries + 1)
+    if planned_attempts > MAX_UDP_ATTEMPTS_PER_SCAN:
+        raise ValueError(
+            "UDP attempt budget exceeds "
+            f"MAX_UDP_ATTEMPTS_PER_SCAN={MAX_UDP_ATTEMPTS_PER_SCAN}."
         )
 
     if payload is not None and not isinstance(payload, bytes):
