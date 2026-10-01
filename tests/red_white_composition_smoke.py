@@ -8,6 +8,7 @@ usable.
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import os
 from pathlib import Path
@@ -75,13 +76,23 @@ def assert_no_cross_engine_imports() -> None:
         (REPOSITORY / "packages" / "white-night", "nightrecon_red_engine"),
         (REPOSITORY / "packages" / "white-engine", "nightrecon_red_engine"),
     )
-    for root, token in forbidden:
+    for root, forbidden_module in forbidden:
         for path in root.rglob("*.py"):
-            text = path.read_text(encoding="utf-8")
-            if token in text:
-                raise AssertionError(
-                    f"Cross-engine import token {token!r} found in {path}"
-                )
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                imported: tuple[str, ...] = ()
+                if isinstance(node, ast.Import):
+                    imported = tuple(alias.name for alias in node.names)
+                elif isinstance(node, ast.ImportFrom):
+                    imported = ((node.module or ""),)
+                if any(
+                    name == forbidden_module
+                    or name.startswith(forbidden_module + ".")
+                    for name in imported
+                ):
+                    raise AssertionError(
+                        f"Cross-engine import {forbidden_module!r} found in {path}"
+                    )
 
 
 def build_wheels(directory: Path) -> dict[str, Path]:
