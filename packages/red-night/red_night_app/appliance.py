@@ -30,6 +30,7 @@ from .persistence_executor import (
     PersistenceExecutionError,
     mount_workspace,
     probe_workspace_state,
+    provision_workspace,
     safe_close_workspace,
     unlock_workspace,
 )
@@ -192,14 +193,40 @@ def _read_passphrase(prompt: str) -> bytes:
     return value.encode()
 
 
+def _read_new_passphrase(_prompt: str) -> bytes:
+    first = getpass.getpass("Create Secure Workspace passphrase: ")
+    if not first:
+        raise ValueError("Secure Workspace passphrase must not be empty")
+    second = getpass.getpass("Confirm Secure Workspace passphrase: ")
+    if first != second:
+        raise ValueError("Secure Workspace passphrases do not match")
+    return first.encode()
+
+
+def _confirm_provisioning(
+    config: RedPersistenceConfig,
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+) -> bool:
+    phrase = f"PROVISION {config.device}"
+    output_fn("WARNING: first-use Secure Workspace provisioning is destructive.")
+    output_fn(f"Only the explicitly selected partition will be targeted: {config.device}")
+    output_fn("Any existing data on that selected partition would be destroyed.")
+    entered = input_fn(f"Type exactly '{phrase}' to continue: ").strip()
+    return entered == phrase
+
+
 def run_secure_workspace_session(
     config: RedPersistenceConfig,
     *,
     input_fn: Callable[[str], str] = input,
     output_fn: Callable[[str], None] = print,
     passphrase_fn: Callable[[str], bytes] = _read_passphrase,
+    new_passphrase_fn: Callable[[str], bytes] = _read_new_passphrase,
     command_runner: Callable[[Sequence[str], Path], int] = _default_command_runner,
     state_probe: Callable[[RedPersistenceConfig], RedPersistenceState] = probe_workspace_state,
+    provisioner: Callable[..., None] = provision_workspace,
     unlocker: Callable[..., None] = unlock_workspace,
     mounter: Callable[..., None] = mount_workspace,
     closer: Callable[..., None] = safe_close_workspace,
@@ -210,12 +237,26 @@ def run_secure_workspace_session(
     if state is RedPersistenceState.MISSING:
         output_fn("Secure Workspace device is not present.")
         return 3
+    opened_here = False
     if state is RedPersistenceState.UNINITIALIZED:
-        output_fn(
-            "Secure Workspace is uninitialized. Explicit provisioning is required "
-            "before it can be launched."
-        )
-        return 3
+        if not _confirm_provisioning(
+            config,
+            input_fn=input_fn,
+            output_fn=output_fn,
+        ):
+            output_fn("Provisioning cancelled. No storage changes were made.")
+            return 3
+        secret = new_passphrase_fn("Create Secure Workspace passphrase: ")
+        try:
+            provisioner(
+                config,
+                passphrase=secret,
+                destructive_confirmation=True,
+            )
+        finally:
+            secret = b""
+        opened_here = True
+        state = RedPersistenceState.MOUNTED
     if state is RedPersistenceState.LUKS2_OPEN:
         output_fn(
             "Secure Workspace mapping is already open but not mounted; "
@@ -223,7 +264,6 @@ def run_secure_workspace_session(
         )
         return 3
 
-    opened_here = False
     if state is RedPersistenceState.LUKS2_LOCKED:
         secret = passphrase_fn("Secure Workspace passphrase: ")
         try:
