@@ -231,15 +231,23 @@ def verify_shared_workspace_exchange(
             "assert {r.provenance for r in envelope.records} == "
             "{'red://fixture/asset-1','white://fixture/approval-1'}; "
             "assert {r.limitations for r in envelope.records} == "
-            "{('red fixture only',),('white fixture only',)}; "
-            "future = envelope.to_dict(); future['schema_version'] = 2; "
-            "failed_closed = False; "
-            "try:\n EngagementEnvelope.from_dict(future)\n"
-            "except ValueError:\n failed_closed = True\n"
-            "assert failed_closed"
+            "{('red fixture only',),('white fixture only',)}"
         ),
         cwd=directory,
     )
+    future_schema = run(
+        str(python),
+        "-c",
+        (
+            "from nightrecon_shared_core.contracts import EngagementEnvelope; "
+            "EngagementEnvelope.from_dict({"
+            "'schema_version':2,'engagement_id':'eng-composed','records':[]})"
+        ),
+        cwd=directory,
+        check=False,
+    )
+    if future_schema.returncode == 0:
+        raise AssertionError("Unsupported shared evidence schema did not fail closed")
 
 
 def verify_red_survives_white_removal(
