@@ -579,19 +579,16 @@ Completed v0.44 deployment batches:
 
 Active v0.44 work:
 
-- Batch 4 slice 2: guarded root-only LUKS2 executor using canonical plans only;
-- passphrases supplied on stdin and never in argv;
-- empty-target signature preflight before destructive provisioning;
-- fixed LUKS2 -> mapper -> ext4 -> fixed mountpoint order;
-- disposable file-backed integration fixture proving provision/reopen,
-  persistence, Ephemeral non-modification, wrong-secret failure, and cleanup;
-- Red Live image includes cryptsetup/e2fsprogs runtime support.
+- Batch 4 Secure Workspace integration: explicit stable persistence-device
+  selection, existing LUKS2 unlock/mount, encrypted workspace command session,
+  safe close on exit, and real state-probe verification;
+- no disk discovery or automatic provisioning;
+- Live runtime explicitly includes cryptsetup, e2fsprogs, and util-linux.
 
 Remaining v0.44 sequence:
 
-- Batch 4 continuation: privileged Secure Workspace integration, reboot
-  persistence verification, Ephemeral-state verification, and safe
-  shutdown/removal;
+- Batch 4 continuation: explicit first-use provisioning UX, reboot persistence
+  verification, Ephemeral-state verification, and safe shutdown/removal;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
 - Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
   Secure Boot target, hardware compatibility and endurance testing.
