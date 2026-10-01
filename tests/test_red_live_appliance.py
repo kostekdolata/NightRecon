@@ -196,13 +196,23 @@ class RedLiveApplianceTests(unittest.TestCase):
         self.assertFalse(payload["persistent_workspace"])
         self.assertEqual(payload["authorization_effect"], "none")
 
-    def test_secure_mode_cli_refuses_when_persistence_is_not_mounted(self):
+    def test_secure_mode_cli_uses_explicit_persistence_device(self):
         with (
-            patch("builtins.print"),
             patch("red_night_app.appliance.require_platform_privilege"),
+            patch(
+                "red_night_app.appliance.run_secure_workspace_session",
+                return_value=3,
+            ) as secure,
         ):
-            code = main(["--mode", "secure-workspace"])
+            code = main([
+                "--mode",
+                "secure-workspace",
+                "--persistence-device",
+                "/dev/disk/by-partuuid/1111-2222",
+            ])
         self.assertEqual(code, 3)
+        config = secure.call_args.args[0]
+        self.assertEqual(config.device, "/dev/disk/by-partuuid/1111-2222")
 
 
 if __name__ == "__main__":
