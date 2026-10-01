@@ -25,9 +25,9 @@ The standard maturity gates are also the template for developing future Nights.
 
 ## Product delivery order
 
-Red Night v0.43.0 is the verified stable standalone baseline, with v0.44.0
-Standalone & Live Deployment Foundation continuing as a separate verified Red
-development track under [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md).
+Red Night v0.43.0 is the verified stable standalone baseline. The v0.44.0
+Standalone & Live Deployment Foundation has completed encrypted-persistence
+Batch 4 and is now in Batch 5 composition under [RED_ACCEPTANCE.md](RED_ACCEPTANCE.md).
 
 White Night is the second standalone product track. Its development may proceed
 in parallel from verified Red checkpoints provided White work does not refactor,
