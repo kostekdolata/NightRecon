@@ -597,10 +597,16 @@ Active v0.44 continuation:
   reopen, persisted-state hash verification, reboot marker persistence, real
   Ephemeral Session cleanup, and encrypted-image non-modification proof.
 
+Active v0.44 continuation:
+
+- Batch 4 safe-removal/recovery qualification: locked-state removal readiness,
+  read-only Recovery & Integrity inspection, safe detach/reattach of the same
+  encrypted workspace, interrupted mounted-state recovery, and read-only ext4
+  integrity evidence.
+
 Remaining v0.44 sequence:
 
-- Batch 4 continuation: safe shutdown/removal, unsafe-removal/power-loss
-  recovery testing, and persistent-workspace production qualification;
+- close Batch 4 only after exact-head and post-merge full CI are green;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
 - Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
   Secure Boot target, hardware compatibility and endurance testing.

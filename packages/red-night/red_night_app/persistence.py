@@ -255,3 +255,9 @@ def secure_workspace_ready(state: RedPersistenceState | str) -> bool:
     """Return true only for a mounted encrypted persistent workspace."""
 
     return RedPersistenceState(state) is RedPersistenceState.MOUNTED
+
+
+def safe_removal_ready(state: RedPersistenceState | str) -> bool:
+    """Return true only when encrypted persistence is fully locked and unmounted."""
+
+    return RedPersistenceState(state) is RedPersistenceState.LUKS2_LOCKED

@@ -363,13 +363,30 @@ Batch 4 reboot and Ephemeral verification:
   state and fresh-process reboot marker still persist;
 - secrets cross the fresh-process test boundary through stdin, never argv.
 
-Remaining Batch 4 gates:
+Batch 4 safe-removal, recovery, and production qualification:
 
-- safe shutdown/removal and recovery testing;
-- LUKS2 persistent workspace production qualification;
-- explicit unsafe-removal/power-loss recovery cases and filesystem-integrity
-  evidence;
-- production media lifecycle/operational guidance.
+- safe-removal readiness is true only when the selected workspace is fully
+  locked LUKS2 with no active mount or mapper;
+- Recovery & Integrity can inspect an explicitly selected persistence device
+  read-only and report its state without unlock, mount, format, or close;
+- disposable CI safely closes the workspace, detaches the stable selector to
+  simulate media removal, confirms missing/no-mapper/no-mount state, reattaches
+  the same encrypted image, detects locked LUKS2, and verifies persisted Red
+  state after reopen;
+- Recovery & Integrity is exercised while the workspace is mounted to model an
+  interrupted active session, reports that removal is unsafe, and does not
+  mutate the active state before ordered cleanup;
+- a read-only `e2fsck -f -n` integrity check runs against the unlocked but
+  unmounted encrypted filesystem, after which the workspace is returned to
+  locked state;
+- production qualification therefore covers safe removal, reattach, interrupted
+  active-state recovery, persisted-state continuity, and filesystem integrity
+  without touching physical host media.
+
+Remaining Batch 4 gate:
+
+- exact-head and post-merge production CI must remain fully green before Batch 4
+  is closed and Batch 5 composition begins.
 
 ### Batch 5 — composition
 

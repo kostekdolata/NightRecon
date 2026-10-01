@@ -26,6 +26,7 @@ from red_night_app.persistence import (  # noqa: E402
     RedPersistenceState,
     RedPersistenceStep,
     plan_persistence_action,
+    safe_removal_ready,
     secure_workspace_ready,
 )
 
@@ -159,6 +160,17 @@ class RedLivePersistenceContractTests(unittest.TestCase):
                     plan.reason,
                     "explicit-persistence-device-not-present",
                 )
+
+    def test_safe_removal_requires_locked_luks2_state(self):
+        self.assertTrue(safe_removal_ready(RedPersistenceState.LUKS2_LOCKED))
+        for state in (
+            RedPersistenceState.MISSING,
+            RedPersistenceState.UNINITIALIZED,
+            RedPersistenceState.LUKS2_OPEN,
+            RedPersistenceState.MOUNTED,
+        ):
+            with self.subTest(state=state):
+                self.assertFalse(safe_removal_ready(state))
 
     def test_secure_workspace_requires_mounted_encrypted_workspace(self):
         for state in (

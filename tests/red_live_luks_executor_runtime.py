@@ -24,7 +24,10 @@ RED_APP_ROOT = ROOT / "packages" / "red-night"
 if str(RED_APP_ROOT) not in sys.path:
     sys.path.insert(0, str(RED_APP_ROOT))
 
-from red_night_app.appliance import run_ephemeral_operator_session  # noqa: E402
+from red_night_app.appliance import (  # noqa: E402
+    run_ephemeral_operator_session,
+    run_recovery_integrity_check,
+)
 from red_night_app.persistence import (  # noqa: E402
     RedPersistenceConfig,
     RedPersistenceState,
@@ -55,7 +58,7 @@ def require_root() -> None:
 
 
 def require_tools() -> None:
-    for name in ("cryptsetup", "mkfs.ext4", "mount", "umount"):
+    for name in ("cryptsetup", "mkfs.ext4", "e2fsck", "mount", "umount", "mountpoint"):
         if shutil.which(name) is None:
             raise SystemExit(f"required command not found: {name}")
 
@@ -176,6 +179,91 @@ def run_fixture() -> int:
                 raise RuntimeError("fresh-process reboot phase left mapper open")
             if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
                 raise RuntimeError("workspace was not locked after reboot verification")
+
+            image_hash_before_removal = sha256(image)
+            recovery_output: list[str] = []
+            recovery_code = run_recovery_integrity_check(
+                config=config,
+                output_fn=recovery_output.append,
+            )
+            if recovery_code != 0:
+                raise RuntimeError("Recovery & Integrity inspection returned non-zero")
+            if "Persistence state: luks2-locked" not in recovery_output:
+                raise RuntimeError("Recovery & Integrity did not report locked LUKS2")
+            if "Safe removal ready: yes" not in recovery_output:
+                raise RuntimeError("Recovery & Integrity did not report safe removal readiness")
+            if sha256(image) != image_hash_before_removal:
+                raise RuntimeError("Recovery & Integrity modified encrypted workspace image")
+            if mapper.exists():
+                raise RuntimeError("Recovery & Integrity unexpectedly opened workspace mapper")
+
+            selector.unlink()
+            if probe_workspace_state(config) is not RedPersistenceState.MISSING:
+                raise RuntimeError("removed persistence selector was not reported missing")
+            if mapper.exists():
+                raise RuntimeError("mapper remained open during simulated safe removal")
+            mounted = subprocess.run(
+                ["mountpoint", "-q", str(mountpoint)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            if mounted.returncode == 0:
+                raise RuntimeError("workspace mount remained active during simulated removal")
+
+            selector.symlink_to(image)
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+                raise RuntimeError("reattached encrypted workspace was not detected as locked")
+
+            unlock_workspace(config, passphrase=secret)
+            mount_workspace(config)
+            if sha256(state_file) != persisted_hash:
+                raise RuntimeError("persisted state changed across safe removal and reattach")
+            if reboot_file.read_text(encoding="utf-8") != "fresh-process-reboot-verified\n":
+                raise RuntimeError("reboot marker changed across safe removal and reattach")
+            safe_close_workspace(config, mounted=True)
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+                raise RuntimeError("reattached workspace did not return to safe locked state")
+            print("RED_NIGHT_SAFE_REMOVAL_RECOVERY_OK")
+
+            unlock_workspace(config, passphrase=secret)
+            mount_workspace(config)
+            interrupted_output: list[str] = []
+            interrupted_code = run_recovery_integrity_check(
+                config=config,
+                output_fn=interrupted_output.append,
+            )
+            if interrupted_code != 0:
+                raise RuntimeError("active-state recovery inspection returned non-zero")
+            if "Persistence state: mounted" not in interrupted_output:
+                raise RuntimeError("Recovery & Integrity did not report mounted state")
+            if "Safe removal ready: no" not in interrupted_output:
+                raise RuntimeError("Recovery & Integrity incorrectly marked mounted state safe")
+            if probe_workspace_state(config) is not RedPersistenceState.MOUNTED:
+                raise RuntimeError("read-only recovery inspection changed mounted workspace state")
+            safe_close_workspace(config, mounted=True)
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+                raise RuntimeError("interrupted-state recovery did not return workspace to locked")
+            print("RED_NIGHT_ACTIVE_STATE_RECOVERY_OK")
+
+            unlock_workspace(config, passphrase=secret)
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_OPEN:
+                raise RuntimeError("filesystem integrity phase did not open LUKS2 mapping")
+            fsck = subprocess.run(
+                ["e2fsck", "-f", "-n", str(mapper)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            if fsck.returncode != 0:
+                raise RuntimeError(
+                    "read-only ext4 integrity check failed: "
+                    + fsck.stderr.decode("utf-8", errors="replace")
+                )
+            safe_close_workspace(config, mounted=False)
+            if probe_workspace_state(config) is not RedPersistenceState.LUKS2_LOCKED:
+                raise RuntimeError("filesystem integrity phase did not restore locked state")
+            print("RED_NIGHT_FILESYSTEM_INTEGRITY_OK")
 
             image_hash_before_ephemeral = sha256(image)
             ephemeral_paths: list[Path] = []

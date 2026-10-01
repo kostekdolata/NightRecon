@@ -23,6 +23,7 @@ from red_night_app.appliance import (  # noqa: E402
     main,
     prompt_for_mode,
     run_ephemeral_operator_session,
+    run_recovery_integrity_check,
     run_secure_workspace_session,
     session_decision,
 )
@@ -198,6 +199,47 @@ class RedSecureWorkspaceIntegrationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 from red_night_app.appliance import _read_new_passphrase
                 _read_new_passphrase("ignored")
+
+class RedRecoveryIntegrityTests(unittest.TestCase):
+    def config(self):
+        return RedPersistenceConfig(
+            device="/dev/disk/by-partuuid/1111-2222"
+        )
+
+    def test_recovery_reports_locked_workspace_as_safe_to_remove(self):
+        outputs = []
+        code = run_recovery_integrity_check(
+            config=self.config(),
+            output_fn=outputs.append,
+            state_probe=lambda _config: RedPersistenceState.LUKS2_LOCKED,
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("Persistence state: luks2-locked", outputs)
+        self.assertIn("Safe removal ready: yes", outputs)
+        self.assertTrue(any("read-only" in item for item in outputs))
+
+    def test_recovery_reports_mounted_workspace_not_safe_to_remove(self):
+        outputs = []
+        code = run_recovery_integrity_check(
+            config=self.config(),
+            output_fn=outputs.append,
+            state_probe=lambda _config: RedPersistenceState.MOUNTED,
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("Persistence state: mounted", outputs)
+        self.assertIn("Safe removal ready: no", outputs)
+
+    def test_recovery_without_device_performs_no_persistence_probe(self):
+        calls = []
+        outputs = []
+        code = run_recovery_integrity_check(
+            output_fn=outputs.append,
+            state_probe=lambda _config: calls.append("probe"),
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(calls, [])
+        self.assertIn("Persistence device: not selected", outputs)
+
 
 class RedLiveApplianceTests(unittest.TestCase):
     def test_modes_are_explicit_and_non_authoritative(self):
