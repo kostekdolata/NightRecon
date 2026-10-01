@@ -11,6 +11,7 @@ from nightrecon_red_engine.udp_scanner import (
     UdpPortResult,
     identify_udp_service,
     udp_probe_payload_for_port,
+    validate_udp_response,
     scan_udp_port,
     scan_udp_ports,
 )
@@ -51,6 +52,53 @@ class UdpScannerTests(unittest.TestCase):
         self.assertEqual(identify_udp_service(161), "snmp")
         self.assertEqual(identify_udp_service(65000), "unknown")
 
+    def test_dns_and_ntp_response_validation_is_structural(self):
+        dns_response = bytearray(12)
+        dns_response[2] = 0x80
+        self.assertEqual(
+            validate_udp_response(53, bytes(dns_response)),
+            (True, "DNS QR response bit set"),
+        )
+        self.assertEqual(
+            validate_udp_response(53, b"short"),
+            (False, "DNS response shorter than 12-byte header"),
+        )
+
+        ntp_response = bytearray(48)
+        ntp_response[0] = 0x24
+        matched, evidence = validate_udp_response(
+            123,
+            bytes(ntp_response),
+        )
+        self.assertTrue(matched)
+        self.assertIn("server/broadcast", evidence)
+
+        self.assertEqual(
+            validate_udp_response(161, b"anything"),
+            (None, "no protocol response validator defined"),
+        )
+
+    def test_protocol_consistent_dns_reply_gets_high_confidence(self):
+        fake_socket = MagicMock()
+        response = bytearray(12)
+        response[2] = 0x80
+        fake_socket.recv.return_value = bytes(response)
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket",
+            return_value=fake_socket,
+        ):
+            result = scan_udp_port(
+                "192.0.2.10",
+                53,
+                0.5,
+            )
+
+        self.assertEqual(result.state, "open")
+        self.assertTrue(result.protocol_match)
+        self.assertEqual(result.confidence, "high")
+        self.assertIn("DNS QR response bit set", result.evidence)
+
     def test_response_is_positive_open_evidence(self):
         fake_socket = MagicMock()
         fake_socket.recv.return_value = b"reply"
@@ -75,8 +123,12 @@ class UdpScannerTests(unittest.TestCase):
                 response_size=5,
                 error_code=0,
                 service_hint="dns",
-                confidence="high",
-                evidence="received 5 UDP response bytes",
+                confidence="medium",
+                evidence=(
+                    "received 5 UDP response bytes; "
+                    "DNS response shorter than 12-byte header"
+                ),
+                protocol_match=False,
             ),
         )
         self.assertTrue(result.is_open)
