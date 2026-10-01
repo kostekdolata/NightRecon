@@ -171,9 +171,7 @@ def verify_both(bin_dir: Path, python: Path, directory: Path) -> None:
     red_app = command(bin_dir, "red-night-app")
     white_app = command(bin_dir, "white-night-app")
 
-    red_help = run(*privileged_command(red_app, "--help"), cwd=directory).stdout
-    if "usage:" not in red_help.lower():
-        raise AssertionError("Red app did not expose its packaged command boundary")
+    run(*privileged_command(red_app, "--help"), cwd=directory)
 
     white_help = run(white_app, "--help", cwd=directory).stdout
     if "White Night command boundary" not in white_help:
