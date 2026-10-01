@@ -1,0 +1,228 @@
+"""Tests for bounded Red Night UDP scanning primitives."""
+
+import errno
+import socket
+import unittest
+from unittest.mock import MagicMock, patch
+
+from nightrecon_red_engine.udp_scanner import (
+    MAX_UDP_PORTS_PER_SCAN,
+    MAX_UDP_PROBE_BYTES,
+    UdpPortResult,
+    scan_udp_port,
+    scan_udp_ports,
+)
+
+
+class UdpScannerTests(unittest.TestCase):
+    def test_response_is_positive_open_evidence(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.return_value = b"reply"
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket",
+            return_value=fake_socket,
+        ) as socket_factory:
+            result = scan_udp_port(
+                "192.0.2.10",
+                53,
+                0.5,
+                payload=b"probe",
+            )
+
+        self.assertEqual(
+            result,
+            UdpPortResult(
+                address="192.0.2.10",
+                port=53,
+                state="open",
+                response_size=5,
+                error_code=0,
+            ),
+        )
+        self.assertTrue(result.is_open)
+        socket_factory.assert_called_once_with(
+            socket.AF_INET,
+            socket.SOCK_DGRAM,
+        )
+        fake_socket.connect.assert_called_once_with(
+            ("192.0.2.10", 53)
+        )
+        fake_socket.send.assert_called_once_with(b"probe")
+        fake_socket.recv.assert_called_once_with(MAX_UDP_PROBE_BYTES)
+        fake_socket.close.assert_called_once()
+
+    def test_timeout_preserves_open_filtered_uncertainty(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = socket.timeout()
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket",
+            return_value=fake_socket,
+        ):
+            result = scan_udp_port(
+                "192.0.2.10",
+                161,
+                0.25,
+            )
+
+        self.assertEqual(result.state, "open|filtered")
+        self.assertFalse(result.is_open)
+        self.assertIsNone(result.error_code)
+
+    def test_icmp_unreachable_style_error_marks_port_closed(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = ConnectionRefusedError(
+            errno.ECONNREFUSED,
+            "Connection refused",
+        )
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket",
+            return_value=fake_socket,
+        ):
+            result = scan_udp_port(
+                "192.0.2.10",
+                9999,
+                0.25,
+            )
+
+        self.assertEqual(result.state, "closed")
+        self.assertEqual(result.error_code, errno.ECONNREFUSED)
+
+    def test_unclassified_socket_error_is_not_misreported_closed(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.side_effect = OSError(
+            errno.ENETUNREACH,
+            "Network unreachable",
+        )
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket",
+            return_value=fake_socket,
+        ):
+            result = scan_udp_port(
+                "192.0.2.10",
+                9999,
+                0.25,
+            )
+
+        self.assertEqual(result.state, "error")
+        self.assertEqual(result.error_code, errno.ENETUNREACH)
+
+    def test_ipv6_uses_ipv6_datagram_socket(self):
+        fake_socket = MagicMock()
+        fake_socket.recv.return_value = b"x"
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket",
+            return_value=fake_socket,
+        ) as socket_factory:
+            result = scan_udp_port(
+                "2001:db8::10",
+                53,
+                0.5,
+            )
+
+        self.assertEqual(result.state, "open")
+        socket_factory.assert_called_once_with(
+            socket.AF_INET6,
+            socket.SOCK_DGRAM,
+        )
+        fake_socket.connect.assert_called_once_with(
+            ("2001:db8::10", 53, 0, 0)
+        )
+
+    def test_multi_port_results_are_deterministically_sorted(self):
+        def fake_scan(address, port, timeout, *, payload=b""):
+            states = {
+                53: "open",
+                123: "open|filtered",
+                161: "closed",
+            }
+            return UdpPortResult(
+                address=address,
+                port=port,
+                state=states[port],
+            )
+
+        with patch(
+            "nightrecon_red_engine.udp_scanner.scan_udp_port",
+            side_effect=fake_scan,
+        ):
+            results = scan_udp_ports(
+                "192.0.2.10",
+                (161, 53, 123),
+                0.5,
+                max_workers=3,
+            )
+
+        self.assertEqual(
+            tuple(result.port for result in results),
+            (53, 123, 161),
+        )
+        self.assertEqual(
+            tuple(result.state for result in results),
+            ("open", "open|filtered", "closed"),
+        )
+
+    def test_port_count_budget_is_enforced(self):
+        ports = tuple(range(1, MAX_UDP_PORTS_PER_SCAN + 2))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "UDP port count exceeds",
+        ):
+            scan_udp_ports(
+                "192.0.2.10",
+                ports,
+                0.5,
+            )
+
+    def test_probe_payload_budget_is_enforced(self):
+        payload = b"x" * (MAX_UDP_PROBE_BYTES + 1)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "UDP payload exceeds",
+        ):
+            scan_udp_port(
+                "192.0.2.10",
+                53,
+                0.5,
+                payload=payload,
+            )
+
+    def test_invalid_inputs_fail_before_network_use(self):
+        with patch(
+            "nightrecon_red_engine.udp_scanner.socket.socket"
+        ) as socket_factory:
+            with self.assertRaises(ValueError):
+                scan_udp_port("not-an-ip", 53, 0.5)
+
+            with self.assertRaises(ValueError):
+                scan_udp_port("192.0.2.10", 0, 0.5)
+
+            with self.assertRaises(ValueError):
+                scan_udp_port("192.0.2.10", 53, 0)
+
+            with self.assertRaises(ValueError):
+                scan_udp_ports(
+                    "192.0.2.10",
+                    (),
+                    0.5,
+                )
+
+            with self.assertRaises(ValueError):
+                scan_udp_ports(
+                    "192.0.2.10",
+                    (53,),
+                    0.5,
+                    max_workers=0,
+                )
+
+        socket_factory.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()
