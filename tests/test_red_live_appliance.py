@@ -126,6 +126,79 @@ class RedSecureWorkspaceIntegrationTests(unittest.TestCase):
                 self.assertEqual(calls, [])
 
 
+    def test_uninitialized_workspace_requires_exact_device_confirmation(self):
+        calls = []
+        outputs = []
+        code = run_secure_workspace_session(
+            self.config(),
+            input_fn=lambda _prompt: "no",
+            output_fn=outputs.append,
+            new_passphrase_fn=lambda _prompt: b"secret",
+            state_probe=lambda _config: RedPersistenceState.UNINITIALIZED,
+            provisioner=lambda *_args, **_kwargs: calls.append("provision"),
+            closer=lambda *_args, **_kwargs: calls.append("close"),
+        )
+        self.assertEqual(code, 3)
+        self.assertEqual(calls, [])
+        self.assertTrue(any("cancelled" in item.lower() for item in outputs))
+
+    def test_uninitialized_workspace_provisions_after_exact_confirmation(self):
+        calls = []
+        commands = []
+        states = iter([
+            "PROVISION /dev/disk/by-partuuid/1111-2222",
+            "--version",
+            "exit",
+        ])
+
+        def provisioner(config, *, passphrase, destructive_confirmation):
+            calls.append((
+                "provision",
+                config.device,
+                passphrase,
+                destructive_confirmation,
+            ))
+
+        def closer(config, *, mounted):
+            calls.append(("close", config.mount_point, mounted))
+
+        def runner(args, cwd):
+            commands.append((tuple(args), cwd))
+            return 0
+
+        code = run_secure_workspace_session(
+            self.config(),
+            input_fn=lambda _prompt: next(states),
+            output_fn=lambda _message: None,
+            new_passphrase_fn=lambda _prompt: b"new-secret",
+            command_runner=runner,
+            state_probe=lambda _config: RedPersistenceState.UNINITIALIZED,
+            provisioner=provisioner,
+            closer=closer,
+        )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            calls[0],
+            (
+                "provision",
+                "/dev/disk/by-partuuid/1111-2222",
+                b"new-secret",
+                True,
+            ),
+        )
+        self.assertEqual(calls[1], ("close", "/run/red-night-secure", True))
+        self.assertEqual(commands[0][0], ("--version",))
+        self.assertEqual(commands[0][1].as_posix(), "/run/red-night-secure")
+
+    def test_new_passphrase_confirmation_mismatch_fails_before_provisioning(self):
+        with (
+            patch("red_night_app.appliance.getpass.getpass", side_effect=["one", "two"]),
+        ):
+            with self.assertRaises(ValueError):
+                from red_night_app.appliance import _read_new_passphrase
+                _read_new_passphrase("ignored")
+
 class RedLiveApplianceTests(unittest.TestCase):
     def test_modes_are_explicit_and_non_authoritative(self):
         self.assertEqual(
