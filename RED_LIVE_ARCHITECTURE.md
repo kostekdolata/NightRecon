@@ -363,13 +363,28 @@ Batch 4 reboot and Ephemeral verification:
   state and fresh-process reboot marker still persist;
 - secrets cross the fresh-process test boundary through stdin, never argv.
 
+Batch 4 safe-close and interrupted-process recovery:
+
+- Secure Workspace sessions opened by Red use verified safe-close by default:
+  unmount/close must be followed by observed locked LUKS2 state;
+- Recovery & Integrity can inspect an explicitly selected locked workspace with
+  read-only `e2fsck -f -n`; no automatic repair is performed;
+- filesystem-integrity results are reduced to clean/issues/operational failure
+  rather than retaining filesystem output;
+- the disposable fixture launches a child that unlocks, mounts, writes and
+  syncs state, then exits without cleanup to emulate an interrupted Red process;
+- the parent must observe the still-mounted workspace, perform verified
+  safe-close, run read-only integrity inspection, reopen, and prove the
+  interrupted-session marker persisted;
+- this proves process-interruption recovery only and is not an electrical
+  power-loss or unsafe-media-removal claim.
+
 Remaining Batch 4 gates:
 
-- safe shutdown/removal and recovery testing;
+- true fault-injection testing for abrupt VM/power loss and unsafe media removal;
+- recovery behavior when filesystem integrity reports issues;
 - LUKS2 persistent workspace production qualification;
-- explicit unsafe-removal/power-loss recovery cases and filesystem-integrity
-  evidence;
-- production media lifecycle/operational guidance.
+- production media lifecycle and safe shutdown/removal operator guidance.
 
 ### Batch 5 — composition
 
