@@ -36,6 +36,12 @@ COMMON_UDP_SERVICES = {
     5353: "mdns",
 }
 
+UDP_PROBE_PROFILES = {
+    53: b"\x00\x00\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00"
+        b"\x00\x00\x10\x00\x01",
+    123: b"\x1b" + (b"\x00" * 47),
+}
+
 _CLOSED_ERROR_CODES = {
     errno.ECONNREFUSED,
     getattr(errno, "WSAECONNREFUSED", 10061),
@@ -107,12 +113,19 @@ def _metadata_for_state(
     )
 
 
+def udp_probe_payload_for_port(port: int) -> bytes:
+    """Return a conservative protocol-aware UDP probe when one is defined."""
+
+    _validate_port(port)
+    return UDP_PROBE_PROFILES.get(port, b"")
+
+
 def scan_udp_port(
     address: str,
     port: int,
     timeout: float,
     *,
-    payload: bytes = b"",
+    payload: bytes | None = None,
 ) -> UdpPortResult:
     """Send one bounded UDP datagram and preserve open/filtered ambiguity."""
 
@@ -122,8 +135,11 @@ def scan_udp_port(
     if timeout <= 0:
         raise ValueError("Timeout must be greater than 0.")
 
+    if payload is None:
+        payload = udp_probe_payload_for_port(port)
+
     if not isinstance(payload, bytes):
-        raise TypeError("UDP payload must be bytes.")
+        raise TypeError("UDP payload must be bytes or None.")
 
     if len(payload) > MAX_UDP_PROBE_BYTES:
         raise ValueError(
@@ -218,7 +234,7 @@ def scan_udp_ports(
     timeout: float,
     *,
     max_workers: int = 32,
-    payload: bytes = b"",
+    payload: bytes | None = None,
 ) -> tuple[UdpPortResult, ...]:
     """Probe an explicit bounded UDP port set concurrently."""
 
@@ -239,10 +255,10 @@ def scan_udp_ports(
     if timeout <= 0:
         raise ValueError("Timeout must be greater than 0.")
 
-    if not isinstance(payload, bytes):
-        raise TypeError("UDP payload must be bytes.")
+    if payload is not None and not isinstance(payload, bytes):
+        raise TypeError("UDP payload must be bytes or None.")
 
-    if len(payload) > MAX_UDP_PROBE_BYTES:
+    if payload is not None and len(payload) > MAX_UDP_PROBE_BYTES:
         raise ValueError(
             f"UDP payload exceeds {MAX_UDP_PROBE_BYTES} bytes."
         )
