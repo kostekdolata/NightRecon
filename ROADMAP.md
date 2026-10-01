@@ -585,22 +585,25 @@ Active v0.44 work:
 - no disk discovery or automatic provisioning;
 - Live runtime explicitly includes cryptsetup, e2fsprogs, and util-linux.
 
-Active v0.44 continuation:
+Completed v0.44 Batch 4 slices:
 
-- Batch 4 first-use provisioning: exact device-bound destructive confirmation,
+- first-use provisioning: exact device-bound destructive confirmation,
   confirmed new passphrase, guarded LUKS2 creation, immediate Secure Workspace
-  entry, and safe close on exit.
+  entry, and safe close on exit;
+- reboot/Ephemeral verification: fresh-process encrypted-workspace reopen,
+  persisted-state hash verification, reboot marker persistence, real Ephemeral
+  Session cleanup, and encrypted-image non-modification proof.
 
 Active v0.44 continuation:
 
-- Batch 4 reboot/Ephemeral verification: fresh-process encrypted-workspace
-  reopen, persisted-state hash verification, reboot marker persistence, real
-  Ephemeral Session cleanup, and encrypted-image non-modification proof.
+- Batch 4 safe-close/recovery: verified close-to-locked state, explicit
+  read-only filesystem integrity inspection, and disposable interrupted-process
+  recovery without automatic repair.
 
 Remaining v0.44 sequence:
 
-- Batch 4 continuation: safe shutdown/removal, unsafe-removal/power-loss
-  recovery testing, and persistent-workspace production qualification;
+- Batch 4 true abrupt-power/media-removal fault injection, issue-state recovery
+  policy, and persistent-workspace production qualification;
 - Batch 5: Red+White and selected/full-stack package composition profiles;
 - Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
   Secure Boot target, hardware compatibility and endurance testing.
