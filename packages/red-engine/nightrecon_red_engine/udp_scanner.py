@@ -18,6 +18,24 @@ MAX_UDP_PORTS_PER_SCAN = 256
 MAX_UDP_WORKERS = 64
 MAX_UDP_PROBE_BYTES = 512
 
+COMMON_UDP_SERVICES = {
+    53: "dns",
+    67: "dhcp-server",
+    68: "dhcp-client",
+    69: "tftp",
+    123: "ntp",
+    137: "netbios-ns",
+    138: "netbios-dgm",
+    161: "snmp",
+    162: "snmp-trap",
+    500: "isakmp",
+    514: "syslog",
+    520: "rip",
+    1900: "ssdp",
+    4500: "ipsec-nat-t",
+    5353: "mdns",
+}
+
 _CLOSED_ERROR_CODES = {
     errno.ECONNREFUSED,
     getattr(errno, "WSAECONNREFUSED", 10061),
@@ -34,12 +52,59 @@ class UdpPortResult:
     state: str
     response_size: int = 0
     error_code: int | None = None
+    service_hint: str = "unknown"
+    confidence: str = "low"
+    evidence: str = ""
 
     @property
     def is_open(self) -> bool:
         """Return True only when a response positively proves the port open."""
 
         return self.state == "open"
+
+
+def identify_udp_service(port: int) -> str:
+    """Return a deterministic well-known UDP service hint."""
+
+    _validate_port(port)
+    return COMMON_UDP_SERVICES.get(port, "unknown")
+
+
+def _metadata_for_state(
+    *,
+    port: int,
+    state: str,
+    response_size: int = 0,
+    error_code: int | None = None,
+) -> tuple[str, str, str]:
+    service_hint = identify_udp_service(port)
+
+    if state == "open":
+        return (
+            service_hint,
+            "high",
+            f"received {response_size} UDP response bytes",
+        )
+
+    if state == "closed":
+        return (
+            service_hint,
+            "high",
+            f"socket refusal/error code {error_code}",
+        )
+
+    if state == "open|filtered":
+        return (
+            service_hint,
+            "low",
+            "no UDP response before timeout; open versus filtered is unresolved",
+        )
+
+    return (
+        service_hint,
+        "low",
+        f"UDP probe failed with socket error code {error_code}",
+    )
 
 
 def scan_udp_port(
@@ -89,10 +154,17 @@ def scan_udp_port(
             sock.send(payload)
             response = sock.recv(MAX_UDP_PROBE_BYTES)
         except socket.timeout:
+            service_hint, confidence, evidence = _metadata_for_state(
+                port=port,
+                state="open|filtered",
+            )
             return UdpPortResult(
                 address=address,
                 port=port,
                 state="open|filtered",
+                service_hint=service_hint,
+                confidence=confidence,
+                evidence=evidence,
             )
         except OSError as exc:
             error_code = (
@@ -105,19 +177,36 @@ def scan_udp_port(
                 if error_code in _CLOSED_ERROR_CODES
                 else "error"
             )
+            service_hint, confidence, evidence = _metadata_for_state(
+                port=port,
+                state=state,
+                error_code=error_code,
+            )
             return UdpPortResult(
                 address=address,
                 port=port,
                 state=state,
                 error_code=error_code,
+                service_hint=service_hint,
+                confidence=confidence,
+                evidence=evidence,
             )
 
+        service_hint, confidence, evidence = _metadata_for_state(
+            port=port,
+            state="open",
+            response_size=len(response),
+            error_code=0,
+        )
         return UdpPortResult(
             address=address,
             port=port,
             state="open",
             response_size=len(response),
             error_code=0,
+            service_hint=service_hint,
+            confidence=confidence,
+            evidence=evidence,
         )
     finally:
         sock.close()
@@ -183,16 +272,25 @@ def scan_udp_ports(
             try:
                 results.append(future.result())
             except OSError as exc:
+                error_code = (
+                    exc.errno
+                    if isinstance(exc.errno, int)
+                    else None
+                )
+                service_hint, confidence, evidence = _metadata_for_state(
+                    port=port,
+                    state="error",
+                    error_code=error_code,
+                )
                 results.append(
                     UdpPortResult(
                         address=address,
                         port=port,
                         state="error",
-                        error_code=(
-                            exc.errno
-                            if isinstance(exc.errno, int)
-                            else None
-                        ),
+                        error_code=error_code,
+                        service_hint=service_hint,
+                        confidence=confidence,
+                        evidence=evidence,
                     )
                 )
 
