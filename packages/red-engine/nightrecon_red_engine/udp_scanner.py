@@ -61,6 +61,7 @@ class UdpPortResult:
     service_hint: str = "unknown"
     confidence: str = "low"
     evidence: str = ""
+    protocol_match: bool | None = None
 
     @property
     def is_open(self) -> bool:
@@ -118,6 +119,49 @@ def udp_probe_payload_for_port(port: int) -> bytes:
 
     _validate_port(port)
     return UDP_PROBE_PROFILES.get(port, b"")
+
+
+def validate_udp_response(
+    port: int,
+    response: bytes,
+) -> tuple[bool | None, str]:
+    """Validate a bounded response against conservative known-service structure."""
+
+    _validate_port(port)
+
+    if not isinstance(response, bytes):
+        raise TypeError("UDP response must be bytes.")
+
+    if port == 53:
+        if len(response) < 12:
+            return False, "DNS response shorter than 12-byte header"
+
+        is_response = bool(response[2] & 0x80)
+        return (
+            is_response,
+            (
+                "DNS QR response bit set"
+                if is_response
+                else "DNS QR response bit not set"
+            ),
+        )
+
+    if port == 123:
+        if len(response) < 48:
+            return False, "NTP response shorter than 48 bytes"
+
+        mode = response[0] & 0x07
+        matched = mode in {4, 5}
+        return (
+            matched,
+            (
+                f"NTP response mode {mode} is server/broadcast"
+                if matched
+                else f"NTP response mode {mode} is not server/broadcast"
+            ),
+        )
+
+    return None, "no protocol response validator defined"
 
 
 def scan_udp_port(
@@ -208,11 +252,23 @@ def scan_udp_port(
                 evidence=evidence,
             )
 
-        service_hint, confidence, evidence = _metadata_for_state(
+        service_hint, _, base_evidence = _metadata_for_state(
             port=port,
             state="open",
             response_size=len(response),
             error_code=0,
+        )
+        protocol_match, protocol_evidence = validate_udp_response(
+            port,
+            response,
+        )
+        confidence = (
+            "high"
+            if protocol_match is True
+            else "medium"
+        )
+        evidence = (
+            f"{base_evidence}; {protocol_evidence}"
         )
         return UdpPortResult(
             address=address,
@@ -223,6 +279,7 @@ def scan_udp_port(
             service_hint=service_hint,
             confidence=confidence,
             evidence=evidence,
+            protocol_match=protocol_match,
         )
     finally:
         sock.close()
