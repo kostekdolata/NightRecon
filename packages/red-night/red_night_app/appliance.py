@@ -25,7 +25,12 @@ from tempfile import TemporaryDirectory
 from typing import Callable, Sequence
 
 from .deployment import validate_red_deployment_contract
-from .persistence import RedPersistenceConfig, RedPersistenceState, secure_workspace_ready
+from .persistence import (
+    RedPersistenceConfig,
+    RedPersistenceState,
+    safe_removal_ready,
+    secure_workspace_ready,
+)
 from .persistence_executor import (
     PersistenceExecutionError,
     mount_workspace,
@@ -316,13 +321,29 @@ def run_secure_workspace_session(
 
 def run_recovery_integrity_check(
     *,
+    config: RedPersistenceConfig | None = None,
     output_fn: Callable[[str], None] = print,
+    state_probe: Callable[[RedPersistenceConfig], RedPersistenceState] = probe_workspace_state,
 ) -> int:
+    """Inspect deployment and optional persistence state without mutation."""
+
     validate_red_deployment_contract()
     output_fn("Recovery & Integrity Check")
     output_fn("Red deployment contract: OK")
     output_fn("Authorization effect: none")
-    output_fn("Encrypted persistence contract: available; privileged execution: not enabled.")
+    if config is None:
+        output_fn("Persistence device: not selected")
+        output_fn("No persistence operation performed.")
+        return 0
+
+    state = state_probe(config)
+    output_fn(f"Persistence device: {config.device}")
+    output_fn(f"Persistence state: {state.value}")
+    output_fn(
+        "Safe removal ready: "
+        + ("yes" if safe_removal_ready(state) else "no")
+    )
+    output_fn("Recovery inspection is read-only; no unlock, mount, format, or close was performed.")
     return 0
 
 
@@ -390,7 +411,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 3
 
     if mode is RedLiveSessionMode.RECOVERY_INTEGRITY:
-        return run_recovery_integrity_check()
+        config = (
+            RedPersistenceConfig(device=args.persistence_device)
+            if args.persistence_device
+            else None
+        )
+        try:
+            return run_recovery_integrity_check(config=config)
+        except (ValueError, PersistenceExecutionError) as exc:
+            print(f"Recovery inspection unavailable: {exc}")
+            return 3
 
     os.environ["NIGHTRECON_LIVE_MODE"] = mode.value
     return run_ephemeral_operator_session()
