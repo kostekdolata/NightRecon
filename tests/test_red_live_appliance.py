@@ -17,6 +17,7 @@ if str(RED_APP_ROOT) not in sys.path:
 
 from red_night_app.appliance import (  # noqa: E402
     REQUIRED_OS_PRIVILEGE,
+    _read_new_passphrase,
     require_privileged_runtime,
     AUTHORIZATION_EFFECT,
     RedLiveSessionMode,
@@ -45,6 +46,120 @@ class RedLivePrivilegeTests(unittest.TestCase):
         ):
             with self.assertRaises(PermissionError):
                 require_privileged_runtime()
+
+
+class RedFirstUseProvisioningTests(unittest.TestCase):
+    def config(self):
+        return RedPersistenceConfig(
+            device="/dev/disk/by-partuuid/1111-2222"
+        )
+
+    def test_uninitialized_workspace_is_not_provisioned_without_explicit_request(self):
+        calls = []
+        code = run_secure_workspace_session(
+            self.config(),
+            input_fn=lambda _prompt: "exit",
+            output_fn=lambda _message: None,
+            state_probe=lambda _config: RedPersistenceState.UNINITIALIZED,
+            provisioner=lambda *_args, **_kwargs: calls.append("provision"),
+        )
+        self.assertEqual(code, 3)
+        self.assertEqual(calls, [])
+
+    def test_wrong_typed_confirmation_blocks_provisioning(self):
+        calls = []
+        code = run_secure_workspace_session(
+            self.config(),
+            input_fn=lambda _prompt: "exit",
+            output_fn=lambda _message: None,
+            state_probe=lambda _config: RedPersistenceState.UNINITIALIZED,
+            provision_requested=True,
+            confirmation_fn=lambda _prompt: "PROVISION /dev/disk/by-partuuid/WRONG",
+            new_passphrase_fn=lambda: b"secret",
+            provisioner=lambda *_args, **_kwargs: calls.append("provision"),
+        )
+        self.assertEqual(code, 3)
+        self.assertEqual(calls, [])
+
+    def test_exact_typed_confirmation_provisions_runs_and_closes(self):
+        calls = []
+        commands = []
+        states = iter(["--version", "exit"])
+        config = self.config()
+
+        def provisioner(cfg, *, passphrase, destructive_confirmation):
+            calls.append(
+                (
+                    "provision",
+                    cfg.device,
+                    passphrase,
+                    destructive_confirmation,
+                )
+            )
+
+        def closer(cfg, *, mounted):
+            calls.append(("close", cfg.mount_point, mounted))
+
+        def runner(args, cwd):
+            commands.append((tuple(args), cwd.as_posix()))
+            return 0
+
+        code = run_secure_workspace_session(
+            config,
+            input_fn=lambda _prompt: next(states),
+            output_fn=lambda _message: None,
+            command_runner=runner,
+            state_probe=lambda _config: RedPersistenceState.UNINITIALIZED,
+            provision_requested=True,
+            confirmation_fn=lambda _prompt: f"PROVISION {config.device}",
+            new_passphrase_fn=lambda: b"new-secret",
+            provisioner=provisioner,
+            closer=closer,
+        )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            calls[0],
+            ("provision", config.device, b"new-secret", True),
+        )
+        self.assertEqual(calls[1], ("close", config.mount_point, True))
+        self.assertEqual(commands[0], (("--version",), "/run/red-night-secure"))
+
+    def test_new_passphrase_requires_nonempty_matching_confirmation(self):
+        with patch(
+            "red_night_app.appliance.getpass.getpass",
+            side_effect=["", ""],
+        ):
+            with self.assertRaises(ValueError):
+                _read_new_passphrase()
+
+        with patch(
+            "red_night_app.appliance.getpass.getpass",
+            side_effect=["first", "second"],
+        ):
+            with self.assertRaises(ValueError):
+                _read_new_passphrase()
+
+        with patch(
+            "red_night_app.appliance.getpass.getpass",
+            side_effect=["same", "same"],
+        ):
+            self.assertEqual(_read_new_passphrase(), b"same")
+
+    def test_provision_flag_requires_secure_mode_and_explicit_device(self):
+        with self.assertRaises(SystemExit):
+            main([
+                "--mode",
+                "ephemeral-session",
+                "--provision-secure-workspace",
+            ])
+
+        with self.assertRaises(SystemExit):
+            main([
+                "--mode",
+                "secure-workspace",
+                "--provision-secure-workspace",
+            ])
 
 
 class RedSecureWorkspaceIntegrationTests(unittest.TestCase):
