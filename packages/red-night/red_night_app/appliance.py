@@ -30,6 +30,7 @@ from .persistence_executor import (
     PersistenceExecutionError,
     mount_workspace,
     probe_workspace_state,
+    provision_workspace,
     safe_close_workspace,
     unlock_workspace,
 )
@@ -192,6 +193,16 @@ def _read_passphrase(prompt: str) -> bytes:
     return value.encode()
 
 
+def _read_new_passphrase() -> bytes:
+    first = getpass.getpass("New Secure Workspace passphrase: ")
+    if not first:
+        raise ValueError("Secure Workspace passphrase must not be empty")
+    second = getpass.getpass("Confirm Secure Workspace passphrase: ")
+    if first != second:
+        raise ValueError("Secure Workspace passphrases do not match")
+    return first.encode()
+
+
 def run_secure_workspace_session(
     config: RedPersistenceConfig,
     *,
@@ -203,19 +214,46 @@ def run_secure_workspace_session(
     unlocker: Callable[..., None] = unlock_workspace,
     mounter: Callable[..., None] = mount_workspace,
     closer: Callable[..., None] = safe_close_workspace,
+    provision_requested: bool = False,
+    confirmation_fn: Callable[[str], str] = input,
+    new_passphrase_fn: Callable[[], bytes] = _read_new_passphrase,
+    provisioner: Callable[..., None] = provision_workspace,
 ) -> int:
     """Open an existing encrypted workspace and run Red from that mount."""
 
     state = state_probe(config)
+    opened_here = False
+
     if state is RedPersistenceState.MISSING:
         output_fn("Secure Workspace device is not present.")
         return 3
     if state is RedPersistenceState.UNINITIALIZED:
-        output_fn(
-            "Secure Workspace is uninitialized. Explicit provisioning is required "
-            "before it can be launched."
-        )
-        return 3
+        if not provision_requested:
+            output_fn(
+                "Secure Workspace is uninitialized. Explicit provisioning is required "
+                "before it can be launched."
+            )
+            return 3
+
+        expected = f"PROVISION {config.device}"
+        confirmed = confirmation_fn(
+            f"Destructive operation. Type '{expected}' to continue: "
+        ).strip()
+        if confirmed != expected:
+            output_fn("Secure Workspace provisioning confirmation did not match.")
+            return 3
+
+        secret = new_passphrase_fn()
+        try:
+            provisioner(
+                config,
+                passphrase=secret,
+                destructive_confirmation=True,
+            )
+        finally:
+            secret = b""
+        opened_here = True
+        state = RedPersistenceState.MOUNTED
     if state is RedPersistenceState.LUKS2_OPEN:
         output_fn(
             "Secure Workspace mapping is already open but not mounted; "
@@ -223,7 +261,6 @@ def run_secure_workspace_session(
         )
         return 3
 
-    opened_here = False
     if state is RedPersistenceState.LUKS2_LOCKED:
         secret = passphrase_fn("Secure Workspace passphrase: ")
         try:
@@ -314,6 +351,14 @@ def build_parser() -> argparse.ArgumentParser:
             "Must use /dev/disk/by-partuuid/... or partition-qualified /dev/disk/by-id/...."
         ),
     )
+    parser.add_argument(
+        "--provision-secure-workspace",
+        action="store_true",
+        help=(
+            "Allow destructive first-use provisioning only for the explicit "
+            "--persistence-device after typed confirmation."
+        ),
+    )
     return parser
 
 
@@ -327,6 +372,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         else prompt_for_mode()
     )
     decision = session_decision(mode)
+
+    if args.provision_secure_workspace:
+        if mode is not RedLiveSessionMode.SECURE_WORKSPACE:
+            parser.error("--provision-secure-workspace requires --mode secure-workspace")
+        if args.persistence_device is None:
+            parser.error(
+                "--provision-secure-workspace requires explicit --persistence-device"
+            )
 
     if args.dry_run:
         print(json.dumps(decision.to_dict(), sort_keys=True))
@@ -343,7 +396,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             ).strip()
         try:
             config = RedPersistenceConfig(device=device)
-            return run_secure_workspace_session(config)
+            return run_secure_workspace_session(
+                config,
+                provision_requested=args.provision_secure_workspace,
+            )
         except (ValueError, PersistenceExecutionError) as exc:
             print(f"Secure Workspace unavailable: {exc}")
             print("No Red assessment session was started.")
