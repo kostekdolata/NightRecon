@@ -411,9 +411,15 @@ class RedLivePersistenceExecutorTests(unittest.TestCase):
         self.assertIn("RED_NIGHT_REBOOT_PERSISTENCE_OK", source)
         self.assertIn("run_ephemeral_operator_session", source)
         self.assertIn("RED_NIGHT_EPHEMERAL_ISOLATION_OK", source)
+        self.assertIn("RED_NIGHT_SAFE_CLOSE_VERIFIED_OK", source)
+        self.assertIn("--simulate-interruption", source)
+        self.assertIn("RED_NIGHT_INTERRUPTED_PROCESS_RECOVERY_OK", source)
+        self.assertIn("RED_NIGHT_FILESYSTEM_INTEGRITY_OK", source)
+        self.assertIn("inspect_locked_workspace_integrity", source)
         self.assertIn("sha256(image)", source)
         self.assertIn("input=secret + b", source)
         self.assertNotIn("secret.decode()", source)
+        self.assertIn("not presented as electrical power-loss proof", source)
 
 
 if __name__ == "__main__":
