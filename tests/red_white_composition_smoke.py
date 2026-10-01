@@ -139,17 +139,20 @@ def build_wheels(directory: Path) -> dict[str, Path]:
 
 
 def install(python: Path, directory: Path, *wheels: Path) -> None:
-    for wheel in wheels:
-        run(
-            str(python),
-            "-m",
-            "pip",
-            "install",
-            "--no-index",
-            "--no-deps",
-            str(wheel),
-            cwd=directory,
-        )
+    if not wheels:
+        return
+
+    wheel_dir = wheels[0].parent
+    run(
+        str(python),
+        "-m",
+        "pip",
+        "install",
+        "--find-links",
+        str(wheel_dir),
+        *(str(wheel) for wheel in wheels),
+        cwd=directory,
+    )
 
 
 def uninstall(python: Path, directory: Path, *packages: str) -> None:
