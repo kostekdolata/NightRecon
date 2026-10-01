@@ -17,6 +17,7 @@ import socket
 MAX_UDP_PORTS_PER_SCAN = 256
 MAX_UDP_WORKERS = 64
 MAX_UDP_PROBE_BYTES = 512
+MAX_UDP_RETRIES = 2
 
 COMMON_UDP_SERVICES = {
     53: "dns",
@@ -62,6 +63,7 @@ class UdpPortResult:
     confidence: str = "low"
     evidence: str = ""
     protocol_match: bool | None = None
+    attempts: int = 1
 
     @property
     def is_open(self) -> bool:
@@ -170,6 +172,7 @@ def scan_udp_port(
     timeout: float,
     *,
     payload: bytes | None = None,
+    retries: int = 0,
 ) -> UdpPortResult:
     """Send one bounded UDP datagram and preserve open/filtered ambiguity."""
 
@@ -178,6 +181,11 @@ def scan_udp_port(
 
     if timeout <= 0:
         raise ValueError("Timeout must be greater than 0.")
+
+    if retries < 0 or retries > MAX_UDP_RETRIES:
+        raise ValueError(
+            f"retries must be between 0 and {MAX_UDP_RETRIES}."
+        )
 
     if payload is None:
         payload = udp_probe_payload_for_port(port)
@@ -210,47 +218,61 @@ def scan_udp_port(
         )
         sock.connect(destination)
 
-        try:
-            sock.send(payload)
-            response = sock.recv(MAX_UDP_PROBE_BYTES)
-        except socket.timeout:
-            service_hint, confidence, evidence = _metadata_for_state(
-                port=port,
-                state="open|filtered",
-            )
-            return UdpPortResult(
-                address=address,
-                port=port,
-                state="open|filtered",
-                service_hint=service_hint,
-                confidence=confidence,
-                evidence=evidence,
-            )
-        except OSError as exc:
-            error_code = (
-                exc.errno
-                if isinstance(exc.errno, int)
-                else None
-            )
-            state = (
-                "closed"
-                if error_code in _CLOSED_ERROR_CODES
-                else "error"
-            )
-            service_hint, confidence, evidence = _metadata_for_state(
-                port=port,
-                state=state,
-                error_code=error_code,
-            )
-            return UdpPortResult(
-                address=address,
-                port=port,
-                state=state,
-                error_code=error_code,
-                service_hint=service_hint,
-                confidence=confidence,
-                evidence=evidence,
-            )
+        response: bytes | None = None
+        attempts = 0
+
+        for attempt in range(retries + 1):
+            attempts = attempt + 1
+
+            try:
+                sock.send(payload)
+                response = sock.recv(MAX_UDP_PROBE_BYTES)
+                break
+            except socket.timeout:
+                if attempt < retries:
+                    continue
+
+                service_hint, confidence, evidence = _metadata_for_state(
+                    port=port,
+                    state="open|filtered",
+                )
+                return UdpPortResult(
+                    address=address,
+                    port=port,
+                    state="open|filtered",
+                    service_hint=service_hint,
+                    confidence=confidence,
+                    evidence=f"{evidence}; {attempts} attempts",
+                    attempts=attempts,
+                )
+            except OSError as exc:
+                error_code = (
+                    exc.errno
+                    if isinstance(exc.errno, int)
+                    else None
+                )
+                state = (
+                    "closed"
+                    if error_code in _CLOSED_ERROR_CODES
+                    else "error"
+                )
+                service_hint, confidence, evidence = _metadata_for_state(
+                    port=port,
+                    state=state,
+                    error_code=error_code,
+                )
+                return UdpPortResult(
+                    address=address,
+                    port=port,
+                    state=state,
+                    error_code=error_code,
+                    service_hint=service_hint,
+                    confidence=confidence,
+                    evidence=f"{evidence}; {attempts} attempts",
+                    attempts=attempts,
+                )
+
+        assert response is not None
 
         service_hint, _, base_evidence = _metadata_for_state(
             port=port,
@@ -280,6 +302,7 @@ def scan_udp_port(
             confidence=confidence,
             evidence=evidence,
             protocol_match=protocol_match,
+            attempts=attempts,
         )
     finally:
         sock.close()
@@ -292,6 +315,7 @@ def scan_udp_ports(
     *,
     max_workers: int = 32,
     payload: bytes | None = None,
+    retries: int = 0,
 ) -> tuple[UdpPortResult, ...]:
     """Probe an explicit bounded UDP port set concurrently."""
 
@@ -311,6 +335,11 @@ def scan_udp_ports(
 
     if timeout <= 0:
         raise ValueError("Timeout must be greater than 0.")
+
+    if retries < 0 or retries > MAX_UDP_RETRIES:
+        raise ValueError(
+            f"retries must be between 0 and {MAX_UDP_RETRIES}."
+        )
 
     if payload is not None and not isinstance(payload, bytes):
         raise TypeError("UDP payload must be bytes or None.")
@@ -335,6 +364,7 @@ def scan_udp_ports(
                 port,
                 timeout,
                 payload=payload,
+                retries=retries,
             ): port
             for port in ports
         }
