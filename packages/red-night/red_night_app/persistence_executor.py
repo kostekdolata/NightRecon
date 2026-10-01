@@ -17,6 +17,7 @@ from .persistence import (
     RedPersistenceAction,
     RedPersistenceConfig,
     RedPersistencePlan,
+    RedPersistenceState,
     RedPersistenceStep,
     plan_persistence_action,
 )
@@ -28,6 +29,7 @@ MOUNT = "/usr/bin/mount"
 UMOUNT = "/usr/bin/umount"
 INSTALL = "/usr/bin/install"
 BLKID = "/usr/sbin/blkid"
+FINDMNT = "/usr/bin/findmnt"
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,61 @@ def _default_runner(
         check=False,
     )
     return PrivilegedCommandResult(returncode=int(completed.returncode))
+
+
+def probe_workspace_state(config: RedPersistenceConfig) -> RedPersistenceState:
+    """Inspect only the explicitly selected Red workspace device."""
+
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is None or geteuid() != 0:
+        raise PermissionError("persistence state inspection requires root")
+
+    mapper_device = f"/dev/mapper/{config.mapper_name}"
+    if os.path.exists(mapper_device):
+        mounted = subprocess.run(
+            [
+                FINDMNT,
+                "--noheadings",
+                "--source",
+                mapper_device,
+                "--target",
+                config.mount_point,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if mounted.returncode == 0:
+            return RedPersistenceState.MOUNTED
+        return RedPersistenceState.LUKS2_OPEN
+
+    if not os.path.exists(config.device):
+        return RedPersistenceState.MISSING
+
+    luks = subprocess.run(
+        [CRYPTSETUP, "isLuks", "--type", "luks2", config.device],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if luks.returncode == 0:
+        return RedPersistenceState.LUKS2_LOCKED
+    if luks.returncode not in (1, 4):
+        raise PersistenceExecutionError("unable to inspect persistence LUKS2 state")
+
+    signature = subprocess.run(
+        [BLKID, "-p", config.device],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if signature.returncode == 2:
+        return RedPersistenceState.UNINITIALIZED
+    if signature.returncode == 0:
+        raise PersistenceExecutionError(
+            "persistence target contains a non-LUKS2 signature"
+        )
+    raise PersistenceExecutionError("unable to inspect persistence target signature")
 
 
 def _default_uninitialized_probe(device: str) -> bool:
