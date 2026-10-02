@@ -189,6 +189,26 @@ coverage, and professional multi-operator reporting remain open until measured
 under the same documented authorized lab conditions.
 
 
+## v0.45 authenticated web/API development state
+
+The current v0.45 development line extends the existing bounded web/API
+foundation without broadening mutating request capability:
+
+- Playwright discovery can receive the existing ephemeral Authorization header
+  context for same-origin GET/HEAD browser activity;
+- browser cookie import/continuity remains deliberately disabled;
+- explicitly selected OpenAPI GET/HEAD operations may share an in-memory
+  CookieJar for stateful API sessions;
+- Authorization and cookie values remain excluded from result/report models;
+- the fixed no-network web/API safety corpus continuously verifies same-origin
+  safe reads while rejecting cross-origin requests, mutating POST requests, and
+  exhausted request budgets.
+
+This closes an additional authenticated-continuity slice of the Burp/ZAP
+acceptance category. It does **not** by itself close that category: broader
+reviewed safe-check coverage, false-positive corpora, and authorized
+specialist-comparison evidence remain open.
+
 ## v0.44 deployment development state
 
 Red Night v0.43.0 remains the stable functional baseline while v0.44 develops

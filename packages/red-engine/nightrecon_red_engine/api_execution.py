@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from http.cookiejar import CookieJar
 from urllib.error import HTTPError, URLError
 from urllib.request import (
+    HTTPCookieProcessor,
     HTTPRedirectHandler,
     Request,
     build_opener,
@@ -68,6 +70,7 @@ def execute_api_request(
     max_response_bytes: int = 1_048_576,
     user_agent: str = _DEFAULT_USER_AGENT,
     authorization: str | None = None,
+    cookie_jar: CookieJar | None = None,
 ) -> ApiExecutionResult:
     """Execute one already-authorized GET/HEAD API request."""
 
@@ -164,9 +167,11 @@ def execute_api_request(
             "Authorization"
         ] = authorization.strip()
 
-    opener = build_opener(
-        _NoRedirectHandler()
-    )
+    handlers = [_NoRedirectHandler()]
+    if cookie_jar is not None:
+        handlers.append(HTTPCookieProcessor(cookie_jar))
+
+    opener = build_opener(*handlers)
     urllib_request = Request(
         normalized_url,
         headers=headers,

@@ -338,12 +338,60 @@ class CliBrowserDiscoveryTests(unittest.TestCase):
             audit,
         )
 
-    def test_browser_discovery_rejects_authenticated_crawl_context_before_network(self):
+    def test_browser_discovery_accepts_ephemeral_authorization_header(self):
+        crawl = _crawl_result()
+        result = _browser_result()
+        secret = "Bearer browser-auth-secret"
+
+        with patch.dict(
+            "os.environ",
+            {"NIGHTRECON_AUTH": secret},
+            clear=False,
+        ):
+            with patch(
+                "nightrecon.cli.crawl_site",
+                return_value=crawl,
+            ):
+                with patch(
+                    "nightrecon.cli.discover_with_playwright",
+                    return_value=result,
+                ) as browser:
+                    with patch(
+                        "nightrecon.cli.ResultStore"
+                    ) as store_class:
+                        store_class.return_value.save_web_crawl_report.return_value = Path(
+                            "results/crawl.json"
+                        )
+                        store_class.return_value.save_browser_discovery_report.return_value = Path(
+                            "results/crawl-browser.json"
+                        )
+                        with patch(
+                            "nightrecon.cli.NightReconLogger"
+                        ) as logger_class:
+                            code, stdout, stderr = self.run_cli(
+                                "crawl",
+                                "https://example.test/",
+                                "--scope",
+                                "example.test",
+                                "--browser-discovery",
+                                "--authorization-env",
+                                "NIGHTRECON_AUTH",
+                            )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertEqual(
+            browser.call_args.kwargs["authorization"],
+            secret,
+        )
+        self.assertNotIn(secret, stdout)
+        self.assertNotIn(
+            secret,
+            repr(logger_class.return_value.write.call_args_list),
+        )
+
+    def test_browser_discovery_rejects_cookie_context_before_network(self):
         for auth_args in (
-            (
-                "--authorization-env",
-                "NIGHTRECON_AUTH",
-            ),
             (
                 "--cookie-env",
                 "NIGHTRECON_COOKIE",
@@ -352,9 +400,7 @@ class CliBrowserDiscoveryTests(unittest.TestCase):
                 "--session-cookies",
             ),
         ):
-            with self.subTest(
-                auth_args=auth_args
-            ):
+            with self.subTest(auth_args=auth_args):
                 with patch(
                     "nightrecon.cli.crawl_site"
                 ) as crawl_site:
@@ -373,7 +419,7 @@ class CliBrowserDiscoveryTests(unittest.TestCase):
                 self.assertEqual(code, 2)
                 self.assertEqual(stdout, "")
                 self.assertIn(
-                    "does not yet accept authenticated crawl context",
+                    "accepts ephemeral Authorization context",
                     stderr,
                 )
                 crawl_site.assert_not_called()

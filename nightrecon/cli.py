@@ -817,6 +817,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     api_probe_parser.add_argument(
+        "--session-cookies",
+        action="store_true",
+        help=(
+            "Reuse response cookies only in memory across the explicitly "
+            "selected GET/HEAD API operations. Cookie values are never "
+            "printed or persisted."
+        ),
+    )
+
+    api_probe_parser.add_argument(
         "--results-dir",
         default="results",
         help="Directory for result files. Default: results",
@@ -1434,8 +1444,9 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Run bounded Playwright/Chromium discovery for JavaScript-rendered "
             "same-origin links and form metadata. Requires the optional "
-            "NightRecon browser extra and Chromium runtime. Authenticated "
-            "browser context is not yet supported in v0.26."
+            "NightRecon browser extra and Chromium runtime. An Authorization "
+            "header from --authorization-env may be used ephemerally; browser "
+            "cookie import/continuity remains disabled."
         ),
     )
 
@@ -3155,6 +3166,7 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                 max_requests=args.max_requests,
             )
             records = []
+            api_cookie_jar = CookieJar() if args.session_cookies else None
 
             for selection in selections:
                 request = ApiRequest(
@@ -3185,6 +3197,7 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                     timeout=args.timeout,
                     max_response_bytes=args.max_response_bytes,
                     authorization=authorization,
+                    cookie_jar=api_cookie_jar,
                 )
                 state = result.state
                 records.append(
@@ -3240,6 +3253,7 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                 failed_requests=summary[
                     "failed_requests"
                 ],
+                session_cookies_enabled=args.session_cookies,
                 status=validation_report.status,
             )
 
@@ -4150,15 +4164,14 @@ def main(argv: tuple[str, ...] | None = None) -> None:
             if (
                 args.browser_discovery
                 and (
-                    args.authorization_env
-                    or args.cookie_env
+                    args.cookie_env
                     or args.session_cookies
                 )
             ):
                 raise ValueError(
-                    "--browser-discovery does not yet accept authenticated "
-                    "crawl context; omit --authorization-env, --cookie-env, "
-                    "and --session-cookies for v0.26 browser discovery."
+                    "--browser-discovery accepts ephemeral Authorization "
+                    "context but not raw or crawler-managed cookie context; "
+                    "omit --cookie-env and --session-cookies."
                 )
 
             browser_policy = (
@@ -4462,6 +4475,7 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                     start_url=normalized_url,
                     policy=browser_policy,
                     headless=True,
+                    authorization=authorization,
                 )
             except BrowserRuntimeUnavailable:
                 logger.write(
