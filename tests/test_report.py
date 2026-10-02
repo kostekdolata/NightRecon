@@ -152,6 +152,32 @@ class TcpScanReportTests(unittest.TestCase):
             str(data["network_context_intelligence"]).lower(),
         )
 
+    def test_report_dictionary_contains_executive_network_assessment(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertIn("network_evidence_completeness", data)
+        self.assertIn("network_executive_assessment", data)
+        self.assertEqual(
+            data["network_evidence_completeness"]["level"],
+            "partial",
+        )
+        self.assertEqual(
+            data["network_executive_assessment"]["evidence_completeness"],
+            "partial",
+        )
+        self.assertIn(
+            "Web service exposure",
+            " ".join(
+                data["network_executive_assessment"]["key_observations"]
+            ),
+        )
+        self.assertNotIn(
+            "risk_score",
+            str(data["network_executive_assessment"]).lower(),
+        )
+
     def test_report_dictionary_contains_tls_metadata(self):
         target = parse_target("127.0.0.1")
 
