@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import unittest
+from http.cookiejar import CookieJar
 from http.server import (
     BaseHTTPRequestHandler,
     ThreadingHTTPServer,
@@ -31,6 +32,9 @@ class _ApiLabHandler(
         return
 
     def do_GET(self):
+        self.server.cookies.append(
+            self.headers.get("Cookie", "")
+        )
         self.server.requests.append(
             (
                 "GET",
@@ -53,10 +57,20 @@ class _ApiLabHandler(
 
         if self.path == "/large":
             body = b"X" * 4096
+        elif self.path == "/session-required" and "rednight=active" not in self.headers.get("Cookie", ""):
+            body = b'{"ok":false}'
+            self.send_response(401)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         else:
             body = b'{"ok":true}'
 
         self.send_response(200)
+        if self.path == "/session-start":
+            self.send_header("Set-Cookie", "rednight=active; Path=/; HttpOnly")
         self.send_header(
             "Content-Type",
             "application/json",
@@ -112,6 +126,7 @@ class ApiLoopbackTests(unittest.TestCase):
             _ApiLabHandler,
         )
         self.server.requests = []
+        self.server.cookies = []
         self.thread = threading.Thread(
             target=self.server.serve_forever,
             daemon=True,
@@ -140,6 +155,7 @@ class ApiLoopbackTests(unittest.TestCase):
         state=None,
         max_response_bytes=1024,
         authorization=None,
+        cookie_jar=None,
     ):
         policy = ApiRequestPolicy(
             origin=self.origin,
@@ -172,6 +188,7 @@ class ApiLoopbackTests(unittest.TestCase):
             authorized=True,
             max_response_bytes=max_response_bytes,
             authorization=authorization,
+            cookie_jar=cookie_jar,
         )
 
     def test_real_get_and_head_requests_are_bounded(self):
@@ -222,6 +239,25 @@ class ApiLoopbackTests(unittest.TestCase):
             "loopback-api-secret",
             repr(get_result),
         )
+
+    def test_session_cookie_continuity_is_in_memory_and_secret_free(self):
+        jar = CookieJar()
+        first = self._execute(
+            path="/session-start",
+            cookie_jar=jar,
+        )
+        second = self._execute(
+            path="/session-required",
+            state=first.state,
+            cookie_jar=jar,
+        )
+
+        self.assertTrue(first.success)
+        self.assertTrue(second.success)
+        self.assertEqual(self.server.cookies[0], "")
+        self.assertIn("rednight=active", self.server.cookies[1])
+        self.assertNotIn("rednight=active", repr(first))
+        self.assertNotIn("rednight=active", repr(second))
 
     def test_redirect_is_not_followed(self):
         result = self._execute(
