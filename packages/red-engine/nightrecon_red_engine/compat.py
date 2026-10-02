@@ -130,6 +130,7 @@ MIGRATED_MODULES = frozenset({
     "network_change_executive",
     "network_engagement_export",
     "remediation_retest",
+    "controlled_validation",
     "engagement_review",
     "engagement_report",
     "engagement_export",
