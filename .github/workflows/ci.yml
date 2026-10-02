@@ -785,9 +785,41 @@ jobs:
       - name: Build Red Night Live image
         shell: bash
         run: |
-          sudo ./live/red-night/build-image.sh \
+          sudo --preserve-env=GITHUB_SHA env \
+            NIGHTRECON_SOURCE_REVISION="$GITHUB_SHA" \
+            ./live/red-night/build-image.sh \
             --wheel-dir "$PWD/live/red-night/.wheelhouse" \
             --output "$RUNNER_TEMP/RedNight-Live-v0.44.0-dev-amd64.iso"
+
+      - name: Verify Red Night Live release metadata
+        shell: bash
+        run: |
+          export PYTHONPATH="$PWD/packages/red-night"
+          export RED_LIVE_IMAGE="$RUNNER_TEMP/RedNight-Live-v0.44.0-dev-amd64.iso"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from red_night_app.live_release import (
+              RedLiveImageManifest,
+              verify_live_image_manifest,
+          )
+
+          image = Path(os.environ["RED_LIVE_IMAGE"])
+          manifest_path = Path(str(image) + ".manifest.json")
+          package_manifest = Path(str(image) + ".package-manifest.json")
+          sbom = Path(str(image) + ".SBOM.json")
+          manifest = RedLiveImageManifest.from_json(
+              manifest_path.read_text(encoding="utf-8")
+          )
+          assert manifest.source_revision == os.environ["GITHUB_SHA"]
+          assert manifest.secure_boot_status == "not-verified"
+          verify_live_image_manifest(
+              manifest,
+              image_path=image,
+              package_manifest_path=package_manifest,
+              sbom_path=sbom,
+          )
+          PY
 
       - name: Boot Red Night Live in UEFI VM
         shell: bash

@@ -2,8 +2,10 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPOSITORY=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 WHEEL_DIR=
 OUTPUT=
+RELEASE_VERSION=${NIGHTRECON_RELEASE_VERSION:-0.44.0-dev}
 
 usage() {
     echo "usage: $0 --wheel-dir DIR --output ISO" >&2
@@ -45,30 +47,21 @@ command -v lb >/dev/null 2>&1 || {
     echo "live-build (lb) is required" >&2
     exit 1
 }
-
-find_one_wheel() {
-    pattern="$1"
-    set -- "$WHEEL_DIR"/$pattern
-    if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
-        echo "expected exactly one wheel matching $pattern in $WHEEL_DIR" >&2
-        exit 1
-    fi
-    printf '%s\n' "$1"
+command -v python3 >/dev/null 2>&1 || {
+    echo "python3 is required" >&2
+    exit 1
 }
 
-SHARED_WHEEL=$(find_one_wheel "nightrecon_shared_core-*.whl")
-ENGINE_WHEEL=$(find_one_wheel "nightrecon_red_engine-*.whl")
-APP_WHEEL=$(find_one_wheel "nightrecon_red_night-*.whl")
-
-STAGE_DIR="$SCRIPT_DIR/config/includes.chroot/opt/nightrecon/wheels"
+RELEASE_STAGE="$SCRIPT_DIR/config/includes.chroot/opt/nightrecon/release"
 cleanup() {
-    rm -rf "$STAGE_DIR"
+    rm -rf "$RELEASE_STAGE"
 }
 trap cleanup EXIT INT TERM
 
-rm -rf "$STAGE_DIR"
-mkdir -p "$STAGE_DIR"
-cp "$SHARED_WHEEL" "$ENGINE_WHEEL" "$APP_WHEEL" "$STAGE_DIR/"
+python3 "$SCRIPT_DIR/create_release_metadata.py" stage \
+    --wheel-dir "$WHEEL_DIR" \
+    --output-dir "$RELEASE_STAGE" \
+    --release-version "$RELEASE_VERSION"
 
 cd "$SCRIPT_DIR"
 lb clean --purge >/dev/null 2>&1 || true
@@ -86,5 +79,26 @@ ISO_PATH=$(find "$SCRIPT_DIR" -maxdepth 1 -type f -name 'live-image-*.iso' -prin
 cp "$ISO_PATH" "$OUTPUT"
 sha256sum "$OUTPUT" > "$OUTPUT.sha256"
 
+PACKAGE_MANIFEST="$OUTPUT.package-manifest.json"
+SBOM="$OUTPUT.SBOM.json"
+IMAGE_MANIFEST="$OUTPUT.manifest.json"
+cp "$RELEASE_STAGE/package-manifest.json" "$PACKAGE_MANIFEST"
+cp "$RELEASE_STAGE/SBOM.json" "$SBOM"
+
+SOURCE_REVISION=${NIGHTRECON_SOURCE_REVISION:-}
+if [ -z "$SOURCE_REVISION" ]; then
+    SOURCE_REVISION=$(git -C "$REPOSITORY" rev-parse HEAD)
+fi
+
+python3 "$SCRIPT_DIR/create_release_metadata.py" finalize \
+    --release-dir "$RELEASE_STAGE" \
+    --image "$OUTPUT" \
+    --source-revision "$SOURCE_REVISION" \
+    --release-version "$RELEASE_VERSION" \
+    --output-manifest "$IMAGE_MANIFEST"
+
 echo "Red Night Live image: $OUTPUT"
 echo "SHA-256 sidecar: $OUTPUT.sha256"
+echo "Image manifest: $IMAGE_MANIFEST"
+echo "Package manifest: $PACKAGE_MANIFEST"
+echo "SBOM: $SBOM"

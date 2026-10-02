@@ -41,33 +41,35 @@ Red Night v0.43 adds explicitly selected Controlled Validation Intelligence for 
 
 ## v0.44 deployment foundation
 
-Red Night is being extended toward three deployment profiles using the same
-application and engine packages:
+Red Night is being completed as one product across three deployment profiles:
 
 - standalone installation;
 - composed NightRecon stack;
 - Red Night Live USB.
 
-The declarative profile contract lives in `red_night_app.deployment`. It does
-not create boot media and does not import any other Night runtime. See
-`RED_LIVE_ARCHITECTURE.md` for the Live development gates.
+All three profiles retain the dependency direction
+`red-night-app -> nightrecon-red-engine -> nightrecon-shared-core`.
+Peer Nights remain optional and independently removable.
 
+Current v0.44 deployment work includes:
 
-### v0.44 Batch 3 appliance session
+- package-parity and no-cross-Night-runtime contracts;
+- normal-install Red+White composition and shared-workspace exchange;
+- explicit fail-closed Red package/shared-schema compatibility;
+- Debian-based amd64 Live image construction and UEFI VM boot proof;
+- privileged Live appliance modes with `authorization_effect: none`;
+- LUKS2 encrypted Secure Workspace provisioning, reopen, safe close, recovery,
+  and read-only integrity evidence;
+- deterministic release manifests and secret-free SBOM metadata;
+- immutable Live retention and boot-time verification of exact Red wheels;
+- Ed25519-signed offline update verification;
+- bounded update/rollback planning that preserves the encrypted workspace;
+- explicit deployment-readiness records that keep Secure Boot, hardware, and
+  media endurance unverified until real qualification evidence exists.
 
-The development package also exposes `red-night-appliance` for the Live
-deployment layer. The appliance controller requires an explicit workspace mode
-selection and does not grant target authorization.
+The Live layer does not grant target authorization and does not weaken Red
+scope, approval, action-budget, revocation, evidence, cleanup, audit, or
+isolated-worker controls.
 
-Current Batch 3 behavior:
-
-- Secure Workspace is listed but refuses to start until Batch 4 provides LUKS2
-  persistence;
-- Ephemeral Session provides a constrained Red command prompt that invokes only
-  the existing `red-night-app` command boundary, never an operating-system
-  shell, from temporary runtime storage;
-- Recovery & Integrity Check validates the Red deployment contract without
-  launching assessment commands.
-
-The appliance layer does not change Red engine scope, approvals, budgets,
-revocation, evidence, cleanup, or worker-isolation behavior.
+See `RED_LIVE_ARCHITECTURE.md` and `RED_ACCEPTANCE.md` for the authoritative
+deployment and acceptance boundaries.
