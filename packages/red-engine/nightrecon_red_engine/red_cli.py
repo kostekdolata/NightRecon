@@ -1449,8 +1449,9 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Run bounded Playwright/Chromium discovery for JavaScript-rendered "
             "same-origin links and form metadata. Requires the optional "
-            "NightRecon browser extra and Chromium runtime. Authenticated "
-            "browser context is not yet supported in v0.26."
+            "NightRecon browser extra and Chromium runtime. An Authorization "
+            "header from --authorization-env may be used ephemerally; browser "
+            "cookie import/continuity remains disabled."
         ),
     )
 
