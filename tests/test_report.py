@@ -107,6 +107,32 @@ class TcpScanReportTests(unittest.TestCase):
 
 
 
+    def test_report_dictionary_contains_high_level_network_feedback(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertIn("network_intelligence", data)
+        self.assertIn("network_operator_brief", data)
+        self.assertEqual(
+            data["network_intelligence"]["headline"],
+            "Network service exposure observed",
+        )
+        self.assertIn(
+            "Web service exposure",
+            " ".join(
+                data["network_operator_brief"]["primary_focus_areas"]
+            ),
+        )
+        self.assertIn(
+            "executive_summary",
+            data["network_operator_brief"],
+        )
+        self.assertNotIn(
+            "risk_score",
+            str(data["network_operator_brief"]).lower(),
+        )
+
     def test_report_dictionary_contains_tls_metadata(self):
         target = parse_target("127.0.0.1")
 
