@@ -32,6 +32,7 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
 
     def test_image_stages_only_required_red_wheels(self):
         build = self.read("build-image.sh")
+        metadata = self.read("create_release_metadata.py")
         hook = self.read(
             "config/hooks/live/010-install-red-night.hook.chroot"
         )
@@ -41,8 +42,16 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
             "nightrecon_red_night-*.whl",
         )
         for pattern in required:
-            self.assertIn(pattern, build)
             self.assertIn(pattern, hook)
+        for distribution in (
+            "nightrecon-shared-core",
+            "nightrecon-red-engine",
+            "nightrecon-red-night",
+        ):
+            self.assertIn(distribution, metadata)
+        self.assertIn("create_release_metadata.py", build)
+        self.assertIn("package-manifest.json", build)
+        self.assertIn("SBOM.json", build)
         for peer in ("white", "blue", "purple", "black"):
             self.assertNotIn(f"nightrecon_{peer}", build.lower())
             self.assertNotIn(f"nightrecon_{peer}", hook.lower())
@@ -80,6 +89,21 @@ class RedLiveBuildSkeletonTests(unittest.TestCase):
         self.assertIn("RED_NIGHT_LIVE_BOOT_OK", smoke)
         self.assertIn("validate_red_deployment_contract", marker)
         self.assertIn("no-automatic-mount", marker)
+        self.assertIn("RED_NIGHT_LIVE_CHECK:release-integrity", marker)
+        self.assertIn("verify_embedded_release_directory", marker)
+
+    def test_live_release_metadata_is_retained_and_sidecars_are_generated(self):
+        build = self.read("build-image.sh")
+        hook = self.read(
+            "config/hooks/live/010-install-red-night.hook.chroot"
+        )
+        self.assertIn("/opt/nightrecon/release", hook)
+        self.assertNotIn('rm -rf "$WHEEL_DIR"', hook)
+        self.assertIn('.manifest.json', build)
+        self.assertIn('.package-manifest.json', build)
+        self.assertIn('.SBOM.json', build)
+        self.assertIn("NIGHTRECON_SOURCE_REVISION", build)
+        self.assertIn("NIGHTRECON_RELEASE_VERSION", build)
 
     def test_red_live_appliance_runs_with_required_os_privilege(self):
         install_hook = self.read(
