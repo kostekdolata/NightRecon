@@ -148,6 +148,7 @@ MIGRATED_MODULES = frozenset({
     "engagement_review",
     "engagement_report",
     "engagement_export",
+    "engagement_collaboration",
     "vulnerability_intelligence",
     "web_active_assessment",
     "web_assessment",
