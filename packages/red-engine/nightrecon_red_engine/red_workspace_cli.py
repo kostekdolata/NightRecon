@@ -17,6 +17,11 @@ from nightrecon_red_engine.engagement_review import build_engagement_evidence_re
 from nightrecon_red_engine.engagement_report import build_engagement_professional_report
 from nightrecon_red_engine.engagement_export import write_engagement_report_export
 from nightrecon_red_engine.remediation_retest import RemediationStore
+from nightrecon_red_engine.engagement_collaboration import (
+    CollaborationEventKind,
+    CollaborationStore,
+    ReviewState,
+)
 
 
 def _error(exc: Exception) -> None:
@@ -99,6 +104,37 @@ def main(argv: Sequence[str]) -> None:
     reporting.add_argument("--engagement-id", required=True)
     reporting.add_argument("--output", required=True)
     reporting.add_argument("--remediation-store")
+
+    collab_record = operations.add_parser(
+        "collab-record", help="Record secret-safe engagement collaboration metadata."
+    )
+    collab_record.add_argument("root")
+    collab_record.add_argument("--store", required=True)
+    collab_record.add_argument("--engagement-id", required=True)
+    collab_record.add_argument("--event-id", required=True)
+    collab_record.add_argument("--actor", required=True)
+    collab_record.add_argument(
+        "--kind", required=True,
+        choices=tuple(item.value for item in CollaborationEventKind),
+    )
+    collab_record.add_argument(
+        "--subject-kind", required=True,
+        choices=("engagement", "evidence", "finding", "validation", "report"),
+    )
+    collab_record.add_argument("--subject-id", required=True)
+    collab_record.add_argument("--note")
+    collab_record.add_argument(
+        "--review-state", choices=tuple(item.value for item in ReviewState)
+    )
+    collab_record.add_argument("--assignee")
+
+    collab_show = operations.add_parser(
+        "collab-show", help="Show engagement collaboration summary and events."
+    )
+    collab_show.add_argument("root")
+    collab_show.add_argument("--store", required=True)
+    collab_show.add_argument("--engagement-id", required=True)
+    collab_show.add_argument("--include-events", action="store_true")
 
     importing = operations.add_parser("import", help="Merge a portable engagement envelope.")
     importing.add_argument("root")
@@ -227,6 +263,37 @@ def main(argv: Sequence[str]) -> None:
                 "output": str(Path(args.output)),
                 "fingerprint_sha256": export.fingerprint_sha256,
             }, sort_keys=True))
+            return
+
+        if args.operation == "collab-record":
+            workspace.envelope(args.engagement_id)
+            store = CollaborationStore(args.store)
+            event = store.record(
+                event_id=args.event_id,
+                engagement_id=args.engagement_id,
+                actor_id=args.actor,
+                kind=CollaborationEventKind(args.kind),
+                subject_kind=args.subject_kind,
+                subject_id=args.subject_id,
+                note=args.note,
+                review_state=(
+                    None if args.review_state is None
+                    else ReviewState(args.review_state)
+                ),
+                assignee_id=args.assignee,
+            )
+            print(json.dumps(event.to_dict(), sort_keys=True))
+            return
+
+        if args.operation == "collab-show":
+            workspace.envelope(args.engagement_id)
+            store = CollaborationStore(args.store)
+            payload = {"summary": store.summary(args.engagement_id).to_dict()}
+            if args.include_events:
+                payload["events"] = [
+                    item.to_dict() for item in store.events(args.engagement_id)
+                ]
+            print(json.dumps(payload, sort_keys=True))
             return
 
         if args.operation == "import":
