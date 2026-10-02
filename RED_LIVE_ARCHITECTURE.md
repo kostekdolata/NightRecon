@@ -393,34 +393,62 @@ Batch 4 release gate:
 
 ### Batch 5 — composition
 
-Status: active development.
+Status: normal-install composition is verified; Live multi-Night composition
+remains dependency-gated by the independently versioned peer Live products.
 
-First slice:
+Verified normal-install composition now proves:
 
-- compose the current Red and White package artifacts beside one compatible
-  shared-core installation in a clean normal-install environment;
-- prove both application boundaries launch independently;
-- prove Red contains no White-engine import and White contains no Red-engine
+- Red and White package artifacts install beside one compatible shared-core
+  installation;
+- both application boundaries launch independently with no cross-engine runtime
   import;
-- uninstall White and prove Red + shared-core remain usable;
-- reinstall White, uninstall Red, and prove White + shared-core remain usable;
-- no shared evidence or event exchange is implied by package co-installation.
+- removing either Night leaves the other Night plus shared core usable;
+- one shared engagement/workspace can retain Red and White evidence with
+  distinct source identity, provenance, and limitations;
+- unsupported shared engagement schema versions fail closed;
+- Red's installed shared-core/engine/application package versions are checked
+  explicitly and mixed Red package versions fail closed;
+- composition metadata has `authorization_effect: none`.
 
-Follow-on slices:
-
-- shared engagement/evidence contracts/backend only;
-- Red+White Live image profile once White's Live persistence boundary is
-  compatible and independently verified;
-- prepare selected-Night and eventual full-stack image profiles.
+A Red+White Live image is not claimed until White's own Live persistence and
+deployment acceptance is independently verified. Red-only Live remains a
+complete supported Red deployment profile and must not depend on White.
 
 ### Batch 6 — production hardening
 
-- signed update/offline bundle flow;
-- image/package integrity manifest;
-- SBOM;
-- recovery validation;
-- Secure Boot target;
-- hardware compatibility and USB endurance testing.
+Status: automatable integrity/update/recovery contracts are implemented and are
+release-gated by full CI. Physical platform evidence remains explicit and
+manual.
+
+Automatable production-hardening scope:
+
+- deterministic embedded package manifest for the exact shared-core, Red engine,
+  and Red application wheels;
+- deterministic secret-free Red release SBOM bound to package digests;
+- immutable Live image retains the exact release wheels and verifies their
+  manifest/SBOM during image construction and again at UEFI userspace boot;
+- external ISO SHA-256, package-manifest, SBOM, and image-manifest sidecars;
+- Ed25519-signed offline update bundle verification before any staging action;
+- fail-closed Red package/shared-schema compatibility checks;
+- bounded update/recovery plan requiring a verified rollback artifact and a
+  locked encrypted workspace, preserving workspace state independently from the
+  immutable system image;
+- one-unconfirmed-boot rollback policy and explicit post-boot confirmation;
+- evidence-honest deployment-readiness records that cannot mark production
+  readiness without the remaining physical qualifications.
+
+Still-open physical/manual production gates:
+
+- Secure Boot verification on the intended signed boot chain;
+- representative hardware compatibility matrix;
+- USB/media endurance qualification including continuous runtime, reboot and
+  safe-removal cycles;
+- any Red+White Live composition profile, which remains dependent on verified
+  White Live parity.
+
+Passing CI for Batch 6 therefore closes the automatable Red-only Live
+hardening work but does not by itself claim Secure Boot, physical hardware
+compatibility, media endurance, or peer-Live composition.
 
 ## Release rule
 
