@@ -118,6 +118,8 @@ MIGRATED_MODULES = frozenset({
     "network_operator_brief",
     "network_context_intelligence",
     "network_change_intelligence",
+    "network_evidence_completeness",
+    "network_executive_assessment",
     "vulnerability_intelligence",
     "web_active_assessment",
     "web_assessment",
