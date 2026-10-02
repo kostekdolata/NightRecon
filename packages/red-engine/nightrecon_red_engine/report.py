@@ -7,24 +7,8 @@ from dataclasses import asdict, dataclass
 from nightrecon_red_engine.os_fingerprint import (
     HostOperatingSystemFingerprint,
 )
-from nightrecon_red_engine.network_assessment_intelligence import (
-    build_network_assessment_intelligence,
-)
-from nightrecon_red_engine.environment_network_intelligence import (
-    HostNetworkAssessment,
-    build_environment_network_intelligence,
-)
-from nightrecon_red_engine.network_operator_brief import (
-    build_network_operator_brief,
-)
-from nightrecon_red_engine.network_context_intelligence import (
-    build_network_context_intelligence,
-)
-from nightrecon_red_engine.network_evidence_completeness import (
-    build_network_evidence_completeness,
-)
-from nightrecon_red_engine.network_executive_assessment import (
-    build_network_executive_assessment,
+from nightrecon_red_engine.network_assessment_bundle import (
+    build_network_assessment_bundle,
 )
 from nightrecon_red_engine.assessment_engine import (
     ServiceAssessmentResult,
@@ -135,36 +119,8 @@ class TcpScanReport:
             for service in self.services
         ]
 
-        host_intelligence = build_network_assessment_intelligence(
-            tcp_results=self.results,
-            services=self.services,
-        )
-        environment_intelligence = build_environment_network_intelligence(
-            (
-                HostNetworkAssessment(
-                    host=self.target,
-                    assessment=host_intelligence,
-                ),
-            )
-        )
-        operator_brief = build_network_operator_brief(
-            environment_intelligence
-        )
-
-        data["network_intelligence"] = host_intelligence.to_dict()
-        data["network_operator_brief"] = operator_brief.to_dict()
-
-        network_context = build_network_context_intelligence(
-            vulnerability_intelligence_enabled=(
-                self.vulnerability_intelligence_enabled
-            ),
-            vulnerabilities=self.vulnerabilities,
-            threat_context_enabled=self.threat_context_enabled,
-            threat_context=self.threat_context,
-        )
-        data["network_context_intelligence"] = network_context.to_dict()
-
-        evidence_completeness = build_network_evidence_completeness(
+        network_bundle = build_network_assessment_bundle(
+            host=self.target,
             tcp_results=self.results,
             services=self.services,
             vulnerability_intelligence_enabled=(
@@ -174,17 +130,22 @@ class TcpScanReport:
             threat_context_enabled=self.threat_context_enabled,
             threat_context=self.threat_context,
         )
-        executive_assessment = build_network_executive_assessment(
-            operator_brief=operator_brief,
-            context=network_context,
-            completeness=evidence_completeness,
+        data["network_intelligence"] = (
+            network_bundle.assessment.to_dict()
+        )
+        data["network_operator_brief"] = (
+            network_bundle.operator_brief.to_dict()
+        )
+        data["network_context_intelligence"] = (
+            network_bundle.context.to_dict()
         )
         data["network_evidence_completeness"] = (
-            evidence_completeness.to_dict()
+            network_bundle.completeness.to_dict()
         )
         data["network_executive_assessment"] = (
-            executive_assessment.to_dict()
+            network_bundle.executive_assessment.to_dict()
         )
+        data["network_assessment_bundle"] = network_bundle.to_dict()
 
         data["assessment_summary"] = (
             asdict(
