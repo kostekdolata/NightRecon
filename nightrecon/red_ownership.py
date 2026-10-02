@@ -34,6 +34,7 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
         "web_assessment", "web_crawl", "web_form_execution", "web_form_intent",
         "web_form_submission", "web_report", "web_workflow",
         "web_workflow_execution", "web_workflow_report",
+        "web_api_safety_corpus",
     ),
     "api": (
         "api_execution", "api_graphql", "api_models", "api_openapi",
