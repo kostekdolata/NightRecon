@@ -192,33 +192,50 @@ under the same documented authorized lab conditions.
 ## v0.44 deployment development state
 
 Red Night v0.43.0 remains the stable functional baseline while v0.44 develops
-deployment parity.
+deployment parity and production-hardening evidence.
 
-The target is one Red product with three verified deployment profiles:
+The target remains one Red product with three Red-owned deployment profiles:
 
 - standalone Red installation;
 - Red inside a composed NightRecon stack;
 - Red Night Live USB.
 
-Batch 1 acceptance requires:
+Verified deployment foundations now include:
 
-- all profiles identify the same mandatory Red/shared-core package set;
-- standalone and Red-only Live profiles require no peer Night;
-- composed mode treats White/Blue/Purple/Black as optional peers only;
-- Red app/engine Python sources contain no peer-Night runtime imports;
-- every profile is offline-capable and preserves the same authorization-first
-  shared-core dependency direction;
-- Live declares no automatic host-disk mounting;
-- Live workspace modes are explicit Secure Workspace, Ephemeral Session, and
-  Recovery/Integrity;
-- the installed Red wheel exposes the deployment contract in the existing
-  four-platform Red distribution smoke.
+- identical mandatory Red/shared-core package identities across standalone,
+  composed, and Red-only Live profiles;
+- no peer-Night runtime imports from Red app/engine sources;
+- clean Red+White normal-install composition, independent removal, and one
+  shared engagement/workspace carrying source identity, provenance, and
+  limitations without transferring authorization;
+- explicit fail-closed Red package-version and shared-schema compatibility;
+- reproducible Debian-based amd64 Live image construction and UEFI VM userspace
+  boot proof;
+- privileged appliance modes with no authorization effect;
+- LUKS2 Secure Workspace provisioning/reopen, Ephemeral non-modification,
+  safe-close/removal, interrupted-session recovery, and read-only filesystem
+  integrity evidence;
+- deterministic package integrity manifests and secret-free SBOM metadata;
+- Ed25519-signed offline update verification before staging;
+- immutable Live retention and verification of the exact Red release wheels;
+- bounded update/rollback planning that requires a locked encrypted workspace,
+  compatible packages/schema, a verified signed bundle, and a verified rollback
+  artifact.
 
-Later Live acceptance requires a reproducible bootable image, VM boot proof,
-encrypted persistence, recovery/integrity handling, signed update metadata,
-composition testing, Secure Boot evidence, and a hardware compatibility matrix.
+The deployment-readiness contract must remain evidence-honest. Automated CI
+success cannot by itself establish:
+
+- Secure Boot on a production signing chain;
+- compatibility with representative physical hardware;
+- USB/media endurance under long-running and repeated reboot/removal cycles;
+- Red+White Live composition before White's own independently versioned Live
+  persistence/deployment boundary is accepted.
+
+Those items remain explicit manual/external deployment gates and must be
+recorded as blockers until real evidence exists.
 
 Live USB capability is not considered complete merely because the application
 starts inside Linux. Red authorization, evidence, isolated validation workers,
 cleanup/retest, reporting, persistence, update, and recovery behavior must
 retain parity with the normal installation.
+
