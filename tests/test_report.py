@@ -133,6 +133,25 @@ class TcpScanReportTests(unittest.TestCase):
             str(data["network_operator_brief"]).lower(),
         )
 
+    def test_report_dictionary_contains_correlated_network_context(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertIn("network_context_intelligence", data)
+        self.assertEqual(
+            data["network_context_intelligence"]["evidence_quality"],
+            "limited",
+        )
+        self.assertIn(
+            "Vulnerability intelligence was not enabled.",
+            data["network_context_intelligence"]["coverage_gaps"],
+        )
+        self.assertNotIn(
+            "risk_score",
+            str(data["network_context_intelligence"]).lower(),
+        )
+
     def test_report_dictionary_contains_tls_metadata(self):
         target = parse_target("127.0.0.1")
 
