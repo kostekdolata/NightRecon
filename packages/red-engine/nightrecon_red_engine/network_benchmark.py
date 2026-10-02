@@ -21,7 +21,7 @@ from nightrecon_red_engine.udp_scanner import UdpPortResult
 
 NETWORK_BENCHMARK_INTERPRETATION = (
     "Authorized fixture/lab comparison only. Metrics describe exact expected "
-    "versus observed Red Night evidence and do not establish feature parity, "
+    "versus observed Red Night evidence and does not establish feature parity, "
     "exploitability, compromise, likelihood, impact, or risk."
 )
 
@@ -90,7 +90,11 @@ class NetworkBenchmarkExpectation:
         if len(normalized) != len(set(normalized)):
             raise ValueError("authorized_addresses must not contain duplicates")
         object.__setattr__(self, "authorized_addresses", tuple(sorted(
-            normalized, key=ipaddress.ip_address
+            normalized,
+            key=lambda value: (
+                ipaddress.ip_address(value).version,
+                int(ipaddress.ip_address(value)),
+            ),
         )))
         for field_name in ("tcp_open", "udp_open", "services", "operating_systems"):
             values = getattr(self, field_name)
