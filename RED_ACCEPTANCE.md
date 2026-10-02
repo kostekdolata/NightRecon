@@ -259,3 +259,30 @@ starts inside Linux. Red authorization, evidence, isolated validation workers,
 cleanup/retest, reporting, persistence, update, and recovery behavior must
 retain parity with the normal installation.
 
+
+
+## v0.45 identity acceptance review state
+
+The v0.45 identity acceptance slice adds explicit operator-facing coverage and
+benchmark interpretation on top of the existing v0.41 AD/Entra provider and
+identity-graph evidence. It is intentionally evidence-honest rather than a
+specialist-parity claim.
+
+Implemented and CI-covered behavior includes:
+
+- deterministic identity evidence coverage review across identities, groups,
+  memberships, roles, permissions, and relationship types;
+- explicit provider limitation and unresolved-membership reporting;
+- deterministic identity benchmark acceptance that distinguishes fixture success
+  from live specialist comparison;
+- operator-facing identity summaries that retain open acceptance gates and next
+  actions;
+- explicit disclosure when broader read-only ACL/security-descriptor permission
+  evidence has not been demonstrated in the collected evidence;
+- explicit disclosure that live authorized specialist-tool comparison remains an
+  external acceptance gate.
+
+This slice does **not** close the broader ACL/security-descriptor collection gate
+and does not claim parity with BloodHound or another specialist identity product.
+Those gates remain open until measured with reviewed read-only collection and an
+authorized live comparison under documented lab conditions.
