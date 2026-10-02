@@ -147,6 +147,7 @@ MIGRATED_MODULES = frozenset({
     "web_workflow",
     "web_workflow_execution",
     "web_workflow_report",
+    "web_api_safety_corpus",
 })
 
 
