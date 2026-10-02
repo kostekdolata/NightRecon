@@ -13,6 +13,10 @@ from datetime import datetime, timezone
 from nightrecon_shared_core.contracts import EngagementMetadata
 from nightrecon_shared_core.engagement_policy import EngagementExecutionPolicy
 from nightrecon_shared_core.workspace import LocalWorkspace
+from nightrecon_red_engine.engagement_review import build_engagement_evidence_review
+from nightrecon_red_engine.engagement_report import build_engagement_professional_report
+from nightrecon_red_engine.engagement_export import write_engagement_report_export
+from nightrecon_red_engine.remediation_retest import RemediationStore
 
 
 def _error(exc: Exception) -> None:
@@ -78,6 +82,23 @@ def main(argv: Sequence[str]) -> None:
     showing = operations.add_parser("show", help="Show one engagement summary.")
     showing.add_argument("root")
     showing.add_argument("--engagement-id", required=True)
+
+    review = operations.add_parser(
+        "review", help="Review secret-safe engagement evidence metadata."
+    )
+    review.add_argument("root")
+    review.add_argument("--engagement-id", required=True)
+    review.add_argument("--source-night")
+    review.add_argument("--evidence-type")
+    review.add_argument("--max-items", type=int, default=500)
+
+    reporting = operations.add_parser(
+        "report", help="Build a professional secret-safe engagement report."
+    )
+    reporting.add_argument("root")
+    reporting.add_argument("--engagement-id", required=True)
+    reporting.add_argument("--output", required=True)
+    reporting.add_argument("--remediation-store")
 
     importing = operations.add_parser("import", help="Merge a portable engagement envelope.")
     importing.add_argument("root")
@@ -177,6 +198,34 @@ def main(argv: Sequence[str]) -> None:
             print(json.dumps({
                 "summary": asdict(summary),
                 "breakdown": asdict(breakdown),
+            }, sort_keys=True))
+            return
+
+        if args.operation == "review":
+            review = build_engagement_evidence_review(
+                workspace.envelope(args.engagement_id),
+                source_night=args.source_night,
+                evidence_type=args.evidence_type,
+                max_items=args.max_items,
+            )
+            print(json.dumps(review.to_dict(), sort_keys=True))
+            return
+
+        if args.operation == "report":
+            findings = ()
+            if args.remediation_store is not None:
+                findings = RemediationStore(args.remediation_store).list(
+                    args.engagement_id
+                )
+            report = build_engagement_professional_report(
+                workspace.envelope(args.engagement_id),
+                remediation_findings=findings,
+            )
+            export = write_engagement_report_export(report, args.output)
+            print(json.dumps({
+                "engagement_id": args.engagement_id,
+                "output": str(Path(args.output)),
+                "fingerprint_sha256": export.fingerprint_sha256,
             }, sort_keys=True))
             return
 
