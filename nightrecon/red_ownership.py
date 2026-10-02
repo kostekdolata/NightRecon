@@ -14,6 +14,8 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
         "host_discovery", "os_fingerprint", "ports", "report", "resolver",
         "service_detection", "service_fingerprint", "service_probe", "session",
         "software_identity", "storage", "tcp_scanner", "tls_detection",
+        "udp_scanner", "network_assessment_intelligence",
+        "environment_network_intelligence", "network_operator_brief",
     ),
     "web": (
         "browser_playwright", "browser_policy", "browser_report", "browser_worker",
