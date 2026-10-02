@@ -116,6 +116,8 @@ MIGRATED_MODULES = frozenset({
     "network_assessment_intelligence",
     "environment_network_intelligence",
     "network_operator_brief",
+    "network_context_intelligence",
+    "network_change_intelligence",
     "vulnerability_intelligence",
     "web_active_assessment",
     "web_assessment",
