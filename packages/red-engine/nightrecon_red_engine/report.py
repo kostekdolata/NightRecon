@@ -7,6 +7,16 @@ from dataclasses import asdict, dataclass
 from nightrecon_red_engine.os_fingerprint import (
     HostOperatingSystemFingerprint,
 )
+from nightrecon_red_engine.network_assessment_intelligence import (
+    build_network_assessment_intelligence,
+)
+from nightrecon_red_engine.environment_network_intelligence import (
+    HostNetworkAssessment,
+    build_environment_network_intelligence,
+)
+from nightrecon_red_engine.network_operator_brief import (
+    build_network_operator_brief,
+)
 from nightrecon_red_engine.assessment_engine import (
     ServiceAssessmentResult,
     summarize_assessments,
@@ -115,6 +125,25 @@ class TcpScanReport:
             asdict(service)
             for service in self.services
         ]
+
+        host_intelligence = build_network_assessment_intelligence(
+            tcp_results=self.results,
+            services=self.services,
+        )
+        environment_intelligence = build_environment_network_intelligence(
+            (
+                HostNetworkAssessment(
+                    host=self.target,
+                    assessment=host_intelligence,
+                ),
+            )
+        )
+        operator_brief = build_network_operator_brief(
+            environment_intelligence
+        )
+
+        data["network_intelligence"] = host_intelligence.to_dict()
+        data["network_operator_brief"] = operator_brief.to_dict()
 
         data["assessment_summary"] = (
             asdict(
