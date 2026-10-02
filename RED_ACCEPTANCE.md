@@ -286,3 +286,35 @@ This slice does **not** close the broader ACL/security-descriptor collection gat
 and does not claim parity with BloodHound or another specialist identity product.
 Those gates remain open until measured with reviewed read-only collection and an
 authorized live comparison under documented lab conditions.
+
+
+## v0.45 controlled-validation operation development state
+
+The v0.45 operation-planning slice composes the existing reviewed v0.43
+validation bindings into a bounded operator-selected sequence without adding an
+automatic execution path.
+
+Implemented and CI-covered behavior includes:
+
+- deterministic operation plans built only from explicitly supplied reviewed
+  validation bindings, with a hard 32-step ceiling;
+- preserved reviewed ATT&CK relationship metadata for operation review;
+- explicit operator stop state that prevents later outcomes from being recorded;
+- strict sequential outcome recording so evidence cannot be attached to a
+  different or reordered binding;
+- validation and cleanup evidence-reference handoff without raw evidence payloads;
+- explicit authorization_effect=none on plans and handoffs;
+- rejection of side-effecting or non-read-only-proof bindings by this operation
+  model.
+
+This slice does **not** automatically select targets or techniques, call a
+validation worker, grant authorization, add exploit payloads, expose arbitrary
+commands, or create an agent/C2 channel. Every live validation worker invocation
+continues to pass independently through the existing validation.run scope,
+approval, action-budget, revocation, isolated-worker, evidence, and cleanup
+boundaries.
+
+The broader ATT&CK/adversary-emulation acceptance gate remains open. A bounded
+operation plan containing reviewed ATT&CK metadata is not equivalent to a
+Caldera-style adversary-emulation operation or to complete ATT&CK technique
+implementation.
