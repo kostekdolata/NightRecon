@@ -32,7 +32,7 @@ class ExpectedTcpExposure:
     port: int
 
     def __post_init__(self) -> None:
-        ipaddress.ip_address(self.address)
+        object.__setattr__(self, "address", str(ipaddress.ip_address(self.address)))
         if isinstance(self.port, bool) or not 1 <= self.port <= 65535:
             raise ValueError("TCP benchmark port must be between 1 and 65535")
 
@@ -43,7 +43,7 @@ class ExpectedUdpExposure:
     port: int
 
     def __post_init__(self) -> None:
-        ipaddress.ip_address(self.address)
+        object.__setattr__(self, "address", str(ipaddress.ip_address(self.address)))
         if isinstance(self.port, bool) or not 1 <= self.port <= 65535:
             raise ValueError("UDP benchmark port must be between 1 and 65535")
 
@@ -55,11 +55,12 @@ class ExpectedService:
     service: str
 
     def __post_init__(self) -> None:
-        ipaddress.ip_address(self.address)
+        object.__setattr__(self, "address", str(ipaddress.ip_address(self.address)))
         if isinstance(self.port, bool) or not 1 <= self.port <= 65535:
             raise ValueError("service benchmark port must be between 1 and 65535")
         if not isinstance(self.service, str) or not self.service.strip():
             raise ValueError("service benchmark name must be nonblank")
+        object.__setattr__(self, "service", self.service.strip().lower())
 
 
 @dataclass(frozen=True, order=True)
@@ -68,9 +69,10 @@ class ExpectedOperatingSystem:
     platform: str
 
     def __post_init__(self) -> None:
-        ipaddress.ip_address(self.address)
+        object.__setattr__(self, "address", str(ipaddress.ip_address(self.address)))
         if not isinstance(self.platform, str) or not self.platform.strip():
             raise ValueError("OS benchmark platform must be nonblank")
+        object.__setattr__(self, "platform", self.platform.strip())
 
 
 @dataclass(frozen=True)
@@ -208,9 +210,13 @@ def benchmark_network_observations(
         return canonical
 
     expected_tcp = {(item.address, item.port) for item in expectation.tcp_open}
-    actual_tcp = {
-        (checked(item.address, "tcp"), item.port)
+    checked_tcp = tuple(
+        (checked(item.address, "tcp"), item)
         for item in tcp_results
+    )
+    actual_tcp = {
+        (address, item.port)
+        for address, item in checked_tcp
         if item.is_open
     }
 
