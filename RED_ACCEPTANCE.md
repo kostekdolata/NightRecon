@@ -318,3 +318,33 @@ The broader ATT&CK/adversary-emulation acceptance gate remains open. A bounded
 operation plan containing reviewed ATT&CK metadata is not equivalent to a
 Caldera-style adversary-emulation operation or to complete ATT&CK technique
 implementation.
+
+## v0.45 collaboration and handoff development state
+
+The v0.45 collaboration slice adds bounded, durable operator-review metadata on
+top of the existing engagement evidence/reporting model without creating a
+control-plane authority channel.
+
+Implemented and CI-gated behavior includes:
+
+- immutable engagement collaboration events with bounded local persistence;
+- annotations that reference engagement/evidence/finding/validation/report
+  subjects without embedding raw evidence payloads;
+- explicit review-state transitions recorded as events rather than mutable hidden
+  state;
+- deterministic assignment and operator handoff projection;
+- idempotent exact-event replay and fail-closed conflicting event IDs;
+- secret-safe collaboration summaries with participating operators, current
+  assignments and current review states;
+- Red workspace CLI surfaces for recording and reviewing collaboration metadata;
+- explicit `authorization_effect=none` on collaboration events and summaries.
+
+The local file-backed implementation is an offline single-writer contract. It
+does not claim safe concurrent multi-process writes; a future service/database
+backend must provide serialized writes or transactional concurrency around the
+same immutable event model.
+
+This closes a collaboration-foundation slice of the professional workspace
+acceptance gap. It does not by itself provide RBAC, networked multi-user
+sessions, unrestricted agent/C2 behavior, or cross-Night authority transfer.
+
