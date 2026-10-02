@@ -178,6 +178,25 @@ class TcpScanReportTests(unittest.TestCase):
             str(data["network_executive_assessment"]).lower(),
         )
 
+    def test_report_dictionary_contains_reusable_network_bundle(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertIn("network_assessment_bundle", data)
+        self.assertEqual(
+            data["network_assessment_bundle"]["host"],
+            "127.0.0.1",
+        )
+        self.assertEqual(
+            data["network_assessment_bundle"]["assessment"],
+            data["network_intelligence"],
+        )
+        self.assertEqual(
+            data["network_assessment_bundle"]["executive_assessment"],
+            data["network_executive_assessment"],
+        )
+
     def test_report_dictionary_contains_tls_metadata(self):
         target = parse_target("127.0.0.1")
 
