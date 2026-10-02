@@ -181,11 +181,20 @@ def verify_both(bin_dir: Path, python: Path, directory: Path) -> None:
         str(python),
         "-c",
         (
+            "from importlib.metadata import version; "
             "import nightrecon_shared_core as core; "
             "import nightrecon_red_engine as red; "
             "import nightrecon_white_engine as white; "
+            "from red_night_app.composition import "
+            "evaluate_red_composition_compatibility; "
             "assert core.edition_name('red') == 'Red Night'; "
             "assert core.edition_name('white') == 'White Night'; "
+            "compat = evaluate_red_composition_compatibility({"
+            "'nightrecon-shared-core': version('nightrecon-shared-core'),"
+            "'nightrecon-red-engine': version('nightrecon-red-engine'),"
+            "'nightrecon-red-night': version('nightrecon-red-night')}); "
+            "assert compat.compatible, compat.reason; "
+            "assert compat.to_dict()['authorization_effect'] == 'none'; "
             "assert red is not None; assert white is not None"
         ),
         cwd=directory,
@@ -248,6 +257,28 @@ def verify_shared_workspace_exchange(
     )
     if future_schema.returncode == 0:
         raise AssertionError("Unsupported shared evidence schema did not fail closed")
+
+    incompatible = run(
+        str(python),
+        "-c",
+        (
+            "from red_night_app.composition import "
+            "RED_REQUIRED_PACKAGE_VERSIONS, evaluate_red_composition_compatibility; "
+            "versions = dict(RED_REQUIRED_PACKAGE_VERSIONS); "
+            "versions['nightrecon-red-engine'] = '99.0.0'; "
+            "result = evaluate_red_composition_compatibility(versions); "
+            "assert not result.compatible; "
+            "assert result.reason_code == 'red-package-version-mismatch'; "
+            "assert result.to_dict()['authorization_effect'] == 'none'"
+        ),
+        cwd=directory,
+        check=False,
+    )
+    if incompatible.returncode != 0:
+        raise AssertionError(
+            "Mixed-version Red composition did not fail closed as expected: "
+            + incompatible.stderr[-1000:]
+        )
 
 
 def verify_red_survives_white_removal(
