@@ -107,6 +107,96 @@ class TcpScanReportTests(unittest.TestCase):
 
 
 
+    def test_report_dictionary_contains_high_level_network_feedback(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertIn("network_intelligence", data)
+        self.assertIn("network_operator_brief", data)
+        self.assertEqual(
+            data["network_intelligence"]["headline"],
+            "Network service exposure observed",
+        )
+        self.assertIn(
+            "Web service exposure",
+            " ".join(
+                data["network_operator_brief"]["primary_focus_areas"]
+            ),
+        )
+        self.assertIn(
+            "executive_summary",
+            data["network_operator_brief"],
+        )
+        self.assertNotIn(
+            "risk_score",
+            str(data["network_operator_brief"]).lower(),
+        )
+
+    def test_report_dictionary_contains_correlated_network_context(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertIn("network_context_intelligence", data)
+        self.assertEqual(
+            data["network_context_intelligence"]["evidence_quality"],
+            "limited",
+        )
+        self.assertIn(
+            "Vulnerability intelligence was not enabled.",
+            data["network_context_intelligence"]["coverage_gaps"],
+        )
+        self.assertNotIn(
+            "risk_score",
+            str(data["network_context_intelligence"]).lower(),
+        )
+
+    def test_report_dictionary_contains_executive_network_assessment(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertIn("network_evidence_completeness", data)
+        self.assertIn("network_executive_assessment", data)
+        self.assertEqual(
+            data["network_evidence_completeness"]["level"],
+            "partial",
+        )
+        self.assertEqual(
+            data["network_executive_assessment"]["evidence_completeness"],
+            "partial",
+        )
+        self.assertIn(
+            "Web service exposure",
+            " ".join(
+                data["network_executive_assessment"]["key_observations"]
+            ),
+        )
+        self.assertNotIn(
+            "risk_score",
+            str(data["network_executive_assessment"]).lower(),
+        )
+
+    def test_report_dictionary_contains_reusable_network_bundle(self):
+        report = self.create_report()
+
+        data = report.to_dict()
+
+        self.assertIn("network_assessment_bundle", data)
+        self.assertEqual(
+            data["network_assessment_bundle"]["host"],
+            "127.0.0.1",
+        )
+        self.assertEqual(
+            data["network_assessment_bundle"]["assessment"],
+            data["network_intelligence"],
+        )
+        self.assertEqual(
+            data["network_assessment_bundle"]["executive_assessment"],
+            data["network_executive_assessment"],
+        )
+
     def test_report_dictionary_contains_tls_metadata(self):
         target = parse_target("127.0.0.1")
 
