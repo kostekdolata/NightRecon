@@ -32,6 +32,7 @@ class NetworkAssessmentIntelligence:
     coverage_gaps: tuple[str, ...]
     recommended_next_actions: tuple[str, ...]
     evidence_summary: tuple[str, ...]
+    exposure_categories: tuple[str, ...] = ()
     interpretation: str = NETWORK_INTELLIGENCE_INTERPRETATION
 
     def to_dict(self) -> dict[str, object]:
@@ -43,6 +44,7 @@ class NetworkAssessmentIntelligence:
             "coverage_gaps": list(self.coverage_gaps),
             "recommended_next_actions": list(self.recommended_next_actions),
             "evidence_summary": list(self.evidence_summary),
+            "exposure_categories": list(self.exposure_categories),
             "interpretation": self.interpretation,
         }
 
@@ -69,6 +71,7 @@ def build_network_assessment_intelligence(
     )
 
     exposure_notes: list[str] = []
+    exposure_categories: list[str] = []
     next_actions: list[str] = []
     gaps: list[str] = []
     evidence: list[str] = []
@@ -123,6 +126,7 @@ def build_network_assessment_intelligence(
     present.update(udp_hints)
 
     if present & remote_admin:
+        exposure_categories.append("remote-administration")
         names = ", ".join(sorted(present & remote_admin))
         exposure_notes.append(
             f"Remote administration services are exposed ({names}), "
@@ -134,6 +138,7 @@ def build_network_assessment_intelligence(
         )
 
     if present & data_services:
+        exposure_categories.append("data-services")
         names = ", ".join(sorted(present & data_services))
         exposure_notes.append(
             f"Data or file-service exposure is present ({names}); verify "
@@ -145,6 +150,7 @@ def build_network_assessment_intelligence(
         )
 
     if present & web_services:
+        exposure_categories.append("web-services")
         exposure_notes.append(
             "Web-facing services are present and should be assessed together "
             "with TLS, headers, application behavior, and authenticated paths."
@@ -155,6 +161,7 @@ def build_network_assessment_intelligence(
         )
 
     if present & infrastructure_services:
+        exposure_categories.append("infrastructure-services")
         names = ", ".join(sorted(present & infrastructure_services))
         exposure_notes.append(
             f"Infrastructure services are exposed ({names}); configuration "
@@ -275,4 +282,5 @@ def build_network_assessment_intelligence(
         coverage_gaps=tuple(gaps),
         recommended_next_actions=tuple(dict.fromkeys(next_actions)),
         evidence_summary=tuple(evidence),
+        exposure_categories=tuple(exposure_categories),
     )
