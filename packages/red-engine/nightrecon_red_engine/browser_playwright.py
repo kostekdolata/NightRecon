@@ -223,6 +223,7 @@ def discover_with_playwright(
     start_url: str,
     policy: BrowserDiscoveryPolicy,
     headless: bool = True,
+    authorization: str | None = None,
     playwright_factory: _SyncPlaywrightFactory | None = None,
     clock: Callable[[], float] = monotonic,
 ) -> PlaywrightDiscoveryResult:
@@ -235,6 +236,14 @@ def discover_with_playwright(
     if url_origin(normalized_url) != policy.origin:
         raise PermissionError(
             "Browser start URL is outside the authorized origin."
+        )
+
+    if authorization is not None and (
+        not isinstance(authorization, str)
+        or not authorization.strip()
+    ):
+        raise ValueError(
+            "authorization must be a non-empty string when provided."
         )
 
     controller = BrowserDiscoveryController(
@@ -261,8 +270,16 @@ def discover_with_playwright(
             browser = playwright.chromium.launch(
                 headless=headless
             )
+            context_options = {
+                "service_workers": "block",
+            }
+            if authorization is not None:
+                context_options["extra_http_headers"] = {
+                    "Authorization": authorization.strip(),
+                }
+
             context = browser.new_context(
-                service_workers="block"
+                **context_options
             )
             page = context.new_page()
             page.set_default_timeout(
