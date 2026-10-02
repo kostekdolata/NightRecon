@@ -552,7 +552,8 @@ See [V043_CONTROLLED_VALIDATION_INTELLIGENCE.md](V043_CONTROLLED_VALIDATION_INTE
 
 ### v0.44.0 — Standalone & Live Deployment Foundation
 
-Status: active development.
+Status: production-hardening development; automated Red-only deployment gates
+are being closed while physical/manual qualification remains explicit.
 
 Goal: make Red Night deployable as the same independently versioned product in
 normal standalone installs, composed NightRecon stacks, and a bootable Red Night
@@ -560,7 +561,8 @@ Live USB environment.
 
 Locked rules:
 
-- stable v0.43.0 remains the functional baseline;
+- stable v0.43.0 remains the functional baseline until a later release
+  finalization deliberately versions the coordinated Red distributions;
 - Live USB is a deployment layer, not a Red-engine fork;
 - Red depends only on Red engine + shared core, never another Night runtime;
 - composed installs gain interoperability through shared contracts/services;
@@ -568,48 +570,41 @@ Locked rules:
 - no deployment profile weakens scope, authorization, approval, budget,
   revocation, evidence, cleanup, or worker-isolation controls.
 
-Completed v0.44 deployment batches:
+Verified v0.44 foundations:
 
-- Batch 1: deployment architecture contracts;
-- Batch 2: Debian `live-build` skeleton + x86-64 UEFI VM boot smoke;
-- Batch 3: appliance session with explicit Secure/Ephemeral/Recovery modes;
-- Batch 4 slice 1: fail-closed LUKS2 persistence contract, explicit stable
-  partition selection, destructive-confirmation requirement, Secure Workspace
-  readiness state, and safe-close ordering.
+- Batch 1: deployment architecture and package-parity contracts;
+- Batch 2: Debian `live-build` skeleton and x86-64 UEFI VM boot smoke;
+- Batch 3: privileged appliance session with explicit
+  Secure/Ephemeral/Recovery modes;
+- Batch 4: LUKS2 encrypted persistence, explicit first-use provisioning, reboot
+  continuity, Ephemeral non-modification, safe removal/reattach, interrupted
+  session recovery, and read-only filesystem-integrity evidence;
+- Batch 5 normal-install composition: Red+White package isolation, independent
+  removal, shared engagement/evidence exchange, provenance preservation,
+  unsupported-schema rejection, and explicit Red package-version compatibility.
 
-Active v0.44 work:
+Current Batch 6 production hardening:
 
-- Batch 4 Secure Workspace integration: explicit stable persistence-device
-  selection, existing LUKS2 unlock/mount, encrypted workspace command session,
-  safe close on exit, and real state-probe verification;
-- no disk discovery or automatic provisioning;
-- Live runtime explicitly includes cryptsetup, e2fsprogs, and util-linux.
+- deterministic package integrity manifests and secret-free SBOM metadata;
+- Ed25519-signed offline update verification;
+- fail-closed package/schema compatibility;
+- immutable Live image retention and boot-time verification of the exact Red
+  wheel artifacts;
+- external ISO/package/SBOM/image manifest sidecars;
+- bounded update staging and rollback contracts that preserve a locked
+  encrypted workspace;
+- explicit deployment-readiness records for automated, Secure Boot, hardware,
+  and USB endurance evidence.
 
-Active v0.44 continuation:
+Manual/external v0.44 gates remain honest and separate:
 
-- Batch 4 first-use provisioning: exact device-bound destructive confirmation,
-  confirmed new passphrase, guarded LUKS2 creation, immediate Secure Workspace
-  entry, and safe close on exit.
+- Secure Boot verification on the intended signed boot chain;
+- representative physical hardware compatibility;
+- USB/media endurance qualification;
+- Red+White Live composition only after White's independently versioned Live
+  persistence/deployment boundary is verified.
 
-Active v0.44 continuation:
-
-- Batch 4 reboot/Ephemeral verification: fresh-process encrypted-workspace
-  reopen, persisted-state hash verification, reboot marker persistence, real
-  Ephemeral Session cleanup, and encrypted-image non-modification proof.
-
-Active v0.44 continuation:
-
-- Batch 4 safe-removal/recovery qualification: locked-state removal readiness,
-  read-only Recovery & Integrity inspection, safe detach/reattach of the same
-  encrypted workspace, interrupted mounted-state recovery, and read-only ext4
-  integrity evidence.
-
-Remaining v0.44 sequence:
-
-- close Batch 4 only after exact-head and post-merge full CI are green;
-- Batch 5: Red+White and selected/full-stack package composition profiles;
-- Batch 6: integrity manifests, signed/offline updates, recovery, SBOM,
-  Secure Boot target, hardware compatibility and endurance testing.
+No CI result alone may close those physical or peer-product dependency gates.
 
 See [RED_LIVE_ARCHITECTURE.md](RED_LIVE_ARCHITECTURE.md).
 
