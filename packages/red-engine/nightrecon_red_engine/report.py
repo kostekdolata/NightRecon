@@ -20,6 +20,12 @@ from nightrecon_red_engine.network_operator_brief import (
 from nightrecon_red_engine.network_context_intelligence import (
     build_network_context_intelligence,
 )
+from nightrecon_red_engine.network_evidence_completeness import (
+    build_network_evidence_completeness,
+)
+from nightrecon_red_engine.network_executive_assessment import (
+    build_network_executive_assessment,
+)
 from nightrecon_red_engine.assessment_engine import (
     ServiceAssessmentResult,
     summarize_assessments,
@@ -157,6 +163,28 @@ class TcpScanReport:
             threat_context=self.threat_context,
         )
         data["network_context_intelligence"] = network_context.to_dict()
+
+        evidence_completeness = build_network_evidence_completeness(
+            tcp_results=self.results,
+            services=self.services,
+            vulnerability_intelligence_enabled=(
+                self.vulnerability_intelligence_enabled
+            ),
+            vulnerabilities=self.vulnerabilities,
+            threat_context_enabled=self.threat_context_enabled,
+            threat_context=self.threat_context,
+        )
+        executive_assessment = build_network_executive_assessment(
+            operator_brief=operator_brief,
+            context=network_context,
+            completeness=evidence_completeness,
+        )
+        data["network_evidence_completeness"] = (
+            evidence_completeness.to_dict()
+        )
+        data["network_executive_assessment"] = (
+            executive_assessment.to_dict()
+        )
 
         data["assessment_summary"] = (
             asdict(
