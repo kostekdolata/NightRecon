@@ -17,6 +17,9 @@ from nightrecon_red_engine.environment_network_intelligence import (
 from nightrecon_red_engine.network_operator_brief import (
     build_network_operator_brief,
 )
+from nightrecon_red_engine.network_context_intelligence import (
+    build_network_context_intelligence,
+)
 from nightrecon_red_engine.assessment_engine import (
     ServiceAssessmentResult,
     summarize_assessments,
@@ -144,6 +147,16 @@ class TcpScanReport:
 
         data["network_intelligence"] = host_intelligence.to_dict()
         data["network_operator_brief"] = operator_brief.to_dict()
+
+        network_context = build_network_context_intelligence(
+            vulnerability_intelligence_enabled=(
+                self.vulnerability_intelligence_enabled
+            ),
+            vulnerabilities=self.vulnerabilities,
+            threat_context_enabled=self.threat_context_enabled,
+            threat_context=self.threat_context,
+        )
+        data["network_context_intelligence"] = network_context.to_dict()
 
         data["assessment_summary"] = (
             asdict(
