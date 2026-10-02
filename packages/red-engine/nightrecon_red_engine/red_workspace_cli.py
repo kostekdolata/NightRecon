@@ -22,6 +22,11 @@ from nightrecon_red_engine.engagement_collaboration import (
     CollaborationStore,
     ReviewState,
 )
+from nightrecon_red_engine.workspace_recovery import (
+    create_workspace_backup,
+    restore_workspace_backup,
+    verify_workspace_backup,
+)
 
 
 def _error(exc: Exception) -> None:
@@ -135,6 +140,25 @@ def main(argv: Sequence[str]) -> None:
     collab_show.add_argument("--store", required=True)
     collab_show.add_argument("--engagement-id", required=True)
     collab_show.add_argument("--include-events", action="store_true")
+
+    backup = operations.add_parser(
+        "backup", help="Create an integrity-verified workspace backup archive."
+    )
+    backup.add_argument("root")
+    backup.add_argument("--output", required=True)
+
+    backup_verify = operations.add_parser(
+        "backup-verify", help="Verify a workspace backup archive without restoring it."
+    )
+    backup_verify.add_argument("root")
+    backup_verify.add_argument("--input", required=True)
+
+    restore = operations.add_parser(
+        "restore", help="Restore a verified workspace backup into a new directory."
+    )
+    restore.add_argument("root")
+    restore.add_argument("--input", required=True)
+    restore.add_argument("--destination", required=True)
 
     importing = operations.add_parser("import", help="Merge a portable engagement envelope.")
     importing.add_argument("root")
@@ -294,6 +318,27 @@ def main(argv: Sequence[str]) -> None:
                     item.to_dict() for item in store.events(args.engagement_id)
                 ]
             print(json.dumps(payload, sort_keys=True))
+            return
+
+        if args.operation == "backup":
+            report = create_workspace_backup(args.root, args.output)
+            print(json.dumps({
+                "output": str(Path(args.output)),
+                **report.to_dict(),
+            }, sort_keys=True))
+            return
+
+        if args.operation == "backup-verify":
+            report = verify_workspace_backup(args.input)
+            print(json.dumps(report.to_dict(), sort_keys=True))
+            return
+
+        if args.operation == "restore":
+            report = restore_workspace_backup(args.input, args.destination)
+            print(json.dumps({
+                "destination": str(Path(args.destination)),
+                **report.to_dict(),
+            }, sort_keys=True))
             return
 
         if args.operation == "import":
