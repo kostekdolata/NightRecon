@@ -392,6 +392,32 @@ class PlaywrightBrowserAdapterTests(unittest.TestCase):
             context.closed
         )
 
+    def test_authorization_header_is_ephemeral_browser_context_only(self):
+        factory = _FakeFactory()
+        times = iter((10.0, 10.1))
+        secret = "Bearer browser-runtime-secret"
+
+        result = discover_with_playwright(
+            start_url="https://example.test/",
+            policy=self.policy,
+            authorization=secret,
+            playwright_factory=factory,
+            clock=lambda: next(times),
+        )
+
+        self.assertIsNone(result.error)
+        browser = factory.playwright.chromium.browser
+        self.assertEqual(
+            browser.context_kwargs,
+            {
+                "service_workers": "block",
+                "extra_http_headers": {
+                    "Authorization": secret,
+                },
+            },
+        )
+        self.assertNotIn(secret, repr(result))
+
     def test_start_url_must_match_policy_origin_before_browser_launch(self):
         factory = _FakeFactory()
 
