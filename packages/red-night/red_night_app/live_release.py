@@ -188,6 +188,32 @@ class RedLiveImageManifest:
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
 
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, object]) -> "RedLiveImageManifest":
+        if not isinstance(payload, Mapping) or set(payload) != {
+            "format",
+            "release_version",
+            "source_revision",
+            "base_os",
+            "architecture",
+            "image_filename",
+            "image_size_bytes",
+            "image_sha256",
+            "package_manifest_sha256",
+            "sbom_sha256",
+            "secure_boot_status",
+        }:
+            raise ValueError("Red Live image manifest schema is not supported")
+        return cls(**dict(payload))
+
+    @classmethod
+    def from_json(cls, text: str) -> "RedLiveImageManifest":
+        try:
+            payload = json.loads(text)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ValueError("Red Live image manifest is not valid JSON") from exc
+        return cls.from_dict(payload)
+
 
 def verify_embedded_release_directory(root: Path) -> RedEmbeddedPackageManifest:
     """Verify immutable in-image wheels and their SBOM against packaged metadata."""
@@ -258,3 +284,30 @@ def build_live_image_manifest(
         package_manifest_sha256=_digest(package_manifest_path),
         sbom_sha256=_digest(sbom_path),
     )
+
+
+def verify_live_image_manifest(
+    manifest: RedLiveImageManifest,
+    *,
+    image_path: Path,
+    package_manifest_path: Path,
+    sbom_path: Path,
+) -> None:
+    """Verify an outer Live image manifest against release artifacts."""
+
+    if image_path.name != manifest.image_filename:
+        raise ValueError("Live image filename does not match manifest")
+    if not image_path.is_file():
+        raise ValueError("Live image is missing")
+    if image_path.stat().st_size != manifest.image_size_bytes:
+        raise ValueError("Live image size mismatch")
+    if _digest(image_path) != manifest.image_sha256:
+        raise ValueError("Live image digest mismatch")
+    if not package_manifest_path.is_file():
+        raise ValueError("package manifest sidecar is missing")
+    if _digest(package_manifest_path) != manifest.package_manifest_sha256:
+        raise ValueError("package manifest sidecar digest mismatch")
+    if not sbom_path.is_file():
+        raise ValueError("SBOM sidecar is missing")
+    if _digest(sbom_path) != manifest.sbom_sha256:
+        raise ValueError("SBOM sidecar digest mismatch")
