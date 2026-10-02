@@ -19,7 +19,8 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
         "network_context_intelligence", "network_change_intelligence",
         "network_evidence_completeness", "network_executive_assessment",
         "network_assessment_bundle", "network_engagement_executive",
-        "network_engagement_change",
+        "network_engagement_change", "network_review_readiness",
+        "network_follow_up_plan", "network_engagement_brief",
     ),
     "web": (
         "browser_playwright", "browser_policy", "browser_report", "browser_worker",
