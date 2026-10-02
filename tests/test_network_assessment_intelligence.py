@@ -69,7 +69,7 @@ class NetworkAssessmentIntelligenceTests(unittest.TestCase):
             for item in intelligence.notable_exposures
         ))
         self.assertIn(
-            "does not by themselves establish a vulnerability",
+            "do not by themselves establish a vulnerability",
             intelligence.interpretation,
         )
 
