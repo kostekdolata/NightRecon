@@ -19,6 +19,9 @@ fail() {
     exit 1
 }
 
+emit "RED_NIGHT_LIVE_CHECK:release-integrity"
+"$PYTHON" -c "from pathlib import Path; from red_night_app.live_release import verify_embedded_release_directory; verify_embedded_release_directory(Path('/opt/nightrecon/release'))" || fail "release-integrity"
+
 emit "RED_NIGHT_LIVE_CHECK:deployment-contract"
 "$PYTHON" -c "from red_night_app.deployment import RED_LIVE_USB_PROFILE, validate_red_deployment_contract; validate_red_deployment_contract(); assert RED_LIVE_USB_PROFILE.bootable_media; assert RED_LIVE_USB_PROFILE.host_disk_policy == 'no-automatic-mount'" || fail "deployment-contract"
 
