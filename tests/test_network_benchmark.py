@@ -111,7 +111,10 @@ class NetworkBenchmarkTests(unittest.TestCase):
 
         self.assertEqual(first.comparison_sha256, second.comparison_sha256)
         self.assertNotEqual(first.duration_ms, second.duration_ms)
-        self.assertNotIn("parity", first.interpretation.lower().split("do not establish")[0])
+        self.assertIn(
+            "does not establish feature parity",
+            first.interpretation.lower(),
+        )
 
 
 if __name__ == "__main__":
