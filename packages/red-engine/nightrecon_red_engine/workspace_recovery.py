@@ -89,6 +89,8 @@ def _source_entries(root: Path) -> tuple[WorkspaceBackupEntry, ...]:
             raise ValueError(f"workspace backup refuses non-regular file: {path}")
         relative = path.relative_to(root).as_posix()
         _safe_relative(relative)
+        if relative == MANIFEST_NAME:
+            raise ValueError("workspace contains reserved backup manifest path")
         size = path.stat().st_size
         total += size
         if len(entries) + 1 > MAX_BACKUP_FILES:
