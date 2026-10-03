@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import tempfile
 
 from nightrecon_red_engine.api_report import ApiInventoryReport
 from nightrecon_red_engine.api_validation_report import ApiValidationReport
@@ -220,14 +222,29 @@ class ResultStore:
         self.root.mkdir(parents=True, exist_ok=True)
 
         output_path = self.root / f"{session_id}.json"
-
-        with output_path.open("w", encoding="utf-8") as file:
-            json.dump(
-                data,
-                file,
-                indent=2,
-                sort_keys=True,
-            )
-            file.write("\n")
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=output_path.name + ".",
+            suffix=".tmp",
+            dir=str(self.root),
+            text=True,
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as file:
+                json.dump(
+                    data,
+                    file,
+                    indent=2,
+                    sort_keys=True,
+                )
+                file.write("\n")
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(tmp_name, output_path)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
 
         return output_path

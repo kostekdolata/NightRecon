@@ -408,3 +408,43 @@ This closes the automatable package install/uninstall/reinstall/upgrade/rollback
 mechanics for the current no-migration schema. Release-version alignment and any
 future schema migration must retain this gate.
 
+## v0.45 secrets and local-data hardening development state
+
+The v0.45 secrets/data-hardening slice strengthens local confidentiality without
+changing authorization or target-execution behavior.
+
+Implemented and CI-gated behavior includes:
+
+- recursive structured-log redaction for password, passphrase, secret, token,
+  cookie, API-key, private-key and Authorization-style values, including nested
+  mappings/sequences;
+- secret-handle objects are never serialized into structured logs and arbitrary
+  non-JSON objects are rejected rather than converted through potentially unsafe
+  `repr()`;
+- structured logs, authorization audit trails, result JSON, workspace exports,
+  and professional report exports are created privately on POSIX and use
+  fsync/atomic replacement where the format is replacement-based;
+- authenticated encrypted workspace backups using AES-256-GCM;
+- scrypt-derived backup keys with fixed reviewed KDF parameters, random salts
+  and nonces, and authenticated format metadata;
+- encrypted backup verification requires both successful authenticated
+  decryption and successful verification of the existing inner workspace
+  manifest/digests;
+- wrong passphrases, ciphertext tampering, unsupported cryptographic parameters,
+  malformed headers and authority-bearing metadata fail closed;
+- encrypted backup passphrases are supplied through an explicit passphrase file,
+  not as a command-line secret;
+- POSIX passphrase files must be regular non-symlink files with no group/other
+  permission bits;
+- plaintext backup support remains for compatibility, but encrypted backup is
+  the deployment-recommended path when backup data leaves an encrypted Secure
+  Workspace boundary.
+
+On Windows, POSIX mode bits are not an ACL guarantee. The implementation avoids
+placing passphrases in argv and uses normal Windows file semantics, but
+production Windows deployments must still rely on the operator/account ACL
+boundary for passphrase-file confidentiality.
+
+This slice does not create a credential vault, persist resolved infrastructure
+credentials, grant authorization, or make imported/recovered data authoritative.
+

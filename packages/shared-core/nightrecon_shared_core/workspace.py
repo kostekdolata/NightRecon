@@ -12,6 +12,8 @@ from collections import Counter
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
+import os
+import tempfile
 
 from nightrecon_shared_core.contracts import EngagementEnvelope, EngagementMetadata
 from nightrecon_shared_core.file_store import FileEngagementStore
@@ -299,7 +301,22 @@ class LocalWorkspace:
     def export_file(self, engagement_id: str, path: str | Path) -> None:
         destination = Path(path)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(
-            self.envelope(engagement_id).to_json() + "\n",
-            encoding="utf-8",
+        payload = self.envelope(engagement_id).to_json() + "\n"
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=destination.name + ".",
+            suffix=".tmp",
+            dir=str(destination.parent),
+            text=True,
         )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_name, destination)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise

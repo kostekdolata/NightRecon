@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import os
 from pathlib import Path
+import tempfile
 
 from nightrecon_red_engine.engagement_report import EngagementProfessionalReport
 
@@ -63,5 +65,22 @@ def write_engagement_report_export(
     export = build_engagement_report_export(report)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(export.to_json() + "\n", encoding="utf-8")
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=destination.name + ".",
+        suffix=".tmp",
+        dir=str(destination.parent),
+        text=True,
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(export.to_json() + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, destination)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
     return export

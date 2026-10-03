@@ -1,6 +1,7 @@
 """Tests for deterministic professional engagement exports."""
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -35,6 +36,8 @@ class EngagementReportExportTests(unittest.TestCase):
             path = Path(tmp) / "report.json"
             result = write_engagement_report_export(report, path)
             payload = json.loads(path.read_text(encoding="utf-8"))
+            if os.name != "nt":
+                self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
         self.assertEqual(payload["schema_version"], 1)
         self.assertEqual(payload["fingerprint_sha256"], result.fingerprint_sha256)

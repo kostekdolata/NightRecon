@@ -1,6 +1,7 @@
 """Tests for NightRecon result storage."""
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -33,6 +34,8 @@ class ResultStoreTests(unittest.TestCase):
                 output_path.name,
                 f"{session.session_id}.json",
             )
+            if os.name != "nt":
+                self.assertEqual(output_path.stat().st_mode & 0o777, 0o600)
 
     def test_saved_json_contains_session_data(self):
         target = parse_target("example.com")
