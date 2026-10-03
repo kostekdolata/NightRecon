@@ -5887,7 +5887,6 @@ def main(argv: tuple[str, ...] | None = None) -> None:
     if not arguments or arguments[0] in {"-h", "--help"}:
         print(f"NightRecon {edition_name('red')} command boundary")
         print("Available commands: " + ", ".join(allowed))
-        print("Standalone edition packaging is not yet available.")
         return
 
     if arguments[0] == "--version":
