@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "0.45.3",
+    [string]$Version = "0.45.4",
     [string]$SourceCommit = "unknown"
 )
 
