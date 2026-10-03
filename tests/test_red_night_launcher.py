@@ -88,7 +88,7 @@ class RedNightLauncherTests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             main(())
         self.assertIn("NightRecon Red Night command boundary", output.getvalue())
-        self.assertIn("Standalone edition packaging is not yet available", output.getvalue())
+        self.assertNotIn("Standalone edition packaging is not yet available", output.getvalue())
 
 
 if __name__ == "__main__":
