@@ -277,6 +277,8 @@ class WorkspaceTests(unittest.TestCase):
             ))
             exported = root / "exchange" / "eng-1.json"
             source.export_file("eng-1", exported)
+            if os.name != "nt":
+                self.assertEqual(exported.stat().st_mode & 0o777, 0o600)
             report = target.import_file(exported)
             self.assertTrue(report.applied)
             self.assertEqual(
