@@ -1,6 +1,6 @@
 #define MyAppName "Red Night"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.45.1"
+  #define MyAppVersion "0.45.2"
 #endif
 #ifndef SourceDir
   #error SourceDir must point at the prepared Red Night bundle.
@@ -14,7 +14,7 @@ AppId={{6F45CC2B-3F5E-4B3D-BC5C-57EF164E8E81}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher=NightRecon
-VersionInfoVersion=0.45.1.0
+VersionInfoVersion=0.45.2.0
 VersionInfoDescription=Red Night authorized assessment platform
 VersionInfoProductName=Red Night
 VersionInfoProductVersion={#MyAppVersion}
@@ -51,8 +51,8 @@ Name: "{localappdata}\NightRecon\RedNight\backups"; Flags: uninsneveruninstall
 Name: "{localappdata}\NightRecon\RedNight\logs"; Flags: uninsneveruninstall
 
 [Icons]
-Name: "{autoprograms}\Red Night"; Filename: "{cmd}"; Parameters: "/K ""{app}\RedNight.exe"" --help"; WorkingDir: "{localappdata}\NightRecon\RedNight"
-Name: "{autodesktop}\Red Night"; Filename: "{cmd}"; Parameters: "/K ""{app}\RedNight.exe"" --help"; WorkingDir: "{localappdata}\NightRecon\RedNight"; Tasks: desktopicon
+Name: "{autoprograms}\Red Night"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -File ""{app}\launch-red-night.ps1"""; WorkingDir: "{localappdata}\NightRecon\RedNight"
+Name: "{autodesktop}\Red Night"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -File ""{app}\launch-red-night.ps1"""; WorkingDir: "{localappdata}\NightRecon\RedNight"; Tasks: desktopicon
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
