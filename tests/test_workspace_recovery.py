@@ -21,14 +21,12 @@ class WorkspaceRecoveryTests(unittest.TestCase):
             source = root / "workspace"
             source.mkdir()
             (source / "engagements.json").write_text(
-                '{"engagements":[]}
-', encoding="utf-8"
+                '{"engagements":[]}\n', encoding="utf-8"
             )
             nested = source / "nested"
             nested.mkdir()
             (nested / "audit.jsonl").write_text(
-                '{"event":"x"}
-', encoding="utf-8"
+                '{"event":"x"}\n', encoding="utf-8"
             )
             archive = root / "backup.nrwb"
 
