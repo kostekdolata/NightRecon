@@ -81,6 +81,11 @@ jobs:
           $info = & $app --deployment-info | ConvertFrom-Json
           if (-not $info.package_compatible) { throw "Installed package set is incompatible" }
 
+          $selfTest = & $app --deployment-self-test | ConvertFrom-Json
+          if (-not $selfTest.passed) { throw "Installed deployment self-test failed" }
+          if ($selfTest.operational -or $selfTest.network_activity) { throw "Deployment self-test crossed its non-operational boundary" }
+          if (-not $selfTest.encrypted_backup_verified -or -not $selfTest.encrypted_backup_restored) { throw "Encrypted backup/restore self-test failed" }
+
           $data = Join-Path $env:LOCALAPPDATA "NightRecon\RedNight"
           $sentinel = Join-Path $data "workspaces\ci-preserve.txt"
           "preserve-me" | Set-Content -Encoding UTF8 $sentinel
@@ -96,6 +101,8 @@ jobs:
           if (-not (Test-Path $app)) { throw "Executable missing after reinstall" }
           if (-not (Test-Path $sentinel)) { throw "Workspace data not preserved across reinstall" }
           & $app --deployment-info | Out-Host
+          $selfTestAfterReinstall = & $app --deployment-self-test | ConvertFrom-Json
+          if (-not $selfTestAfterReinstall.passed) { throw "Deployment self-test failed after reinstall" }
       - name: Validate release metadata
         shell: pwsh
         run: |
