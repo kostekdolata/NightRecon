@@ -51,7 +51,7 @@ def build_host_operating_system_fingerprints(
 
     for address in sorted(
         addresses,
-        key=ipaddress.ip_address,
+        key=_address_sort_key,
     ):
         fingerprint = build_operating_system_fingerprint(
             tuple(
@@ -72,6 +72,15 @@ def build_host_operating_system_fingerprints(
         )
 
     return tuple(results)
+
+
+def _address_sort_key(
+    value: str,
+) -> tuple[int, int]:
+    """Return a deterministic key that safely orders IPv4 and IPv6."""
+
+    address = ipaddress.ip_address(value)
+    return address.version, int(address)
 
 
 def build_operating_system_fingerprint(
