@@ -51,8 +51,8 @@ Name: "{localappdata}\NightRecon\RedNight\backups"; Flags: uninsneveruninstall
 Name: "{localappdata}\NightRecon\RedNight\logs"; Flags: uninsneveruninstall
 
 [Icons]
-Name: "{autoprograms}\Red Night"; Filename: "{app}\RedNight.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"
-Name: "{autodesktop}\Red Night"; Filename: "{app}\RedNight.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"; Tasks: desktopicon
+Name: "{autoprograms}\Red Night"; Filename: "{cmd}"; Parameters: "/K ""{app}\RedNight.exe"" --help"; WorkingDir: "{localappdata}\NightRecon\RedNight"
+Name: "{autodesktop}\Red Night"; Filename: "{cmd}"; Parameters: "/K ""{app}\RedNight.exe"" --help"; WorkingDir: "{localappdata}\NightRecon\RedNight"; Tasks: desktopicon
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
