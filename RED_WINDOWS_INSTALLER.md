@@ -55,10 +55,11 @@ The Windows installer workflow must prove:
 2. PyInstaller launch of the non-operational deployment-info path;
 3. silent per-user install;
 4. installed deployment-info compatibility;
-5. creation and preservation of the user data root;
-6. silent uninstall removes application binaries;
-7. user data survives uninstall;
-8. reinstall succeeds with the preserved data;
-9. integrity manifest and SHA-256 outputs are generated.
+5. an installed local-only deployment self-test covering workspace reopen, engagement export, professional report construction, encrypted backup verification, and encrypted restore;
+6. creation and preservation of the user data root;
+7. silent uninstall removes application binaries;
+8. user data survives uninstall;
+9. reinstall succeeds with the preserved data and repeats the local-only self-test;
+10. integrity manifest and SHA-256 outputs are generated.
 
 A real UAC operational launch, Microsoft Defender/SmartScreen observations, and laptop-specific path/firewall behaviour remain physical Windows acceptance items and must not be claimed from CI.
