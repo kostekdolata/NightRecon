@@ -96,7 +96,12 @@ class WorkspaceTests(unittest.TestCase):
             audit = workspace.authorization_audit("eng-auth")
             self.assertEqual(len(audit), 5)
             self.assertEqual(audit[0].reason_code, "target_out_of_scope")
+            self.assertEqual(audit[2].reason_code, "authorized")
+            self.assertEqual(audit[2].actions_used, 1)
+            self.assertEqual(audit[3].reason_code, "authorized")
+            self.assertEqual(audit[3].actions_used, 2)
             self.assertEqual(audit[-1].reason_code, "action_budget_exhausted")
+            self.assertEqual(audit[-1].actions_used, 2)
             if os.name != "nt":
                 audit_path = Path(directory) / workspace.AUTHORIZATION_AUDIT_FILENAME
                 self.assertEqual(audit_path.stat().st_mode & 0o777, 0o600)
