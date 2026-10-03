@@ -30,6 +30,5 @@ def require_platform_privilege() -> None:
     if not is_platform_privileged():
         raise PermissionError(
             "Red Night requires privileged OS execution in standalone, "
-            "composed/full-stack, and Live deployments; NightRecon "
-            "authorization remains independently enforced"
+            "composed/full-stack, and Live deployments"
         )

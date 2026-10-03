@@ -165,7 +165,7 @@ def run_ephemeral_operator_session(
         output_fn("Ephemeral Session active.")
         output_fn(
             "Red Night commands run from temporary runtime storage. "
-            "Active operations still require normal Red/shared-core authorization."
+            "The privileged Live session is the operator approval boundary."
         )
         output_fn("Type 'help' for Red Night CLI help or 'exit' to leave the session.")
 
@@ -287,7 +287,7 @@ def run_secure_workspace_session(
     output_fn("Secure Workspace active.")
     output_fn(
         "Red Night is running from encrypted persistent storage. "
-        "NightRecon authorization controls remain unchanged."
+        "The privileged Live session is the operator approval boundary."
     )
     os.environ["NIGHTRECON_LIVE_MODE"] = RedLiveSessionMode.SECURE_WORKSPACE.value
     os.environ["NIGHTRECON_SECURE_WORKSPACE"] = config.mount_point

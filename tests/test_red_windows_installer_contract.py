@@ -50,15 +50,15 @@ class RedWindowsInstallerContractTests(unittest.TestCase):
         text = RED_CLI.read_text(encoding="utf-8")
         self.assertNotIn("Standalone edition packaging is not yet available.", text)
 
-    def test_windows_installer_release_version_is_0_45_3(self) -> None:
+    def test_windows_installer_release_version_is_0_45_4(self) -> None:
         iss = ISS.read_text(encoding="utf-8")
         build = BUILD.read_text(encoding="utf-8")
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('#define MyAppVersion "0.45.3"', iss)
-        self.assertIn("VersionInfoVersion=0.45.3.0", iss)
-        self.assertIn('[string]$Version = "0.45.3"', build)
-        self.assertIn('build_installer.ps1 -Version "0.45.3"', workflow)
-        self.assertIn("RedNight-0.45.3-Windows-x64-Setup.exe", workflow)
+        self.assertIn('#define MyAppVersion "0.45.4"', iss)
+        self.assertIn("VersionInfoVersion=0.45.4.0", iss)
+        self.assertIn('[string]$Version = "0.45.4"', build)
+        self.assertIn('build_installer.ps1 -Version "0.45.4"', workflow)
+        self.assertIn("RedNight-0.45.4-Windows-x64-Setup.exe", workflow)
         self.assertNotIn("RedNight-0.45.2-Windows-x64-Setup.exe", workflow)
 
     def test_build_uses_exact_red_package_set_and_integrity_outputs(self) -> None:
