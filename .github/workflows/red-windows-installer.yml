@@ -73,8 +73,8 @@ jobs:
         shell: pwsh
         run: |
           $installer = (Get-ChildItem .\artifacts\windows-installer\RedNight-0.45.0-Windows-x64-Setup.exe).FullName
-          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "Installer failed: $LASTEXITCODE" }
+          $install = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer failed: $($install.ExitCode)" }
 
           $app = Join-Path $env:LOCALAPPDATA "Programs\Red Night\RedNight.exe"
           if (-not (Test-Path $app)) { throw "Installed executable missing" }
@@ -86,13 +86,13 @@ jobs:
           "preserve-me" | Set-Content -Encoding UTF8 $sentinel
 
           $uninstaller = Join-Path $env:LOCALAPPDATA "Programs\Red Night\unins000.exe"
-          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "Uninstaller failed: $LASTEXITCODE" }
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller failed: $($uninstall.ExitCode)" }
           if (Test-Path $app) { throw "Application binary survived uninstall" }
           if (-not (Test-Path $sentinel)) { throw "User workspace data was removed" }
 
-          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "Reinstall failed: $LASTEXITCODE" }
+          $reinstall = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($reinstall.ExitCode -ne 0) { throw "Reinstall failed: $($reinstall.ExitCode)" }
           if (-not (Test-Path $app)) { throw "Executable missing after reinstall" }
           if (-not (Test-Path $sentinel)) { throw "Workspace data not preserved across reinstall" }
           & $app --deployment-info | Out-Host
