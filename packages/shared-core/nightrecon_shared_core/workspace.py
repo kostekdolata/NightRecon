@@ -140,11 +140,6 @@ class LocalWorkspace:
             approval_present=approval_present,
             now=now,
         )
-        append_authorization_audit(
-            self.root / self.AUTHORIZATION_AUDIT_FILENAME,
-            decision,
-            occurred_at=now,
-        )
         if decision.allowed and consume:
             updated = self.policy_store.consume_action(engagement_id)
             decision = AuthorizationDecision(
@@ -160,6 +155,11 @@ class LocalWorkspace:
                 max_actions=updated.max_actions,
                 remaining_actions=updated.max_actions - updated.actions_used,
             )
+        append_authorization_audit(
+            self.root / self.AUTHORIZATION_AUDIT_FILENAME,
+            decision,
+            occurred_at=now,
+        )
         return decision
 
     def authorization_audit(self, engagement_id: str):
