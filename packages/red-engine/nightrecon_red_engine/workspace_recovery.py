@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import base64
 import hashlib
 import json
 import os
@@ -11,12 +12,24 @@ import shutil
 import tempfile
 import zipfile
 
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+
 
 BACKUP_SCHEMA_VERSION = 1
 MANIFEST_NAME = "nightrecon-workspace-manifest.json"
 MAX_BACKUP_FILES = 5000
 MAX_BACKUP_BYTES = 512 * 1024 * 1024
 _ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
+ENCRYPTED_BACKUP_FORMAT = "nightrecon-red-workspace-encrypted-v1"
+_ENCRYPTED_MAGIC = b"NIGHTRECON-RED-WORKSPACE-ENC-V1\\n"
+_ENCRYPTED_TAG_BYTES = 16
+_ENCRYPTED_HEADER_MAX_BYTES = 4096
+_SCRYPT_N = 2 ** 14
+_SCRYPT_R = 8
+_SCRYPT_P = 1
+_ENCRYPTION_CHUNK_BYTES = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -302,3 +315,274 @@ def restore_workspace_backup(
         shutil.rmtree(temp_root, ignore_errors=True)
         raise
     return report
+
+@dataclass(frozen=True)
+class EncryptedWorkspaceBackupReport:
+    schema_version: int
+    file_count: int
+    total_bytes: int
+    manifest_sha256: str
+    plaintext_archive_sha256: str
+    encrypted_archive_sha256: str
+    encryption_format: str = ENCRYPTED_BACKUP_FORMAT
+    authorization_effect: str = "none"
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "file_count": self.file_count,
+            "total_bytes": self.total_bytes,
+            "manifest_sha256": self.manifest_sha256,
+            "plaintext_archive_sha256": self.plaintext_archive_sha256,
+            "encrypted_archive_sha256": self.encrypted_archive_sha256,
+            "encryption_format": self.encryption_format,
+            "authorization_effect": self.authorization_effect,
+        }
+
+
+def _validate_passphrase(passphrase: bytes) -> bytes:
+    if not isinstance(passphrase, bytes):
+        raise TypeError("workspace backup passphrase must be bytes")
+    if len(passphrase) < 12:
+        raise ValueError("workspace backup passphrase must be at least 12 bytes")
+    if len(passphrase) > 1024:
+        raise ValueError("workspace backup passphrase exceeds 1024 bytes")
+    return passphrase
+
+
+def _derive_backup_key(passphrase: bytes, salt: bytes) -> bytes:
+    return Scrypt(
+        salt=salt,
+        length=32,
+        n=_SCRYPT_N,
+        r=_SCRYPT_R,
+        p=_SCRYPT_P,
+    ).derive(_validate_passphrase(passphrase))
+
+
+def _encrypted_header(salt: bytes, nonce: bytes) -> bytes:
+    payload = {
+        "format": ENCRYPTED_BACKUP_FORMAT,
+        "kdf": "scrypt",
+        "n": _SCRYPT_N,
+        "r": _SCRYPT_R,
+        "p": _SCRYPT_P,
+        "cipher": "aes-256-gcm",
+        "salt_b64": base64.b64encode(salt).decode("ascii"),
+        "nonce_b64": base64.b64encode(nonce).decode("ascii"),
+        "authorization_effect": "none",
+    }
+    return (
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("utf-8")
+
+
+def _parse_encrypted_header(header_bytes: bytes) -> tuple[bytes, bytes]:
+    if len(header_bytes) > _ENCRYPTED_HEADER_MAX_BYTES:
+        raise ValueError("encrypted workspace backup header is too large")
+    try:
+        payload = json.loads(header_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("encrypted workspace backup header is invalid") from exc
+    if not isinstance(payload, dict) or set(payload) != {
+        "format", "kdf", "n", "r", "p", "cipher",
+        "salt_b64", "nonce_b64", "authorization_effect",
+    }:
+        raise ValueError("encrypted workspace backup header schema is not supported")
+    if (
+        payload["format"] != ENCRYPTED_BACKUP_FORMAT
+        or payload["kdf"] != "scrypt"
+        or payload["n"] != _SCRYPT_N
+        or payload["r"] != _SCRYPT_R
+        or payload["p"] != _SCRYPT_P
+        or payload["cipher"] != "aes-256-gcm"
+    ):
+        raise ValueError("encrypted workspace backup cryptographic parameters are unsupported")
+    if payload["authorization_effect"] != "none":
+        raise ValueError("encrypted workspace backup cannot grant authorization")
+    try:
+        salt = base64.b64decode(payload["salt_b64"], validate=True)
+        nonce = base64.b64decode(payload["nonce_b64"], validate=True)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("encrypted workspace backup header encoding is invalid") from exc
+    if len(salt) != 16 or len(nonce) != 12:
+        raise ValueError("encrypted workspace backup salt or nonce size is invalid")
+    return salt, nonce
+
+
+def _encrypt_backup_file(
+    plaintext: Path,
+    destination: Path,
+    *,
+    passphrase: bytes,
+) -> None:
+    salt = os.urandom(16)
+    nonce = os.urandom(12)
+    header = _encrypted_header(salt, nonce)
+    key = _derive_backup_key(passphrase, salt)
+    encryptor = Cipher(algorithms.AES(key), modes.GCM(nonce)).encryptor()
+    encryptor.authenticate_additional_data(_ENCRYPTED_MAGIC + header)
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=destination.name + ".",
+        suffix=".tmp",
+        dir=str(destination.parent),
+    )
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as output, plaintext.open("rb") as source:
+            output.write(_ENCRYPTED_MAGIC)
+            output.write(header)
+            for chunk in iter(lambda: source.read(_ENCRYPTION_CHUNK_BYTES), b""):
+                output.write(encryptor.update(chunk))
+            output.write(encryptor.finalize())
+            output.write(encryptor.tag)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(tmp, destination)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def _decrypt_backup_file(
+    encrypted: Path,
+    destination: Path,
+    *,
+    passphrase: bytes,
+) -> None:
+    if not encrypted.exists() or not encrypted.is_file():
+        raise ValueError("encrypted workspace backup archive not found")
+    with encrypted.open("rb") as source:
+        if source.readline(len(_ENCRYPTED_MAGIC) + 1) != _ENCRYPTED_MAGIC:
+            raise ValueError("encrypted workspace backup magic is invalid")
+        header = source.readline(_ENCRYPTED_HEADER_MAX_BYTES + 1)
+        if not header.endswith(b"\n") or len(header) > _ENCRYPTED_HEADER_MAX_BYTES:
+            raise ValueError("encrypted workspace backup header is invalid")
+        data_start = source.tell()
+        salt, nonce = _parse_encrypted_header(header)
+        total_size = encrypted.stat().st_size
+        ciphertext_length = total_size - data_start - _ENCRYPTED_TAG_BYTES
+        if ciphertext_length < 1:
+            raise ValueError("encrypted workspace backup payload is missing")
+        source.seek(total_size - _ENCRYPTED_TAG_BYTES)
+        tag = source.read(_ENCRYPTED_TAG_BYTES)
+        source.seek(data_start)
+
+        key = _derive_backup_key(passphrase, salt)
+        decryptor = Cipher(algorithms.AES(key), modes.GCM(nonce, tag)).decryptor()
+        decryptor.authenticate_additional_data(_ENCRYPTED_MAGIC + header)
+
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=destination.name + ".",
+            suffix=".tmp",
+            dir=str(destination.parent),
+        )
+        tmp = Path(tmp_name)
+        remaining = ciphertext_length
+        try:
+            with os.fdopen(fd, "wb") as output:
+                while remaining:
+                    chunk = source.read(min(_ENCRYPTION_CHUNK_BYTES, remaining))
+                    if not chunk:
+                        raise ValueError("encrypted workspace backup payload is truncated")
+                    remaining -= len(chunk)
+                    output.write(decryptor.update(chunk))
+                try:
+                    output.write(decryptor.finalize())
+                except InvalidTag as exc:
+                    raise ValueError(
+                        "encrypted workspace backup authentication failed"
+                    ) from exc
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(tmp, destination)
+        except BaseException:
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+            raise
+
+
+def create_encrypted_workspace_backup(
+    workspace_root: str | Path,
+    destination: str | Path,
+    *,
+    passphrase: bytes,
+) -> EncryptedWorkspaceBackupReport:
+    output = Path(destination).resolve()
+    if output.exists():
+        raise ValueError("encrypted backup destination already exists")
+    with tempfile.TemporaryDirectory(prefix="nightrecon-backup-encrypt-") as temp:
+        plaintext = Path(temp) / "workspace.nrwb"
+        inner = create_workspace_backup(workspace_root, plaintext)
+        _encrypt_backup_file(plaintext, output, passphrase=passphrase)
+    return EncryptedWorkspaceBackupReport(
+        schema_version=inner.schema_version,
+        file_count=inner.file_count,
+        total_bytes=inner.total_bytes,
+        manifest_sha256=inner.manifest_sha256,
+        plaintext_archive_sha256=inner.archive_sha256,
+        encrypted_archive_sha256=_sha256_file(output),
+    )
+
+
+def _decrypt_and_verify_workspace_backup(
+    archive_path: str | Path,
+    *,
+    passphrase: bytes,
+    temp_root: Path,
+) -> tuple[Path, EncryptedWorkspaceBackupReport]:
+    encrypted = Path(archive_path).resolve()
+    plaintext = temp_root / "decrypted.nrwb"
+    _decrypt_backup_file(encrypted, plaintext, passphrase=passphrase)
+    inner = verify_workspace_backup(plaintext)
+    report = EncryptedWorkspaceBackupReport(
+        schema_version=inner.schema_version,
+        file_count=inner.file_count,
+        total_bytes=inner.total_bytes,
+        manifest_sha256=inner.manifest_sha256,
+        plaintext_archive_sha256=inner.archive_sha256,
+        encrypted_archive_sha256=_sha256_file(encrypted),
+    )
+    return plaintext, report
+
+
+def verify_encrypted_workspace_backup(
+    archive_path: str | Path,
+    *,
+    passphrase: bytes,
+) -> EncryptedWorkspaceBackupReport:
+    with tempfile.TemporaryDirectory(prefix="nightrecon-backup-verify-") as temp:
+        _, report = _decrypt_and_verify_workspace_backup(
+            archive_path,
+            passphrase=passphrase,
+            temp_root=Path(temp),
+        )
+        return report
+
+
+def restore_encrypted_workspace_backup(
+    archive_path: str | Path,
+    destination_root: str | Path,
+    *,
+    passphrase: bytes,
+) -> EncryptedWorkspaceBackupReport:
+    destination = Path(destination_root).resolve()
+    if destination.exists():
+        raise ValueError("restore destination must not already exist")
+    with tempfile.TemporaryDirectory(prefix="nightrecon-backup-restore-") as temp:
+        plaintext, report = _decrypt_and_verify_workspace_backup(
+            archive_path,
+            passphrase=passphrase,
+            temp_root=Path(temp),
+        )
+        restore_workspace_backup(plaintext, destination)
+        return report
+
