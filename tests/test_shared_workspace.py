@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import tempfile
 import unittest
 
@@ -96,6 +97,9 @@ class WorkspaceTests(unittest.TestCase):
             self.assertEqual(len(audit), 5)
             self.assertEqual(audit[0].reason_code, "target_out_of_scope")
             self.assertEqual(audit[-1].reason_code, "action_budget_exhausted")
+            if os.name != "nt":
+                audit_path = Path(directory) / workspace.AUTHORIZATION_AUDIT_FILENAME
+                self.assertEqual(audit_path.stat().st_mode & 0o777, 0o600)
 
     def test_revocation_and_inactive_status_block_execution(self) -> None:
         with tempfile.TemporaryDirectory(prefix="nightrecon-workspace-") as directory:
