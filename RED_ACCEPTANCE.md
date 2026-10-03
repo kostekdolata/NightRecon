@@ -379,3 +379,32 @@ reviewed encrypted backup/secrets design is accepted.
 This slice does not grant authorization, alter engagement scope, auto-repair
 corrupted content, or merge a recovered backup into an existing workspace.
 
+## v0.45 packaged deployment lifecycle development state
+
+The v0.45 deployment-lifecycle slice adds a real wheel/virtual-environment
+acceptance gate across Ubuntu and Windows on Python 3.11 and 3.14.
+
+The CI lifecycle fixture proves:
+
+- a clean standalone Red package set installs from built wheels;
+- shared core, Red engine and Red application versions are mutually compatible;
+- an external persistent engagement workspace remains readable with its status,
+  authorization policy, consumed action budget and authorization audit intact;
+- a coordinated package-set upgrade preserves that workspace state;
+- uninstalling the Red application does not remove the Red engine, shared core or
+  external workspace;
+- reinstalling the application preserves state;
+- package-set rollback to the baseline preserves state;
+- an intentionally mixed Red package version set fails closed through the
+  existing composition compatibility contract.
+
+The upgrade candidate used by this smoke is a CI-only
+`0.43.0.post1` package-lifecycle fixture generated from the same source tree
+with package/composition version contracts changed consistently. It is not a
+released NightRecon version and does not substitute for historical-code
+migration testing when a future schema migration is introduced.
+
+This closes the automatable package install/uninstall/reinstall/upgrade/rollback
+mechanics for the current no-migration schema. Release-version alignment and any
+future schema migration must retain this gate.
+
