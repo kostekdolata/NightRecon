@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
+import stat
 import sys
 from collections.abc import Sequence
 from dataclasses import asdict
@@ -23,8 +25,11 @@ from nightrecon_red_engine.engagement_collaboration import (
     ReviewState,
 )
 from nightrecon_red_engine.workspace_recovery import (
+    create_encrypted_workspace_backup,
     create_workspace_backup,
+    restore_encrypted_workspace_backup,
     restore_workspace_backup,
+    verify_encrypted_workspace_backup,
     verify_workspace_backup,
 )
 
@@ -32,6 +37,22 @@ from nightrecon_red_engine.workspace_recovery import (
 def _error(exc: Exception) -> None:
     print(f"red-night workspace: {exc}", file=sys.stderr)
     raise SystemExit(2) from None
+
+
+def _read_passphrase_file(path: str) -> bytes:
+    source = Path(path)
+    if source.is_symlink() or not source.is_file():
+        raise ValueError("passphrase file must be a regular non-symlink file")
+    if os.name != "nt" and stat.S_IMODE(source.stat().st_mode) & 0o077:
+        raise ValueError("passphrase file must not be accessible by group or other users")
+    value = source.read_bytes()
+    if value.endswith(b"\r\n"):
+        value = value[:-2]
+    elif value.endswith(b"\n"):
+        value = value[:-1]
+    if b"\n" in value or b"\r" in value:
+        raise ValueError("passphrase file must contain exactly one line")
+    return value
 
 
 def main(argv: Sequence[str]) -> None:
@@ -159,6 +180,31 @@ def main(argv: Sequence[str]) -> None:
     restore.add_argument("root")
     restore.add_argument("--input", required=True)
     restore.add_argument("--destination", required=True)
+
+    encrypted_backup = operations.add_parser(
+        "backup-encrypted",
+        help="Create an authenticated encrypted workspace backup archive.",
+    )
+    encrypted_backup.add_argument("root")
+    encrypted_backup.add_argument("--output", required=True)
+    encrypted_backup.add_argument("--passphrase-file", required=True)
+
+    encrypted_verify = operations.add_parser(
+        "backup-encrypted-verify",
+        help="Decrypt and verify an encrypted workspace backup without restoring it.",
+    )
+    encrypted_verify.add_argument("root")
+    encrypted_verify.add_argument("--input", required=True)
+    encrypted_verify.add_argument("--passphrase-file", required=True)
+
+    encrypted_restore = operations.add_parser(
+        "restore-encrypted",
+        help="Restore an authenticated encrypted backup into a new directory.",
+    )
+    encrypted_restore.add_argument("root")
+    encrypted_restore.add_argument("--input", required=True)
+    encrypted_restore.add_argument("--destination", required=True)
+    encrypted_restore.add_argument("--passphrase-file", required=True)
 
     importing = operations.add_parser("import", help="Merge a portable engagement envelope.")
     importing.add_argument("root")
@@ -335,6 +381,38 @@ def main(argv: Sequence[str]) -> None:
 
         if args.operation == "restore":
             report = restore_workspace_backup(args.input, args.destination)
+            print(json.dumps({
+                "destination": str(Path(args.destination)),
+                **report.to_dict(),
+            }, sort_keys=True))
+            return
+
+        if args.operation == "backup-encrypted":
+            report = create_encrypted_workspace_backup(
+                args.root,
+                args.output,
+                passphrase=_read_passphrase_file(args.passphrase_file),
+            )
+            print(json.dumps({
+                "output": str(Path(args.output)),
+                **report.to_dict(),
+            }, sort_keys=True))
+            return
+
+        if args.operation == "backup-encrypted-verify":
+            report = verify_encrypted_workspace_backup(
+                args.input,
+                passphrase=_read_passphrase_file(args.passphrase_file),
+            )
+            print(json.dumps(report.to_dict(), sort_keys=True))
+            return
+
+        if args.operation == "restore-encrypted":
+            report = restore_encrypted_workspace_backup(
+                args.input,
+                args.destination,
+                passphrase=_read_passphrase_file(args.passphrase_file),
+            )
             print(json.dumps({
                 "destination": str(Path(args.destination)),
                 **report.to_dict(),
