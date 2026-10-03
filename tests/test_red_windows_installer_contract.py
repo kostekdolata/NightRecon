@@ -12,6 +12,7 @@ from red_night_app import windows_launcher
 REPOSITORY = Path(__file__).resolve().parents[1]
 ISS = REPOSITORY / "installer" / "windows" / "red-night.iss"
 BUILD = REPOSITORY / "installer" / "windows" / "build_installer.ps1"
+RED_CLI = REPOSITORY / "packages" / "red-engine" / "nightrecon_red_engine" / "red_cli.py"
 
 
 class RedWindowsInstallerContractTests(unittest.TestCase):
@@ -31,6 +32,12 @@ class RedWindowsInstallerContractTests(unittest.TestCase):
         self.assertIn(r"{autoprograms}\Red Night", text)
         self.assertIn(r"{autodesktop}\Red Night", text)
         self.assertIn('Name: "desktopicon"', text)
+        self.assertIn('Filename: "{cmd}"', text)
+        self.assertIn('Parameters: "/K ""{app}\\RedNight.exe"" --help"', text)
+
+    def test_red_cli_has_no_stale_packaging_unavailable_message(self) -> None:
+        text = RED_CLI.read_text(encoding="utf-8")
+        self.assertNotIn("Standalone edition packaging is not yet available.", text)
 
     def test_build_uses_exact_red_package_set_and_integrity_outputs(self) -> None:
         text = BUILD.read_text(encoding="utf-8")
