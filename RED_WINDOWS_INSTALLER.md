@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document defines the first native Windows installation surface for Red Night v0.45.3. It is intentionally separate from Live USB hardware qualification.
+This document defines the first native Windows installation surface for Red Night v0.45.4. It is intentionally separate from Live USB hardware qualification.
 
 The Windows installer packages the existing Red application, Red engine, and shared core as one coordinated PyInstaller onedir bundle and installs it with Inno Setup 6.
 
@@ -10,7 +10,7 @@ The Windows installer packages the existing Red application, Red engine, and sha
 
 The installer is per-user and uses `PrivilegesRequired=lowest`. Installing, repairing, or uninstalling Red Night therefore does not require administrator rights merely to copy application files.
 
-Operational Red Night execution retains the existing `required-platform-privileged` contract. The installed Start Menu/Desktop launcher requests UAC elevation for a persistent PowerShell session, places the installed Red Night application directory on that session's process-local PATH, displays Red Night help, and leaves the elevated terminal open for operator commands. Direct `RedNight.exe` execution continues to enforce the canonical `red_night_app.main()` privilege check.
+Operational Red Night execution retains the `required-platform-privileged` contract. A deliberate launch requests the platform-native elevation boundary once (Windows UAC; Linux/Live root elevation through the platform launcher). After elevation succeeds, that privileged Red Night session is the operator approval boundary: normal commands run directly without a separate workspace/engagement guard ceremony. Command-level `--scope`, bounded execution, credential handling, evidence, result logging, and audit controls remain in force.
 
 `RedNight.exe --deployment-info` is the only non-elevated launcher path. It is non-operational, performs no target action, and reports only package/build compatibility metadata with `authorization_effect=none`.
 
@@ -45,7 +45,7 @@ The manifest records the source commit and installer version.
 
 The installer bundles the Python dependencies for the existing optional Red integrations. It does not bundle a Playwright Chromium browser binary in this initial Windows installer. Browser-driven assessment therefore remains a separately provisioned optional integration and is not part of the first offline Windows acceptance gate.
 
-No target-execution, authorization, scope, revocation, evidence, cleanup, action-budget, or audit control is changed by the installer.
+The operator-session model removes only the repeated workspace/engagement guard ceremony after platform elevation. Target scope, bounded execution, credential handling, evidence, cleanup, result logging, and audit controls remain in place.
 
 ## CI acceptance
 
