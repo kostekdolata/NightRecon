@@ -24,7 +24,7 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
         "network_evidence_concentration", "network_change_executive",
         "network_engagement_export", "engagement_review",
         "engagement_report", "engagement_export", "engagement_collaboration",
-        "remediation_retest",
+        "workspace_recovery", "remediation_retest",
         "controlled_validation", "validation_adapter_contracts",
         "validation_attack_review", "validation_candidates",
         "validation_eligibility", "validation_techniques",

@@ -348,3 +348,34 @@ This closes a collaboration-foundation slice of the professional workspace
 acceptance gap. It does not by itself provide RBAC, networked multi-user
 sessions, unrestricted agent/C2 behavior, or cross-Night authority transfer.
 
+## v0.45 workspace backup and recovery development state
+
+The v0.45 workspace-recovery slice adds bounded local backup, integrity
+verification, and fail-closed restore for Red workspace state.
+
+Implemented and CI-gated behavior includes:
+
+- deterministic versioned backup manifests with per-file SHA-256 digests;
+- bounded file-count and aggregate-size limits;
+- refusal of source symlinks and non-regular files;
+- path-traversal, absolute-path, duplicate-path, reserved-path, and archive
+  symlink rejection;
+- exact archive/manifest path agreement before restore;
+- payload size and digest verification before any restore is accepted;
+- restore only into a new destination directory, preventing silent overwrite of
+  an existing workspace;
+- temporary-directory recovery followed by atomic destination placement;
+- explicit `authorization_effect=none` in backup metadata;
+- Red workspace CLI create/verify/restore surfaces;
+- regression coverage for round-trip recovery, tampering, authority metadata,
+  existing destinations, and symlink refusal.
+
+Workspace backups may contain sensitive engagement evidence and authorization
+records. This slice provides integrity and recovery, not independent backup
+encryption. Backup confidentiality therefore depends on the storage boundary
+(for example the existing encrypted Secure Workspace) until a separately
+reviewed encrypted backup/secrets design is accepted.
+
+This slice does not grant authorization, alter engagement scope, auto-repair
+corrupted content, or merge a recovered backup into an existing workspace.
+
