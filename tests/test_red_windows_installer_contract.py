@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from red_night_app import windows_launcher
 
@@ -43,7 +44,12 @@ class RedWindowsInstallerContractTests(unittest.TestCase):
         self.assertIn("Red package set is mixed-version", text)
 
     def test_deployment_info_is_non_operational(self) -> None:
-        payload = windows_launcher.deployment_info()
+        with patch.object(
+            windows_launcher.metadata,
+            "version",
+            side_effect=lambda _name: "0.43.0",
+        ):
+            payload = windows_launcher.deployment_info()
         self.assertEqual(payload["product"], "Red Night")
         self.assertEqual(payload["platform"], "windows")
         self.assertFalse(payload["operational"])
