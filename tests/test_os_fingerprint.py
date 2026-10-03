@@ -209,6 +209,48 @@ class OperatingSystemFingerprintTests(unittest.TestCase):
             ),
         )
 
+    def test_host_fingerprints_sort_mixed_ipv4_and_ipv6_addresses(self):
+        services = (
+            ServiceDetectionResult(
+                address="fd7a:115c:a1e0::1101:abd2",
+                port=443,
+                service="https",
+                banner="",
+                service_fingerprint=ServiceFingerprint(
+                    protocol="http",
+                    platform="Windows",
+                    source="http-server",
+                    evidence="ipv6 evidence",
+                    confidence="high",
+                ),
+            ),
+            ServiceDetectionResult(
+                address="100.108.171.115",
+                port=445,
+                service="smb",
+                banner="",
+                service_fingerprint=ServiceFingerprint(
+                    protocol="smb",
+                    platform="Windows",
+                    source="service",
+                    evidence="ipv4 evidence",
+                    confidence="high",
+                ),
+            ),
+        )
+
+        result = build_host_operating_system_fingerprints(
+            services
+        )
+
+        self.assertEqual(
+            tuple(item.address for item in result),
+            (
+                "100.108.171.115",
+                "fd7a:115c:a1e0::1101:abd2",
+            ),
+        )
+
     def test_known_platforms_map_to_os_families(self):
         services = (
             ServiceDetectionResult(
