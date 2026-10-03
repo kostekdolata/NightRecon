@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "0.45.1",
+    [string]$Version = "0.45.2",
     [string]$SourceCommit = "unknown"
 )
 
@@ -50,6 +50,7 @@ $BuildInfo = @{
     architecture = "windows-x64"
 }
 $BuildInfo | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 (Join-Path $Bundle "build-info.json")
+Copy-Item (Join-Path $PSScriptRoot "launch-red-night.ps1") (Join-Path $Bundle "launch-red-night.ps1")
 
 python -m cyclonedx_py environment --output-file (Join-Path $Artifacts "RedNight-$Version-sbom.json") --output-format JSON
 if ($LASTEXITCODE -ne 0) { throw "SBOM generation failed: $LASTEXITCODE" }

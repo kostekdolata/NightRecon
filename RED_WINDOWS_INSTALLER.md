@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document defines the first native Windows installation surface for Red Night v0.45.1. It is intentionally separate from Live USB hardware qualification.
+This document defines the first native Windows installation surface for Red Night v0.45.2. It is intentionally separate from Live USB hardware qualification.
 
 The Windows installer packages the existing Red application, Red engine, and shared core as one coordinated PyInstaller onedir bundle and installs it with Inno Setup 6.
 
@@ -10,7 +10,7 @@ The Windows installer packages the existing Red application, Red engine, and sha
 
 The installer is per-user and uses `PrivilegesRequired=lowest`. Installing, repairing, or uninstalling Red Night therefore does not require administrator rights merely to copy application files.
 
-Operational Red Night execution retains the existing `required-platform-privileged` contract. The installed launcher requests UAC elevation before dispatching any operational Red command. The canonical `red_night_app.main()` privilege check remains in force after elevation.
+Operational Red Night execution retains the existing `required-platform-privileged` contract. The installed Start Menu/Desktop launcher requests UAC elevation for a persistent PowerShell session, places the installed Red Night application directory on that session's process-local PATH, displays Red Night help, and leaves the elevated terminal open for operator commands. Direct `RedNight.exe` execution continues to enforce the canonical `red_night_app.main()` privilege check.
 
 `RedNight.exe --deployment-info` is the only non-elevated launcher path. It is non-operational, performs no target action, and reports only package/build compatibility metadata with `authorization_effect=none`.
 

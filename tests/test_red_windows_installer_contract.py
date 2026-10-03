@@ -14,6 +14,7 @@ ISS = REPOSITORY / "installer" / "windows" / "red-night.iss"
 BUILD = REPOSITORY / "installer" / "windows" / "build_installer.ps1"
 RED_CLI = REPOSITORY / "packages" / "red-engine" / "nightrecon_red_engine" / "red_cli.py"
 WORKFLOW = REPOSITORY / ".github" / "workflows" / "red-windows-installer.yml"
+LAUNCHER = REPOSITORY / "installer" / "windows" / "launch-red-night.ps1"
 
 
 class RedWindowsInstallerContractTests(unittest.TestCase):
@@ -33,23 +34,32 @@ class RedWindowsInstallerContractTests(unittest.TestCase):
         self.assertIn(r"{autoprograms}\Red Night", text)
         self.assertIn(r"{autodesktop}\Red Night", text)
         self.assertIn('Name: "desktopicon"', text)
-        self.assertIn('Filename: "{cmd}"', text)
-        self.assertIn('Parameters: "/K ""{app}\\RedNight.exe"" --help"', text)
+        self.assertIn(r'Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"', text)
+        self.assertIn(r'launch-red-night.ps1', text)
+        self.assertNotIn('Filename: "{cmd}"', text)
+
+    def test_persistent_launcher_elevates_shell_and_keeps_it_open(self) -> None:
+        text = LAUNCHER.read_text(encoding="utf-8")
+        self.assertIn("Start-Process", text)
+        self.assertIn("-Verb RunAs", text)
+        self.assertIn("-NoExit", text)
+        self.assertIn('RedNight.exe") --help', text)
+        self.assertIn('Use: RedNight.exe <command> [options]', text)
 
     def test_red_cli_has_no_stale_packaging_unavailable_message(self) -> None:
         text = RED_CLI.read_text(encoding="utf-8")
         self.assertNotIn("Standalone edition packaging is not yet available.", text)
 
-    def test_windows_installer_release_version_is_0_45_1(self) -> None:
+    def test_windows_installer_release_version_is_0_45_2(self) -> None:
         iss = ISS.read_text(encoding="utf-8")
         build = BUILD.read_text(encoding="utf-8")
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('#define MyAppVersion "0.45.1"', iss)
-        self.assertIn("VersionInfoVersion=0.45.1.0", iss)
-        self.assertIn('[string]$Version = "0.45.1"', build)
-        self.assertIn('build_installer.ps1 -Version "0.45.1"', workflow)
-        self.assertIn("RedNight-0.45.1-Windows-x64-Setup.exe", workflow)
-        self.assertNotIn("RedNight-0.45.0-Windows-x64-Setup.exe", workflow)
+        self.assertIn('#define MyAppVersion "0.45.2"', iss)
+        self.assertIn("VersionInfoVersion=0.45.2.0", iss)
+        self.assertIn('[string]$Version = "0.45.2"', build)
+        self.assertIn('build_installer.ps1 -Version "0.45.2"', workflow)
+        self.assertIn("RedNight-0.45.2-Windows-x64-Setup.exe", workflow)
+        self.assertNotIn("RedNight-0.45.1-Windows-x64-Setup.exe", workflow)
 
     def test_build_uses_exact_red_package_set_and_integrity_outputs(self) -> None:
         text = BUILD.read_text(encoding="utf-8")
@@ -60,6 +70,7 @@ class RedWindowsInstallerContractTests(unittest.TestCase):
         self.assertIn("--copy-metadata nightrecon-red-night", text)
         self.assertIn("cyclonedx_py environment", text)
         self.assertIn("create_manifest.py", text)
+        self.assertIn("launch-red-night.ps1", text)
         self.assertIn("Red package set is mixed-version", text)
 
     def test_deployment_info_is_non_operational(self) -> None:
