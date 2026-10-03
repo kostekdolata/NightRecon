@@ -58,13 +58,12 @@ for path in map(Path, sys.argv[1:]):
     path.chmod(0o600)
 PY
 
-# Provisioning exists only inside this disposable fixture. Runtime White Live
-# code remains prohibited from calling luksFormat.
-cryptsetup luksFormat \
-    --batch-mode \
-    --type luks2 \
+# Provision through the bounded helper. The helper accepts only an explicit,
+# pre-existing regular file plus an exact destructive confirmation token.
+sh ./live/white-night/tools/provision-white-workspace.sh \
+    --target "$image" \
     --key-file "$key_file" \
-    "$image"
+    --confirm PROVISION-WHITE-NIGHT-LUKS2
 
 cryptsetup isLuks --type luks2 "$image"
 cryptsetup open \
