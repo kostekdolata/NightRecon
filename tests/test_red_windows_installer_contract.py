@@ -13,6 +13,7 @@ REPOSITORY = Path(__file__).resolve().parents[1]
 ISS = REPOSITORY / "installer" / "windows" / "red-night.iss"
 BUILD = REPOSITORY / "installer" / "windows" / "build_installer.ps1"
 RED_CLI = REPOSITORY / "packages" / "red-engine" / "nightrecon_red_engine" / "red_cli.py"
+WORKFLOW = REPOSITORY / ".github" / "workflows" / "red-windows-installer.yml"
 
 
 class RedWindowsInstallerContractTests(unittest.TestCase):
@@ -38,6 +39,17 @@ class RedWindowsInstallerContractTests(unittest.TestCase):
     def test_red_cli_has_no_stale_packaging_unavailable_message(self) -> None:
         text = RED_CLI.read_text(encoding="utf-8")
         self.assertNotIn("Standalone edition packaging is not yet available.", text)
+
+    def test_windows_installer_release_version_is_0_45_1(self) -> None:
+        iss = ISS.read_text(encoding="utf-8")
+        build = BUILD.read_text(encoding="utf-8")
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn('#define MyAppVersion "0.45.1"', iss)
+        self.assertIn("VersionInfoVersion=0.45.1.0", iss)
+        self.assertIn('[string]$Version = "0.45.1"', build)
+        self.assertIn('build_installer.ps1 -Version "0.45.1"', workflow)
+        self.assertIn("RedNight-0.45.1-Windows-x64-Setup.exe", workflow)
+        self.assertNotIn("RedNight-0.45.0-Windows-x64-Setup.exe", workflow)
 
     def test_build_uses_exact_red_package_set_and_integrity_outputs(self) -> None:
         text = BUILD.read_text(encoding="utf-8")
