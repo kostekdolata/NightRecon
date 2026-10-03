@@ -1,0 +1,124 @@
+name: Red Night Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - "v*-dev"
+    paths:
+      - "packages/red-night/**"
+      - "packages/red-engine/**"
+      - "packages/shared-core/**"
+      - "installer/windows/**"
+      - "tests/test_red_windows_installer_contract.py"
+      - ".github/workflows/red-windows-installer.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "packages/red-night/**"
+      - "packages/red-engine/**"
+      - "packages/shared-core/**"
+      - "installer/windows/**"
+      - "tests/test_red_windows_installer_contract.py"
+      - ".github/workflows/red-windows-installer.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: red-windows-installer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Windows installer contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install Red package set
+        run: |
+          python -m pip install --upgrade pip setuptools
+          python -m pip install -e ./packages/shared-core
+          python -m pip install -e ./packages/red-engine
+          python -m pip install -e ./packages/red-night
+      - name: Verify Windows installer contract
+        run: python -m unittest tests.test_red_windows_installer_contract -v
+
+  build-and-lifecycle:
+    name: Build and exercise Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Build installer
+        shell: pwsh
+        run: |
+          .\installer\windows\build_installer.ps1 -Version "0.45.0" -SourceCommit "${{ github.sha }}"
+      - name: Verify frozen deployment metadata
+        shell: pwsh
+        run: |
+          $info = .\artifacts\windows-installer\bundle\RedNight\RedNight.exe --deployment-info | ConvertFrom-Json
+          if (-not $info.package_compatible) { throw "Frozen Red package set is incompatible" }
+          if ($info.operational) { throw "Deployment-info path must remain non-operational" }
+          if ($info.build.source_commit -ne "${{ github.sha }}") { throw "Build commit metadata mismatch" }
+      - name: Silent install, uninstall, preserve data, reinstall
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem .\artifacts\windows-installer\RedNight-0.45.0-Windows-x64-Setup.exe).FullName
+          $install = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer failed: $($install.ExitCode)" }
+
+          $app = Join-Path $env:LOCALAPPDATA "Programs\Red Night\RedNight.exe"
+          if (-not (Test-Path $app)) { throw "Installed executable missing" }
+          $info = & $app --deployment-info | ConvertFrom-Json
+          if (-not $info.package_compatible) { throw "Installed package set is incompatible" }
+
+          $selfTest = & $app --deployment-self-test | ConvertFrom-Json
+          if (-not $selfTest.passed) { throw "Installed deployment self-test failed" }
+          if ($selfTest.operational -or $selfTest.network_activity) { throw "Deployment self-test crossed its non-operational boundary" }
+          if (-not $selfTest.encrypted_backup_verified -or -not $selfTest.encrypted_backup_restored) { throw "Encrypted backup/restore self-test failed" }
+
+          $data = Join-Path $env:LOCALAPPDATA "NightRecon\RedNight"
+          $sentinel = Join-Path $data "workspaces\ci-preserve.txt"
+          "preserve-me" | Set-Content -Encoding UTF8 $sentinel
+
+          $uninstaller = Join-Path $env:LOCALAPPDATA "Programs\Red Night\unins000.exe"
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller failed: $($uninstall.ExitCode)" }
+          if (Test-Path $app) { throw "Application binary survived uninstall" }
+          if (-not (Test-Path $sentinel)) { throw "User workspace data was removed" }
+
+          $reinstall = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($reinstall.ExitCode -ne 0) { throw "Reinstall failed: $($reinstall.ExitCode)" }
+          if (-not (Test-Path $app)) { throw "Executable missing after reinstall" }
+          if (-not (Test-Path $sentinel)) { throw "Workspace data not preserved across reinstall" }
+          & $app --deployment-info | Out-Host
+          $selfTestAfterReinstall = & $app --deployment-self-test | ConvertFrom-Json
+          if (-not $selfTestAfterReinstall.passed) { throw "Deployment self-test failed after reinstall" }
+      - name: Validate release metadata
+        shell: pwsh
+        run: |
+          $manifest = Get-Content .\artifacts\windows-installer\RedNight-0.45.0-manifest.json -Raw | ConvertFrom-Json
+          if ($manifest.source_commit -ne "${{ github.sha }}") { throw "Manifest commit mismatch" }
+          if (-not $manifest.installer.sha256) { throw "Installer SHA-256 missing" }
+          if (-not $manifest.sbom.sha256) { throw "SBOM SHA-256 missing" }
+          if ((Get-Content .\artifacts\windows-installer\SHA256SUMS.txt).Length -lt 1) { throw "SHA256SUMS missing" }
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: RedNight-0.45.0-Windows-x64
+          path: |
+            artifacts/windows-installer/RedNight-0.45.0-Windows-x64-Setup.exe
+            artifacts/windows-installer/RedNight-0.45.0-manifest.json
+            artifacts/windows-installer/RedNight-0.45.0-sbom.json
+            artifacts/windows-installer/SHA256SUMS.txt
+            artifacts/windows-installer/wheels/*.whl
+          if-no-files-found: error
