@@ -417,10 +417,24 @@ def append_authorization_audit(
     )
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with destination.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write(json.dumps(record.to_dict(), sort_keys=True, separators=(",", ":")) + "\n")
-        handle.flush()
-        os.fsync(handle.fileno())
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+    fd = os.open(destination, flags, 0o600)
+    try:
+        if os.name != "nt":
+            os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "a", encoding="utf-8", newline="\n") as handle:
+            handle.write(
+                json.dumps(record.to_dict(), sort_keys=True, separators=(",", ":"))
+                + "\n"
+            )
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
     return record
 
 
