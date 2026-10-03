@@ -87,6 +87,10 @@ def main() -> None:
     if sys.argv[1:] == ["--deployment-info"]:
         print(json.dumps(deployment_info(), sort_keys=True))
         return
+    if sys.argv[1:] == ["--deployment-self-test"]:
+        from .windows_deployment_self_test import run_windows_deployment_self_test
+        print(json.dumps(run_windows_deployment_self_test(), sort_keys=True))
+        return
     if os.name != "nt":
         raise RuntimeError("red_night_app.windows_launcher is Windows-only")
     if not _is_windows_admin():
