@@ -292,6 +292,7 @@ def verify_app(bin_dir: Path, directory: Path) -> None:
         cwd=directory,
     ))
     assert workspace_export["source_nights"] == ["red"]
+    restore_test_ownership(directory)
     assert json.loads(workspace_export_path.read_text(encoding="utf-8"))["engagement_id"] == "eng-packaged-smoke"
 
     denied = subprocess.run(
