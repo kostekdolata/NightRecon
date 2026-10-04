@@ -587,14 +587,21 @@ def _append_unique(
     return values + (value,)
 
 
+def _asset_address_sort_key(
+    asset: AssetRecord,
+) -> tuple[int, int]:
+    address = ipaddress.ip_address(
+        asset.address
+    )
+    return address.version, int(address)
+
+
 def _sorted_assets(
     assets: tuple[AssetRecord, ...],
 ) -> tuple[AssetRecord, ...]:
     return tuple(
         sorted(
             assets,
-            key=lambda asset: ipaddress.ip_address(
-                asset.address
-            ),
+            key=_asset_address_sort_key,
         )
     )
