@@ -4,13 +4,19 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+import http.client
+import ipaddress
+import socket
 from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from http.cookies import CookieError, SimpleCookie
 from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
 from urllib.request import (
     HTTPCookieProcessor,
+    HTTPHandler,
     HTTPRedirectHandler,
+    HTTPSHandler,
+    ProxyHandler,
     Request,
     build_opener,
 )
@@ -92,6 +98,111 @@ class CrawlResult:
     @property
     def successful_pages(self) -> int:
         return sum(page.error == "" for page in self.pages)
+
+
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    """Connect to one explicit address while preserving the URL host."""
+
+    def __init__(
+        self,
+        host: str,
+        *,
+        connect_address: str,
+        **kwargs,
+    ) -> None:
+        self._connect_address = connect_address
+        super().__init__(
+            host,
+            **kwargs,
+        )
+
+    def connect(self) -> None:
+        self.sock = socket.create_connection(
+            (
+                self._connect_address,
+                self.port,
+            ),
+            self.timeout,
+            self.source_address,
+        )
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """Connect to one address while preserving hostname TLS validation."""
+
+    def __init__(
+        self,
+        host: str,
+        *,
+        connect_address: str,
+        **kwargs,
+    ) -> None:
+        self._connect_address = connect_address
+        super().__init__(
+            host,
+            **kwargs,
+        )
+
+    def connect(self) -> None:
+        self.sock = socket.create_connection(
+            (
+                self._connect_address,
+                self.port,
+            ),
+            self.timeout,
+            self.source_address,
+        )
+
+        server_hostname = self.host
+
+        if self._tunnel_host:
+            self._tunnel()
+            server_hostname = self._tunnel_host
+
+        self.sock = self._context.wrap_socket(
+            self.sock,
+            server_hostname=server_hostname,
+        )
+
+
+class _PinnedHTTPHandler(HTTPHandler):
+    def __init__(
+        self,
+        connect_address: str,
+    ) -> None:
+        super().__init__()
+        self._connect_address = connect_address
+
+    def http_open(self, req):
+        return self.do_open(
+            lambda host, **kwargs: _PinnedHTTPConnection(
+                host,
+                connect_address=self._connect_address,
+                **kwargs,
+            ),
+            req,
+        )
+
+
+class _PinnedHTTPSHandler(HTTPSHandler):
+    def __init__(
+        self,
+        connect_address: str,
+    ) -> None:
+        super().__init__()
+        self._connect_address = connect_address
+
+    def https_open(self, req):
+        return self.do_open(
+            lambda host, **kwargs: _PinnedHTTPSConnection(
+                host,
+                connect_address=self._connect_address,
+                **kwargs,
+            ),
+            req,
+            context=self._context,
+            check_hostname=self._check_hostname,
+        )
 
 
 class _SameOriginRedirectHandler(HTTPRedirectHandler):
@@ -479,6 +590,7 @@ def crawl_site(
     authorization: str | None = None,
     cookie: str | None = None,
     cookie_jar: CookieJar | None = None,
+    connect_address: str | None = None,
 ) -> CrawlResult:
     """Crawl one HTTP(S) origin with explicit resource bounds."""
 
@@ -512,6 +624,18 @@ def crawl_site(
             "cookie must be a non-empty string when provided."
         )
 
+    if connect_address is not None:
+        try:
+            connect_address = str(
+                ipaddress.ip_address(
+                    connect_address
+                )
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "connect_address must be a valid IPv4 or IPv6 address."
+            ) from exc
+
     normalized_start = normalize_http_url(start_url)
     origin = url_origin(normalized_start)
     pending: deque[str] = deque((normalized_start,))
@@ -538,6 +662,7 @@ def crawl_site(
                 else None
             ),
             cookie_jar=cookie_jar,
+            connect_address=connect_address,
         )
         pages.append(page)
 
@@ -565,6 +690,7 @@ def _fetch_page(
     authorization: str | None = None,
     cookie: str | None = None,
     cookie_jar: CookieJar | None = None,
+    connect_address: str | None = None,
 ) -> CrawlPage:
     headers = {
         "User-Agent": user_agent,
@@ -586,6 +712,19 @@ def _fetch_page(
     handlers = [
         _SameOriginRedirectHandler(origin),
     ]
+
+    if connect_address is not None:
+        handlers.extend(
+            (
+                ProxyHandler({}),
+                _PinnedHTTPHandler(
+                    connect_address
+                ),
+                _PinnedHTTPSHandler(
+                    connect_address
+                ),
+            )
+        )
 
     if cookie_jar is not None:
         handlers.append(
