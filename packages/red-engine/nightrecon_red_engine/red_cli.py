@@ -132,6 +132,7 @@ from nightrecon_red_engine.os_fingerprint import (
     build_host_operating_system_fingerprints,
 )
 from nightrecon_red_engine.ports import parse_ports
+from nightrecon_red_engine.pentest_orchestrator import build_scan_argv
 from nightrecon_red_engine.report import TcpScanReport
 from nightrecon_red_engine.resolver import resolve_target
 from nightrecon_shared_core.authorization import Scope
@@ -5811,6 +5812,8 @@ def _guard_subject(arguments: tuple[str, ...]) -> tuple[str, str, str] | None:
     if command == "scan" and len(arguments) >= 2:
         impact = "high" if _flag_value(arguments, "--max-check-intrusiveness") == "intrusive" else "standard"
         return "scan", arguments[1], impact
+    if command in {"pentest", "run-all"} and len(arguments) >= 2:
+        return "pentest", arguments[1], "standard"
     if command == "crawl" and len(arguments) >= 2:
         host = urlsplit(arguments[1]).hostname
         if host is None:
@@ -5907,6 +5910,26 @@ def main(argv: tuple[str, ...] | None = None) -> None:
     if arguments[0] == "workspace":
         from nightrecon_red_engine.red_workspace_cli import main as workspace_main
         workspace_main(arguments[1:])
+        return
+
+    if arguments[0] in {"pentest", "run-all"}:
+        command_name = arguments[0]
+        scan_arguments = build_scan_argv(
+            arguments[1:],
+            prog=f"red-night {command_name}",
+        )
+        print(
+            "Red Night Pentest Orchestrator: "
+            f"command={command_name} target={scan_arguments[1]}"
+        )
+        _authorize_guarded_execution(
+            scan_arguments,
+            workspace_root=workspace_root,
+            engagement_id=engagement_id,
+            approved=approved,
+        )
+        _command_main(scan_arguments)
+        print("Red Night Pentest Orchestrator: completed")
         return
 
     _authorize_guarded_execution(
