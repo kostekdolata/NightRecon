@@ -509,5 +509,61 @@ class AssetInventoryTests(unittest.TestCase):
         self.assertIn("port-opened", change_types)
 
 
+    def test_mixed_ipv4_ipv6_assets_sort_deterministically(self):
+        inventory = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="2a00:23c7:d9de:8601:7926:1557:8d18:365e",
+                    first_seen="2026-10-04T16:00:00+00:00",
+                    last_seen="2026-10-04T16:00:00+00:00",
+                    last_checked_at="2026-10-04T16:00:00+00:00",
+                ),
+                AssetRecord(
+                    address="127.0.0.1",
+                    first_seen="2026-10-04T16:00:00+00:00",
+                    last_seen="2026-10-04T16:00:00+00:00",
+                    last_checked_at="2026-10-04T16:00:00+00:00",
+                ),
+            ),
+        )
+        session = ScanSession(
+            session_id="scan-mixed-address-sort",
+            created_at="2026-10-04T16:01:00+00:00",
+            target="localhost",
+            target_type="hostname",
+            scope=("localhost",),
+            status="created",
+        )
+        report = TcpScanReport(
+            session_id=session.session_id,
+            created_at=session.created_at,
+            target=session.target,
+            target_type=session.target_type,
+            scope=session.scope,
+            status="completed",
+            resolved_addresses=(
+                "127.0.0.1",
+                "2a00:23c7:d9de:8601:7926:1557:8d18:365e",
+            ),
+            ports_requested=(),
+            results=(),
+            services=(),
+        )
+
+        update = apply_scan_report(
+            inventory,
+            report,
+        )
+
+        self.assertEqual(
+            tuple(asset.address for asset in update.inventory.assets),
+            (
+                "127.0.0.1",
+                "2a00:23c7:d9de:8601:7926:1557:8d18:365e",
+            ),
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()
