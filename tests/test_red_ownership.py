@@ -40,7 +40,7 @@ class RedOwnershipTests(unittest.TestCase):
     def test_red_commands_cover_existing_assessment_surfaces(self) -> None:
         self.assertEqual(
             set(RED_COMMANDS),
-            {"api", "assets", "checks", "crawl", "discover", "editions", "identity", "infra", "scan", "workspace"},
+            {"api", "assets", "checks", "crawl", "discover", "editions", "identity", "infra", "pentest", "run-all", "scan", "workspace"},
         )
 
     def test_shared_core_compatibility_modules_are_not_red_engines(self) -> None:
