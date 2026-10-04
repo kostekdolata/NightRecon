@@ -1301,6 +1301,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     crawl_parser.add_argument(
+        "--connect-address",
+        help=(
+            "Connect to this exact resolved IP while preserving the URL "
+            "hostname for HTTP Host and TLS SNI/certificate validation. "
+            "The address must resolve from the authorized hostname."
+        ),
+    )
+
+    crawl_parser.add_argument(
         "--results-dir",
         default="results",
         help="Directory for result files. Default: results",
@@ -4319,6 +4328,45 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
                 f"Target '{target.value}' is outside the authorized scope."
             )
 
+        connect_address = None
+
+        if args.connect_address:
+            try:
+                pinned_target = parse_target(
+                    args.connect_address
+                )
+            except ValueError as exc:
+                parser.error(
+                    str(exc)
+                )
+
+            if pinned_target.target_type == TargetType.CIDR:
+                parser.error(
+                    "--connect-address requires a single IP address."
+                )
+
+            if target.target_type == TargetType.HOSTNAME:
+                try:
+                    resolved = resolve_target(
+                        target
+                    )
+                except ValueError as exc:
+                    parser.error(
+                        str(exc)
+                    )
+
+                if pinned_target.value not in resolved.addresses:
+                    parser.error(
+                        "--connect-address must be one of the authorized "
+                        "hostname's resolved addresses."
+                    )
+            elif pinned_target.value != target.value:
+                parser.error(
+                    "--connect-address must match an IP URL target."
+                )
+
+            connect_address = pinned_target.value
+
         try:
             crawl = crawl_site(
                 start_url=normalized_url,
@@ -4330,6 +4378,7 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
                 authorization=authorization,
                 cookie=cookie,
                 cookie_jar=session_cookie_jar,
+                connect_address=connect_address,
             )
         except ValueError as exc:
             logger.write(
