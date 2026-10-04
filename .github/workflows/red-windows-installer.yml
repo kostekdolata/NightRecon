@@ -61,7 +61,7 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: |
-          .\installer\windows\build_installer.ps1 -Version "0.46.1" -SourceCommit "${{ github.sha }}"
+          .\installer\windows\build_installer.ps1 -Version "0.46.2" -SourceCommit "${{ github.sha }}"
       - name: Verify frozen deployment metadata
         shell: pwsh
         run: |
@@ -72,7 +72,7 @@ jobs:
       - name: Silent install, uninstall, preserve data, reinstall
         shell: pwsh
         run: |
-          $installer = (Get-ChildItem .\artifacts\windows-installer\RedNight-0.46.1-Windows-x64-Setup.exe).FullName
+          $installer = (Get-ChildItem .\artifacts\windows-installer\RedNight-0.46.2-Windows-x64-Setup.exe).FullName
           $install = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Installer failed: $($install.ExitCode)" }
 
@@ -106,7 +106,7 @@ jobs:
       - name: Validate release metadata
         shell: pwsh
         run: |
-          $manifest = Get-Content .\artifacts\windows-installer\RedNight-0.46.1-manifest.json -Raw | ConvertFrom-Json
+          $manifest = Get-Content .\artifacts\windows-installer\RedNight-0.46.2-manifest.json -Raw | ConvertFrom-Json
           if ($manifest.source_commit -ne "${{ github.sha }}") { throw "Manifest commit mismatch" }
           if (-not $manifest.installer.sha256) { throw "Installer SHA-256 missing" }
           if (-not $manifest.sbom.sha256) { throw "SBOM SHA-256 missing" }
@@ -114,11 +114,11 @@ jobs:
       - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v6
         with:
-          name: RedNight-0.46.1-Windows-x64
+          name: RedNight-0.46.2-Windows-x64
           path: |
-            artifacts/windows-installer/RedNight-0.46.1-Windows-x64-Setup.exe
-            artifacts/windows-installer/RedNight-0.46.1-manifest.json
-            artifacts/windows-installer/RedNight-0.46.1-sbom.json
+            artifacts/windows-installer/RedNight-0.46.2-Windows-x64-Setup.exe
+            artifacts/windows-installer/RedNight-0.46.2-manifest.json
+            artifacts/windows-installer/RedNight-0.46.2-sbom.json
             artifacts/windows-installer/SHA256SUMS.txt
             artifacts/windows-installer/wheels/*.whl
           if-no-files-found: error

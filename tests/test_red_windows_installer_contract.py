@@ -54,11 +54,11 @@ class RedWindowsInstallerContractTests(unittest.TestCase):
         iss = ISS.read_text(encoding="utf-8")
         build = BUILD.read_text(encoding="utf-8")
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('#define MyAppVersion "0.46.1"', iss)
-        self.assertIn("VersionInfoVersion=0.46.1.0", iss)
-        self.assertIn('[string]$Version = "0.46.1"', build)
-        self.assertIn('build_installer.ps1 -Version "0.46.1"', workflow)
-        self.assertIn("RedNight-0.46.1-Windows-x64-Setup.exe", workflow)
+        self.assertIn('#define MyAppVersion "0.46.2"', iss)
+        self.assertIn("VersionInfoVersion=0.46.2.0", iss)
+        self.assertIn('[string]$Version = "0.46.2"', build)
+        self.assertIn('build_installer.ps1 -Version "0.46.2"', workflow)
+        self.assertIn("RedNight-0.46.2-Windows-x64-Setup.exe", workflow)
         self.assertNotIn("RedNight-0.45.2-Windows-x64-Setup.exe", workflow)
 
     def test_build_uses_exact_red_package_set_and_integrity_outputs(self) -> None:

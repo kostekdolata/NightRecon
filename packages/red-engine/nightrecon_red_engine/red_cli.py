@@ -132,7 +132,13 @@ from nightrecon_red_engine.os_fingerprint import (
     build_host_operating_system_fingerprints,
 )
 from nightrecon_red_engine.ports import parse_ports
-from nightrecon_red_engine.pentest_orchestrator import build_scan_argv
+from nightrecon_red_engine.pentest_orchestrator import (
+    build_scan_argv_from_args,
+    build_smb_follow_up_argv,
+    build_web_follow_up_argv,
+    detected_service_counts,
+    parse_pentest_args,
+)
 from nightrecon_red_engine.report import TcpScanReport
 from nightrecon_red_engine.resolver import resolve_target
 from nightrecon_shared_core.authorization import Scope
@@ -1757,7 +1763,7 @@ def _load_installed_check_pack_checks(
     return tuple(checks)
 
 
-def _command_main(argv: tuple[str, ...] | None = None) -> None:
+def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -5755,6 +5761,8 @@ def _command_main(argv: tuple[str, ...] | None = None) -> None:
                 f"Inventory file: {inventory_path}"
             )
 
+        return report
+
 
     if __name__ == "__main__":
         main()
@@ -5914,9 +5922,12 @@ def main(argv: tuple[str, ...] | None = None) -> None:
 
     if arguments[0] in {"pentest", "run-all"}:
         command_name = arguments[0]
-        scan_arguments = build_scan_argv(
+        pentest_args = parse_pentest_args(
             arguments[1:],
             prog=f"red-night {command_name}",
+        )
+        scan_arguments = build_scan_argv_from_args(
+            pentest_args
         )
         print(
             "Red Night Pentest Orchestrator: "
@@ -5928,7 +5939,73 @@ def main(argv: tuple[str, ...] | None = None) -> None:
             engagement_id=engagement_id,
             approved=approved,
         )
-        _command_main(scan_arguments)
+        scan_report = _command_main(
+            scan_arguments
+        )
+
+        if isinstance(
+            scan_report,
+            TcpScanReport,
+        ):
+            web_count, smb_count = detected_service_counts(
+                scan_report
+            )
+            print(
+                "Red Night Pentest Orchestrator: "
+                f"service-branches web={web_count} smb={smb_count}"
+            )
+
+            web_follow_ups = build_web_follow_up_argv(
+                scan_report,
+                pentest_args,
+            )
+            for follow_up in web_follow_ups:
+                print(
+                    "Red Night Pentest Orchestrator: "
+                    f"web-follow-up target={follow_up[1]}"
+                )
+                try:
+                    _command_main(
+                        follow_up
+                    )
+                except SystemExit as exc:
+                    print(
+                        "Red Night Pentest Orchestrator: "
+                        "web-follow-up failed "
+                        f"exit={exc.code}; continuing"
+                    )
+
+            smb_follow_ups = build_smb_follow_up_argv(
+                scan_report,
+                pentest_args,
+            )
+            if (
+                smb_count
+                and not smb_follow_ups
+                and not pentest_args.no_smb_follow_up
+            ):
+                print(
+                    "Red Night Pentest Orchestrator: "
+                    "SMB detected; credentialed read-only follow-up skipped "
+                    "because SMB credentials were not supplied."
+                )
+
+            for follow_up in smb_follow_ups:
+                print(
+                    "Red Night Pentest Orchestrator: "
+                    f"smb-follow-up target={follow_up[2]}"
+                )
+                try:
+                    _command_main(
+                        follow_up
+                    )
+                except SystemExit as exc:
+                    print(
+                        "Red Night Pentest Orchestrator: "
+                        "smb-follow-up failed "
+                        f"exit={exc.code}; continuing"
+                    )
+
         print("Red Night Pentest Orchestrator: completed")
         return
 
