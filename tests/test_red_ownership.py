@@ -5,6 +5,7 @@ import unittest
 
 from nightrecon.red_ownership import (
     RED_COMMANDS,
+    RED_COMMAND_MODULES,
     RED_MODULE_GROUPS,
     RED_OPTIONAL_EXTRAS,
     SHARED_CORE_COMPATIBILITY_MODULES,
@@ -41,6 +42,54 @@ class RedOwnershipTests(unittest.TestCase):
         self.assertEqual(
             set(RED_COMMANDS),
             {"api", "assets", "checks", "crawl", "discover", "editions", "identity", "infra", "pentest", "run-all", "scan", "workspace"},
+        )
+
+    def test_pentest_command_declares_every_orchestrated_capability_family(self) -> None:
+        modules = set(
+            RED_COMMAND_MODULES[
+                "pentest"
+            ]
+        )
+
+        self.assertIn(
+            "pentest_evidence",
+            modules,
+        )
+        self.assertIn(
+            "pentest_orchestrator",
+            modules,
+        )
+        self.assertIn(
+            "tcp_scanner",
+            modules,
+        )
+        self.assertIn(
+            "assessment_engine",
+            modules,
+        )
+        self.assertIn(
+            "vulnerability_intelligence",
+            modules,
+        )
+        self.assertIn(
+            "threat_context",
+            modules,
+        )
+        self.assertIn(
+            "web_crawl",
+            modules,
+        )
+        self.assertIn(
+            "web_active_assessment",
+            modules,
+        )
+        self.assertIn(
+            "infrastructure_smb",
+            modules,
+        )
+        self.assertIn(
+            "infrastructure_smb_adapter",
+            modules,
         )
 
     def test_shared_core_compatibility_modules_are_not_red_engines(self) -> None:

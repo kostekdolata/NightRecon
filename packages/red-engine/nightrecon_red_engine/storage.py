@@ -19,6 +19,7 @@ from nightrecon_red_engine.infrastructure_report import (
     SmbInfrastructureAssessmentReport,
     WinRmInfrastructureAssessmentReport,
 )
+from nightrecon_red_engine.pentest_evidence import PentestEvidenceManifest
 from nightrecon_red_engine.report import TcpScanReport
 from nightrecon_red_engine.session import ScanSession
 from nightrecon_red_engine.web_report import WebCrawlReport
@@ -46,6 +47,41 @@ class ResultStore:
             session_id=report.session_id,
             data=report.to_dict(),
         )
+
+    def save_pentest_evidence_manifest(
+        self,
+        manifest: PentestEvidenceManifest,
+    ) -> Path:
+        """Save one orchestration evidence manifest beside its phase reports."""
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        output_path = self.root / f"{manifest.run_id}-pentest-evidence.json"
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=output_path.name + ".",
+            suffix=".tmp",
+            dir=str(self.root),
+            text=True,
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as file:
+                json.dump(
+                    manifest.to_dict(),
+                    file,
+                    indent=2,
+                    sort_keys=True,
+                )
+                file.write("\n")
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(tmp_name, output_path)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
+
+        return output_path
 
     def save_discovery_report(
         self,
