@@ -15,6 +15,7 @@ from nightrecon.infrastructure_models import (
 from nightrecon.infrastructure_report import (
     InfrastructureActionRecord,
     InfrastructureAssessmentReport,
+    SmbInfrastructureAssessmentReport,
 )
 from nightrecon.session import ScanSession
 from nightrecon.storage import ResultStore
@@ -95,6 +96,113 @@ class InfrastructureReportTests(unittest.TestCase):
         self.assertNotIn(
             "secret",
             serialized.lower(),
+        )
+
+    def test_smb_report_status_reflects_action_outcomes(self):
+        session = ScanSession.create(
+            target=parse_target(
+                "server.example.test"
+            ),
+            scope_rules=(
+                "server.example.test",
+            ),
+        )
+
+        def record(
+            action_id,
+            success,
+            reason,
+            used,
+        ):
+            return InfrastructureActionRecord(
+                target="server.example.test",
+                transport="smb",
+                action_id=action_id,
+                credential_id="readonly",
+                success=success,
+                reason=reason,
+                facts=(),
+                actions_used_after=used,
+            )
+
+        successful = SmbInfrastructureAssessmentReport.create(
+            session=session,
+            username="audit-user",
+            domain="EXAMPLE",
+            port=445,
+            max_actions=4,
+            max_shares=128,
+            records=(
+                record(
+                    "smb.server_identity",
+                    True,
+                    "completed",
+                    1,
+                ),
+                record(
+                    "smb.share_inventory",
+                    True,
+                    "completed",
+                    2,
+                ),
+            ),
+        )
+        partial = SmbInfrastructureAssessmentReport.create(
+            session=session,
+            username="audit-user",
+            domain="EXAMPLE",
+            port=445,
+            max_actions=4,
+            max_shares=128,
+            records=(
+                record(
+                    "smb.server_identity",
+                    True,
+                    "completed",
+                    1,
+                ),
+                record(
+                    "smb.share_inventory",
+                    False,
+                    "session_failed",
+                    2,
+                ),
+            ),
+        )
+        failed = SmbInfrastructureAssessmentReport.create(
+            session=session,
+            username="audit-user",
+            domain="EXAMPLE",
+            port=445,
+            max_actions=4,
+            max_shares=128,
+            records=(
+                record(
+                    "smb.server_identity",
+                    False,
+                    "authentication_failed",
+                    1,
+                ),
+                record(
+                    "smb.share_inventory",
+                    False,
+                    "authentication_failed",
+                    2,
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            successful.status,
+            "completed",
+        )
+        self.assertEqual(
+            partial.status,
+            "completed-with-errors",
+        )
+        self.assertEqual(
+            failed.status,
+            "failed",
         )
 
     def test_report_persists_separately(self):
