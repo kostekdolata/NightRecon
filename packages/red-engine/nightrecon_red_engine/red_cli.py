@@ -132,6 +132,10 @@ from nightrecon_red_engine.os_fingerprint import (
     build_host_operating_system_fingerprints,
 )
 from nightrecon_red_engine.ports import parse_ports
+from nightrecon_red_engine.pentest_evidence import (
+    PentestEvidenceManifest,
+    PentestPhaseEvidence,
+)
 from nightrecon_red_engine.pentest_orchestrator import (
     build_scan_argv_from_args,
     build_smb_follow_up_argv,
@@ -2050,7 +2054,7 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
             print(
                 f"Infrastructure result file: {output_path}"
             )
-            return
+            return infra_report
 
         if args.infra_command == "winrm":
             try:
@@ -5075,7 +5079,7 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
         print(
             f"Result file: {output_path}"
         )
-        return
+        return crawl_report
 
     if args.command == "scan":
         if (
@@ -5996,6 +6000,217 @@ def main(argv: tuple[str, ...] | None = None) -> None:
             scan_report,
             TcpScanReport,
         ):
+            phases: list[PentestPhaseEvidence] = []
+            results_root = ResultStore(
+                pentest_args.results_dir
+            ).root
+            scan_result_file = str(
+                results_root
+                / f"{scan_report.session_id}.json"
+            )
+            phases.append(
+                PentestPhaseEvidence(
+                    phase="scan",
+                    status="completed",
+                    target=scan_report.target,
+                    session_id=scan_report.session_id,
+                    result_file=scan_result_file,
+                    metrics=(
+                        (
+                            "resolved_addresses",
+                            len(
+                                scan_report.resolved_addresses
+                            ),
+                        ),
+                        (
+                            "open_ports",
+                            len(
+                                scan_report.open_ports
+                            ),
+                        ),
+                        (
+                            "services",
+                            len(
+                                scan_report.services
+                            ),
+                        ),
+                    ),
+                )
+            )
+
+            if pentest_args.no_assessment:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="assessment",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="disabled_by_operator",
+                    )
+                )
+            else:
+                assessment_findings = sum(
+                    len(
+                        execution.findings
+                    )
+                    for service_assessment in scan_report.assessments
+                    for execution in service_assessment.executions
+                )
+                assessment_errors = sum(
+                    bool(
+                        execution.error
+                    )
+                    for service_assessment in scan_report.assessments
+                    for execution in service_assessment.executions
+                )
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="assessment",
+                        status="completed",
+                        target=scan_report.target,
+                        session_id=scan_report.session_id,
+                        result_file=scan_result_file,
+                        metrics=(
+                            (
+                                "services_assessed",
+                                len(
+                                    scan_report.assessments
+                                ),
+                            ),
+                            (
+                                "findings",
+                                assessment_findings,
+                            ),
+                            (
+                                "errors",
+                                assessment_errors,
+                            ),
+                        ),
+                    )
+                )
+
+            if pentest_args.no_vuln_lookup:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="vulnerability-intelligence",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="disabled_by_operator",
+                    )
+                )
+            else:
+                vuln_findings = sum(
+                    len(
+                        item.lookup.findings
+                    )
+                    for item in scan_report.vulnerabilities
+                )
+                vuln_errors = sum(
+                    bool(
+                        item.lookup.error
+                    )
+                    for item in scan_report.vulnerabilities
+                )
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="vulnerability-intelligence",
+                        status="completed",
+                        target=scan_report.target,
+                        session_id=scan_report.session_id,
+                        result_file=scan_result_file,
+                        metrics=(
+                            (
+                                "services_queried",
+                                len(
+                                    scan_report.vulnerabilities
+                                ),
+                            ),
+                            (
+                                "matches",
+                                vuln_findings,
+                            ),
+                            (
+                                "provider_errors",
+                                vuln_errors,
+                            ),
+                        ),
+                    )
+                )
+
+            if (
+                pentest_args.no_vuln_lookup
+                or pentest_args.no_threat_context
+            ):
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="threat-context",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason=(
+                            "vulnerability_intelligence_disabled"
+                            if pentest_args.no_vuln_lookup
+                            else "disabled_by_operator"
+                        ),
+                    )
+                )
+            else:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="threat-context",
+                        status="completed",
+                        target=scan_report.target,
+                        session_id=scan_report.session_id,
+                        result_file=scan_result_file,
+                        metrics=(
+                            (
+                                "cves",
+                                len(
+                                    scan_report.threat_context
+                                ),
+                            ),
+                            (
+                                "known_exploited",
+                                sum(
+                                    item.known_exploited
+                                    for item in scan_report.threat_context
+                                ),
+                            ),
+                            (
+                                "provider_errors",
+                                sum(
+                                    bool(
+                                        item.errors
+                                    )
+                                    for item in scan_report.threat_context
+                                ),
+                            ),
+                        ),
+                    )
+                )
+
+            if pentest_args.no_inventory_update:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="inventory",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="disabled_by_operator",
+                    )
+                )
+            else:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="inventory",
+                        status="completed",
+                        target=scan_report.target,
+                        session_id=scan_report.session_id,
+                        result_file=str(
+                            AssetInventoryStore(
+                                pentest_args.inventory_dir
+                            ).inventory_path
+                        ),
+                    )
+                )
+
             web_count, smb_count = detected_service_counts(
                 scan_report
             )
@@ -6008,35 +6223,169 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                 scan_report,
                 pentest_args,
             )
+
+            if pentest_args.no_web_follow_up:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="web-follow-up",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="disabled_by_operator",
+                        metrics=(
+                            (
+                                "detected_services",
+                                web_count,
+                            ),
+                        ),
+                    )
+                )
+            elif not web_follow_ups:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="web-follow-up",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="no_web_service_detected",
+                    )
+                )
+
             for follow_up in web_follow_ups:
                 print(
                     "Red Night Pentest Orchestrator: "
                     f"web-follow-up target={follow_up[1]}"
                 )
+                connect_address = _flag_value(
+                    follow_up,
+                    "--connect-address",
+                ) or ""
                 try:
-                    _command_main(
+                    web_report = _command_main(
                         follow_up
                     )
                 except SystemExit as exc:
+                    phases.append(
+                        PentestPhaseEvidence(
+                            phase="web-follow-up",
+                            status="failed",
+                            target=follow_up[1],
+                            reason=f"exit_{exc.code}",
+                            metrics=(
+                                (
+                                    "connect_address",
+                                    connect_address,
+                                ),
+                            ),
+                        )
+                    )
                     print(
                         "Red Night Pentest Orchestrator: "
                         "web-follow-up failed "
                         f"exit={exc.code}; continuing"
+                    )
+                    continue
+
+                if isinstance(
+                    web_report,
+                    WebCrawlReport,
+                ):
+                    phases.append(
+                        PentestPhaseEvidence(
+                            phase="web-follow-up",
+                            status="completed",
+                            target=web_report.start_url,
+                            session_id=web_report.session_id,
+                            result_file=str(
+                                results_root
+                                / f"{web_report.session_id}.json"
+                            ),
+                            metrics=(
+                                (
+                                    "connect_address",
+                                    connect_address,
+                                ),
+                                (
+                                    "pages",
+                                    len(
+                                        web_report.pages
+                                    ),
+                                ),
+                                (
+                                    "successful_pages",
+                                    len(
+                                        web_report.successful_pages
+                                    ),
+                                ),
+                                (
+                                    "failed_pages",
+                                    len(
+                                        web_report.failed_pages
+                                    ),
+                                ),
+                                (
+                                    "findings",
+                                    len(
+                                        web_report.assessment_findings
+                                    ),
+                                ),
+                                (
+                                    "safe_active_requests",
+                                    web_report.safe_active_requests_attempted,
+                                ),
+                                (
+                                    "safe_active_successes",
+                                    web_report.safe_active_successful_probes,
+                                ),
+                            ),
+                        )
                     )
 
             smb_follow_ups = build_smb_follow_up_argv(
                 scan_report,
                 pentest_args,
             )
-            if (
-                smb_count
-                and not smb_follow_ups
-                and not pentest_args.no_smb_follow_up
-            ):
+            if pentest_args.no_smb_follow_up:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="smb-follow-up",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="disabled_by_operator",
+                        metrics=(
+                            (
+                                "detected_services",
+                                smb_count,
+                            ),
+                        ),
+                    )
+                )
+            elif smb_count and not smb_follow_ups:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="smb-follow-up",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="credentials_not_supplied",
+                        metrics=(
+                            (
+                                "detected_services",
+                                smb_count,
+                            ),
+                        ),
+                    )
+                )
                 print(
                     "Red Night Pentest Orchestrator: "
                     "SMB detected; credentialed read-only follow-up skipped "
                     "because SMB credentials were not supplied."
+                )
+            elif not smb_count:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="smb-follow-up",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="no_smb_service_detected",
+                    )
                 )
 
             for follow_up in smb_follow_ups:
@@ -6045,15 +6394,110 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                     f"smb-follow-up target={follow_up[2]}"
                 )
                 try:
-                    _command_main(
+                    smb_report = _command_main(
                         follow_up
                     )
                 except SystemExit as exc:
+                    phases.append(
+                        PentestPhaseEvidence(
+                            phase="smb-follow-up",
+                            status="failed",
+                            target=follow_up[2],
+                            reason=f"exit_{exc.code}",
+                        )
+                    )
                     print(
                         "Red Night Pentest Orchestrator: "
                         "smb-follow-up failed "
                         f"exit={exc.code}; continuing"
                     )
+                    continue
+
+                if isinstance(
+                    smb_report,
+                    SmbInfrastructureAssessmentReport,
+                ):
+                    smb_summary = smb_report.to_dict()[
+                        "summary"
+                    ]
+                    phases.append(
+                        PentestPhaseEvidence(
+                            phase="smb-follow-up",
+                            status="completed",
+                            target=follow_up[2],
+                            session_id=smb_report.session_id,
+                            result_file=str(
+                                results_root
+                                / (
+                                    f"{smb_report.session_id}"
+                                    "-infrastructure.json"
+                                )
+                            ),
+                            metrics=(
+                                (
+                                    "selected_actions",
+                                    smb_summary[
+                                        "selected_actions"
+                                    ],
+                                ),
+                                (
+                                    "successful_actions",
+                                    smb_summary[
+                                        "successful_actions"
+                                    ],
+                                ),
+                                (
+                                    "failed_actions",
+                                    smb_summary[
+                                        "failed_actions"
+                                    ],
+                                ),
+                            ),
+                        )
+                    )
+
+            manifest = PentestEvidenceManifest(
+                run_id=scan_report.session_id,
+                target=scan_report.target,
+                command=command_name,
+                created_at=scan_report.created_at,
+                phases=tuple(
+                    phases
+                ),
+            )
+            evidence_path = ResultStore(
+                pentest_args.results_dir
+            ).save_pentest_evidence_manifest(
+                manifest
+            )
+            summary = manifest.to_dict()[
+                "summary"
+            ]
+            print(
+                "Pentest Evidence Summary: "
+                f"completed={summary['completed']} "
+                f"skipped={summary['skipped']} "
+                f"failed={summary['failed']}"
+            )
+            for phase in manifest.phases:
+                line = (
+                    "  PHASE "
+                    f"{phase.phase} status={phase.status}"
+                )
+                if phase.reason:
+                    line += (
+                        f" reason={phase.reason}"
+                    )
+                if phase.session_id:
+                    line += (
+                        f" session={phase.session_id}"
+                    )
+                print(
+                    line
+                )
+            print(
+                f"Pentest evidence file: {evidence_path}"
+            )
 
         print("Red Night Pentest Orchestrator: completed")
         return
