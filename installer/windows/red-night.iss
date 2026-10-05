@@ -1,6 +1,6 @@
 #define MyAppName "Red Night"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.46.4"
+  #define MyAppVersion "0.46.5"
 #endif
 #ifndef SourceDir
   #error SourceDir must point at the prepared Red Night bundle.
@@ -14,7 +14,7 @@ AppId={{6F45CC2B-3F5E-4B3D-BC5C-57EF164E8E81}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher=NightRecon
-VersionInfoVersion=0.46.4.0
+VersionInfoVersion=0.46.5.0
 VersionInfoDescription=Red Night authorized assessment platform
 VersionInfoProductName=Red Night
 VersionInfoProductVersion={#MyAppVersion}
