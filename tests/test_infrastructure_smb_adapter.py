@@ -19,6 +19,7 @@ from nightrecon.infrastructure_smb import (
 )
 from nightrecon.infrastructure_smb_adapter import (
     SmbReadOnlyAdapter,
+    SmbRuntimeFailure,
     SmbServerObservation,
 )
 
@@ -459,7 +460,7 @@ class SmbAdapterBoundaryTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     outcome.reason,
-                    "smb_failed",
+                    "session_failed",
                 )
                 self.assertNotIn(
                     _SECRET,
@@ -468,6 +469,39 @@ class SmbAdapterBoundaryTests(unittest.TestCase):
                     ),
                 )
                 credential.clear()
+
+    def test_bounded_runtime_failure_reason_is_preserved_without_secret_text(self):
+        factory = _FakeFactory(
+            connect_error=SmbRuntimeFailure(
+                "authentication_failed"
+            )
+        )
+        adapter = SmbReadOnlyAdapter(
+            self._profile(),
+            factory,
+        )
+        credential = _credential()
+
+        outcome = adapter.execute(
+            target="fileserver.example.test",
+            action_id="smb.server_identity",
+            credential=credential,
+        )
+
+        self.assertFalse(
+            outcome.success
+        )
+        self.assertEqual(
+            outcome.reason,
+            "authentication_failed",
+        )
+        self.assertNotIn(
+            _SECRET,
+            repr(
+                outcome
+            ),
+        )
+        credential.clear()
 
     def test_session_failure_and_close_failure_are_sanitized(self):
         session = _FakeSession(
