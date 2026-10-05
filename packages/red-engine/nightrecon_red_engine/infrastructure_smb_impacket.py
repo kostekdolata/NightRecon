@@ -19,6 +19,7 @@ from nightrecon_red_engine.infrastructure_smb import (
     SmbShareObservation,
 )
 from nightrecon_red_engine.infrastructure_smb_adapter import (
+    SmbRuntimeFailure,
     SmbRuntimeSession,
     SmbServerObservation,
 )
@@ -28,8 +29,70 @@ class ImpacketSmbRuntimeUnavailable(RuntimeError):
     """Raised when the optional Impacket SMB runtime is unavailable."""
 
 
-class ImpacketSmbConnectionError(RuntimeError):
-    """Secret-safe SMB runtime connection/authentication failure."""
+class ImpacketSmbConnectionError(SmbRuntimeFailure):
+    """Backward-compatible secret-safe SMB runtime failure."""
+
+
+_AUTH_FAILURE_CODES = frozenset(
+    {
+        0xC0000064,  # STATUS_NO_SUCH_USER
+        0xC000006A,  # STATUS_WRONG_PASSWORD
+        0xC000006D,  # STATUS_LOGON_FAILURE
+        0xC0000072,  # STATUS_ACCOUNT_DISABLED
+        0xC0000193,  # STATUS_ACCOUNT_EXPIRED
+        0xC0000224,  # STATUS_PASSWORD_MUST_CHANGE
+        0xC0000234,  # STATUS_ACCOUNT_LOCKED_OUT
+    }
+)
+
+
+def _runtime_failure_reason(
+    exc: Exception,
+) -> str:
+    """Return a bounded, secret-safe failure category for an SMB exception."""
+
+    if isinstance(
+        exc,
+        TimeoutError,
+    ):
+        return "connection_timeout"
+
+    get_error_code = getattr(
+        exc,
+        "getErrorCode",
+        None,
+    )
+    if callable(
+        get_error_code
+    ):
+        try:
+            code = int(
+                get_error_code()
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            code = None
+
+        if code in _AUTH_FAILURE_CODES:
+            return "authentication_failed"
+
+    if isinstance(
+        exc,
+        OSError,
+    ):
+        return "connection_failed"
+
+    if (
+        type(
+            exc
+        ).__name__.casefold()
+        == "sessionerror"
+    ):
+        return "session_failed"
+
+    return "connection_failed"
 
 
 @dataclass(frozen=True)
@@ -415,5 +478,7 @@ class ImpacketSmbRuntimeFactory:
                     pass
 
             raise ImpacketSmbConnectionError(
-                "SMB runtime connection or authentication failed."
+                _runtime_failure_reason(
+                    exc
+                )
             ) from None
