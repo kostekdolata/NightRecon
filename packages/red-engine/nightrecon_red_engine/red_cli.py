@@ -6172,7 +6172,10 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                         ),
                     )
                 )
-            elif not scan_report.vulnerabilities:
+            elif not any(
+                item.lookup.findings
+                for item in scan_report.vulnerabilities
+            ):
                 phases.append(
                     PentestPhaseEvidence(
                         phase="threat-context",
