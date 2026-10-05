@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document defines the first native Windows installation surface for Red Night v0.46.5. It is intentionally separate from Live USB hardware qualification.
+This document defines the first native Windows installation surface for Red Night v0.46.6. It is intentionally separate from Live USB hardware qualification.
 
 The Windows installer packages the existing Red application, Red engine, and shared core as one coordinated PyInstaller onedir bundle and installs it with Inno Setup 6.
 
