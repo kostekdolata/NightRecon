@@ -66,7 +66,7 @@ RED_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
         "check_feed_state", "check_pack_manager", "check_pack_signing",
         "check_pack_store", "check_packs", "check_plugins",
     ),
-    "orchestration": ("pentest_orchestrator",),
+    "orchestration": ("pentest_evidence", "pentest_orchestrator"),
     "graph_identity": (
         "active_directory_provider", "attack_path_atlas", "entra_provider", "graph_assessment",
         "graph_builder", "graph_correlation", "graph_critical_asset", "graph_identity_evidence",
@@ -110,12 +110,16 @@ RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
     "pentest": tuple(sorted(set(
         RED_MODULE_GROUPS["orchestration"]
         + RED_MODULE_GROUPS["discovery"]
+        + RED_MODULE_GROUPS["web"]
+        + RED_MODULE_GROUPS["infrastructure"]
         + RED_MODULE_GROUPS["vulnerability"]
         + RED_MODULE_GROUPS["checks"]
     ))),
     "run-all": tuple(sorted(set(
         RED_MODULE_GROUPS["orchestration"]
         + RED_MODULE_GROUPS["discovery"]
+        + RED_MODULE_GROUPS["web"]
+        + RED_MODULE_GROUPS["infrastructure"]
         + RED_MODULE_GROUPS["vulnerability"]
         + RED_MODULE_GROUPS["checks"]
     ))),
