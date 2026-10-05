@@ -6048,19 +6048,8 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                     )
                 )
             else:
-                assessment_findings = sum(
-                    len(
-                        execution.findings
-                    )
-                    for service_assessment in scan_report.assessments
-                    for execution in service_assessment.executions
-                )
-                assessment_errors = sum(
-                    bool(
-                        execution.error
-                    )
-                    for service_assessment in scan_report.assessments
-                    for execution in service_assessment.executions
+                assessment_summary = summarize_assessments(
+                    scan_report.assessments
                 )
                 phases.append(
                     PentestPhaseEvidence(
@@ -6072,17 +6061,23 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                         metrics=(
                             (
                                 "services_assessed",
-                                len(
-                                    scan_report.assessments
-                                ),
+                                assessment_summary.services_assessed,
                             ),
                             (
-                                "findings",
-                                assessment_findings,
+                                "checks_completed",
+                                assessment_summary.checks_completed,
+                            ),
+                            (
+                                "checks_skipped",
+                                assessment_summary.checks_skipped,
                             ),
                             (
                                 "errors",
-                                assessment_errors,
+                                assessment_summary.checks_errored,
+                            ),
+                            (
+                                "findings",
+                                assessment_summary.findings,
                             ),
                         ),
                     )
@@ -6095,6 +6090,31 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                         status="skipped",
                         target=scan_report.target,
                         reason="disabled_by_operator",
+                    )
+                )
+            elif not scan_report.vulnerabilities:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="vulnerability-intelligence",
+                        status="skipped",
+                        target=scan_report.target,
+                        session_id=scan_report.session_id,
+                        result_file=scan_result_file,
+                        reason="no_eligible_versioned_services",
+                        metrics=(
+                            (
+                                "services_queried",
+                                0,
+                            ),
+                            (
+                                "matches",
+                                0,
+                            ),
+                            (
+                                "provider_errors",
+                                0,
+                            ),
+                        ),
                     )
                 )
             else:
@@ -6152,6 +6172,34 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                         ),
                     )
                 )
+            elif not any(
+                item.lookup.findings
+                for item in scan_report.vulnerabilities
+            ):
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="threat-context",
+                        status="skipped",
+                        target=scan_report.target,
+                        session_id=scan_report.session_id,
+                        result_file=scan_result_file,
+                        reason="no_vulnerability_matches",
+                        metrics=(
+                            (
+                                "cves",
+                                0,
+                            ),
+                            (
+                                "known_exploited",
+                                0,
+                            ),
+                            (
+                                "provider_errors",
+                                0,
+                            ),
+                        ),
+                    )
+                )
             else:
                 phases.append(
                     PentestPhaseEvidence(
@@ -6197,6 +6245,18 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                     )
                 )
             else:
+                inventory_store = AssetInventoryStore(
+                    pentest_args.inventory_dir
+                )
+                try:
+                    inventory_changes = sum(
+                        event.session_id
+                        == scan_report.session_id
+                        for event in inventory_store.load_change_history()
+                    )
+                except ValueError:
+                    inventory_changes = 0
+
                 phases.append(
                     PentestPhaseEvidence(
                         phase="inventory",
@@ -6204,9 +6264,13 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                         target=scan_report.target,
                         session_id=scan_report.session_id,
                         result_file=str(
-                            AssetInventoryStore(
-                                pentest_args.inventory_dir
-                            ).path
+                            inventory_store.path
+                        ),
+                        metrics=(
+                            (
+                                "changes",
+                                inventory_changes,
+                            ),
                         ),
                     )
                 )
