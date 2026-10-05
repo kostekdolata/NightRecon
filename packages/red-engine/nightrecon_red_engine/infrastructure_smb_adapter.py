@@ -29,6 +29,30 @@ from nightrecon_red_engine.infrastructure_smb import (
 )
 
 
+class SmbRuntimeFailure(RuntimeError):
+    """Secret-safe SMB runtime failure with a bounded reason code."""
+
+    _ALLOWED_REASONS = frozenset(
+        {
+            "authentication_failed",
+            "connection_failed",
+            "connection_timeout",
+            "session_failed",
+        }
+    )
+
+    def __init__(
+        self,
+        reason: str,
+    ) -> None:
+        if reason not in self._ALLOWED_REASONS:
+            raise ValueError(
+                "Unsupported SMB runtime failure reason."
+            )
+        self.reason = reason
+        super().__init__(reason)
+
+
 @dataclass(frozen=True)
 class SmbServerObservation:
     """Already-observed SMB server identity metadata."""
@@ -193,10 +217,15 @@ class SmbReadOnlyAdapter:
                 success=False,
                 reason="evidence_invalid",
             )
+        except SmbRuntimeFailure as exc:
+            return InfrastructureAdapterOutcome(
+                success=False,
+                reason=exc.reason,
+            )
         except Exception:
             return InfrastructureAdapterOutcome(
                 success=False,
-                reason="smb_failed",
+                reason="session_failed",
             )
         finally:
             if session is not None:
