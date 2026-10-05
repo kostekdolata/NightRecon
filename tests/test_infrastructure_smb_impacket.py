@@ -30,6 +30,23 @@ from nightrecon.infrastructure_smb_impacket import (
 _SECRET = "runtime-password-secret"
 
 
+class SessionError(RuntimeError):
+    def __init__(
+        self,
+        code,
+        message="session failure",
+    ):
+        super().__init__(
+            message
+        )
+        self._code = code
+
+    def getErrorCode(
+        self,
+    ):
+        return self._code
+
+
 class _FakeConnection:
     instances = []
     login_error = None
@@ -413,9 +430,10 @@ class ImpacketSmbRuntimeTests(unittest.TestCase):
 
     def test_login_failure_closes_connection_and_sanitizes_exception(self):
         _FakeConnection.login_error = (
-            RuntimeError(
+            SessionError(
+                0xC000006D,
                 "backend leaked "
-                + _SECRET
+                + _SECRET,
             )
         )
         credential = _credential()
@@ -432,6 +450,10 @@ class ImpacketSmbRuntimeTests(unittest.TestCase):
                 credential=credential,
             )
 
+        self.assertEqual(
+            context.exception.reason,
+            "authentication_failed",
+        )
         self.assertNotIn(
             _SECRET,
             str(
@@ -442,6 +464,59 @@ class ImpacketSmbRuntimeTests(unittest.TestCase):
             _FakeConnection.instances[
                 0
             ].closed
+        )
+        credential.clear()
+
+    def test_connection_oserror_is_classified_without_exception_text(self):
+        original = _symbols()
+
+        class FailingConnection:
+            def __init__(
+                self,
+                **kwargs,
+            ):
+                raise OSError(
+                    "socket detail "
+                    + _SECRET
+                )
+
+        symbols = _ImpacketSymbols(
+            SMBConnection=FailingConnection,
+            SMB_DIALECT=original.SMB_DIALECT,
+            SMB2_DIALECT_002=original.SMB2_DIALECT_002,
+            SMB2_DIALECT_21=original.SMB2_DIALECT_21,
+            SMB2_DIALECT_30=original.SMB2_DIALECT_30,
+            SMB2_DIALECT_302=original.SMB2_DIALECT_302,
+            SMB2_DIALECT_311=original.SMB2_DIALECT_311,
+            SMB2_NEGOTIATE_SIGNING_REQUIRED=original.SMB2_NEGOTIATE_SIGNING_REQUIRED,
+            STYPE_DISKTREE=original.STYPE_DISKTREE,
+            STYPE_PRINTQ=original.STYPE_PRINTQ,
+            STYPE_DEVICE=original.STYPE_DEVICE,
+            STYPE_IPC=original.STYPE_IPC,
+            STYPE_MASK=original.STYPE_MASK,
+        )
+        credential = _credential()
+
+        with self.assertRaises(
+            ImpacketSmbConnectionError
+        ) as context:
+            ImpacketSmbRuntimeFactory(
+                symbols=symbols
+            ).connect(
+                target="fileserver.example.test",
+                profile=self._profile(),
+                credential=credential,
+            )
+
+        self.assertEqual(
+            context.exception.reason,
+            "connection_failed",
+        )
+        self.assertNotIn(
+            _SECRET,
+            str(
+                context.exception
+            ),
         )
         credential.clear()
 
