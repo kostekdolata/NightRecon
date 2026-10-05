@@ -6206,7 +6206,7 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                         result_file=str(
                             AssetInventoryStore(
                                 pentest_args.inventory_dir
-                            ).inventory_path
+                            ).path
                         ),
                     )
                 )
