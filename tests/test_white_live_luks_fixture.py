@@ -28,7 +28,9 @@ class WhiteLiveLuksFixtureTests(unittest.TestCase):
     def test_fixture_requires_luks2_and_fixed_ci_mapper_prefix(self) -> None:
         self.assertIn("--type luks2", self.text)
         self.assertIn('mapper="nightrecon-white-ci-$$"', self.text)
-        self.assertIn("cryptsetup luksFormat", self.text)
+        self.assertNotIn("cryptsetup luksFormat", self.text)
+        self.assertIn("provision-white-workspace.sh", self.text)
+        self.assertIn("--confirm PROVISION-WHITE-NIGHT-LUKS2", self.text)
         self.assertIn("cryptsetup isLuks --type luks2", self.text)
 
     def test_secret_is_file_backed_not_cli_literal_or_environment(self) -> None:
