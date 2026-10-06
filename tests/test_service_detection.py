@@ -871,7 +871,39 @@ class ServiceDetectionTests(unittest.TestCase):
     def test_common_service_is_identified_by_port(self):
         self.assertEqual(identify_service(22), "ssh")
         self.assertEqual(identify_service(80), "http")
+        self.assertEqual(identify_service(135), "msrpc")
+        self.assertEqual(identify_service(139), "netbios-ssn")
         self.assertEqual(identify_service(443), "https")
+
+    def test_windows_rpc_and_netbios_ports_remain_identified_without_banner(self):
+        for port, expected in (
+            (135, "msrpc"),
+            (139, "netbios-ssn"),
+        ):
+            with self.subTest(
+                port=port
+            ):
+                fake_socket = MagicMock()
+                fake_socket.recv.side_effect = socket.timeout()
+
+                with patch(
+                    "nightrecon.service_detection.socket.socket",
+                    return_value=fake_socket,
+                ):
+                    result = detect_service(
+                        address="127.0.0.1",
+                        port=port,
+                        timeout=1.0,
+                    )
+
+                self.assertEqual(
+                    result.service,
+                    expected,
+                )
+                self.assertEqual(
+                    result.banner,
+                    "",
+                )
 
     def test_unknown_service_returns_unknown(self):
         self.assertEqual(identify_service(65000), "unknown")
