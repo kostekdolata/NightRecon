@@ -30,6 +30,8 @@ COMMON_TCP_SERVICES = {
     53: "dns",
     80: "http",
     110: "pop3",
+    135: "msrpc",
+    139: "netbios-ssn",
     143: "imap",
     443: "https",
     445: "smb",
