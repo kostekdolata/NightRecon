@@ -2052,6 +2052,9 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
                 f"Session ID: {session.session_id}"
             )
             print(
+                f"Session status: {infra_report.status}"
+            )
+            print(
                 f"Infrastructure result file: {output_path}"
             )
             return infra_report
@@ -6484,10 +6487,38 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                     smb_summary = smb_report.to_dict()[
                         "summary"
                     ]
+                    failure_reasons = ",".join(
+                        sorted(
+                            {
+                                record.reason
+                                for record in smb_report.records
+                                if not record.success
+                            }
+                        )
+                    )
+                    smb_phase_status = (
+                        "completed"
+                        if smb_report.status
+                        == "completed"
+                        else "failed"
+                    )
+                    smb_phase_reason = (
+                        ""
+                        if smb_phase_status
+                        == "completed"
+                        else (
+                            "all_actions_failed"
+                            if smb_summary[
+                                "successful_actions"
+                            ]
+                            == 0
+                            else "partial_action_failure"
+                        )
+                    )
                     phases.append(
                         PentestPhaseEvidence(
                             phase="smb-follow-up",
-                            status="completed",
+                            status=smb_phase_status,
                             target=follow_up[2],
                             session_id=smb_report.session_id,
                             result_file=str(
@@ -6497,6 +6528,7 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                                     "-infrastructure.json"
                                 )
                             ),
+                            reason=smb_phase_reason,
                             metrics=(
                                 (
                                     "selected_actions",
@@ -6515,6 +6547,10 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                                     smb_summary[
                                         "failed_actions"
                                     ],
+                                ),
+                                (
+                                    "failure_reasons",
+                                    failure_reasons,
                                 ),
                             ),
                         )

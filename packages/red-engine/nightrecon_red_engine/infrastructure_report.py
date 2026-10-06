@@ -163,6 +163,26 @@ class SmbInfrastructureAssessmentReport:
             ...
         ],
     ) -> "SmbInfrastructureAssessmentReport":
+        successful = sum(
+            record.success
+            for record in records
+        )
+        failed = (
+            len(
+                records
+            )
+            - successful
+        )
+        status = (
+            "completed"
+            if failed == 0
+            else (
+                "failed"
+                if successful == 0
+                else "completed-with-errors"
+            )
+        )
+
         return cls(
             session_id=session.session_id,
             created_at=datetime.now(
@@ -171,7 +191,7 @@ class SmbInfrastructureAssessmentReport:
             target=session.target,
             target_type=session.target_type,
             scope=session.scope,
-            status="completed",
+            status=status,
             transport="smb",
             username=username,
             domain=domain,
