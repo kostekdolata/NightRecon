@@ -534,7 +534,7 @@ class SmbAdapterBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(
             outcome.reason,
-            "smb_failed",
+            "session_failed",
         )
         self.assertTrue(
             session.closed
