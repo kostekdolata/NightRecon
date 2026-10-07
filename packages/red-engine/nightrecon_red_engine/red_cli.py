@@ -139,8 +139,10 @@ from nightrecon_red_engine.pentest_evidence import (
 from nightrecon_red_engine.pentest_orchestrator import (
     build_scan_argv_from_args,
     build_smb_follow_up_argv,
+    build_ssh_follow_up_argv,
     build_web_follow_up_argv,
     detected_service_counts,
+    detected_ssh_service_count,
     parse_pentest_args,
 )
 from nightrecon_red_engine.report import TcpScanReport
@@ -2827,9 +2829,12 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
             f"Session ID: {session.session_id}"
         )
         print(
+            f"Session status: {infra_report.status}"
+        )
+        print(
             f"Infrastructure result file: {output_path}"
         )
-        return
+        return infra_report
 
     if args.command == "api":
         if args.api_command in {
@@ -6281,9 +6286,12 @@ def main(argv: tuple[str, ...] | None = None) -> None:
             web_count, smb_count = detected_service_counts(
                 scan_report
             )
+            ssh_count = detected_ssh_service_count(
+                scan_report
+            )
             print(
                 "Red Night Pentest Orchestrator: "
-                f"service-branches web={web_count} smb={smb_count}"
+                f"service-branches web={web_count} smb={smb_count} ssh={ssh_count}"
             )
 
             web_follow_ups = build_web_follow_up_argv(
@@ -6545,6 +6553,156 @@ def main(argv: tuple[str, ...] | None = None) -> None:
                                 (
                                     "failed_actions",
                                     smb_summary[
+                                        "failed_actions"
+                                    ],
+                                ),
+                                (
+                                    "failure_reasons",
+                                    failure_reasons,
+                                ),
+                            ),
+                        )
+                    )
+
+            ssh_follow_ups = build_ssh_follow_up_argv(
+                scan_report,
+                pentest_args,
+            )
+            if pentest_args.no_ssh_follow_up:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="ssh-follow-up",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="disabled_by_operator",
+                        metrics=(
+                            (
+                                "detected_services",
+                                ssh_count,
+                            ),
+                        ),
+                    )
+                )
+            elif ssh_count and not ssh_follow_ups:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="ssh-follow-up",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="credentials_not_supplied",
+                        metrics=(
+                            (
+                                "detected_services",
+                                ssh_count,
+                            ),
+                        ),
+                    )
+                )
+                print(
+                    "Red Night Pentest Orchestrator: "
+                    "SSH detected; credentialed read-only follow-up skipped "
+                    "because SSH credentials or known-hosts were not supplied."
+                )
+            elif not ssh_count:
+                phases.append(
+                    PentestPhaseEvidence(
+                        phase="ssh-follow-up",
+                        status="skipped",
+                        target=scan_report.target,
+                        reason="no_ssh_service_detected",
+                    )
+                )
+
+            for follow_up in ssh_follow_ups:
+                print(
+                    "Red Night Pentest Orchestrator: "
+                    f"ssh-follow-up target={follow_up[2]}"
+                )
+                try:
+                    ssh_report = _command_main(
+                        follow_up
+                    )
+                except SystemExit as exc:
+                    phases.append(
+                        PentestPhaseEvidence(
+                            phase="ssh-follow-up",
+                            status="failed",
+                            target=follow_up[2],
+                            reason=f"exit_{exc.code}",
+                        )
+                    )
+                    print(
+                        "Red Night Pentest Orchestrator: "
+                        "ssh-follow-up failed "
+                        f"exit={exc.code}; continuing"
+                    )
+                    continue
+
+                if isinstance(
+                    ssh_report,
+                    InfrastructureAssessmentReport,
+                ) and ssh_report.transport == "ssh":
+                    ssh_summary = ssh_report.to_dict()[
+                        "summary"
+                    ]
+                    failure_reasons = ",".join(
+                        sorted(
+                            {
+                                record.reason
+                                for record in ssh_report.records
+                                if not record.success
+                            }
+                        )
+                    )
+                    ssh_phase_status = (
+                        "completed"
+                        if ssh_report.status
+                        == "completed"
+                        else "failed"
+                    )
+                    ssh_phase_reason = (
+                        ""
+                        if ssh_phase_status
+                        == "completed"
+                        else (
+                            "all_actions_failed"
+                            if ssh_summary[
+                                "successful_actions"
+                            ]
+                            == 0
+                            else "partial_action_failure"
+                        )
+                    )
+                    phases.append(
+                        PentestPhaseEvidence(
+                            phase="ssh-follow-up",
+                            status=ssh_phase_status,
+                            target=follow_up[2],
+                            session_id=ssh_report.session_id,
+                            result_file=str(
+                                results_root
+                                / (
+                                    f"{ssh_report.session_id}"
+                                    "-infrastructure.json"
+                                )
+                            ),
+                            reason=ssh_phase_reason,
+                            metrics=(
+                                (
+                                    "selected_actions",
+                                    ssh_summary[
+                                        "selected_actions"
+                                    ],
+                                ),
+                                (
+                                    "successful_actions",
+                                    ssh_summary[
+                                        "successful_actions"
+                                    ],
+                                ),
+                                (
+                                    "failed_actions",
+                                    ssh_summary[
                                         "failed_actions"
                                     ],
                                 ),
