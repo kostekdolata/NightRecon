@@ -2829,9 +2829,12 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
             f"Session ID: {session.session_id}"
         )
         print(
+            f"Session status: {infra_report.status}"
+        )
+        print(
             f"Infrastructure result file: {output_path}"
         )
-        return
+        return infra_report
 
     if args.command == "api":
         if args.api_command in {
