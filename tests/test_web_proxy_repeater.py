@@ -81,6 +81,8 @@ class WebProxyRepeaterTests(unittest.TestCase):
         self.assertNotIn("authorization", record.request_header_names)
         self.assertNotIn("set-cookie", record.response_header_names)
         self.assertTrue(record.parameters)
+        self.assertEqual(record.url, "http://example.test/login")
+        self.assertNotIn("next=", record.url)
 
 
 if __name__ == "__main__":
