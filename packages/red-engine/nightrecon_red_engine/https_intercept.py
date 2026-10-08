@@ -108,6 +108,18 @@ class AssessmentCertificateAuthority:
                 ),
                 critical=True,
             )
+            .add_extension(
+                x509.SubjectKeyIdentifier.from_public_key(
+                    self._key.public_key()
+                ),
+                critical=False,
+            )
+            .add_extension(
+                x509.AuthorityKeyIdentifier.from_issuer_public_key(
+                    self._key.public_key()
+                ),
+                critical=False,
+            )
             .sign(self._key, hashes.SHA256())
         )
 
@@ -182,6 +194,38 @@ class AssessmentCertificateAuthority:
                 .add_extension(
                     x509.BasicConstraints(ca=False, path_length=None),
                     critical=True,
+                )
+                .add_extension(
+                    x509.KeyUsage(
+                        digital_signature=True,
+                        content_commitment=False,
+                        key_encipherment=True,
+                        data_encipherment=False,
+                        key_agreement=False,
+                        key_cert_sign=False,
+                        crl_sign=False,
+                        encipher_only=False,
+                        decipher_only=False,
+                    ),
+                    critical=True,
+                )
+                .add_extension(
+                    x509.ExtendedKeyUsage((
+                        x509.oid.ExtendedKeyUsageOID.SERVER_AUTH,
+                    )),
+                    critical=False,
+                )
+                .add_extension(
+                    x509.SubjectKeyIdentifier.from_public_key(
+                        key.public_key()
+                    ),
+                    critical=False,
+                )
+                .add_extension(
+                    x509.AuthorityKeyIdentifier.from_issuer_public_key(
+                        self._key.public_key()
+                    ),
+                    critical=False,
                 )
                 .sign(self._key, hashes.SHA256())
             )
