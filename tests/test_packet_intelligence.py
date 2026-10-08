@@ -3,8 +3,10 @@
 import unittest
 
 from nightrecon_red_engine.packet_intelligence import (
+    FindingCorrelationKey,
     PacketObservation,
     analyze_packets,
+    correlate_findings_to_packets,
     filter_packets,
     link_finding_to_packets,
 )
@@ -77,6 +79,31 @@ class PacketIntelligenceTests(unittest.TestCase):
             reason="supports observed traffic",
         )
         self.assertEqual(link.packet_ids, ("p1", "p2"))
+
+    def test_artifacts_and_automatic_finding_packet_correlation(self):
+        report = analyze_packets(self.fixture())
+        self.assertTrue(any(
+            item.artifact_type == "dns-name"
+            and item.value == "example.test"
+            for item in report.artifacts
+        ))
+
+        links = correlate_findings_to_packets(
+            (
+                FindingCorrelationKey(
+                    finding_ref="finding-http",
+                    address="192.0.2.20",
+                    port=80,
+                    protocol="http",
+                ),
+            ),
+            self.fixture(),
+        )
+        self.assertEqual(len(links), 1)
+        self.assertEqual(
+            links[0].packet_ids,
+            ("p1", "p2"),
+        )
 
 
 if __name__ == "__main__":
