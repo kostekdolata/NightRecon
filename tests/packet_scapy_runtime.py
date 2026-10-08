@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from tempfile import NamedTemporaryFile
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from scapy.layers.inet import IP, TCP
 from scapy.packet import Raw
@@ -47,9 +48,10 @@ def main() -> int:
     assert state == "closed"
     assert confidence == "high"
 
-    with NamedTemporaryFile(suffix=".pcap") as handle:
-        wrpcap(handle.name, [packet])
-        imported = import_pcap(handle.name)
+    with TemporaryDirectory(prefix="red-night-packet-") as directory:
+        pcap_path = Path(directory) / "fixture.pcap"
+        wrpcap(str(pcap_path), [packet])
+        imported = import_pcap(str(pcap_path))
         assert len(imported) == 1
         assert imported[0].protocol == "http"
 
