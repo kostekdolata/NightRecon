@@ -44,6 +44,17 @@ class AdvancedCliTests(unittest.TestCase):
         ))
         self.assertTrue(args.deep)
 
+    def test_http2_replay_option_is_available(self):
+        args = build_parser().parse_args((
+            "web-replay",
+            "GET",
+            "https://example.test/",
+            "--scope",
+            "example.test",
+            "--http2",
+        ))
+        self.assertTrue(args.http2)
+
     def test_https_intercept_proxy_option_is_available(self):
         args = build_parser().parse_args((
             "web-proxy",
