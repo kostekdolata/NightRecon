@@ -6060,6 +6060,14 @@ def main(argv: tuple[str, ...] | None = None) -> None:
         advanced_main(arguments)
         return
 
+    if arguments[0] in {
+        "validation-modules",
+        "range-sim",
+    }:
+        from nightrecon_red_engine.advanced_cli import main as advanced_main
+        advanced_main(arguments)
+        return
+
     if arguments[0] in {"pentest", "run-all"}:
         command_name = arguments[0]
         pentest_args = parse_pentest_args(
