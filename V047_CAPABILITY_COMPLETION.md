@@ -125,8 +125,14 @@ The new SYN and packet-capture/PCAP functions use the optional Red engine
     pip install -e "./packages/red-engine[packet]"
 
 Live capture additionally requires the operating-system packet capture runtime
-where applicable (for example Npcap on Windows or libpcap/root capabilities on
-Linux).
+where applicable (for example Npcap on Windows or libpcap/capture capabilities
+on Linux).
+
+The native Windows installer bundles the Python Scapy backend in this branch.
+The immutable Red Night Live image still uses its existing strict three-wheel
+offline release contract; the Scapy backend is therefore not claimed as
+embedded in that image by this milestone. Source/venv and native Windows
+testing are the packet/SYN validation targets for v0.47.0.
 
 ## Verification target
 
