@@ -35,6 +35,40 @@ class AdvancedCliTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             build_parser().parse_args(("web-proxy",))
 
+    def test_packet_deep_analysis_option_is_available(self):
+        args = build_parser().parse_args((
+            "packet",
+            "analyze",
+            "capture.pcap",
+            "--deep",
+        ))
+        self.assertTrue(args.deep)
+
+    def test_https_intercept_proxy_option_is_available(self):
+        args = build_parser().parse_args((
+            "web-proxy",
+            "--scope",
+            "example.test",
+            "--https-intercept",
+        ))
+        self.assertTrue(args.https_intercept)
+
+    def test_validation_module_and_range_commands_parse(self):
+        validation = build_parser().parse_args(("validation-modules",))
+        self.assertEqual(validation.command, "validation-modules")
+
+        range_args = build_parser().parse_args((
+            "range-sim",
+            "--host",
+            "operator:compromised:privileged",
+            "--host",
+            "server",
+            "--step",
+            "lateral-movement:operator:server",
+        ))
+        self.assertEqual(range_args.command, "range-sim")
+        self.assertEqual(len(range_args.host), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
