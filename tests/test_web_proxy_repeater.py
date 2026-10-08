@@ -84,6 +84,21 @@ class WebProxyRepeaterTests(unittest.TestCase):
         self.assertEqual(record.url, "http://example.test/login")
         self.assertNotIn("next=", record.url)
 
+        credentialed = build_exchange_record(
+            method="GET",
+            url="http://user:password@example.test/path?token=secret",
+            request_headers=(),
+            request_body=b"",
+            response=response,
+        )
+        self.assertEqual(
+            credentialed.url,
+            "http://example.test/path",
+        )
+        self.assertNotIn("user", credentialed.url)
+        self.assertNotIn("password", credentialed.url)
+        self.assertNotIn("secret", credentialed.url)
+
 
 if __name__ == "__main__":
     unittest.main()
