@@ -447,6 +447,18 @@ class TcpScannerTests(unittest.TestCase):
 
         socket_factory.assert_not_called()
 
+    def test_invalid_connect_probe_rate_is_rejected(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "max_probes_per_second",
+        ):
+            scan_tcp_ports(
+                "127.0.0.1",
+                (80,),
+                0.5,
+                max_probes_per_second=0,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
