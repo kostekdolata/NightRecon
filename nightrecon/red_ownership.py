@@ -158,9 +158,13 @@ RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
     "cyber_range_simulation",
     "deep_packet_analysis",
     "https_intercept",
+    "network_environment",
+    "packet_intelligence",
     "protocol_dissectors",
+    "syn_scanner",
     "tcp_stream_reassembly",
     "validation_module_registry",
+    "web_proxy_repeater",
 )
 
 RED_ENGINE_FACADES: tuple[str, ...] = (
