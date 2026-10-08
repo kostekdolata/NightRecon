@@ -243,6 +243,21 @@ class CliTests(unittest.TestCase):
         self.assertEqual(stderr, "")
         self.assertIn("Scope authorization: approved", stdout)
 
+    def test_timing_profile_option_is_accepted(self):
+        with patch("nightrecon.cli.NightReconLogger"):
+            code, stdout, stderr = self.run_cli(
+                "scan",
+                "127.0.0.1",
+                "--scope",
+                "127.0.0.1",
+                "--timing-profile",
+                "polite",
+            )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn("Scope authorization: approved", stdout)
+
     def test_invalid_runtime_configuration_is_rejected(self):
         with patch("nightrecon.cli.NightReconLogger") as logger_class:
             code, stdout, stderr = self.run_cli(
