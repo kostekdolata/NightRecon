@@ -153,6 +153,7 @@ SHARED_CORE_COMPATIBILITY_MODULES: tuple[str, ...] = (
 
 RED_ENGINE_FACADES: tuple[str, ...] = (
     "red_host_discovery", "red_tcp_scanner", "red_service_detection",
+    "scan_profiles",
 )
 
 RED_MIGRATED_ENGINE_MODULES: tuple[str, ...] = tuple(sorted(MIGRATED_MODULES))
