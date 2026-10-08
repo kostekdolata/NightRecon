@@ -2,7 +2,8 @@
 
 The proxy binds to loopback by default, captures metadata rather than secret
 header values, and forwards only targets authorized by the supplied Scope.
-HTTPS CONNECT tunnelling is intentionally not decrypted by this module.
+HTTPS CONNECT interception is optional, loopback-only, scope-gated, and uses
+an operator-visible local assessment CA without retaining secret header values.
 """
 
 from __future__ import annotations
@@ -498,11 +499,11 @@ class BoundedInterceptProxy:
         self._thread.start()
 
     def close(self) -> None:
-        self._server.shutdown()
-        self._server.server_close()
         if self._thread is not None:
+            self._server.shutdown()
             self._thread.join(timeout=2)
             self._thread = None
+        self._server.server_close()
         if self._assessment_ca is not None:
             self._assessment_ca.close()
             self._assessment_ca = None
