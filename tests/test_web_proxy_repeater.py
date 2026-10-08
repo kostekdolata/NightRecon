@@ -3,6 +3,7 @@
 import unittest
 
 from nightrecon_red_engine.web_proxy_repeater import (
+    BoundedInterceptProxy,
     RepeaterResponse,
     analyze_set_cookie,
     build_exchange_record,
@@ -46,6 +47,18 @@ class WebProxyRepeaterTests(unittest.TestCase):
         self.assertEqual(cookies[0].name, "session")
         self.assertIn("missing Secure", cookies[0].issue)
         self.assertNotIn("secret", str(cookies[0]))
+
+    def test_https_intercept_proxy_exposes_local_ca_without_auto_trust(self):
+        scope = Scope.from_values(["example.test"])
+        proxy = BoundedInterceptProxy(
+            scope=scope,
+            https_intercept=True,
+        )
+        try:
+            self.assertTrue(proxy.ca_certificate_path)
+            self.assertEqual(len(proxy.ca_fingerprint_sha256), 64)
+        finally:
+            proxy.close()
 
     def test_exchange_record_excludes_secret_header_names(self):
         response = RepeaterResponse(
