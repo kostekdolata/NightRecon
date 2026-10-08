@@ -37,7 +37,7 @@ class RedOwnershipTests(unittest.TestCase):
             set(RED_OPTIONAL_EXTRAS),
             {
                 "browser", "api", "ad", "ssh", "smb", "winrm",
-                "postgres", "mysql", "packet",
+                "postgres", "mysql", "packet", "http2",
             },
         )
 
