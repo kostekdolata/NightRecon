@@ -66,6 +66,40 @@ jobs:
         run: python tests/run_tests.py
 
 
+  http2-runtime:
+    name: HTTP2 repeater runtime on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install Red engine HTTP2 extra
+        run: python -m pip install -e "./packages/red-engine[http2]"
+
+      - name: Run HTTP2 repeater runtime compatibility
+        run: python tests/http2_runtime.py
+
+
   https-proxy-runtime:
     name: HTTPS proxy runtime on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
