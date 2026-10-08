@@ -151,6 +151,10 @@ SHARED_CORE_COMPATIBILITY_MODULES: tuple[str, ...] = (
     "authorization_policy", "edition_catalog", "edition_policy", "scope", "targets",
 )
 
+RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
+    "advanced_cli",
+)
+
 RED_ENGINE_FACADES: tuple[str, ...] = (
     "red_host_discovery", "red_tcp_scanner", "red_service_detection",
     "scan_profiles",
