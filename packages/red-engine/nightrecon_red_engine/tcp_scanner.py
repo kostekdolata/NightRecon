@@ -10,12 +10,16 @@ import socket
 
 @dataclass(frozen=True)
 class TcpPortResult:
-    """Result of a single TCP connection attempt."""
+    """Observed result for one TCP connection attempt."""
 
     address: str
     port: int
     is_open: bool
     error_code: int
+    state: str = ""
+    confidence: str = ""
+    evidence: str = ""
+    attempts: int = 1
 
 
 def scan_tcp_port(
