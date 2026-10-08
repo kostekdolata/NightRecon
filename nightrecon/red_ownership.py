@@ -97,6 +97,7 @@ RED_OPTIONAL_EXTRAS: dict[str, tuple[str, ...]] = {
     "postgres": ("psycopg[binary]>=3.2,<4",),
     "mysql": ("mysql-connector-python>=9.0,<10",),
     "packet": ("scapy>=2.6,<3",),
+    "http2": ("httpx[http2]>=0.28,<1",),
 }
 
 RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
@@ -157,6 +158,7 @@ RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
     "advanced_cli",
     "cyber_range_simulation",
     "deep_packet_analysis",
+    "http2_repeater",
     "https_intercept",
     "network_environment",
     "packet_intelligence",
