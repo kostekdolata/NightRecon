@@ -34,6 +34,54 @@ class TcpPortResult:
     attempts: int = 1
 
 
+@dataclass(frozen=True)
+class TcpScanSummary:
+    """Deterministic aggregate metadata for one completed TCP result set."""
+
+    total_results: int
+    total_attempts: int
+    open_count: int
+    closed_count: int
+    filtered_count: int
+    error_count: int
+
+
+def summarize_tcp_results(
+    results: tuple[TcpPortResult, ...],
+) -> TcpScanSummary:
+    """Summarize completed TCP results without changing scan behavior."""
+
+    state_counts = {
+        "open": 0,
+        "closed": 0,
+        "filtered": 0,
+        "error": 0,
+    }
+    total_attempts = 0
+
+    for result in results:
+        if not isinstance(result, TcpPortResult):
+            raise TypeError("results must contain only TcpPortResult values.")
+
+        if result.state not in state_counts:
+            raise ValueError(f"Unsupported TCP result state: {result.state!r}.")
+
+        if result.attempts < 1:
+            raise ValueError("TCP result attempts must be at least 1.")
+
+        state_counts[result.state] += 1
+        total_attempts += result.attempts
+
+    return TcpScanSummary(
+        total_results=len(results),
+        total_attempts=total_attempts,
+        open_count=state_counts["open"],
+        closed_count=state_counts["closed"],
+        filtered_count=state_counts["filtered"],
+        error_count=state_counts["error"],
+    )
+
+
 def scan_tcp_port(
     address: str,
     port: int,
@@ -151,6 +199,13 @@ def scan_tcp_ports(
                         port=port,
                         is_open=False,
                         error_code=error_code,
+                        state="error",
+                        confidence="low",
+                        evidence=(
+                            "TCP scan worker failed with socket error code "
+                            f"{error_code}"
+                        ),
+                        attempts=1,
                     )
                 )
 
