@@ -126,6 +126,14 @@ def _packet_payload(report) -> dict[str, object]:
             }
             for item in report.findings
         ],
+        "artifacts": [
+            {
+                "type": item.artifact_type,
+                "value": item.value,
+                "packet_ids": list(item.packet_ids),
+            }
+            for item in report.artifacts
+        ],
     }
 
 
