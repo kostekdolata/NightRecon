@@ -58,6 +58,12 @@ def build_network_assessment_intelligence(
     """Build deterministic high-level feedback from existing scan evidence."""
 
     open_tcp = tuple(item for item in tcp_results if item.is_open)
+    filtered_tcp = tuple(
+        item for item in tcp_results if item.state == "filtered"
+    )
+    error_tcp = tuple(
+        item for item in tcp_results if item.state == "error"
+    )
     open_udp = tuple(item for item in udp_results if item.state == "open")
     unresolved_udp = tuple(
         item for item in udp_results if item.state == "open|filtered"
@@ -170,6 +176,26 @@ def build_network_assessment_intelligence(
         next_actions.append(
             "Review infrastructure-service configuration, intended exposure, "
             "and whether management/query access is appropriately restricted."
+        )
+
+    if filtered_tcp:
+        gaps.append(
+            f"{len(filtered_tcp)} TCP port(s) remain filtered because "
+            "connection timeouts did not establish an open or closed state."
+        )
+        next_actions.append(
+            "Reassess filtered TCP ports with approved retries or "
+            "corroborating network-path evidence."
+        )
+
+    if error_tcp:
+        gaps.append(
+            f"{len(error_tcp)} TCP port(s) could not be classified because "
+            "the connection attempt ended in a non-state socket error."
+        )
+        next_actions.append(
+            "Review TCP scan errors and network reachability before "
+            "treating affected ports as closed."
         )
 
     if unresolved_udp:
