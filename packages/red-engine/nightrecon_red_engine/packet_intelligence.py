@@ -87,11 +87,27 @@ class PacketEvidenceLink:
 
 
 @dataclass(frozen=True)
+class ExtractedNetworkArtifact:
+    artifact_type: str
+    value: str
+    packet_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class FindingCorrelationKey:
+    finding_ref: str
+    address: str
+    port: int | None = None
+    protocol: str = ""
+
+
+@dataclass(frozen=True)
 class PacketIntelligenceReport:
     packets: tuple[PacketObservation, ...]
     conversations: tuple[ConversationStats, ...]
     streams: tuple[StreamSummary, ...]
     findings: tuple[TrafficFinding, ...]
+    artifacts: tuple[ExtractedNetworkArtifact, ...] = ()
 
 
 def _packet_id(
@@ -463,6 +479,71 @@ def detect_suspicious_traffic(
     return tuple(findings)
 
 
+def extract_network_artifacts(
+    packets: tuple[PacketObservation, ...],
+) -> tuple[ExtractedNetworkArtifact, ...]:
+    grouped: dict[tuple[str, str], list[str]] = defaultdict(list)
+
+    for packet in packets:
+        candidates = (
+            ("dns-name", packet.dns_name),
+            ("http-path", packet.http_path),
+            ("tls-sni", packet.tls_sni),
+        )
+        for artifact_type, value in candidates:
+            cleaned = value.strip()
+            if cleaned:
+                grouped[(artifact_type, cleaned)].append(packet.packet_id)
+
+    return tuple(
+        ExtractedNetworkArtifact(
+            artifact_type=artifact_type,
+            value=value,
+            packet_ids=tuple(dict.fromkeys(packet_ids)),
+        )
+        for (artifact_type, value), packet_ids in sorted(grouped.items())
+    )
+
+
+def correlate_findings_to_packets(
+    keys: tuple[FindingCorrelationKey, ...],
+    packets: tuple[PacketObservation, ...],
+) -> tuple[PacketEvidenceLink, ...]:
+    links: list[PacketEvidenceLink] = []
+
+    for key in keys:
+        if not key.finding_ref.strip():
+            raise ValueError("finding_ref must not be empty")
+        if key.port is not None and not 1 <= key.port <= 65535:
+            raise ValueError("correlation port must be between 1 and 65535")
+
+        protocol = key.protocol.strip().lower()
+        matched = tuple(
+            packet.packet_id
+            for packet in packets
+            if key.address in {packet.src, packet.dst}
+            and (
+                key.port is None
+                or key.port in {packet.src_port, packet.dst_port}
+            )
+            and (
+                not protocol
+                or protocol in {packet.protocol, packet.transport}
+            )
+        )
+        if matched:
+            links.append(PacketEvidenceLink(
+                finding_ref=key.finding_ref,
+                packet_ids=tuple(dict.fromkeys(matched)),
+                reason=(
+                    "automatic packet correlation by observed "
+                    "address/port/protocol evidence"
+                ),
+            ))
+
+    return tuple(links)
+
+
 def analyze_packets(
     packets: tuple[PacketObservation, ...],
 ) -> PacketIntelligenceReport:
@@ -471,6 +552,7 @@ def analyze_packets(
         conversations=build_conversations(packets),
         streams=build_streams(packets),
         findings=detect_suspicious_traffic(packets),
+        artifacts=extract_network_artifacts(packets),
     )
 
 
