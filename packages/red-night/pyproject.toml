@@ -25,6 +25,7 @@ winrm = ["pywinrm>=0.5,<0.6"]
 postgres = ["psycopg[binary]>=3.2,<4"]
 mysql = ["mysql-connector-python>=9.0,<10"]
 packet = ["scapy>=2.6,<3"]
+http2 = ["httpx[http2]>=0.28,<1"]
 all = [
     "playwright>=1.63,<2",
     "PyYAML>=6.0,<7",
@@ -35,6 +36,7 @@ all = [
     "psycopg[binary]>=3.2,<4",
     "mysql-connector-python>=9.0,<10",
     "scapy>=2.6,<3",
+    "httpx[http2]>=0.28,<1",
 ]
 
 [project.scripts]
