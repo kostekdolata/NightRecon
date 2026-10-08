@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import errno
 import ipaddress
 import socket
+import time
 
 
 MAX_TCP_PORTS_PER_SCAN = 4096
@@ -227,6 +228,7 @@ def scan_tcp_ports(
     max_workers: int = 50,
     *,
     retries: int = 0,
+    max_probes_per_second: int | None = None,
 ) -> tuple[TcpPortResult, ...]:
     """Perform bounded concurrent TCP connect checks against multiple ports."""
 
@@ -264,6 +266,18 @@ def scan_tcp_ports(
             f"retries must be between 0 and {MAX_TCP_RETRIES}."
         )
 
+    if (
+        max_probes_per_second is not None
+        and (
+            isinstance(max_probes_per_second, bool)
+            or not isinstance(max_probes_per_second, int)
+            or not 1 <= max_probes_per_second <= 1000
+        )
+    ):
+        raise ValueError(
+            "max_probes_per_second must be between 1 and 1000."
+        )
+
     planned_attempts = len(ports) * (retries + 1)
     if planned_attempts > MAX_TCP_ATTEMPTS_PER_SCAN:
         raise ValueError(
@@ -276,27 +290,38 @@ def scan_tcp_ports(
     with ThreadPoolExecutor(
         max_workers=min(max_workers, len(ports)),
     ) as executor:
-        if retries == 0:
-            futures = {
-                executor.submit(
+        futures = {}
+        interval = (
+            0.0
+            if max_probes_per_second is None
+            else 1.0 / max_probes_per_second
+        )
+        next_submit_at = time.monotonic()
+
+        for port in ports:
+            if interval:
+                now = time.monotonic()
+                delay = next_submit_at - now
+                if delay > 0:
+                    time.sleep(delay)
+                next_submit_at = max(next_submit_at + interval, time.monotonic())
+
+            if retries == 0:
+                future = executor.submit(
                     scan_tcp_port,
                     address,
                     port,
                     timeout,
-                ): port
-                for port in ports
-            }
-        else:
-            futures = {
-                executor.submit(
+                )
+            else:
+                future = executor.submit(
                     scan_tcp_port,
                     address,
                     port,
                     timeout,
                     retries=retries,
-                ): port
-                for port in ports
-            }
+                )
+            futures[future] = port
 
         for future in as_completed(futures):
             port = futures[future]
