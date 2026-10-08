@@ -4,8 +4,20 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+import errno
 import ipaddress
 import socket
+
+
+_CLOSED_ERROR_CODES = {
+    errno.ECONNREFUSED,
+    getattr(errno, "WSAECONNREFUSED", 10061),
+}
+
+_FILTERED_ERROR_CODES = {
+    errno.ETIMEDOUT,
+    getattr(errno, "WSAETIMEDOUT", 10060),
+}
 
 
 @dataclass(frozen=True)
@@ -60,11 +72,32 @@ def scan_tcp_port(
                 (address, port)
             )
 
+        if result == 0:
+            state = "open"
+            confidence = "high"
+            evidence = "TCP connection completed successfully"
+        elif result in _CLOSED_ERROR_CODES:
+            state = "closed"
+            confidence = "high"
+            evidence = f"TCP connection refused with socket error code {result}"
+        elif result in _FILTERED_ERROR_CODES:
+            state = "filtered"
+            confidence = "medium"
+            evidence = f"TCP connection timed out with socket error code {result}"
+        else:
+            state = "error"
+            confidence = "low"
+            evidence = f"TCP connection failed with socket error code {result}"
+
         return TcpPortResult(
             address=address,
             port=port,
-            is_open=result == 0,
+            is_open=state == "open",
             error_code=result,
+            state=state,
+            confidence=confidence,
+            evidence=evidence,
+            attempts=1,
         )
 
     finally:
