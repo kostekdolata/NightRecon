@@ -123,6 +123,10 @@ class AssessmentCertificateAuthority:
                 serialization.NoEncryption(),
             )
         )
+        try:
+            self.ca_private_key_path.chmod(0o600)
+        except OSError:
+            pass
 
     @property
     def ca_fingerprint_sha256(self) -> str:
@@ -195,6 +199,10 @@ class AssessmentCertificateAuthority:
                     serialization.NoEncryption(),
                 )
             )
+            try:
+                key_path.chmod(0o600)
+            except OSError:
+                pass
             material = MitmCertificateMaterial(
                 hostname=normalized,
                 certificate_path=str(cert_path),
