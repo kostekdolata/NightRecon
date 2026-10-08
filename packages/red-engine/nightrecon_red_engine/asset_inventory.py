@@ -232,6 +232,14 @@ def apply_scan_report(
             for result in port_results
             if result.is_open
         }
+        explicitly_closed_ports = {
+            result.port
+            for result in port_results
+            if (
+                not result.is_open
+                and result.state in {"", "closed"}
+            )
+        }
         existing = assets.get(address)
 
         if existing is None and not open_ports:
@@ -352,7 +360,10 @@ def apply_scan_report(
                         )
 
                 new_services[port] = observed
-            elif port in old_services:
+            elif (
+                port in explicitly_closed_ports
+                and port in old_services
+            ):
                 previous = old_services[port]
                 changes.append(
                     AssetChange(
