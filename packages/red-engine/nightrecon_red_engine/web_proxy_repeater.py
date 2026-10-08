@@ -211,7 +211,10 @@ def replay_request(
 def _safe_record_url(url: str) -> str:
     parsed = urlsplit(url)
     path = parsed.path or "/"
-    authority = parsed.netloc
+    host = parsed.hostname or ""
+    authority = f"[{host}]" if ":" in host else host
+    if parsed.port is not None:
+        authority += f":{parsed.port}"
     return f"{parsed.scheme}://{authority}{path}"
 
 
