@@ -151,7 +151,7 @@ from nightrecon_red_engine.session import ScanSession
 from nightrecon_red_engine.storage import ResultStore
 from nightrecon_shared_core.authorization import TargetType, parse_target
 from nightrecon_shared_core.workspace import LocalWorkspace
-from nightrecon_red_engine.tcp_scanner import scan_tcp_ports
+from nightrecon_red_engine.tcp_scanner import MAX_TCP_RETRIES, scan_tcp_ports
 from nightrecon_red_engine.threat_context import (
     enrich_threat_context,
     summarize_threat_context,
@@ -1567,6 +1567,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=50,
         help="Maximum concurrent workers. Default: 50",
+    )
+
+    scan_parser.add_argument(
+        "--tcp-retries",
+        type=int,
+        choices=range(0, MAX_TCP_RETRIES + 1),
+        default=0,
+        help=(
+            "Retry filtered TCP connection attempts up to this many times. "
+            f"Maximum: {MAX_TCP_RETRIES}. Default: 0"
+        ),
     )
 
     scan_parser.add_argument(
@@ -5195,6 +5206,7 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
                 ports=ports,
                 timeout=config.connect_timeout,
                 max_workers=config.max_workers,
+                retries=args.tcp_retries,
             )
 
             all_results.extend(results)
