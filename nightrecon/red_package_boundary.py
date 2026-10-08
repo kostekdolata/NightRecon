@@ -62,16 +62,18 @@ def audit_red_dependencies(
         | set(RED_ENGINE_INTERNAL_SUPPORT_MODULES)
     )
     package = set(red_package_modules())
+    engine_internal = set(RED_ENGINE_INTERNAL_SUPPORT_MODULES)
+    audit_modules = package | engine_internal
 
     owned_edges: list[tuple[str, str]] = []
     shared_edges: list[tuple[str, str]] = []
     support_edges: list[tuple[str, str]] = []
     unresolved_edges: list[tuple[str, str]] = []
 
-    for module in sorted(package):
+    for module in sorted(audit_modules):
         source = (
             engine / f"{module}.py"
-            if module in migrated
+            if module in migrated or module in engine_internal
             else legacy / f"{module}.py"
         )
         if not source.is_file():
