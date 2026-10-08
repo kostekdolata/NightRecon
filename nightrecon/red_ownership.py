@@ -96,6 +96,7 @@ RED_OPTIONAL_EXTRAS: dict[str, tuple[str, ...]] = {
     "winrm": ("pywinrm>=0.5,<0.6",),
     "postgres": ("psycopg[binary]>=3.2,<4",),
     "mysql": ("mysql-connector-python>=9.0,<10",),
+    "packet": ("scapy>=2.6,<3",),
 }
 
 RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
@@ -129,6 +130,11 @@ RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
         + RED_MODULE_GROUPS["checks"]
     ))),
     "workspace": ("red_workspace_cli",),
+    "network-env": ("red_cli",),
+    "syn-scan": ("red_cli",),
+    "packet": ("red_cli",),
+    "web-replay": ("red_cli",),
+    "web-proxy": ("red_cli",),
 }
 
 RED_COMMANDS: tuple[str, ...] = tuple(sorted(RED_COMMAND_MODULES))
