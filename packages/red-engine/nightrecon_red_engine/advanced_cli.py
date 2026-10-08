@@ -13,6 +13,7 @@ from nightrecon_red_engine.cyber_range_simulation import (
     build_simulation_payload,
 )
 from nightrecon_red_engine.deep_packet_analysis import analyze_pcap_deep
+from nightrecon_red_engine.http2_repeater import replay_http2_request
 from nightrecon_red_engine.network_environment import collect_network_environment
 from nightrecon_red_engine.packet_intelligence import (
     analyze_packets,
@@ -78,6 +79,11 @@ def build_parser() -> argparse.ArgumentParser:
     replay.add_argument("--header", action="append", default=[])
     replay.add_argument("--body", default="")
     replay.add_argument("--timeout", type=float, default=5.0)
+    replay.add_argument(
+        "--http2",
+        action="store_true",
+        help="Use the optional HTTP/2 repeater runtime for HTTPS requests.",
+    )
 
     proxy = sub.add_parser("web-proxy")
     proxy.add_argument("--scope", action="append", required=True)
@@ -302,14 +308,32 @@ def main(argv: tuple[str, ...]) -> object | None:
         scope = Scope.from_values(args.scope)
         headers = _headers(args.header)
         body = args.body.encode("utf-8")
-        response = replay_request(
-            method=args.method,
-            url=args.url,
-            scope=scope,
-            headers=headers,
-            body=body,
-            timeout=args.timeout,
-        )
+        if args.http2:
+            http2_response = replay_http2_request(
+                method=args.method,
+                url=args.url,
+                scope=scope,
+                headers=headers,
+                body=body,
+                timeout=args.timeout,
+            )
+            from nightrecon_red_engine.web_proxy_repeater import RepeaterResponse
+            response = RepeaterResponse(
+                status=http2_response.status,
+                reason=http2_response.http_version,
+                headers=http2_response.headers,
+                body=http2_response.body,
+                truncated=http2_response.truncated,
+            )
+        else:
+            response = replay_request(
+                method=args.method,
+                url=args.url,
+                scope=scope,
+                headers=headers,
+                body=body,
+                timeout=args.timeout,
+            )
         record = build_exchange_record(
             method=args.method,
             url=args.url,
@@ -320,6 +344,7 @@ def main(argv: tuple[str, ...]) -> object | None:
         print(json.dumps({
             "exchange_id": record.exchange_id,
             "status": record.response_status,
+            "transport": "http2" if args.http2 else "http1",
             "request_body_bytes": record.request_body_bytes,
             "response_body_bytes": record.response_body_bytes,
             "parameters": [
