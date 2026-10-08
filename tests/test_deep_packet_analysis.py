@@ -4,13 +4,17 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from scapy.layers.inet import IP, TCP
-from scapy.packet import Raw
-from scapy.utils import wrpcap
+try:
+    from scapy.layers.inet import IP, TCP
+    from scapy.packet import Raw
+    from scapy.utils import wrpcap
+except ImportError:
+    IP = TCP = Raw = wrpcap = None
 
 from nightrecon_red_engine.deep_packet_analysis import analyze_pcap_deep
 
 
+@unittest.skipUnless(IP is not None, "Scapy packet extra is not installed")
 class DeepPacketAnalysisTests(unittest.TestCase):
     def test_http_request_is_reassembled_from_multiple_tcp_segments(self):
         with TemporaryDirectory() as directory:
