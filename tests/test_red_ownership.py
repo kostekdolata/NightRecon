@@ -48,6 +48,7 @@ class RedOwnershipTests(unittest.TestCase):
                 "api", "assets", "checks", "crawl", "discover", "editions",
                 "identity", "infra", "pentest", "run-all", "scan", "workspace",
                 "network-env", "syn-scan", "packet", "web-replay", "web-proxy",
+                "validation-modules", "range-sim",
             },
         )
 
