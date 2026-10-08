@@ -145,6 +145,7 @@ from nightrecon_red_engine.pentest_orchestrator import (
 )
 from nightrecon_red_engine.report import TcpScanReport
 from nightrecon_red_engine.resolver import resolve_target
+from nightrecon_red_engine.scan_profiles import get_scan_timing_profile
 from nightrecon_shared_core.authorization import Scope
 from nightrecon_red_engine.service_detection import detect_services
 from nightrecon_red_engine.session import ScanSession
@@ -1577,6 +1578,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Retry filtered TCP connection attempts up to this many times. "
             f"Maximum: {MAX_TCP_RETRIES}. Default: 0"
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--timing-profile",
+        choices=("polite", "normal", "fast"),
+        help=(
+            "Optional bounded scan timing/rate profile. When supplied it "
+            "controls timeout, worker count, retries, and connect-probe pacing."
         ),
     )
 
@@ -3906,11 +3916,34 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
             scope = Scope.from_values(args.scope)
             ports = parse_ports(args.ports)
 
+            timing_profile = (
+                get_scan_timing_profile(args.timing_profile)
+                if args.timing_profile
+                else None
+            )
             config = NightReconConfig(
-                connect_timeout=args.timeout,
-                max_workers=args.workers,
+                connect_timeout=(
+                    timing_profile.timeout_seconds
+                    if timing_profile is not None
+                    else args.timeout
+                ),
+                max_workers=(
+                    timing_profile.max_workers
+                    if timing_profile is not None
+                    else args.workers
+                ),
                 results_dir=args.results_dir,
                 logs_dir=args.logs_dir,
+            )
+            tcp_retries = (
+                timing_profile.retries
+                if timing_profile is not None
+                else args.tcp_retries
+            )
+            tcp_rate = (
+                timing_profile.max_probes_per_second
+                if timing_profile is not None
+                else None
             )
         except ValueError as exc:
             parser.error(str(exc))
@@ -5201,13 +5234,23 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
         all_results = []
 
         for address in resolution.addresses:
-            results = scan_tcp_ports(
-                address=address,
-                ports=ports,
-                timeout=config.connect_timeout,
-                max_workers=config.max_workers,
-                retries=args.tcp_retries,
-            )
+            if tcp_rate is None:
+                results = scan_tcp_ports(
+                    address=address,
+                    ports=ports,
+                    timeout=config.connect_timeout,
+                    max_workers=config.max_workers,
+                    retries=tcp_retries,
+                )
+            else:
+                results = scan_tcp_ports(
+                    address=address,
+                    ports=ports,
+                    timeout=config.connect_timeout,
+                    max_workers=config.max_workers,
+                    retries=tcp_retries,
+                    max_probes_per_second=tcp_rate,
+                )
 
             all_results.extend(results)
 
