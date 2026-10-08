@@ -5895,6 +5895,18 @@ def _guard_subject(arguments: tuple[str, ...]) -> tuple[str, str, str] | None:
         if host is None:
             return None
         return "web.crawl", host, "standard"
+    if command == "syn-scan" and len(arguments) >= 2:
+        return "scan.syn", arguments[1], "standard"
+    if command == "web-replay" and len(arguments) >= 3:
+        host = urlsplit(arguments[2]).hostname
+        if host is None:
+            return None
+        return "web.replay", host, "standard"
+    if command == "web-proxy":
+        scope_target = _flag_value(arguments, "--scope")
+        if scope_target:
+            return "web.proxy", scope_target, "standard"
+        return None
     if command == "infra" and len(arguments) >= 3:
         return f"infrastructure.{arguments[1]}", arguments[2], "standard"
     if command == "api" and len(arguments) >= 2:
@@ -5986,6 +5998,23 @@ def main(argv: tuple[str, ...] | None = None) -> None:
     if arguments[0] == "workspace":
         from nightrecon_red_engine.red_workspace_cli import main as workspace_main
         workspace_main(arguments[1:])
+        return
+
+    if arguments[0] in {
+        "network-env",
+        "syn-scan",
+        "packet",
+        "web-replay",
+        "web-proxy",
+    }:
+        _authorize_guarded_execution(
+            arguments,
+            workspace_root=workspace_root,
+            engagement_id=engagement_id,
+            approved=approved,
+        )
+        from nightrecon_red_engine.advanced_cli import main as advanced_main
+        advanced_main(arguments)
         return
 
     if arguments[0] in {"pentest", "run-all"}:
