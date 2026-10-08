@@ -15,6 +15,11 @@ import json
 import threading
 from urllib.parse import parse_qsl, urlsplit
 
+from nightrecon_red_engine.https_intercept import (
+    AssessmentCertificateAuthority,
+    authorize_connect_target,
+)
+
 from nightrecon_shared_core.authorization import Scope, parse_target
 
 
@@ -257,10 +262,19 @@ def build_exchange_record(
 class _ProxyServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, server_address, handler, *, scope: Scope, records: list[HttpExchangeRecord]):
+    def __init__(
+        self,
+        server_address,
+        handler,
+        *,
+        scope: Scope,
+        records: list[HttpExchangeRecord],
+        assessment_ca: AssessmentCertificateAuthority | None = None,
+    ):
         super().__init__(server_address, handler)
         self.scope = scope
         self.records = records
+        self.assessment_ca = assessment_ca
 
 
 class _ProxyHandler(BaseHTTPRequestHandler):
@@ -270,7 +284,12 @@ class _ProxyHandler(BaseHTTPRequestHandler):
         if self.command not in _ALLOWED_METHODS:
             self.send_error(405)
             return
-        target_url = self.path
+        mitm_origin = getattr(self, "_mitm_origin", "")
+        target_url = (
+            mitm_origin + self.path
+            if mitm_origin and self.path.startswith("/")
+            else self.path
+        )
         try:
             content_length = int(self.headers.get("Content-Length", "0") or "0")
         except ValueError:
@@ -329,10 +348,95 @@ class _ProxyHandler(BaseHTTPRequestHandler):
     do_OPTIONS = _forward
 
     def do_CONNECT(self) -> None:
-        self.send_error(
-            501,
-            "HTTPS CONNECT decryption is not provided by this bounded proxy.",
+        assessment_ca = self.server.assessment_ca
+        if assessment_ca is None:
+            self.send_error(
+                501,
+                "HTTPS interception is disabled for this proxy instance.",
+            )
+            return
+
+        authority = self.path.strip()
+        if not authority:
+            self.send_error(400)
+            return
+
+        host = authority
+        port = 443
+        if authority.startswith("[") and "]" in authority:
+            closing = authority.index("]")
+            host = authority[1:closing]
+            suffix = authority[closing + 1:]
+            if suffix.startswith(":"):
+                try:
+                    port = int(suffix[1:])
+                except ValueError:
+                    self.send_error(400)
+                    return
+        elif authority.count(":") == 1:
+            candidate_host, candidate_port = authority.rsplit(":", 1)
+            try:
+                port = int(candidate_port)
+                host = candidate_host
+            except ValueError:
+                host = authority
+
+        try:
+            authorize_connect_target(host, port, self.server.scope)
+            context = assessment_ca.server_context(host)
+        except PermissionError:
+            self.send_error(403)
+            return
+        except (ValueError, OSError):
+            self.send_error(400)
+            return
+
+        self.connection.sendall(
+            b"HTTP/1.1 200 Connection Established\r\n"
+            b"Proxy-Agent: RedNight\r\n\r\n"
         )
+
+        try:
+            tls_connection = context.wrap_socket(
+                self.connection,
+                server_side=True,
+            )
+        except Exception:
+            self.close_connection = True
+            return
+
+        self.connection = tls_connection
+        self.rfile = tls_connection.makefile("rb", self.rbufsize)
+        self.wfile = tls_connection.makefile("wb", self.wbufsize)
+        host_text = (
+            f"[{host}]" if ":" in host else host
+        )
+        origin = (
+            f"https://{host_text}"
+            if port == 443
+            else f"https://{host_text}:{port}"
+        )
+        self._mitm_origin = origin
+        self.close_connection = False
+
+        try:
+            while not self.close_connection:
+                self.handle_one_request()
+        finally:
+            self._mitm_origin = ""
+            try:
+                self.rfile.close()
+            except Exception:
+                pass
+            try:
+                self.wfile.close()
+            except Exception:
+                pass
+            try:
+                tls_connection.close()
+            except Exception:
+                pass
+            self.close_connection = True
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -347,15 +451,23 @@ class BoundedInterceptProxy:
         scope: Scope,
         host: str = "127.0.0.1",
         port: int = 0,
+        https_intercept: bool = False,
+        ca_directory: str | None = None,
     ):
         if host not in {"127.0.0.1", "::1", "localhost"}:
             raise ValueError("intercept proxy must bind to loopback")
         self.records: list[HttpExchangeRecord] = []
+        self._assessment_ca = (
+            AssessmentCertificateAuthority(directory=ca_directory)
+            if https_intercept
+            else None
+        )
         self._server = _ProxyServer(
             (host, port),
             _ProxyHandler,
             scope=scope,
             records=self.records,
+            assessment_ca=self._assessment_ca,
         )
         self._thread: threading.Thread | None = None
 
@@ -363,6 +475,18 @@ class BoundedInterceptProxy:
     def address(self) -> tuple[str, int]:
         host, port = self._server.server_address[:2]
         return str(host), int(port)
+
+    @property
+    def ca_certificate_path(self) -> str:
+        if self._assessment_ca is None:
+            return ""
+        return str(self._assessment_ca.ca_certificate_path)
+
+    @property
+    def ca_fingerprint_sha256(self) -> str:
+        if self._assessment_ca is None:
+            return ""
+        return self._assessment_ca.ca_fingerprint_sha256
 
     def start(self) -> None:
         if self._thread is not None:
@@ -379,6 +503,9 @@ class BoundedInterceptProxy:
         if self._thread is not None:
             self._thread.join(timeout=2)
             self._thread = None
+        if self._assessment_ca is not None:
+            self._assessment_ca.close()
+            self._assessment_ca = None
 
     def __enter__(self) -> "BoundedInterceptProxy":
         self.start()
