@@ -135,6 +135,8 @@ RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
     "packet": ("red_cli",),
     "web-replay": ("red_cli",),
     "web-proxy": ("red_cli",),
+    "validation-modules": ("red_cli",),
+    "range-sim": ("red_cli",),
 }
 
 RED_COMMANDS: tuple[str, ...] = tuple(sorted(RED_COMMAND_MODULES))
