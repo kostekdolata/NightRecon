@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import json
+import hashlib
 import sqlite3
 
 from nightrecon_shared_core.engagement_policy import (
@@ -155,10 +156,23 @@ class TransactionalPolicyAuthority:
             raise ValueError("Invalid imported engagement status")
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
+            db.execute("""CREATE TABLE IF NOT EXISTS authority_migration_audit (
+                migration_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_sha256 TEXT NOT NULL,
+                imported_count INTEGER NOT NULL,
+                imported_ids_json TEXT NOT NULL,
+                imported_at TEXT NOT NULL
+            )""")
             for policy in policies:
                 db.execute("""INSERT INTO engagement_authority
                     (engagement_id,policy_json,engagement_status,actions_used)
                     VALUES (?,?,?,?)""",
                     (policy.engagement_id,json.dumps(policy.to_dict()),
                      statuses[policy.engagement_id],policy.actions_used))
+            source_hash = hashlib.sha256(Path(legacy_path).read_bytes()).hexdigest()
+            db.execute("""INSERT INTO authority_migration_audit
+                (source_sha256,imported_count,imported_ids_json,imported_at)
+                VALUES(?,?,?,?)""",
+                (source_hash,len(policies),json.dumps(sorted(identifiers)),
+                 datetime.now(timezone.utc).isoformat()))
         return len(policies)
