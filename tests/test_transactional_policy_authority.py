@@ -13,6 +13,17 @@ from pathlib import Path
 from nightrecon_shared_core.engagement_policy import EngagementExecutionPolicy
 from nightrecon_red_engine.transactional_policy_authority import TransactionalPolicyAuthority
 
+class TestSQLiteLifecycle(unittest.TestCase):
+    def test_database_can_be_deleted_after_context_exit(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "authority.db"
+            authority = TransactionalPolicyAuthority(path)
+            with authority._db() as db:
+                self.assertEqual(db.execute("SELECT 1").fetchone()[0], 1)
+            path.unlink()
+            self.assertFalse(path.exists())
+
+
 class TestTransactionalPolicyAuthority(unittest.TestCase):
     def setUp(self):
         t=tempfile.TemporaryDirectory()
