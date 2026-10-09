@@ -22,6 +22,7 @@ from nightrecon_shared_core.engagement_policy import (
 from .atomic_action_ledger import AtomicActionLedger
 from .governed_command_runner import FixedCommand, CommandOutcome
 from .windows_job import WindowsJob
+from .transactional_policy_authority import TransactionalPolicyAuthority
 
 
 def _record(path: str | Path, *, action_id: str, engagement_id: str,
@@ -46,6 +47,7 @@ def execute_atomically_governed(
     approved: bool = False,
     cancel_event: threading.Event | None = None,
     poll_interval: float = 0.2,
+    authority: TransactionalPolicyAuthority | None = None,
 ) -> CommandOutcome:
     """Run a fixed low-impact diagnostic with shared-policy AND atomic-ledger checks.
 
@@ -60,32 +62,44 @@ def execute_atomically_governed(
         raise PermissionError("Elevated execution requires privileged broker")
     if not command.executable.is_file():
         raise FileNotFoundError("Approved executable unavailable")
-    policy = policy_store.policy(engagement_id)
-    if policy is None:
-        raise PermissionError("Missing engagement policy")
-    decision = evaluate_action(
-        policy, engagement_status=engagement_status,
-        capability=command.capability, target=target, impact=command.impact,
-        approval_present=approved,
-    )
-    append_authorization_audit(audit_path, decision)
-    if not decision.allowed:
-        raise PermissionError(decision.reason_code)
-    ledger.reserve(engagement_id, action_id, policy_limit=policy.max_actions,
-                   policy_used=policy.actions_used, policy_revoked=policy.revoked)
-    latest = policy_store.policy(engagement_id)
-    if latest is None:
-        raise PermissionError("Engagement policy unavailable after reservation")
-    final = evaluate_reserved_action(
-        latest, engagement_status=engagement_status,
-        capability=command.capability, target=target, impact=command.impact,
-        approval_present=approved,
-    )
-    append_authorization_audit(audit_path, final)
-    if not final.allowed:
-        _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
-                command=command.name, status="denied-after-reservation")
-        raise PermissionError(final.reason_code)
+    if authority is not None:
+        authority.reserve(
+            engagement_id=engagement_id, action_id=action_id,
+            capability=command.capability, target=target,
+            impact=command.impact, approval_present=approved,
+        )
+        authority.validate_reserved(
+            engagement_id=engagement_id, action_id=action_id,
+            capability=command.capability, target=target,
+            impact=command.impact, approval_present=approved,
+        )
+    else:
+        policy = policy_store.policy(engagement_id)
+        if policy is None:
+            raise PermissionError("Missing engagement policy")
+        decision = evaluate_action(
+            policy, engagement_status=engagement_status,
+            capability=command.capability, target=target, impact=command.impact,
+            approval_present=approved,
+        )
+        append_authorization_audit(audit_path, decision)
+        if not decision.allowed:
+            raise PermissionError(decision.reason_code)
+        ledger.reserve(engagement_id, action_id, policy_limit=policy.max_actions,
+                       policy_used=policy.actions_used, policy_revoked=policy.revoked)
+        latest = policy_store.policy(engagement_id)
+        if latest is None:
+            raise PermissionError("Engagement policy unavailable after reservation")
+        final = evaluate_reserved_action(
+            latest, engagement_status=engagement_status,
+            capability=command.capability, target=target, impact=command.impact,
+            approval_present=approved,
+        )
+        append_authorization_audit(audit_path, final)
+        if not final.allowed:
+            _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
+                    command=command.name, status="denied-after-reservation")
+            raise PermissionError(final.reason_code)
     _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
             command=command.name, status="started")
     process = None
@@ -133,18 +147,29 @@ def execute_atomically_governed(
             if cancel_event is not None and cancel_event.is_set():
                 status = "cancelled"
                 raise InterruptedError("Operation cancelled")
-            fresh = FileEngagementPolicyStore(policy_store.path).policy(engagement_id)
-            if fresh is None:
-                status = "revoked"
-                raise PermissionError("Engagement policy disappeared")
-            check = evaluate_reserved_action(
-                fresh, engagement_status=engagement_status,
-                capability=command.capability, target=target,
-                impact=command.impact, approval_present=approved,
-            )
-            if not check.allowed:
-                status = "revoked"
-                raise PermissionError(check.reason_code)
+            if authority is not None:
+                try:
+                    authority.validate_reserved(
+                        engagement_id=engagement_id, action_id=action_id,
+                        capability=command.capability, target=target,
+                        impact=command.impact, approval_present=approved,
+                    )
+                except PermissionError:
+                    status = "revoked"
+                    raise
+            else:
+                fresh = FileEngagementPolicyStore(policy_store.path).policy(engagement_id)
+                if fresh is None:
+                    status = "revoked"
+                    raise PermissionError("Engagement policy disappeared")
+                check = evaluate_reserved_action(
+                    fresh, engagement_status=engagement_status,
+                    capability=command.capability, target=target,
+                    impact=command.impact, approval_present=approved,
+                )
+                if not check.allowed:
+                    status = "revoked"
+                    raise PermissionError(check.reason_code)
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 status = "timeout"
