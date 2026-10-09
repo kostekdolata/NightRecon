@@ -21,6 +21,7 @@ from nightrecon_shared_core.engagement_policy import (
 )
 from .atomic_action_ledger import AtomicActionLedger
 from .governed_command_runner import FixedCommand, CommandOutcome
+from .windows_job import WindowsJob
 
 
 def _record(path: str | Path, *, action_id: str, engagement_id: str,
@@ -87,6 +88,7 @@ def execute_atomically_governed(
     _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
             command=command.name, status="started")
     process = None
+    job = None
     status = "error"
     return_code = None
     output = bytearray()
@@ -101,6 +103,13 @@ def execute_atomically_governed(
             start_new_session=(os.name == "posix"),
             creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0),
         )
+        if os.name == "nt":
+            try:
+                job = WindowsJob(process)
+            except BaseException:
+                process.kill()
+                process.wait()
+                raise
         def drain(pipe, sink):
             try:
                 while True:
@@ -153,10 +162,13 @@ def execute_atomically_governed(
                 except ProcessLookupError:
                     pass
             else:
-                # A Windows Job Object is required for reliable child-tree
-                # termination; do not claim this stops descendants.
-                process.kill()
+                if job is not None:
+                    job.close()  # KILL_ON_JOB_CLOSE terminates assigned descendants.
+                else:
+                    process.kill()
             process.wait()
+        if job is not None:
+            job.close()
         for worker in readers:
             worker.join(timeout=2)
         _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
