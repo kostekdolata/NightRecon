@@ -5,6 +5,9 @@
 #ifndef SourceDir
   #error SourceDir must point at the prepared Red Night bundle.
 #endif
+// Managed Nmap is optional and intentionally omitted by default.
+// Only supply ManagedNmapDir for a separately verified, redistribution-cleared
+// release payload. Npcap and other licensing/dependency work is independent.
 #ifndef SourceCommit
   #define SourceCommit "unknown"
 #endif
@@ -43,6 +46,12 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+#ifdef ManagedNmapDir
+// Build coordinator must preflight this directory, its components.json,
+// trusted SHA-256 source, licensing notices and platform dependencies.
+Source: "{#ManagedNmapDir}\\*"; DestDir: "{app}\\managed-tools\\nmap"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
 
 [Dirs]
 Name: "{localappdata}\NightRecon\RedNight"; Flags: uninsneveruninstall
