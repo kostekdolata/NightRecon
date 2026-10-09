@@ -1,6 +1,10 @@
 name: Red Night Real Nmap Loopback Lab
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tests/test_live_nmap_loopback.py'
+      - '.github/workflows/red-night-live-nmap-loopback.yml'
 
 permissions:
   contents: read
