@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import subprocess
+import hashlib
 
 from nightrecon_shared_core.engagement_policy import (
     FileEngagementPolicyStore, append_authorization_audit,
@@ -25,8 +26,11 @@ class FixedCommand:
     impact: str = "low"
     timeout_seconds: int = 10
     elevated: bool = False
+    executable_sha256: str | None = None
 
     def __post_init__(self):
+        if self.executable_sha256 is not None and (len(self.executable_sha256) != 64 or any(c not in '0123456789abcdef' for c in self.executable_sha256.lower())):
+            raise ValueError('Invalid pinned executable digest')
         if not self.executable.is_absolute():
             raise ValueError("Fixed command executable must be an absolute path")
         if not 1 <= self.timeout_seconds <= 60:
@@ -62,6 +66,10 @@ def execute_fixed_command(
     """
     if not command.executable.is_file():
         raise FileNotFoundError("Approved command executable is unavailable")
+    if command.executable_sha256 is not None:
+        with command.executable.open('rb') as stream:
+            if hashlib.file_digest(stream, 'sha256').hexdigest() != command.executable_sha256.lower():
+                raise PermissionError('Executable has changed since approval')
     policy = policy_store.policy(engagement_id)
     if policy is None:
         raise PermissionError("Missing engagement execution policy")
