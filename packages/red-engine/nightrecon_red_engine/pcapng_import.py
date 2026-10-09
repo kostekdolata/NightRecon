@@ -24,8 +24,10 @@ class PcapngEvidence:
 def parse_pcapng(data: bytes) -> PcapngEvidence:
     if len(data) > MAX_FILE_BYTES:
         raise ValueError("PCAPNG exceeds size limit")
-    if len(data) < 28 or data[:4] != SECTION_MAGIC:
+    if data[:4] != SECTION_MAGIC:
         raise ValueError("Expected PCAPNG section header")
+    if len(data) < 28:
+        raise ValueError("Invalid PCAPNG section length")
     offset = 0
     endian = None
     sections = interfaces = enhanced = simple = other = blocks = 0
