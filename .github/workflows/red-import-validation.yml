@@ -43,6 +43,8 @@ on:
       - 'tests/test_governed_command_runner.py'
       - 'packages/red-engine/nightrecon_red_engine/command_registry.py'
       - 'tests/test_command_registry.py'
+      - 'packages/red-engine/nightrecon_red_engine/atomic_action_ledger.py'
+      - 'tests/test_atomic_action_ledger.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -87,3 +89,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_governed_offline_worker.py' -v
           python -m unittest discover -s tests -p 'test_governed_command_runner.py' -v
           python -m unittest discover -s tests -p 'test_command_registry.py' -v
+          python -m unittest discover -s tests -p 'test_atomic_action_ledger.py' -v
