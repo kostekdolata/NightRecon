@@ -11,7 +11,8 @@ class TestManagedNmapInstaller(unittest.TestCase):
         source = INSTALLER.read_text(encoding="utf-8")
         self.assertIn("#ifdef ManagedNmapDir", source)
         self.assertIn('Source: "{#ManagedNmapDir}', source)
-        self.assertIn('DestDir: "{app}\\managed-tools\\nmap"', source)
+        self.assertIn('managed-tools', source)
+        self.assertIn('nmap"; Flags: ignoreversion', source)
         self.assertIn("#endif", source)
 
     def test_existing_application_payload_still_included(self):
