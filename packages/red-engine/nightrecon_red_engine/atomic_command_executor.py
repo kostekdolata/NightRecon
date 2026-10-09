@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import json
+import hashlib
 import os
 import signal
 import subprocess
@@ -115,6 +116,10 @@ def execute_atomically_governed(
     readers = []
     deadline = time.monotonic() + command.timeout_seconds
     try:
+        if command.executable_sha256 is not None:
+            with command.executable.open('rb') as stream:
+                if hashlib.file_digest(stream, 'sha256').hexdigest() != command.executable_sha256.lower():
+                    raise PermissionError('Executable changed before launch')
         process = subprocess.Popen(
             [str(command.executable), *command.arguments],
             shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
