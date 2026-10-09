@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import ipaddress
+import re
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -43,6 +44,13 @@ def parse_nmap_xml(data: bytes) -> NmapEvidence:
     """Parse an untrusted, size-bounded Nmap XML export without side effects."""
     if len(data) > MAX_XML_BYTES:
         raise ValueError("Nmap XML exceeds the configured size limit.")
+    # Nmap's genuine -oX output includes this known external DTD declaration.
+    # Remove only this exact declaration; never load external DTD resources.
+    allowed = re.compile(
+        rb'<!DOCTYPE\\s+nmaprun\\s+SYSTEM\\s+"https://nmap\\.org/book/nmap\\.dtd"\\s*>',
+        re.ASCII,
+    )
+    data = allowed.sub(b"", data, count=1)
     if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
         raise ValueError("DTD and entities are prohibited in Nmap XML.")
     try:
