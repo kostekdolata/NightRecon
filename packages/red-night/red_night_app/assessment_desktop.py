@@ -6,6 +6,7 @@ Uses only the Python standard library Tkinter for Windows distribution.
 from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
+from .assessment_preflight import plan_assessment, ENGINE_NAMES
 
 ENGINES = (
     ("Nmap", "Network discovery and service identification", "Integration testing"),
@@ -138,6 +139,37 @@ def build_window(root: tk.Tk) -> None:
     controls.grid(row=5, column=0, sticky="ew")
     ttk.Label(controls, text="Preflight • authorisation • operation budgets • approvals • audit trail",
               foreground=MUTED, wraplength=800).pack(anchor="w")
+    def show_preflight():
+        values = tuple(name for (name, _, _), flag in zip(ENGINES, selected)
+                       if flag.get())
+        preview = plan_assessment(
+            engagement_id=engagement_id.get(),
+            targets_text=targets.get("1.0", "end-1c"),
+            mode=mode.get(), selected_engines=values)
+        panel = tk.Toplevel(root)
+        panel.title("Red Night | Assessment Preflight")
+        panel.geometry("850x600")
+        panel.resizable(True, True)
+        panel.configure(background=BG)
+        holder = ttk.Frame(panel)
+        holder.pack(fill="both", expand=True, padx=12, pady=12)
+        holder.rowconfigure(0, weight=1)
+        holder.columnconfigure(0, weight=1)
+        details = tk.Text(holder, wrap="none", background=PANEL, foreground=FG,
+                          insertbackground=FG, relief="flat")
+        vertical = ttk.Scrollbar(holder, orient="vertical", command=details.yview)
+        horizontal = ttk.Scrollbar(holder, orient="horizontal", command=details.xview)
+        details.configure(yscrollcommand=vertical.set, xscrollcommand=horizontal.set)
+        details.grid(row=0, column=0, sticky="nsew")
+        vertical.grid(row=0, column=1, sticky="ns")
+        horizontal.grid(row=1, column=0, sticky="ew")
+        details.insert("1.0", preview.as_text())
+        details.configure(state="disabled")
+        ttk.Button(holder, text="Close", command=panel.destroy).grid(
+            row=2, column=0, sticky="e", pady=8)
+
+    ttk.Button(controls, text="Review assessment preflight",
+               command=show_preflight).pack(anchor="w", pady=(12, 0))
     ttk.Button(controls, text="Start assessment (not connected)", state="disabled").pack(
         anchor="w", pady=(12, 0))
     ttk.Label(controls, text="No engine will run from this preview. Backend wiring and operator approvals must be verified first.",
