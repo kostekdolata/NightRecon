@@ -39,9 +39,9 @@ def parse_pcap(data: bytes) -> PcapEvidence:
         raise ValueError("Truncated PCAP global header.")
 
     magic = data[:4]
-    if magic in (b"\\xd4\\xc3\\xb2\\xa1", b"\\x4d\\x3c\\xb2\\xa1"):
+    if magic in (b"\xd4\xc3\xb2\xa1", b"\x4d\x3c\xb2\xa1"):
         endian = "<"
-    elif magic in (b"\\xa1\\xb2\\xc3\\xd4", b"\\xa1\\xb2\\x3c\\x4d"):
+    elif magic in (b"\xa1\xb2\xc3\xd4", b"\xa1\xb2\x3c\x4d"):
         endian = ">"
     else:
         raise ValueError("Unsupported PCAP format or byte order.")
