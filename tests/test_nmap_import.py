@@ -32,6 +32,15 @@ class NmapImportTests(unittest.TestCase):
             [("tcp", 443, "open"), ("udp", 53, "open|filtered")],
         )
 
+    def test_accepts_only_standard_nmap_external_dtd_without_loading_it(self):
+        declaration = b'<!DOCTYPE nmaprun SYSTEM "https://nmap.org/book/nmap.dtd">'
+        evidence = parse_nmap_xml(self.SAMPLE.replace(
+            b'<nmaprun', declaration + b'\\n<nmaprun', 1))
+        self.assertEqual(evidence.hosts[0].address, "192.0.2.5")
+        hostile = b'<!DOCTYPE nmaprun SYSTEM "file:///etc/passwd">'
+        with self.assertRaises(ValueError):
+            parse_nmap_xml(self.SAMPLE.replace(b'<nmaprun', hostile + b'\\n<nmaprun', 1))
+
     def test_rejects_dtd_and_entity(self):
         malicious = b'<!DOCTYPE nmaprun [<!ENTITY x "test">]><nmaprun/>'
         with self.assertRaisesRegex(ValueError, "DTD"):
