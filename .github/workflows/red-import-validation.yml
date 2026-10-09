@@ -49,6 +49,8 @@ on:
       - 'tests/test_atomic_command_executor.py'
       - 'packages/red-engine/nightrecon_red_engine/process_containment.py'
       - 'tests/test_process_containment.py'
+      - 'packages/red-engine/nightrecon_red_engine/windows_job.py'
+      - 'tests/test_windows_job.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -96,3 +98,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_atomic_action_ledger.py' -v
           python -m unittest discover -s tests -p 'test_atomic_command_executor.py' -v
           python -m unittest discover -s tests -p 'test_process_containment.py' -v
+          python -m unittest discover -s tests -p 'test_windows_job.py' -v
