@@ -51,6 +51,8 @@ def parse_nmap_xml(data: bytes) -> NmapEvidence:
         re.ASCII,
     )
     data = allowed.sub(b"", data, count=1)
+    data = data.replace(b"<!DOCTYPE nmaprun>", b"", 1)
+    data = data.replace(b'<!DOCTYPE nmaprun SYSTEM "nmap.dtd">', b"", 1)
     if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
         raise ValueError("DTD and entities are prohibited in Nmap XML.")
     try:
