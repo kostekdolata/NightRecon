@@ -37,6 +37,8 @@ on:
       - 'tests/test_external_evidence_bridge.py'
       - 'packages/red-engine/nightrecon_red_engine/governed_tool_planner.py'
       - 'tests/test_governed_tool_planner.py'
+      - 'packages/red-engine/nightrecon_red_engine/governed_offline_worker.py'
+      - 'tests/test_governed_offline_worker.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -78,3 +80,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_tshark_diagnostics.py' -v
           python -m unittest discover -s tests -p 'test_external_evidence_bridge.py' -v
           python -m unittest discover -s tests -p 'test_governed_tool_planner.py' -v
+          python -m unittest discover -s tests -p 'test_governed_offline_worker.py' -v
