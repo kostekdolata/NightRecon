@@ -9,6 +9,10 @@ from ctypes import wintypes
 import os
 
 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
+JOB_OBJECT_LIMIT_JOB_MEMORY = 0x00000200
+JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x00000008
+DEFAULT_JOB_MEMORY_BYTES = 512 * 1024 * 1024
+DEFAULT_MAX_PROCESSES = 16
 JobObjectExtendedLimitInformation = 9
 
 class JOBOBJECT_BASIC_LIMIT_INFORMATION(ctypes.Structure):
@@ -51,7 +55,12 @@ class WindowsJob:
             raise ctypes.WinError(ctypes.get_last_error())
         try:
             info=JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
-            info.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            info.BasicLimitInformation.LimitFlags=(
+                JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_JOB_MEMORY |
+                JOB_OBJECT_LIMIT_ACTIVE_PROCESS
+            )
+            info.BasicLimitInformation.ActiveProcessLimit=DEFAULT_MAX_PROCESSES
+            info.JobMemoryLimit=DEFAULT_JOB_MEMORY_BYTES
             if not kernel.SetInformationJobObject(
                 self._handle,JobObjectExtendedLimitInformation,
                 ctypes.byref(info),ctypes.sizeof(info)
