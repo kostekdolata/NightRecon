@@ -2,6 +2,9 @@ import concurrent.futures
 import tempfile
 import sys
 import json
+import threading
+import time
+import json
 from nightrecon_red_engine.atomic_command_executor import execute_atomically_governed
 from nightrecon_red_engine.governed_command_runner import FixedCommand
 import unittest
@@ -68,6 +71,47 @@ class TestTransactionalPolicyAuthority(unittest.TestCase):
     def test_duplicate_action_rejected(self):
         self.reserve("one")
         with self.assertRaises(PermissionError): self.reserve("one")
+
+    def test_active_process_stops_after_transactional_revocation(self):
+        from nightrecon_shared_core.engagement_policy import FileEngagementPolicyStore
+        from nightrecon_red_engine.atomic_action_ledger import AtomicActionLedger
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            command=FixedCommand("sleep-test",Path(sys.executable),
+                ("-c","import time;time.sleep(6)"),
+                "external.local.diagnostics",impact="low",timeout_seconds=10)
+            result={}
+            def worker():
+                try:
+                    execute_atomically_governed(
+                        command=command,action_id="live-revoke",engagement_id="lab",
+                        engagement_status="active",target="192.0.2.1",
+                        policy_store=FileEngagementPolicyStore(root/"unused.json"),
+                        ledger=AtomicActionLedger(root/"unused.db"),
+                        audit_path=root/"auth.jsonl",
+                        result_audit_path=root/"results.jsonl",
+                        authority=self.authority,poll_interval=0.1)
+                except BaseException as exc:
+                    result["exception"]=exc
+            thread=threading.Thread(target=worker)
+            thread.start()
+            try:
+                deadline=time.monotonic()+4
+                while time.monotonic()<deadline:
+                    if (root/"results.jsonl").exists() and '"started"' in (root/"results.jsonl").read_text():
+                        break
+                    time.sleep(0.02)
+                else:
+                    self.fail("Worker did not begin before deadline")
+                self.authority.revoke("lab")
+                thread.join(timeout=4)
+                self.assertFalse(thread.is_alive(),"Revoked worker failed to terminate")
+                self.assertIsInstance(result.get("exception"),PermissionError)
+                records=[json.loads(line) for line in (root/"results.jsonl").read_text().splitlines()]
+                self.assertEqual(records[-1]["status"],"revoked")
+            finally:
+                if thread.is_alive():
+                    thread.join(timeout=8)
 
     def test_executor_uses_transactional_authority(self):
         from nightrecon_shared_core.engagement_policy import FileEngagementPolicyStore
