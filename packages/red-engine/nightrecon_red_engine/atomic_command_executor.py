@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import json
 import os
+import signal
 import subprocess
 import threading
 import time
@@ -88,15 +89,33 @@ def execute_atomically_governed(
     process = None
     status = "error"
     return_code = None
-    output = b""
-    errors = b""
+    output = bytearray()
+    errors = bytearray()
+    readers = []
     deadline = time.monotonic() + command.timeout_seconds
     try:
         process = subprocess.Popen(
             [str(command.executable), *command.arguments],
             shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             stdin=subprocess.DEVNULL,
+            start_new_session=(os.name == "posix"),
+            creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0),
         )
+        def drain(pipe, sink):
+            try:
+                while True:
+                    chunk = pipe.read(8192)
+                    if not chunk:
+                        break
+                    remaining = max(0, 65536 - len(sink))
+                    if remaining:
+                        sink.extend(chunk[:remaining])
+            finally:
+                pipe.close()
+        for pipe, sink in ((process.stdout, output), (process.stderr, errors)):
+            worker = threading.Thread(target=drain, args=(pipe, sink), daemon=True)
+            worker.start()
+            readers.append(worker)
         # Communicate in short intervals to permit cancellation and revalidation.
         # This worker has no process-tree containment and is not suitable for
         # tools which spawn child processes or generate unbounded output.
@@ -121,20 +140,29 @@ def execute_atomically_governed(
                 status = "timeout"
                 raise subprocess.TimeoutExpired(str(command.executable), command.timeout_seconds)
             try:
-                output, errors = process.communicate(timeout=min(poll_interval, remaining))
-                return_code = process.returncode
+                return_code = process.wait(timeout=min(poll_interval, remaining))
                 status = "completed"
                 break
             except subprocess.TimeoutExpired:
                 continue
     finally:
         if process is not None and process.poll() is None:
-            process.kill()
-            process.communicate()
+            if os.name == "posix":
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            else:
+                # A Windows Job Object is required for reliable child-tree
+                # termination; do not claim this stops descendants.
+                process.kill()
+            process.wait()
+        for worker in readers:
+            worker.join(timeout=2)
         _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
                 command=command.name, status=status, returncode=return_code)
     return CommandOutcome(
         command.name, return_code,
-        output.decode("utf-8", "replace")[:65536],
-        errors.decode("utf-8", "replace")[:65536],
+        bytes(output).decode("utf-8", "replace")[:65536],
+        bytes(errors).decode("utf-8", "replace")[:65536],
     )
