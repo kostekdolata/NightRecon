@@ -1,5 +1,8 @@
 import concurrent.futures
 import tempfile
+import sys
+from nightrecon_red_engine.atomic_command_executor import execute_atomically_governed
+from nightrecon_red_engine.governed_command_runner import FixedCommand
 import unittest
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
@@ -42,3 +45,22 @@ class TestTransactionalPolicyAuthority(unittest.TestCase):
     def test_duplicate_action_rejected(self):
         self.reserve("one")
         with self.assertRaises(PermissionError): self.reserve("one")
+
+    def test_executor_uses_transactional_authority(self):
+        from nightrecon_shared_core.engagement_policy import FileEngagementPolicyStore
+        from nightrecon_red_engine.atomic_action_ledger import AtomicActionLedger
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            command=FixedCommand("version",Path(sys.executable),("--version",),
+                "external.local.diagnostics",impact="low")
+            result=execute_atomically_governed(
+                command=command,action_id="execute",engagement_id="lab",
+                engagement_status="active",target="192.0.2.1",
+                policy_store=FileEngagementPolicyStore(root/"unused.json"),
+                ledger=AtomicActionLedger(root/"unused.db"),
+                audit_path=root/"auth.jsonl",
+                result_audit_path=root/"results.jsonl",
+                authority=self.authority)
+            self.assertEqual(result.returncode,0)
+            with self.assertRaises(PermissionError):
+                self.reserve("execute")
