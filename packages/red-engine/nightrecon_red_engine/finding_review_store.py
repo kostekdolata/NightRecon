@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
+from contextlib import contextmanager
 
 STATUSES = frozenset({"open", "in-review", "remediation-planned", "resolved", "accepted-risk"})
 
@@ -35,8 +36,14 @@ class FindingStore:
                 evidence_ref TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )""")
+    @contextmanager
     def _connect(self):
-        return sqlite3.connect(self.database, timeout=5)
+        connection = sqlite3.connect(self.database, timeout=5)
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def upsert(self, record: FindingRecord) -> None:
         if record.status not in STATUSES:
