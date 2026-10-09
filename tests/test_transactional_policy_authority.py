@@ -144,6 +144,13 @@ class TestTransactionalPolicyAuthority(unittest.TestCase):
             with self.assertRaises(ValueError):
                 other.import_legacy(root/"legacy.json",statuses={})
             self.assertEqual(other.import_legacy(root/"legacy.json",statuses={"lab":"paused"}),1)
+            with other._db() as db:
+                audit=db.execute("""SELECT source_sha256,imported_count,imported_ids_json
+                    FROM authority_migration_audit""").fetchall()
+            self.assertEqual(len(audit),1)
+            self.assertEqual(audit[0][1],1)
+            self.assertEqual(json.loads(audit[0][2]),["lab"])
+
             with self.assertRaises(Exception):
                 other.import_legacy(root/"legacy.json",statuses={"lab":"active"})
             with self.assertRaises(PermissionError):
