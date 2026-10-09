@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import sqlite3
+from contextlib import closing
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,7 @@ def read_operations_snapshot(*, engagement_id: str, authority_db: str | Path,
     if dbpath.is_file():
         # SQLite immutable read-only prevents unintentional writes and new DB creation.
         try:
-            with sqlite3.connect(dbpath.resolve().as_uri() + "?mode=ro", uri=True, timeout=2) as db:
+            with closing(sqlite3.connect(dbpath.resolve().as_uri() + "?mode=ro", uri=True, timeout=2)) as db:
                 row = db.execute(
                     "SELECT policy_json,engagement_status,actions_used FROM engagement_authority WHERE engagement_id=?",
                     (engagement_id,)).fetchone()
@@ -81,7 +82,7 @@ def read_operations_snapshot(*, engagement_id: str, authority_db: str | Path,
     reviews = Path(review_db)
     if reviews.is_file():
         try:
-            with sqlite3.connect(reviews.resolve().as_uri() + "?mode=ro", uri=True, timeout=2) as db:
+            with closing(sqlite3.connect(reviews.resolve().as_uri() + "?mode=ro", uri=True, timeout=2)) as db:
                 rows = db.execute(
                     "SELECT asset,rule_id,status,evidence_ref FROM review_findings WHERE engagement=? ORDER BY asset,rule_id LIMIT 50",
                     (engagement_id,)).fetchall()
