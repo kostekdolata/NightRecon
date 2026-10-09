@@ -42,8 +42,8 @@ def _record(path: str | Path, *, action_id: str, engagement_id: str,
 
 def execute_atomically_governed(
     *, command: FixedCommand, action_id: str, engagement_id: str,
-    engagement_status: str, target: str, policy_store: FileEngagementPolicyStore,
-    ledger: AtomicActionLedger, audit_path: str | Path, result_audit_path: str | Path,
+    engagement_status: str, target: str, policy_store: FileEngagementPolicyStore | None,
+    ledger: AtomicActionLedger | None, audit_path: str | Path, result_audit_path: str | Path,
     approved: bool = False,
     cancel_event: threading.Event | None = None,
     poll_interval: float = 0.2,
@@ -74,6 +74,8 @@ def execute_atomically_governed(
             impact=command.impact, approval_present=approved,
         )
     else:
+        if policy_store is None or ledger is None:
+            raise ValueError("Legacy execution requires policy store and ledger")
         # Legacy callers may hold stale in-memory policy objects. Always read
         # the persisted policy before making a reservation.
         policy = FileEngagementPolicyStore(policy_store.path).policy(engagement_id)
