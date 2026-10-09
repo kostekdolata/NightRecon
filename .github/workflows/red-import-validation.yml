@@ -70,6 +70,8 @@ on:
       - 'tests/test_managed_nmap_staging.py'
       - 'packages/red-engine/nightrecon_red_engine/managed_bundle_preflight.py'
       - 'tests/test_managed_bundle_preflight.py'
+      - 'installer/windows/red-night.iss'
+      - 'tests/test_windows_managed_nmap_installer.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -126,5 +128,6 @@ jobs:
           python -m unittest discover -s tests -p 'test_managed_components.py' -v
           python -m unittest discover -s tests -p 'test_managed_nmap_staging.py' -v
           python -m unittest discover -s tests -p 'test_managed_bundle_preflight.py' -v
+          python -m unittest discover -s tests -p 'test_windows_managed_nmap_installer.py' -v
           python -m unittest discover -s tests -p 'test_sqlite_connection_lifecycle.py' -v
           python -m unittest discover -s tests -p 'test_windows_job.py' -v
