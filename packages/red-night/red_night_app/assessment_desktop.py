@@ -5,7 +5,8 @@ Uses only the Python standard library Tkinter for Windows distribution.
 """
 from __future__ import annotations
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
+from .operations_read_model import read_operations_snapshot
 from .assessment_preflight import plan_assessment, ENGINE_NAMES
 
 ENGINES = (
@@ -170,6 +171,60 @@ def build_window(root: tk.Tk) -> None:
 
     ttk.Button(controls, text="Review assessment preflight",
                command=show_preflight).pack(anchor="w", pady=(12, 0))
+    def show_operations():
+        panel = tk.Toplevel(root)
+        panel.title("Red Night | Operations Console")
+        panel.geometry("1000x700")
+        panel.resizable(True, True)
+        panel.configure(background=BG)
+        container = ttk.Frame(panel)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
+        paths = {}
+        for label, key, suffix in (
+            ("Authority database", "authority", "*.db"),
+            ("Execution audit", "audit", "*.jsonl"),
+            ("Review database", "reviews", "*.db"),
+        ):
+            row = ttk.Frame(container)
+            row.pack(fill="x", pady=3)
+            ttk.Label(row, text=label, width=20).pack(side="left")
+            value = tk.StringVar()
+            paths[key] = value
+            ttk.Entry(row, textvariable=value).pack(side="left", fill="x", expand=True)
+            ttk.Button(row, text="Browse", command=lambda v=value, ext=suffix:
+                v.set(filedialog.askopenfilename(parent=panel, filetypes=[("Data", ext), ("All files", "*.*")]))).pack(side="left", padx=4)
+        output_holder = ttk.Frame(container)
+        output_holder.pack(fill="both", expand=True, pady=10)
+        output_holder.columnconfigure(0, weight=1)
+        output_holder.rowconfigure(0, weight=1)
+        output = tk.Text(output_holder, wrap="none", background=PANEL, foreground=FG,
+                         insertbackground=FG, relief="flat")
+        scroll_y = ttk.Scrollbar(output_holder, orient="vertical", command=output.yview)
+        scroll_x = ttk.Scrollbar(output_holder, orient="horizontal", command=output.xview)
+        output.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+        output.grid(row=0, column=0, sticky="nsew")
+        scroll_y.grid(row=0, column=1, sticky="ns")
+        scroll_x.grid(row=1, column=0, sticky="ew")
+        def refresh():
+            try:
+                snapshot = read_operations_snapshot(
+                    engagement_id=engagement_id.get().strip(),
+                    authority_db=paths["authority"].get(),
+                    audit_path=paths["audit"].get(),
+                    review_db=paths["reviews"].get())
+                message = snapshot.describe()
+            except (ValueError, OSError) as exc:
+                message = f"Read-only preflight unavailable: {exc}"
+            output.configure(state="normal")
+            output.delete("1.0", "end")
+            output.insert("1.0", message)
+            output.configure(state="disabled")
+        ttk.Button(container, text="Refresh read-only status", command=refresh).pack(anchor="w")
+        ttk.Label(container, text="This console never authorises or runs scans. Choose trusted local evidence files.",
+                  foreground="#f1c483").pack(anchor="w", pady=8)
+
+    ttk.Button(controls, text="Open Operations Console",
+               command=show_operations).pack(anchor="w", pady=(12, 0))
     ttk.Button(controls, text="Start assessment (not connected)", state="disabled").pack(
         anchor="w", pady=(12, 0))
     ttk.Label(controls, text="No engine will run from this preview. Backend wiring and operator approvals must be verified first.",
