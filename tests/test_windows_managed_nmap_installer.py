@@ -19,3 +19,10 @@ class TestManagedNmapInstaller(unittest.TestCase):
         source = INSTALLER.read_text(encoding="utf-8")
         self.assertIn('Source: "{#SourceDir}\\*"; DestDir: "{app}"', source)
         self.assertIn("PrivilegesRequired=lowest", source)
+
+    def test_shortcuts_launch_desktop_executable_not_terminal(self):
+        source = INSTALLER.read_text(encoding="utf-8")
+        icons = source.split("[Icons]", 1)[1].split("[UninstallDelete]", 1)[0]
+        self.assertIn('Filename: "{app}\\\\RedNight.exe"', icons)
+        self.assertNotIn("powershell.exe", icons.lower())
+        self.assertNotIn("launch-red-night.ps1", icons.lower())
