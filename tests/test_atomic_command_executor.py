@@ -45,6 +45,15 @@ class TestAtomicExecutor(unittest.TestCase):
         self.run_it()
         with self.assertRaises(PermissionError):
             self.run_it()
+    def test_policy_revoked_on_disk_blocks_stale_store(self):
+        original = self.store.policy("lab")
+        from dataclasses import replace
+        fresh_store = FileEngagementPolicyStore(self.store.path)
+        fresh_store.replace_policy(replace(original, revoked=True))
+        with self.assertRaises(PermissionError):
+            self.run_it(action_id="stale")
+        self.assertFalse(self.results.exists())
+
     def test_revoked_ledger_blocks(self):
         self.ledger.revoke("lab")
         with self.assertRaises(PermissionError):
