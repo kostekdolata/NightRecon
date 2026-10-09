@@ -65,6 +65,7 @@ on:
       - 'tests/test_governed_nmap_coordinator.py'
       - 'packages/red-engine/nightrecon_red_engine/managed_components.py'
       - 'tests/test_managed_components.py'
+      - 'tests/test_sqlite_connection_lifecycle.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -119,4 +120,5 @@ jobs:
           python -m unittest discover -s tests -p 'test_governed_nmap_evidence.py' -v
           python -m unittest discover -s tests -p 'test_governed_nmap_coordinator.py' -v
           python -m unittest discover -s tests -p 'test_managed_components.py' -v
+          python -m unittest discover -s tests -p 'test_sqlite_connection_lifecycle.py' -v
           python -m unittest discover -s tests -p 'test_windows_job.py' -v
