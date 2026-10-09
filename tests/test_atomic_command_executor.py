@@ -1,5 +1,7 @@
 import json
 import sys
+import threading
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime,timedelta,timezone
@@ -51,3 +53,32 @@ class TestAtomicExecutor(unittest.TestCase):
         with self.assertRaises(PermissionError):
             self.run_it(target="198.51.100.2")
         self.assertFalse(self.results.exists())
+
+class TestCancellation(unittest.TestCase):
+    def test_pre_cancelled_operation_terminates_child(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            now=datetime.now(timezone.utc)
+            store=FileEngagementPolicyStore(root/"policy.json")
+            store.set_policy(EngagementExecutionPolicy(
+                engagement_id="lab",scope=("192.0.2.1",),
+                valid_from=(now-timedelta(minutes=5)).isoformat(),
+                valid_until=(now+timedelta(minutes=5)).isoformat(),
+                max_actions=2,permitted_capabilities=("external.local.diagnostics",),
+                max_impact="low",
+            ))
+            ledger=AtomicActionLedger(root/"actions.db")
+            ledger.provision("lab",limit=2)
+            event=threading.Event()
+            event.set()
+            command=FixedCommand("sleeping",Path(sys.executable),
+                ("-c","import time;time.sleep(2)"),"external.local.diagnostics",
+                timeout_seconds=4)
+            with self.assertRaises(InterruptedError):
+                execute_atomically_governed(
+                    command=command,action_id="cancel",engagement_id="lab",
+                    engagement_status="active",target="192.0.2.1",
+                    policy_store=store,ledger=ledger,audit_path=root/"auth.jsonl",
+                    result_audit_path=root/"results.jsonl",cancel_event=event)
+            records=[json.loads(line) for line in (root/"results.jsonl").read_text().splitlines()]
+            self.assertEqual(records[-1]["status"],"cancelled")
