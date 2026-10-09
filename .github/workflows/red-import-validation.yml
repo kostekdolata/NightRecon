@@ -13,6 +13,16 @@ on:
       - 'packages/red-engine/nightrecon_red_engine/nuclei_import.py'
       - 'tests/test_zap_import.py'
       - 'tests/test_nuclei_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/nmap_scan_analysis.py'
+      - 'tests/test_nmap_scan_analysis.py'
+      - 'packages/red-engine/nightrecon_red_engine/tshark_import.py'
+      - 'tests/test_tshark_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/web_har_import.py'
+      - 'tests/test_web_har_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/vulnerability_triage.py'
+      - 'tests/test_vulnerability_triage.py'
+      - 'packages/red-engine/nightrecon_red_engine/identity_interop.py'
+      - 'tests/test_identity_interop.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -42,3 +52,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_evidence_correlation.py' -v
           python -m unittest discover -s tests -p 'test_zap_import.py' -v
           python -m unittest discover -s tests -p 'test_nuclei_import.py' -v
+          python -m unittest discover -s tests -p 'test_nmap_scan_analysis.py' -v
+          python -m unittest discover -s tests -p 'test_tshark_import.py' -v
+          python -m unittest discover -s tests -p 'test_web_har_import.py' -v
+          python -m unittest discover -s tests -p 'test_vulnerability_triage.py' -v
+          python -m unittest discover -s tests -p 'test_identity_interop.py' -v
