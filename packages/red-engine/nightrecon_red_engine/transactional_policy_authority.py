@@ -12,7 +12,7 @@ import json
 import sqlite3
 
 from nightrecon_shared_core.engagement_policy import (
-    EngagementExecutionPolicy, evaluate_action,
+    EngagementExecutionPolicy, evaluate_action, evaluate_reserved_action,
 )
 
 @dataclass(frozen=True)
@@ -105,3 +105,27 @@ class TransactionalPolicyAuthority:
                 (engagement_id,))
             return ReservedDecision(engagement_id,action_id,row[2]+1,
                                     policy.max_actions-row[2]-1)
+
+    def validate_reserved(self, *, engagement_id: str, action_id: str,
+                          capability: str, target: str, impact: str = "standard",
+                          approval_present: bool = False) -> None:
+        """Recheck existing lease using current transactional status and policy."""
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("""SELECT policy_json,engagement_status,actions_used
+                FROM engagement_authority WHERE engagement_id=?""", (engagement_id,)).fetchone()
+            if row is None:
+                raise PermissionError("Engagement unavailable")
+            reserved = db.execute("""SELECT 1 FROM authority_reservations
+                WHERE engagement_id=? AND action_id=?""",
+                (engagement_id, action_id)).fetchone()
+            if not reserved:
+                raise PermissionError("Action is not reserved")
+            data = json.loads(row[0])
+            data["actions_used"] = row[2]
+            policy = EngagementExecutionPolicy.from_dict(data)
+            result = evaluate_reserved_action(policy, engagement_status=row[1],
+                capability=capability, target=target, impact=impact,
+                approval_present=approval_present)
+            if not result.allowed:
+                raise PermissionError(result.reason_code)
