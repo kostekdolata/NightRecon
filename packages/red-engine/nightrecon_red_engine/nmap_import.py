@@ -47,7 +47,7 @@ def parse_nmap_xml(data: bytes) -> NmapEvidence:
     # Nmap's genuine -oX output includes this known external DTD declaration.
     # Remove only this exact declaration; never load external DTD resources.
     allowed = re.compile(
-        rb'<!DOCTYPE\\s+nmaprun\\s+SYSTEM\\s+"https://nmap\\.org/book/nmap\\.dtd"\\s*>',
+        rb'<!DOCTYPE\s+nmaprun\s+SYSTEM\s+"https://nmap\.org/book/nmap\.dtd"\s*>',
         re.ASCII,
     )
     data = allowed.sub(b"", data, count=1)
