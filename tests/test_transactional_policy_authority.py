@@ -1,6 +1,7 @@
 import concurrent.futures
 import tempfile
 import sys
+import json
 from nightrecon_red_engine.atomic_command_executor import execute_atomically_governed
 from nightrecon_red_engine.governed_command_runner import FixedCommand
 import unittest
@@ -64,3 +65,21 @@ class TestTransactionalPolicyAuthority(unittest.TestCase):
             self.assertEqual(result.returncode,0)
             with self.assertRaises(PermissionError):
                 self.reserve("execute")
+
+    def test_legacy_import_requires_explicit_status_and_is_atomic(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            other=TransactionalPolicyAuthority(root/"import.db")
+            from nightrecon_shared_core.engagement_policy import FileEngagementPolicyStore
+            legacy=FileEngagementPolicyStore(root/"legacy.json")
+            with self.authority._db() as connection:
+                row=connection.execute("SELECT policy_json FROM engagement_authority").fetchone()
+            legacy.set_policy(EngagementExecutionPolicy.from_dict(json.loads(row[0])))
+            with self.assertRaises(ValueError):
+                other.import_legacy(root/"legacy.json",statuses={})
+            self.assertEqual(other.import_legacy(root/"legacy.json",statuses={"lab":"paused"}),1)
+            with self.assertRaises(Exception):
+                other.import_legacy(root/"legacy.json",statuses={"lab":"active"})
+            with self.assertRaises(PermissionError):
+                other.reserve(engagement_id="lab",action_id="blocked",
+                    capability="external.local.diagnostics",target="192.0.2.1",impact="low")
