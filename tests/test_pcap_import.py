@@ -17,7 +17,7 @@ def capture(ethernet=True):
     ip[9] = 6
     ip[12:16] = ipaddress.IPv4Address("192.0.2.10").packed
     ip[16:20] = ipaddress.IPv4Address("198.51.100.20").packed
-    frame = (b"\\x00" * 12 + b"\\x08\\x00" if ethernet else b"") + bytes(ip)
+    frame = (b"\x00" * 12 + b"\x08\x00" if ethernet else b"") + bytes(ip)
     return header + struct.pack("<IIII", 0, 0, len(frame), len(frame)) + frame
 
 
@@ -43,7 +43,7 @@ class PcapImportTests(unittest.TestCase):
 
     def test_rejects_pcapng(self):
         with self.assertRaisesRegex(ValueError, "Unsupported"):
-            parse_pcap(b"\\x0a\\x0d\\x0d\\x0a" + b"\\x00" * 32)
+            parse_pcap(b"\x0a\x0d\x0d\x0a" + b"\x00" * 32)
 
     def test_rejects_oversized_capture(self):
         with self.assertRaisesRegex(ValueError, "size limit"):
