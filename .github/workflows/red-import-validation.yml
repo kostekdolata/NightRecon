@@ -75,6 +75,8 @@ on:
       - 'packages/red-night/red_night_app/assessment_preflight.py'
       - 'packages/red-night/red_night_app/assessment_desktop.py'
       - 'tests/test_assessment_preflight.py'
+      - 'packages/red-night/red_night_app/operations_read_model.py'
+      - 'tests/test_operations_read_model.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -133,6 +135,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_managed_bundle_preflight.py' -v
           python -m unittest discover -s tests -p 'test_windows_managed_nmap_installer.py' -v
           python -m unittest discover -s tests -p 'test_assessment_preflight.py' -v
+          python -m unittest discover -s tests -p 'test_operations_read_model.py' -v
           python -m unittest discover -s tests -p 'test_assessment_desktop_contract.py' -v
           python -m unittest discover -s tests -p 'test_sqlite_connection_lifecycle.py' -v
           python -m unittest discover -s tests -p 'test_windows_job.py' -v
