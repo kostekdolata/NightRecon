@@ -53,6 +53,8 @@ on:
       - 'tests/test_windows_job.py'
       - 'packages/red-engine/nightrecon_red_engine/transactional_policy_authority.py'
       - 'tests/test_transactional_policy_authority.py'
+      - 'packages/red-engine/nightrecon_red_engine/local_diagnostics.py'
+      - 'tests/test_local_diagnostics.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -101,4 +103,5 @@ jobs:
           python -m unittest discover -s tests -p 'test_atomic_command_executor.py' -v
           python -m unittest discover -s tests -p 'test_process_containment.py' -v
           python -m unittest discover -s tests -p 'test_transactional_policy_authority.py' -v
+          python -m unittest discover -s tests -p 'test_local_diagnostics.py' -v
           python -m unittest discover -s tests -p 'test_windows_job.py' -v
