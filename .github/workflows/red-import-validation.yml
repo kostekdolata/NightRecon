@@ -61,6 +61,8 @@ on:
       - 'tests/test_nmap_governed_preset.py'
       - 'packages/red-engine/nightrecon_red_engine/governed_nmap_evidence.py'
       - 'tests/test_governed_nmap_evidence.py'
+      - 'packages/red-engine/nightrecon_red_engine/governed_nmap_coordinator.py'
+      - 'tests/test_governed_nmap_coordinator.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -113,4 +115,5 @@ jobs:
           python -m unittest discover -s tests -p 'test_transactional_local_diagnostic.py' -v
           python -m unittest discover -s tests -p 'test_nmap_governed_preset.py' -v
           python -m unittest discover -s tests -p 'test_governed_nmap_evidence.py' -v
+          python -m unittest discover -s tests -p 'test_governed_nmap_coordinator.py' -v
           python -m unittest discover -s tests -p 'test_windows_job.py' -v
