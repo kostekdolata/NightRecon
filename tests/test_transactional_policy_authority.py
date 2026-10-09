@@ -37,6 +37,28 @@ class TestTransactionalPolicyAuthority(unittest.TestCase):
         self.reserve("first")
         self.authority.revoke("lab")
         with self.assertRaises(PermissionError): self.reserve("second")
+    def test_reserved_lease_invalidated_by_revocation(self):
+        self.reserve("first")
+        self.authority.validate_reserved(
+            engagement_id="lab", action_id="first",
+            capability="external.local.diagnostics",
+            target="192.0.2.1", impact="low")
+        self.authority.revoke("lab")
+        with self.assertRaises(PermissionError):
+            self.authority.validate_reserved(
+                engagement_id="lab", action_id="first",
+                capability="external.local.diagnostics",
+                target="192.0.2.1", impact="low")
+
+    def test_reserved_lease_invalidated_when_paused(self):
+        self.reserve("first")
+        self.authority.set_status("lab", "paused")
+        with self.assertRaises(PermissionError):
+            self.authority.validate_reserved(
+                engagement_id="lab", action_id="first",
+                capability="external.local.diagnostics",
+                target="192.0.2.1", impact="low")
+
     def test_paused_engagement_blocks(self):
         self.authority.set_status("lab","paused")
         with self.assertRaises(PermissionError): self.reserve("first")
