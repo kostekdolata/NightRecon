@@ -71,7 +71,8 @@ def execute_atomically_governed(
     append_authorization_audit(audit_path, decision)
     if not decision.allowed:
         raise PermissionError(decision.reason_code)
-    ledger.reserve(engagement_id, action_id, policy_limit=policy.max_actions,\n                   policy_used=policy.actions_used, policy_revoked=policy.revoked)
+    ledger.reserve(engagement_id, action_id, policy_limit=policy.max_actions,
+                   policy_used=policy.actions_used, policy_revoked=policy.revoked)
     latest = policy_store.policy(engagement_id)
     if latest is None:
         raise PermissionError("Engagement policy unavailable after reservation")
