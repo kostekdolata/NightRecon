@@ -38,3 +38,23 @@ class TestAtomicLedger(unittest.TestCase):
         self.ledger.provision("lab",limit=20,revoked=False)
         with self.assertRaises(PermissionError):
             self.ledger.reserve("lab","one")
+
+    def test_authoritative_policy_limit_tightens_budget(self):
+        self.ledger.provision("limited", limit=20)
+        self.ledger.reserve("limited", "first", policy_limit=2)
+        self.ledger.reserve("limited", "second", policy_limit=20)
+        with self.assertRaises(PermissionError):
+            self.ledger.reserve("limited", "third", policy_limit=20)
+
+    def test_external_policy_usage_is_accounted_for(self):
+        self.ledger.provision("shared", limit=5)
+        self.ledger.reserve("shared", "first", policy_limit=5, policy_used=4)
+        with self.assertRaises(PermissionError):
+            self.ledger.reserve("shared", "second", policy_limit=5)
+
+    def test_invalid_authoritative_policy_values_rejected(self):
+        self.ledger.provision("limited", limit=3)
+        with self.assertRaises(ValueError):
+            self.ledger.reserve("limited", "one", policy_limit=True)
+        with self.assertRaises(ValueError):
+            self.ledger.reserve("limited", "one", policy_used=-1)
