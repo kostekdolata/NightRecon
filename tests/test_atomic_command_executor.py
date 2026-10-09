@@ -82,3 +82,29 @@ class TestCancellation(unittest.TestCase):
                     result_audit_path=root/"results.jsonl",cancel_event=event)
             records=[json.loads(line) for line in (root/"results.jsonl").read_text().splitlines()]
             self.assertEqual(records[-1]["status"],"cancelled")
+
+class TestBoundedProcessOutput(unittest.TestCase):
+    def test_output_is_capped_while_draining(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            now=datetime.now(timezone.utc)
+            store=FileEngagementPolicyStore(root/"policy.json")
+            store.set_policy(EngagementExecutionPolicy(
+                engagement_id="lab",scope=("192.0.2.1",),
+                valid_from=(now-timedelta(minutes=5)).isoformat(),
+                valid_until=(now+timedelta(minutes=5)).isoformat(),
+                max_actions=2,permitted_capabilities=("external.local.diagnostics",),
+                max_impact="low"))
+            ledger=AtomicActionLedger(root/"actions.db")
+            ledger.provision("lab",limit=2)
+            command=FixedCommand("large-output",Path(sys.executable),
+                ("-c","import sys;sys.stdout.write('x'*200000);sys.stderr.write('y'*200000)"),
+                "external.local.diagnostics",timeout_seconds=10)
+            result=execute_atomically_governed(
+                command=command,action_id="large",engagement_id="lab",
+                engagement_status="active",target="192.0.2.1",
+                policy_store=store,ledger=ledger,audit_path=root/"auth.jsonl",
+                result_audit_path=root/"results.jsonl")
+            self.assertEqual(result.returncode,0)
+            self.assertEqual(len(result.stdout),65536)
+            self.assertEqual(len(result.stderr),65536)
