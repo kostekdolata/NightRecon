@@ -34,3 +34,24 @@ behaviour.
 ## Explicit non-goals for the current batch
 No shipping or fetching third-party executables; no bundled Npcap installer;
 no assumed commercial redistribution rights; no general shell execution.
+
+## Verified legal distribution decision (2026-10-09)
+Nmap's official public licensing pages distinguish end-user installation from
+redistribution bundled into third-party software:
+- https://nmap.org/npsl/
+- https://nmap.org/oem/
+- https://nmap.org/book/man-legal.html
+- https://github.com/nmap/npcap/blob/master/LICENSE
+
+**Release gate:** Do not distribute the stock Windows Nmap installer, ZIP or
+Npcap inside Red Night without documented rights. Official Nmap OEM licensing
+is a supported path for embedded redistribution and covers Npcap OEM when used
+for Nmap. Otherwise provide a user-directed installation flow and detect an
+existing user-installed Nmap; do not silently repackage it. Open-source project
+status does not by itself establish rights to redistribute Npcap. Legal review
+of applicable exact versions and distributions is required before enabling
+`ManagedNmapDir` in a release pipeline.
+
+The current bounded TCP-connect preset uses `-sT` and does not require
+the raw-packet scan options that typically depend on Npcap, but Windows
+distribution and optional advanced modes still require independent review.
