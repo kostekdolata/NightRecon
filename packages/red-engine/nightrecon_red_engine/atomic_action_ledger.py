@@ -48,7 +48,7 @@ class AtomicActionLedger:
             db.execute("BEGIN IMMEDIATE")
             db.execute("UPDATE action_limits SET revoked=1 WHERE engagement_id=?",(engagement_id,))
 
-    def reserve(self, engagement_id: str, action_id: str) -> Reservation:
+    def reserve(self, engagement_id: str, action_id: str, *,\n                policy_limit: int | None = None, policy_used: int = 0,\n                policy_revoked: bool = False) -> Reservation:
         if not engagement_id or not action_id or len(action_id)>128:
             raise ValueError("Invalid reservation identity")
         with sqlite3.connect(self.path, timeout=10) as db:
