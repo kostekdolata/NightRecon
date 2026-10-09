@@ -11,6 +11,7 @@ from pathlib import Path
 import json
 import hashlib
 import sqlite3
+from contextlib import contextmanager
 
 from nightrecon_shared_core.engagement_policy import (
     EngagementExecutionPolicy, evaluate_action, evaluate_reserved_action,
@@ -39,8 +40,15 @@ class TransactionalPolicyAuthority:
                 action_id TEXT NOT NULL,
                 PRIMARY KEY(engagement_id,action_id)
             )""")
+    @contextmanager
     def _db(self):
-        return sqlite3.connect(self.database, timeout=10)
+        """Commit/rollback and always close, including on Windows."""
+        connection = sqlite3.connect(self.database, timeout=10)
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def register(self, policy: EngagementExecutionPolicy, *, status: str) -> None:
         if status not in {"planned","active","paused","completed","archived"}:
