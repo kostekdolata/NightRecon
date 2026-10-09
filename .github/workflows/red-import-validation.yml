@@ -23,6 +23,12 @@ on:
       - 'tests/test_vulnerability_triage.py'
       - 'packages/red-engine/nightrecon_red_engine/identity_interop.py'
       - 'tests/test_identity_interop.py'
+      - 'packages/red-engine/nightrecon_red_engine/pcapng_import.py'
+      - 'tests/test_pcapng_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/finding_review_store.py'
+      - 'tests/test_finding_review_store.py'
+      - 'packages/red-engine/nightrecon_red_engine/identity_graph_export.py'
+      - 'tests/test_identity_graph_export.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -57,3 +63,6 @@ jobs:
           python -m unittest discover -s tests -p 'test_web_har_import.py' -v
           python -m unittest discover -s tests -p 'test_vulnerability_triage.py' -v
           python -m unittest discover -s tests -p 'test_identity_interop.py' -v
+          python -m unittest discover -s tests -p 'test_pcapng_import.py' -v
+          python -m unittest discover -s tests -p 'test_finding_review_store.py' -v
+          python -m unittest discover -s tests -p 'test_identity_graph_export.py' -v
