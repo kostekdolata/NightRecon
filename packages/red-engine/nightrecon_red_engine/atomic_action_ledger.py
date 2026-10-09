@@ -48,22 +48,40 @@ class AtomicActionLedger:
             db.execute("BEGIN IMMEDIATE")
             db.execute("UPDATE action_limits SET revoked=1 WHERE engagement_id=?",(engagement_id,))
 
-    def reserve(self, engagement_id: str, action_id: str, *,\n                policy_limit: int | None = None, policy_used: int = 0,\n                policy_revoked: bool = False) -> Reservation:
-        if not engagement_id or not action_id or len(action_id)>128:
+    def reserve(
+        self, engagement_id: str, action_id: str, *,
+        policy_limit: int | None = None,
+        policy_used: int = 0,
+        policy_revoked: bool = False,
+    ) -> Reservation:
+        if not engagement_id or not action_id or len(action_id) > 128:
             raise ValueError("Invalid reservation identity")
+        if policy_limit is not None and (type(policy_limit) is not int or policy_limit < 1):
+            raise ValueError("Invalid policy limit")
+        if type(policy_used) is not int or policy_used < 0:
+            raise ValueError("Invalid policy usage")
+        if policy_revoked:
+            raise PermissionError("Engagement policy revoked")
         with sqlite3.connect(self.path, timeout=10) as db:
             db.execute("BEGIN IMMEDIATE")
-            row=db.execute("""SELECT action_limit,used,revoked FROM action_limits
-                WHERE engagement_id=?""",(engagement_id,)).fetchone()
+            if policy_limit is not None:
+                db.execute("""UPDATE action_limits SET
+                    action_limit=MIN(action_limit, ?),
+                    used=MAX(used, ?)
+                    WHERE engagement_id=?""", (policy_limit, policy_used, engagement_id))
+            row = db.execute("""SELECT action_limit,used,revoked FROM action_limits
+                WHERE engagement_id=?""", (engagement_id,)).fetchone()
             if row is None or row[2]:
                 raise PermissionError("Engagement action ledger unavailable or revoked")
-            limit,used,_=row
-            existing=db.execute("""SELECT 1 FROM reservations WHERE engagement_id=?
-                AND action_id=?""",(engagement_id,action_id)).fetchone()
-            if existing:
+            limit, used, _ = row
+            if db.execute("""SELECT 1 FROM reservations
+                    WHERE engagement_id=? AND action_id=?""",
+                    (engagement_id, action_id)).fetchone():
                 raise PermissionError("Action identifier already reserved")
             if used >= limit:
                 raise PermissionError("Engagement action budget exhausted")
-            db.execute("UPDATE action_limits SET used=used+1 WHERE engagement_id=?",(engagement_id,))
-            db.execute("INSERT INTO reservations(engagement_id,action_id) VALUES(?,?)",(engagement_id,action_id))
-            return Reservation(engagement_id,action_id,used+1,limit)
+            db.execute("UPDATE action_limits SET used=used+1 WHERE engagement_id=?",
+                       (engagement_id,))
+            db.execute("INSERT INTO reservations(engagement_id,action_id) VALUES(?,?)",
+                       (engagement_id, action_id))
+            return Reservation(engagement_id, action_id, used + 1, limit)
