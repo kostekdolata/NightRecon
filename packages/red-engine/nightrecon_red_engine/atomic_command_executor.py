@@ -10,6 +10,8 @@ from pathlib import Path
 import json
 import os
 import subprocess
+import threading
+import time
 from datetime import datetime, timezone
 
 from nightrecon_shared_core.engagement_policy import (
@@ -40,6 +42,8 @@ def execute_atomically_governed(
     engagement_status: str, target: str, policy_store: FileEngagementPolicyStore,
     ledger: AtomicActionLedger, audit_path: str | Path, result_audit_path: str | Path,
     approved: bool = False,
+    cancel_event: threading.Event | None = None,
+    poll_interval: float = 0.2,
 ) -> CommandOutcome:
     """Run a fixed low-impact diagnostic with shared-policy AND atomic-ledger checks.
 
@@ -48,6 +52,8 @@ def execute_atomically_governed(
     A separate privileged broker and continuously polled cancellation remain
     necessary before exposing network/elevated operations.
     """
+    if not 0.05 <= poll_interval <= 1.0:
+        raise ValueError("Invalid poll interval")
     if command.elevated:
         raise PermissionError("Elevated execution requires privileged broker")
     if not command.executable.is_file():
@@ -79,21 +85,56 @@ def execute_atomically_governed(
         raise PermissionError(final.reason_code)
     _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
             command=command.name, status="started")
+    process = None
+    status = "error"
+    return_code = None
+    output = b""
+    errors = b""
+    deadline = time.monotonic() + command.timeout_seconds
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             [str(command.executable), *command.arguments],
-            shell=False, capture_output=True, text=True, errors="replace",
-            timeout=command.timeout_seconds, check=False,
+            shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
         )
-    except subprocess.TimeoutExpired:
+        # Communicate in short intervals to permit cancellation and revalidation.
+        # This worker has no process-tree containment and is not suitable for
+        # tools which spawn child processes or generate unbounded output.
+        while True:
+            if cancel_event is not None and cancel_event.is_set():
+                status = "cancelled"
+                raise InterruptedError("Operation cancelled")
+            fresh = FileEngagementPolicyStore(policy_store.path).policy(engagement_id)
+            if fresh is None:
+                status = "revoked"
+                raise PermissionError("Engagement policy disappeared")
+            check = evaluate_reserved_action(
+                fresh, engagement_status=engagement_status,
+                capability=command.capability, target=target,
+                impact=command.impact, approval_present=approved,
+            )
+            if not check.allowed:
+                status = "revoked"
+                raise PermissionError(check.reason_code)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                status = "timeout"
+                raise subprocess.TimeoutExpired(str(command.executable), command.timeout_seconds)
+            try:
+                output, errors = process.communicate(timeout=min(poll_interval, remaining))
+                return_code = process.returncode
+                status = "completed"
+                break
+            except subprocess.TimeoutExpired:
+                continue
+    finally:
+        if process is not None and process.poll() is None:
+            process.kill()
+            process.communicate()
         _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
-                command=command.name, status="timeout")
-        raise
-    except Exception:
-        _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
-                command=command.name, status="error")
-        raise
-    _record(result_audit_path, action_id=action_id, engagement_id=engagement_id,
-            command=command.name, status="completed", returncode=completed.returncode)
-    return CommandOutcome(command.name, completed.returncode,
-                          completed.stdout[:65536], completed.stderr[:65536])
+                command=command.name, status=status, returncode=return_code)
+    return CommandOutcome(
+        command.name, return_code,
+        output.decode("utf-8", "replace")[:65536],
+        errors.decode("utf-8", "replace")[:65536],
+    )
