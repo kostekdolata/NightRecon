@@ -129,3 +129,36 @@ class TransactionalPolicyAuthority:
                 approval_present=approval_present)
             if not result.allowed:
                 raise PermissionError(result.reason_code)
+
+    def import_legacy(self, legacy_path: str | Path, *,
+                      statuses: dict[str, str]) -> int:
+        """One-shot, all-or-nothing import. Never mutates legacy JSON.
+
+        Statuses must be supplied explicitly for every policy; no status is
+        inferred from revocation or from the contents of the JSON file.
+        Existing SQL engagement identifiers reject the entire import.
+        """
+        payload = json.loads(Path(legacy_path).read_text(encoding="utf-8"))
+        if not isinstance(payload, dict) or set(payload) != {"schema_version", "policies"}:
+            raise ValueError("Invalid legacy policy document")
+        if payload["schema_version"] != 1 or not isinstance(payload["policies"], list):
+            raise ValueError("Unsupported legacy policy document")
+        policies = [EngagementExecutionPolicy.from_dict(item)
+                    for item in payload["policies"]]
+        identifiers = [policy.engagement_id for policy in policies]
+        if len(set(identifiers)) != len(identifiers):
+            raise ValueError("Duplicate engagement in legacy policy document")
+        if set(statuses) != set(identifiers):
+            raise ValueError("Each imported engagement needs an explicit status")
+        if any(status not in {"planned", "active", "paused", "completed", "archived"}
+               for status in statuses.values()):
+            raise ValueError("Invalid imported engagement status")
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            for policy in policies:
+                db.execute("""INSERT INTO engagement_authority
+                    (engagement_id,policy_json,engagement_status,actions_used)
+                    VALUES (?,?,?,?)""",
+                    (policy.engagement_id,json.dumps(policy.to_dict()),
+                     statuses[policy.engagement_id],policy.actions_used))
+        return len(policies)
