@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
+from contextlib import contextmanager
 
 @dataclass(frozen=True)
 class Reservation:
@@ -17,9 +18,18 @@ class Reservation:
     limit: int
 
 class AtomicActionLedger:
+    @contextmanager
+    def _connect(self):
+        connection = sqlite3.connect(self.path, timeout=10)
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
+
     def __init__(self, path: str | Path):
         self.path = str(path)
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with self._connect() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS action_limits (
                 engagement_id TEXT PRIMARY KEY,
                 action_limit INTEGER NOT NULL CHECK(action_limit > 0),
@@ -35,7 +45,7 @@ class AtomicActionLedger:
     def provision(self, engagement_id: str, *, limit: int, revoked: bool = False) -> None:
         if not engagement_id or isinstance(limit,bool) or not isinstance(limit,int) or limit < 1:
             raise ValueError("Invalid action ledger configuration")
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             db.execute("""INSERT INTO action_limits(engagement_id,action_limit,revoked)
                 VALUES(?,?,?) ON CONFLICT(engagement_id) DO UPDATE SET
@@ -44,7 +54,7 @@ class AtomicActionLedger:
                 (engagement_id,limit,int(revoked)))
 
     def revoke(self, engagement_id: str) -> None:
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             db.execute("UPDATE action_limits SET revoked=1 WHERE engagement_id=?",(engagement_id,))
 
@@ -62,7 +72,7 @@ class AtomicActionLedger:
             raise ValueError("Invalid policy usage")
         if policy_revoked:
             raise PermissionError("Engagement policy revoked")
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             if policy_limit is not None:
                 db.execute("""UPDATE action_limits SET
