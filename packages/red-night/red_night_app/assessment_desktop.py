@@ -26,17 +26,19 @@ class ScrollableFrame(ttk.Frame):
         super().__init__(master)
         self.canvas = tk.Canvas(self, background=BG, highlightthickness=0)
         self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.horizontal = ttk.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
         self.content = ttk.Frame(self.canvas)
         self.window = self.canvas.create_window((0, 0), window=self.content, anchor="nw")
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set, xscrollcommand=self.horizontal.set)
         self.canvas.grid(row=0, column=0, sticky="nsew")
         self.scrollbar.grid(row=0, column=1, sticky="ns")
+        self.horizontal.grid(row=1, column=0, sticky="ew")
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
         self.content.bind("<Configure>", lambda _e: self.canvas.configure(
             scrollregion=self.canvas.bbox("all")))
         self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfigure(
-            self.window, width=e.width))
+            self.window, width=max(760, e.width)))
         self.canvas.bind("<Enter>", self._bind_wheel)
         self.canvas.bind("<Leave>", self._unbind_wheel)
 
@@ -59,7 +61,6 @@ class ScrollableFrame(ttk.Frame):
 def build_window(root: tk.Tk) -> None:
     root.title("Red Night | Assessment Operations")
     root.geometry("1200x820")
-    root.minsize(640, 440)
     root.resizable(True, True)
     root.configure(background=BG)
 
