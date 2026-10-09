@@ -33,6 +33,8 @@ on:
       - 'tests/test_web_har_analysis.py'
       - 'packages/red-engine/nightrecon_red_engine/tshark_diagnostics.py'
       - 'tests/test_tshark_diagnostics.py'
+      - 'packages/red-engine/nightrecon_red_engine/external_evidence_bridge.py'
+      - 'tests/test_external_evidence_bridge.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -72,3 +74,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_identity_graph_export.py' -v
           python -m unittest discover -s tests -p 'test_web_har_analysis.py' -v
           python -m unittest discover -s tests -p 'test_tshark_diagnostics.py' -v
+          python -m unittest discover -s tests -p 'test_external_evidence_bridge.py' -v
