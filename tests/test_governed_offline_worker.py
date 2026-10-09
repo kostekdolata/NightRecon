@@ -20,7 +20,7 @@ class GovernedOfflineWorkerTest(unittest.TestCase):
             max_actions=1,permitted_capabilities=("external.tshark.inspect",),
             max_impact="low",
         ))
-    def run(self,**kwargs):
+    def run_operation(self,**kwargs):
         return run_offline_operation(
             operation="inspect-imported-capture",engagement_id="lab",
             engagement_status="active",target="192.0.2.1",
@@ -28,14 +28,14 @@ class GovernedOfflineWorkerTest(unittest.TestCase):
             work=lambda:"parsed",**kwargs,
         )
     def test_reserves_before_offline_work(self):
-        result=self.run()
+        result=self.run_operation()
         self.assertEqual(result.result,"parsed")
         self.assertEqual(self.store.policy("lab").actions_used,1)
         self.assertEqual(len(read_authorization_audit(self.audit)),2)
     def test_exhausted_budget_blocks_second_run(self):
-        self.run()
+        self.run_operation()
         with self.assertRaises(PermissionError):
-            self.run()
+            self.run_operation()
     def test_out_of_scope_cannot_execute_callback(self):
         called=[]
         with self.assertRaises(PermissionError):
