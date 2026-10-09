@@ -33,4 +33,5 @@ def bounded_nmap_tcp_connect(*, executable: str | Path, target: str,
                    "-p", "22,80,443", "-oX", "-", str(address)),
         capability="external.nmap.discovery",
         impact="low", timeout_seconds=30, elevated=False,
+        executable_sha256=trusted_sha256.lower(),
     )
