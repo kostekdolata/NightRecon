@@ -34,8 +34,8 @@ class RedWindowsInstallerContractTests(unittest.TestCase):
         self.assertIn(r"{autoprograms}\Red Night", text)
         self.assertIn(r"{autodesktop}\Red Night", text)
         self.assertIn('Name: "desktopicon"', text)
-        self.assertIn(r'Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"', text)
-        self.assertIn(r'launch-red-night.ps1', text)
+        self.assertIn(r'Filename: "{app}\RedNight.exe"', text)
+        self.assertNotIn('powershell.exe', text.split('[Icons]', 1)[1].split('[UninstallDelete]', 1)[0].lower())
         self.assertNotIn('Filename: "{cmd}"', text)
 
     def test_persistent_launcher_elevates_shell_and_keeps_it_open(self) -> None:
