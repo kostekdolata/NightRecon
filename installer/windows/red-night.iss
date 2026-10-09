@@ -60,8 +60,8 @@ Name: "{localappdata}\NightRecon\RedNight\backups"; Flags: uninsneveruninstall
 Name: "{localappdata}\NightRecon\RedNight\logs"; Flags: uninsneveruninstall
 
 [Icons]
-Name: "{autoprograms}\Red Night"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -File ""{app}\launch-red-night.ps1"""; WorkingDir: "{localappdata}\NightRecon\RedNight"
-Name: "{autodesktop}\Red Night"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -File ""{app}\launch-red-night.ps1"""; WorkingDir: "{localappdata}\NightRecon\RedNight"; Tasks: desktopicon
+Name: "{autoprograms}\Red Night"; Filename: "{app}\RedNight.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"
+Name: "{autodesktop}\Red Night"; Filename: "{app}\RedNight.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"; Tasks: desktopicon
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
