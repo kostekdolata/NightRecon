@@ -12,6 +12,7 @@ class TestNmapGovernedPreset(unittest.TestCase):
             result=bounded_nmap_tcp_connect(executable=program,target="192.0.2.4",trusted_sha256=hashlib.sha256(b"").hexdigest())
             self.assertEqual(result.arguments[-1],"192.0.2.4")
             self.assertEqual(result.arguments[-3:-1],("-oX","-"))
+            self.assertEqual(result.executable_sha256,hashlib.sha256(b"").hexdigest())
             self.assertFalse(result.elevated)
             self.assertEqual(result.capability,"external.nmap.discovery")
     def test_rejects_target_injection(self):
