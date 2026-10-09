@@ -5,13 +5,10 @@ The engagement must already exist in the transactional policy authority.
 """
 from __future__ import annotations
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from .transactional_policy_authority import TransactionalPolicyAuthority
 from .atomic_command_executor import execute_atomically_governed
 from .local_diagnostics import get_local_diagnostic
-from .atomic_action_ledger import AtomicActionLedger
-from nightrecon_shared_core.engagement_policy import FileEngagementPolicyStore
 
 
 def execute_transactional_local_diagnostic(
@@ -27,13 +24,9 @@ def execute_transactional_local_diagnostic(
     existing executor signature.
     """
     command = get_local_diagnostic(diagnostic_name)
-    with TemporaryDirectory(prefix="rednight-local-diagnostic-") as root:
-        folder = Path(root)
-        return execute_atomically_governed(
-            command=command, action_id=action_id, engagement_id=engagement_id,
-            engagement_status="active", target=target,
-            policy_store=FileEngagementPolicyStore(folder / "unused.json"),
-            ledger=AtomicActionLedger(folder / "unused.sqlite"),
-            authority=authority, audit_path=audit_path,
-            result_audit_path=result_audit_path,
-        )
+    return execute_atomically_governed(
+        command=command, action_id=action_id, engagement_id=engagement_id,
+        engagement_status="active", target=target,
+        policy_store=None, ledger=None, authority=authority,
+        audit_path=audit_path, result_audit_path=result_audit_path,
+    )
