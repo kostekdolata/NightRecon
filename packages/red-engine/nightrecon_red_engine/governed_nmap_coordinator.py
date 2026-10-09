@@ -12,6 +12,7 @@ from .atomic_command_executor import execute_atomically_governed
 from .nmap_governed_preset import bounded_nmap_tcp_connect
 from .governed_nmap_evidence import parse_governed_nmap_result
 from .nmap_import import NmapEvidence
+from .managed_components import resolve_managed_component
 
 @dataclass(frozen=True)
 class GovernedScanResult:
@@ -43,3 +44,23 @@ def execute_governed_nmap_discovery(
         evidence=parse_governed_nmap_result(outcome=outcome, target=target),
         command_returncode=outcome.returncode,
     )
+
+
+def execute_managed_nmap_discovery(
+    *, authority: TransactionalPolicyAuthority,
+    engagement_id: str, action_id: str, target: str,
+    components_root: str | Path, manifest_path: str | Path,
+    audit_path: str | Path, result_audit_path: str | Path,
+    enabled: bool = False,
+) -> GovernedScanResult:
+    """Resolve only managed Nmap and then use the fixed governed scan preset."""
+    if not enabled:
+        raise PermissionError("Live managed Nmap discovery is disabled")
+    component = resolve_managed_component(
+        components_root=components_root, manifest_path=manifest_path,
+        component_name="nmap")
+    return execute_governed_nmap_discovery(
+        authority=authority, engagement_id=engagement_id,
+        action_id=action_id, target=target, executable=component.executable,
+        trusted_sha256=component.sha256, audit_path=audit_path,
+        result_audit_path=result_audit_path, enabled=True)
