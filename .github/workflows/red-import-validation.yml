@@ -9,6 +9,10 @@ on:
       - 'tests/test_pcap_import.py'
       - 'tests/test_metasploit_catalogue.py'
       - 'tests/test_evidence_correlation.py'
+      - 'packages/red-engine/nightrecon_red_engine/zap_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/nuclei_import.py'
+      - 'tests/test_zap_import.py'
+      - 'tests/test_nuclei_import.py'
       - '.github/workflows/red-import-validation.yml'
   workflow_dispatch:
 
@@ -36,3 +40,5 @@ jobs:
           python -m unittest discover -s tests -p 'test_pcap_import.py' -v
           python -m unittest discover -s tests -p 'test_metasploit_catalogue.py' -v
           python -m unittest discover -s tests -p 'test_evidence_correlation.py' -v
+          python -m unittest discover -s tests -p 'test_zap_import.py' -v
+          python -m unittest discover -s tests -p 'test_nuclei_import.py' -v
