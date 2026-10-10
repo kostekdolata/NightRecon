@@ -1,0 +1,144 @@
+name: Red Night Third-Party Import Validation
+on:
+  pull_request:
+    paths:
+      - 'packages/red-engine/nightrecon_red_engine/*import.py'
+      - 'packages/red-engine/nightrecon_red_engine/metasploit_catalogue.py'
+      - 'packages/red-engine/nightrecon_red_engine/evidence_correlation.py'
+      - 'tests/test_nmap_import.py'
+      - 'tests/test_pcap_import.py'
+      - 'tests/test_metasploit_catalogue.py'
+      - 'tests/test_evidence_correlation.py'
+      - 'packages/red-engine/nightrecon_red_engine/zap_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/nuclei_import.py'
+      - 'tests/test_zap_import.py'
+      - 'tests/test_nuclei_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/nmap_scan_analysis.py'
+      - 'tests/test_nmap_scan_analysis.py'
+      - 'packages/red-engine/nightrecon_red_engine/tshark_import.py'
+      - 'tests/test_tshark_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/web_har_import.py'
+      - 'tests/test_web_har_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/vulnerability_triage.py'
+      - 'tests/test_vulnerability_triage.py'
+      - 'packages/red-engine/nightrecon_red_engine/identity_interop.py'
+      - 'tests/test_identity_interop.py'
+      - 'packages/red-engine/nightrecon_red_engine/pcapng_import.py'
+      - 'tests/test_pcapng_import.py'
+      - 'packages/red-engine/nightrecon_red_engine/finding_review_store.py'
+      - 'tests/test_finding_review_store.py'
+      - 'packages/red-engine/nightrecon_red_engine/identity_graph_export.py'
+      - 'tests/test_identity_graph_export.py'
+      - 'packages/red-engine/nightrecon_red_engine/web_har_analysis.py'
+      - 'tests/test_web_har_analysis.py'
+      - 'packages/red-engine/nightrecon_red_engine/tshark_diagnostics.py'
+      - 'tests/test_tshark_diagnostics.py'
+      - 'packages/red-engine/nightrecon_red_engine/external_evidence_bridge.py'
+      - 'tests/test_external_evidence_bridge.py'
+      - 'packages/red-engine/nightrecon_red_engine/governed_tool_planner.py'
+      - 'tests/test_governed_tool_planner.py'
+      - 'packages/red-engine/nightrecon_red_engine/governed_offline_worker.py'
+      - 'tests/test_governed_offline_worker.py'
+      - 'packages/red-engine/nightrecon_red_engine/governed_command_runner.py'
+      - 'tests/test_governed_command_runner.py'
+      - 'packages/red-engine/nightrecon_red_engine/command_registry.py'
+      - 'tests/test_command_registry.py'
+      - 'packages/red-engine/nightrecon_red_engine/atomic_action_ledger.py'
+      - 'tests/test_atomic_action_ledger.py'
+      - 'packages/red-engine/nightrecon_red_engine/atomic_command_executor.py'
+      - 'tests/test_atomic_command_executor.py'
+      - 'packages/red-engine/nightrecon_red_engine/process_containment.py'
+      - 'tests/test_process_containment.py'
+      - 'packages/red-engine/nightrecon_red_engine/windows_job.py'
+      - 'tests/test_windows_job.py'
+      - 'packages/red-engine/nightrecon_red_engine/transactional_policy_authority.py'
+      - 'tests/test_transactional_policy_authority.py'
+      - 'packages/red-engine/nightrecon_red_engine/local_diagnostics.py'
+      - 'tests/test_local_diagnostics.py'
+      - 'packages/red-engine/nightrecon_red_engine/transactional_local_diagnostic.py'
+      - 'tests/test_transactional_local_diagnostic.py'
+      - 'packages/red-engine/nightrecon_red_engine/nmap_governed_preset.py'
+      - 'tests/test_nmap_governed_preset.py'
+      - 'packages/red-engine/nightrecon_red_engine/governed_nmap_evidence.py'
+      - 'tests/test_governed_nmap_evidence.py'
+      - 'packages/red-engine/nightrecon_red_engine/governed_nmap_coordinator.py'
+      - 'tests/test_governed_nmap_coordinator.py'
+      - 'packages/red-engine/nightrecon_red_engine/managed_components.py'
+      - 'tests/test_managed_components.py'
+      - 'tests/test_sqlite_connection_lifecycle.py'
+      - 'packages/red-engine/nightrecon_red_engine/managed_nmap_staging.py'
+      - 'tests/test_managed_nmap_staging.py'
+      - 'packages/red-engine/nightrecon_red_engine/managed_bundle_preflight.py'
+      - 'tests/test_managed_bundle_preflight.py'
+      - 'installer/windows/red-night.iss'
+      - 'tests/test_windows_managed_nmap_installer.py'
+      - 'packages/red-night/red_night_app/assessment_preflight.py'
+      - 'packages/red-night/red_night_app/assessment_desktop.py'
+      - 'tests/test_assessment_preflight.py'
+      - 'packages/red-night/red_night_app/operations_read_model.py'
+      - 'tests/test_operations_read_model.py'
+      - 'packages/red-night/red_night_app/qt_operations_shell.py'
+      - 'tests/test_qt_operations_shell_contract.py'
+      - '.github/workflows/red-import-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  adapter-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.11']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install existing packages
+        run: python -m pip install -e ./packages/shared-core -e ./packages/red-engine
+      - name: Verify importers and regression tests
+        run: |
+          python -m unittest discover -s tests -p 'test_nmap_import.py' -v
+          python -m unittest discover -s tests -p 'test_pcap_import.py' -v
+          python -m unittest discover -s tests -p 'test_metasploit_catalogue.py' -v
+          python -m unittest discover -s tests -p 'test_evidence_correlation.py' -v
+          python -m unittest discover -s tests -p 'test_zap_import.py' -v
+          python -m unittest discover -s tests -p 'test_nuclei_import.py' -v
+          python -m unittest discover -s tests -p 'test_nmap_scan_analysis.py' -v
+          python -m unittest discover -s tests -p 'test_tshark_import.py' -v
+          python -m unittest discover -s tests -p 'test_web_har_import.py' -v
+          python -m unittest discover -s tests -p 'test_vulnerability_triage.py' -v
+          python -m unittest discover -s tests -p 'test_identity_interop.py' -v
+          python -m unittest discover -s tests -p 'test_pcapng_import.py' -v
+          python -m unittest discover -s tests -p 'test_finding_review_store.py' -v
+          python -m unittest discover -s tests -p 'test_identity_graph_export.py' -v
+          python -m unittest discover -s tests -p 'test_web_har_analysis.py' -v
+          python -m unittest discover -s tests -p 'test_tshark_diagnostics.py' -v
+          python -m unittest discover -s tests -p 'test_external_evidence_bridge.py' -v
+          python -m unittest discover -s tests -p 'test_governed_tool_planner.py' -v
+          python -m unittest discover -s tests -p 'test_governed_offline_worker.py' -v
+          python -m unittest discover -s tests -p 'test_governed_command_runner.py' -v
+          python -m unittest discover -s tests -p 'test_command_registry.py' -v
+          python -m unittest discover -s tests -p 'test_atomic_action_ledger.py' -v
+          python -m unittest discover -s tests -p 'test_atomic_command_executor.py' -v
+          python -m unittest discover -s tests -p 'test_process_containment.py' -v
+          python -m unittest discover -s tests -p 'test_transactional_policy_authority.py' -v
+          python -m unittest discover -s tests -p 'test_local_diagnostics.py' -v
+          python -m unittest discover -s tests -p 'test_transactional_local_diagnostic.py' -v
+          python -m unittest discover -s tests -p 'test_nmap_governed_preset.py' -v
+          python -m unittest discover -s tests -p 'test_governed_nmap_evidence.py' -v
+          python -m unittest discover -s tests -p 'test_governed_nmap_coordinator.py' -v
+          python -m unittest discover -s tests -p 'test_managed_components.py' -v
+          python -m unittest discover -s tests -p 'test_managed_nmap_staging.py' -v
+          python -m unittest discover -s tests -p 'test_managed_bundle_preflight.py' -v
+          python -m unittest discover -s tests -p 'test_windows_managed_nmap_installer.py' -v
+          python -m unittest discover -s tests -p 'test_assessment_preflight.py' -v
+          python -m unittest discover -s tests -p 'test_operations_read_model.py' -v
+          python -m unittest discover -s tests -p 'test_qt_operations_shell_contract.py' -v
+          python -m unittest discover -s tests -p 'test_assessment_desktop_contract.py' -v
+          python -m unittest discover -s tests -p 'test_sqlite_connection_lifecycle.py' -v
+          python -m unittest discover -s tests -p 'test_windows_job.py' -v
