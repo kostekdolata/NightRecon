@@ -15,6 +15,7 @@ Remove-Item $Artifacts -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $Wheels,$BundleRoot,$Work,$Spec | Out-Null
 
 python -m pip install --upgrade pip setuptools wheel build pyinstaller pyinstaller-hooks-contrib cyclonedx-bom
+python -m pip install "PySide6>=6.8,<7"
 python -m pip install "cryptography>=50.0.1,<51" "playwright>=1.63,<2" "PyYAML>=6.0,<7" "ldap3>=2.9.1,<3" "paramiko>=5.0,<6" "impacket>=0.13.1,<0.14" "pywinrm>=0.5,<0.6" "psycopg[binary]>=3.2,<4" "mysql-connector-python>=9.0,<10"
 
 python -m pip wheel --no-deps --no-build-isolation --wheel-dir $Wheels (Join-Path $Repo "packages\shared-core")
@@ -31,6 +32,11 @@ python -m pip install --no-deps --force-reinstall $SharedWheel $EngineWheel $App
 $Bundle = Join-Path $BundleRoot "RedNight"
 python -m PyInstaller --noconfirm --clean --onedir --name RedNight --distpath $BundleRoot --workpath $Work --specpath $Spec --copy-metadata nightrecon-shared-core --copy-metadata nightrecon-red-engine --copy-metadata nightrecon-red-night --collect-submodules nightrecon_shared_core --collect-submodules nightrecon_red_engine --collect-submodules red_night_app --hidden-import yaml --hidden-import ldap3 --hidden-import paramiko --hidden-import impacket --hidden-import winrm --hidden-import psycopg --hidden-import mysql.connector --hidden-import playwright (Join-Path $PSScriptRoot "entrypoint.py")
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller build failed: $LASTEXITCODE" }
+# Ship a separate, non-operational preview. Preserve RedNight.exe as the stable entry.
+python -m PyInstaller --noconfirm --clean --onefile --windowed --name RedNightQtPreview --distpath $Bundle --workpath (Join-Path $Artifacts "qt-work") --specpath (Join-Path $Artifacts "qt-spec") --collect-submodules red_night_app --hidden-import PySide6.QtWidgets --hidden-import PySide6.QtGui --hidden-import PySide6.QtCore (Join-Path $PSScriptRoot "qt_preview_entrypoint.py")
+if ($LASTEXITCODE -ne 0) { throw "Qt preview build failed: $LASTEXITCODE" }
+if (-not (Test-Path (Join-Path $Bundle "RedNightQtPreview.exe"))) { throw "Qt preview executable missing" }
+
 
 $PackageVersions = @{
     "nightrecon-shared-core" = (python -c "import importlib.metadata as m; print(m.version('nightrecon-shared-core'))").Trim()
