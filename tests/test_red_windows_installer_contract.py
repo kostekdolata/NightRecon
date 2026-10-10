@@ -38,6 +38,15 @@ class RedWindowsInstallerContractTests(unittest.TestCase):
         self.assertNotIn('powershell.exe', text.split('[Icons]', 1)[1].split('[UninstallDelete]', 1)[0].lower())
         self.assertNotIn('Filename: "{cmd}"', text)
 
+    def test_optional_qt_preview_has_separate_start_menu_shortcut(self) -> None:
+        installer = ISS.read_text(encoding="utf-8")
+        build = BUILD.read_text(encoding="utf-8")
+        self.assertIn("RedNightQtPreview.exe", installer)
+        self.assertIn("RedNightQtPreview.exe", build)
+        self.assertIn("--windowed", build)
+        self.assertIn("PySide6", build)
+        self.assertIn("qt_preview_entrypoint.py", build)
+
     def test_persistent_launcher_elevates_shell_and_keeps_it_open(self) -> None:
         text = LAUNCHER.read_text(encoding="utf-8")
         self.assertIn("Start-Process", text)
