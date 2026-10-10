@@ -63,6 +63,8 @@ Name: "{localappdata}\NightRecon\RedNight\logs"; Flags: uninsneveruninstall
 Name: "{autoprograms}\Red Night"; Filename: "{app}\RedNight.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"
 Name: "{autodesktop}\Red Night"; Filename: "{app}\RedNight.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"; Tasks: desktopicon
 
+Name: "{autoprograms}\Red Night Qt Preview"; Filename: "{app}\RedNightQtPreview.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"
+
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
 
