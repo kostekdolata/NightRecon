@@ -45,11 +45,58 @@ QSplitter::handle { background: #2B303A; }
 
 
 def build_window():
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import Qt, QPointF
+    from PySide6.QtGui import QColor, QPainter, QRadialGradient, QLinearGradient, QPen, QPainterPath
     from PySide6.QtWidgets import (
         QButtonGroup, QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton,
         QScrollArea, QSplitter, QTextEdit, QVBoxLayout, QWidget,
     )
+
+    class MoonHero(QFrame):
+        """Scalable, locally rendered moon-and-ridge brand atmosphere."""
+        def __init__(self):
+            super().__init__()
+            self.setObjectName("hero")
+            self.setMinimumHeight(215)
+
+        def paintEvent(self, event):
+            super().paintEvent(event)
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.Antialiasing)
+            rect = self.rect()
+            backdrop = QLinearGradient(0, 0, rect.width(), rect.height())
+            backdrop.setColorAt(0, QColor("#10111A"))
+            backdrop.setColorAt(0.6, QColor("#2C0C19"))
+            backdrop.setColorAt(1, QColor("#090B12"))
+            painter.fillRect(rect, backdrop)
+            x, y = rect.width() * 0.76, rect.height() * 0.39
+            radius = min(rect.height() * 0.32, rect.width() * 0.15)
+            glow = QRadialGradient(QPointF(x, y), radius * 1.8)
+            glow.setColorAt(0, QColor(255, 39, 59, 185))
+            glow.setColorAt(0.45, QColor(222, 30, 53, 92))
+            glow.setColorAt(1, QColor(150, 0, 25, 0))
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(glow)
+            painter.drawEllipse(QPointF(x, y), radius * 1.8, radius * 1.8)
+            painter.setBrush(QColor("#F33A52"))
+            painter.drawEllipse(QPointF(x, y), radius, radius)
+            painter.setBrush(QColor(90, 8, 25, 90))
+            for dx, dy, size in ((-0.36, -0.16, 0.14), (0.27, 0.24, 0.19),
+                                 (0.12, -0.31, 0.11), (-0.08, 0.18, 0.13)):
+                painter.drawEllipse(QPointF(x + dx * radius, y + dy * radius),
+                                    radius * size, radius * size)
+            ridge = QPainterPath()
+            ridge.moveTo(0, rect.height())
+            for px, py in ((0, .88), (.1, .77), (.2, .89), (.29, .65),
+                           (.37, .79), (.48, .61), (.60, .83), (.71, .68),
+                           (.8, .85), (.9, .71), (1, .87)):
+                ridge.lineTo(rect.width() * px, rect.height() * py)
+            ridge.lineTo(rect.width(), rect.height())
+            ridge.closeSubpath()
+            painter.fillPath(ridge, QColor("#05070D"))
+            painter.setPen(QPen(QColor("#D72B43"), 2))
+            painter.drawLine(0, rect.height()-3, rect.width(), rect.height()-3)
+            painter.end()
 
     class RedNightWindow(QMainWindow):
         def __init__(self):
@@ -111,8 +158,7 @@ def build_window():
             heading.setObjectName("heading")
             layout.addWidget(heading)
 
-            hero = QFrame()
-            hero.setObjectName("hero")
+            hero = MoonHero()
             hero_layout = QVBoxLayout(hero)
             hero_layout.setContentsMargins(28, 28, 28, 28)
             hero_layout.setSpacing(10)
@@ -194,6 +240,7 @@ def build_window():
             layout.addStretch()
 
             self.navigation.idClicked.connect(self._navigate)
+            self.statusBar().showMessage("VISUAL PREVIEW  •  No live engagement  •  Execution disabled")
 
         def _navigate(self, index):
             if index != 0:
