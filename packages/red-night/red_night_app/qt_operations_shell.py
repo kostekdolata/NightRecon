@@ -192,6 +192,14 @@ def build_window():
                 card_layout.addWidget(metric)
                 summary.addWidget(card, 1)
             layout.addLayout(summary)
+            toolbar = QHBoxLayout()
+            for label in ("RUN ALL", "CUSTOM ENGINES", "REVIEW PREFLIGHT"):
+                control = QPushButton(label)
+                control.setEnabled(False)
+                control.setToolTip("Awaiting governed Qt integration")
+                toolbar.addWidget(control)
+            toolbar.addStretch()
+            layout.addLayout(toolbar)
 
             sections = QSplitter(Qt.Horizontal)
             left = QFrame()
@@ -239,10 +247,12 @@ def build_window():
             layout.addWidget(activity)
             layout.addStretch()
 
+            self._workspace_label = heading
             self.navigation.idClicked.connect(self._navigate)
             self.statusBar().showMessage("VISUAL PREVIEW  •  No live engagement  •  Execution disabled")
 
         def _navigate(self, index):
+            self._workspace_label.setText(NAVIGATION[index])
             if index != 0:
                 self.activity.setPlainText(
                     f"{NAVIGATION[index]} workspace is not yet wired to Qt.\n"
