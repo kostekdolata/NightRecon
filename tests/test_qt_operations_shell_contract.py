@@ -28,3 +28,8 @@ class TestQtOperationsShell(unittest.TestCase):
         self.assertIn("QSplitter(Qt.Horizontal)", source)
         self.assertNotIn("subprocess", source)
         self.assertNotIn("execute_atomically_governed", source)
+        self.assertIn("class MoonHero(QFrame)", source)
+        self.assertIn("QRadialGradient", source)
+        self.assertIn("QPainterPath", source)
+        self.assertIn('self._workspace_label.setText(NAVIGATION[index])', source)
+        self.assertIn('control.setEnabled(False)', source)
