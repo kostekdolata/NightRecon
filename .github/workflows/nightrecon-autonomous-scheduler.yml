@@ -1,0 +1,42 @@
+name: NightRecon Autonomous Development Scheduler
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: nightrecon-autonomous-development
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify designated development branch and PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='red-night-v047-nmap-evidence-import'
+          pr='160'
+          head=$(gh api "repos/$REPO/branches/$branch" --jq '.commit.sha')
+          pr_head=$(gh api "repos/$REPO/pulls/$pr" --jq '.head.sha')
+          pr_branch=$(gh api "repos/$REPO/pulls/$pr" --jq '.head.ref')
+          pr_state=$(gh api "repos/$REPO/pulls/$pr" --jq '.state')
+          printf 'Branch: %s\nHEAD: %s\nPR: #%s (%s)\n' "$branch" "$head" "$pr" "$pr_state" >> "$GITHUB_STEP_SUMMARY"
+          test "$head" = "$pr_head"
+          test "$branch" = "$pr_branch"
+          test "$pr_state" = open
+      - name: Report coding-agent prerequisite
+        shell: bash
+        run: |
+          echo 'Autonomous implementation is disabled until a verified coding-agent runtime and precommit test gate are configured.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No code writes, scans, merges, releases or deployments were attempted.' >> "$GITHUB_STEP_SUMMARY"
