@@ -8,6 +8,12 @@ NightRecon is a modular reconnaissance and penetration-testing platform designed
 
 **Red Night v0.43.0**
 
+The Red Night Python package version is **0.43.0**
+([package metadata](packages/red-night/pyproject.toml)). The Windows installer
+uses separate **0.46.7** metadata
+([installer definition](installer/windows/red-night.iss)); that installer version
+does not change the Python package version.
+
 **v0.31.0** — legacy NightRecon compatibility package
 
 The long-term product layout is five independently installable applications:
