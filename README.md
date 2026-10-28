@@ -13,6 +13,8 @@ The Red Night Python package version is **0.43.0**
 uses separate **0.46.7** metadata
 ([installer definition](installer/windows/red-night.iss)); that installer version
 does not change the Python package version.
+To check the installed Python package version, run
+`python -m pip show nightrecon-red-night` in the environment where it is installed.
 
 **v0.31.0** — legacy NightRecon compatibility package
 
