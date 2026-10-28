@@ -12,6 +12,7 @@ from pathlib import Path
 
 from nightrecon.red_ownership import (
     RED_ENGINE_FACADES,
+    RED_ENGINE_INTERNAL_SUPPORT_MODULES,
     RED_MIGRATED_ENGINE_MODULES,
     RED_RUNTIME_SUPPORT_MODULES,
     SHARED_CORE_COMPATIBILITY_MODULES,
@@ -55,7 +56,11 @@ def audit_red_dependencies(
     owned = set(red_modules())
     migrated = set(RED_MIGRATED_ENGINE_MODULES)
     shared = set(SHARED_CORE_COMPATIBILITY_MODULES)
-    support = set(RED_RUNTIME_SUPPORT_MODULES) | set(RED_ENGINE_FACADES)
+    support = (
+        set(RED_RUNTIME_SUPPORT_MODULES)
+        | set(RED_ENGINE_FACADES)
+        | set(RED_ENGINE_INTERNAL_SUPPORT_MODULES)
+    )
     package = set(red_package_modules())
 
     owned_edges: list[tuple[str, str]] = []
