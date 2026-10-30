@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "base_sha": "09707e49116b6021fa7bb695c1979aeb240b4fca",
+  "branch_prefix": "codex/task-",
+  "allowed_submitters": [
+    "kostekdolata"
+  ],
+  "allowed_roles": [
+    "admin",
+    "maintain"
+  ],
+  "permitted_paths": [
+    "nightrecon/",
+    "packages/red-engine/nightrecon_red_engine/",
+    "packages/red-night/red_night_app/",
+    "tests/",
+    "docs/"
+  ],
+  "protected_paths": [
+    ".github/",
+    ".gitignore",
+    ".gitattributes",
+    "AGENTS.md",
+    "tools/",
+    "tests/test_task_automation.py",
+    "tests/test_objective_controller.py",
+    "tests/test_objective_inventory.py",
+    "docs/AUTONOMOUS_DEVELOPMENT.md",
+    "packages/shared-core/",
+    "nightrecon/scope.py",
+    "nightrecon/edition_policy.py",
+    "nightrecon/edition_gateway.py",
+    "packages/red-engine/nightrecon_red_engine/scope.py",
+    "packages/red-engine/nightrecon_red_engine/edition_policy.py",
+    "packages/red-engine/nightrecon_red_engine/edition_gateway.py"
+  ],
+  "permitted_operations": [
+    "add",
+    "modify",
+    "delete"
+  ],
+  "allowed_modes": [
+    "100644"
+  ],
+  "max_task_bytes": 16384,
+  "max_changed_files": 20,
+  "max_changed_bytes": 1048576,
+  "max_repair_attempts": 2,
+  "max_runtime_minutes": 60,
+  "required_checks": [
+    "python-suite",
+    "controller-tests",
+    "python-syntax",
+    "dependency-check",
+    "red-launcher-smoke",
+    "red-package-boundary"
+  ],
+  "execution_enabled": false,
+  "publishing_enabled": false,
+  "external_assessments_enabled": false,
+  "allowed_skip_ids": [
+    "test_logging.LoggingTests.test_log_file_is_private_on_posix",
+    "test_red_workspace_cli_security.WorkspacePassphraseFileTests.test_rejects_group_or_other_access_on_posix",
+    "test_red_workspace_cli_security.WorkspacePassphraseFileTests.test_rejects_symlink",
+    "test_workspace_recovery.WorkspaceRecoveryTests.test_symlink_source_is_rejected",
+    "test_objective_inventory.ObjectiveInventoryTests.test_pinned_base_is_collected_without_index_or_worktree_changes",
+    "test_objective_inventory.ObjectiveInventoryTests.test_working_inventory_includes_modifications_and_untracked_additions",
+    "test_objective_inventory.ObjectiveInventoryTests.test_deletion_is_not_replaced_by_baseline_bytes",
+    "test_objective_inventory.ObjectiveInventoryTests.test_candidate_gitignore_cannot_hide_untracked_out_of_scope_file",
+    "test_objective_inventory.ObjectiveInventoryTests.test_transient_runtime_root_is_excluded_only_for_untracked_content",
+    "test_objective_inventory.ObjectiveInventoryTests.test_symlink_contents_are_recorded_without_reading_target",
+    "test_objective_inventory.ObjectiveInventoryTests.test_symlink_parent_is_not_followed_for_tracked_paths",
+    "test_objective_inventory.ObjectiveInventoryTests.test_hardlink_to_external_content_fails_closed",
+    "test_objective_inventory.ObjectiveInventoryTests.test_special_file_does_not_block_collector",
+    "test_objective_inventory.ObjectiveInventoryTests.test_executable_mode_is_preserved_for_scope_rejection",
+    "test_objective_inventory.ObjectiveInventoryTests.test_oversized_file_fails_without_partial_inventory",
+    "test_objective_inventory.ObjectiveInventoryTests.test_untrusted_revision_syntax_is_not_passed_to_git",
+    "test_objective_inventory.ObjectiveInventoryTests.test_symlink_repository_is_rejected",
+    "test_objective_inventory.ObjectiveInventoryTests.test_local_fsmonitor_helper_is_not_executed"
+  ]
+}

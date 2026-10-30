@@ -1,0 +1,59 @@
+name: Development objective
+description: Propose one bounded objective. Only a separate owner-signed snapshot can authorize it.
+title: "[Objective] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is a proposal, not authorization to execute code or assess targets.
+        No Issue automatically runs Codex or publishes changes in this disabled deployment.
+        One signed approval covers the objective's bounded incremental batches.
+        Identity, repository permission, base commit and branch ownership must be
+        verified independently by a future trusted admission adapter.
+  - type: textarea
+    id: task
+    attributes:
+      label: Task specification (JSON)
+      description: Keep valid JSON. Paths are exact files or directory prefixes ending in /. No commands or credentials.
+      render: json
+      value: |
+        {
+          "schema_version": 1,
+          "revision": 1,
+          "base_sha": "09707e49116b6021fa7bb695c1979aeb240b4fca",
+          "objective": "Describe one development change",
+          "acceptance_criteria": ["Describe a verifiable regression test"],
+          "permitted_paths": ["tests/test_example.py"],
+          "permitted_operations": ["add", "modify"]
+        }
+    validations:
+      required: true
+  - type: checkboxes
+    id: acknowledgement
+    attributes:
+      label: Boundaries
+      options:
+        - label: This task contains no credentials and grants no external-target authorization.
+          required: true
+  - type: textarea
+    id: resource-limits
+    attributes:
+      label: Requested maximum resources (proposal only)
+      render: json
+      value: |
+        {
+          "max_batches": 3,
+          "max_repairs_per_batch": 2,
+          "max_attempts": 10,
+          "max_wall_seconds": 3600,
+          "max_tokens": 1000000,
+          "max_cost_microusd": 10000000
+        }
+    validations:
+      required: true
+  - type: checkboxes
+    id: release-request
+    attributes:
+      label: Release request (not authorization)
+      options:
+        - label: This objective requests a software release; the owner must explicitly sign exact tag and artifact permissions.
