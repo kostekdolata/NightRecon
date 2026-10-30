@@ -48,4 +48,18 @@ def run_edition_cli(edition: str, argv: Sequence[str]) -> None:
         workspace_main(arguments[1:])
         return
 
+    if edition == "red" and arguments[0] in {
+        "network-env",
+        "syn-scan",
+        "packet",
+        "web-replay",
+        "web-proxy",
+        "validation-modules",
+        "range-sim",
+    }:
+        from nightrecon_red_engine.red_cli import main as red_main
+
+        red_main(arguments)
+        return
+
     legacy_main(arguments)
