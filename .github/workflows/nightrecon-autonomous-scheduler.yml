@@ -40,3 +40,8 @@ jobs:
         run: |
           echo 'Autonomous implementation is disabled until a verified coding-agent runtime and precommit test gate are configured.' >> "$GITHUB_STEP_SUMMARY"
           echo 'No code writes, scans, merges, releases or deployments were attempted.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Report objective controller deployment gates
+        shell: bash
+        run: |
+          echo 'Objective controller remains disabled: owner-signing trust, private durable queue, independent cross-platform validation, isolated credential brokers and a harmless protected-merge rehearsal are required.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Issue text is a proposal, not approval. No objective is admitted or executed by this readiness workflow.' >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "key_id",
+    "payload",
+    "signature"
+  ],
+  "properties": {
+    "key_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "objective_id",
+        "owner",
+        "repository",
+        "task",
+        "policy_digest",
+        "approved_at",
+        "expires_at",
+        "limits",
+        "release",
+        "allow_safety_control_changes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "objective_id": {
+          "type": "string",
+          "pattern": "^issue-[1-9][0-9]*-r[1-9][0-9]*$"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repository": {
+          "const": "kostekdolata/NightRecon"
+        },
+        "task": {
+          "$ref": "task.schema.json"
+        },
+        "policy_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "approved_at": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "expires_at": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_batches",
+            "max_repairs_per_batch",
+            "max_attempts",
+            "max_wall_seconds",
+            "max_tokens",
+            "max_cost_microusd"
+          ],
+          "properties": {
+            "max_batches": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "max_repairs_per_batch": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60
+            },
+            "max_wall_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7200
+            },
+            "max_tokens": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2000000
+            },
+            "max_cost_microusd": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000000
+            }
+          }
+        },
+        "release": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "authorized",
+            "tag",
+            "artifact_names",
+            "signing_key_ids"
+          ],
+          "properties": {
+            "authorized": {
+              "type": "boolean"
+            },
+            "tag": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+            },
+            "artifact_names": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 0,
+              "maxItems": 20,
+              "uniqueItems": true
+            },
+            "signing_key_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 0,
+              "maxItems": 20,
+              "uniqueItems": true
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "authorized": {
+                    "const": false
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "tag": {
+                    "type": "null"
+                  },
+                  "artifact_names": {
+                    "maxItems": 0
+                  },
+                  "signing_key_ids": {
+                    "maxItems": 0
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "tag": {
+                    "type": "string"
+                  },
+                  "artifact_names": {
+                    "minItems": 1
+                  },
+                  "signing_key_ids": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "allow_safety_control_changes": {
+          "const": false
+        }
+      }
+    },
+    "signature": {
+      "type": "string",
+      "contentEncoding": "base64"
+    }
+  },
+  "description": "Ed25519 signature over approval domain plus canonical payload. Runtime signature, policy, owner and expiry verification is mandatory."
+}
