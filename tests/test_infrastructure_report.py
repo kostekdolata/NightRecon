@@ -98,6 +98,110 @@ class InfrastructureReportTests(unittest.TestCase):
             serialized.lower(),
         )
 
+    def test_ssh_report_status_reflects_action_outcomes(self):
+        session = ScanSession.create(
+            target=parse_target(
+                "server.example.test"
+            ),
+            scope_rules=(
+                "server.example.test",
+            ),
+        )
+
+        def record(
+            action_id,
+            success,
+            reason,
+            used,
+        ):
+            return InfrastructureActionRecord(
+                target="server.example.test",
+                transport="ssh",
+                action_id=action_id,
+                credential_id="readonly",
+                success=success,
+                reason=reason,
+                facts=(),
+                actions_used_after=used,
+            )
+
+        successful = InfrastructureAssessmentReport.create(
+            session=session,
+            transport="ssh",
+            username="audit-user",
+            port=22,
+            max_actions=4,
+            records=(
+                record(
+                    "ssh.system_identity",
+                    True,
+                    "completed",
+                    1,
+                ),
+                record(
+                    "ssh.os_inventory",
+                    True,
+                    "completed",
+                    2,
+                ),
+            ),
+        )
+        partial = InfrastructureAssessmentReport.create(
+            session=session,
+            transport="ssh",
+            username="audit-user",
+            port=22,
+            max_actions=4,
+            records=(
+                record(
+                    "ssh.system_identity",
+                    True,
+                    "completed",
+                    1,
+                ),
+                record(
+                    "ssh.os_inventory",
+                    False,
+                    "command_failed",
+                    2,
+                ),
+            ),
+        )
+        failed = InfrastructureAssessmentReport.create(
+            session=session,
+            transport="ssh",
+            username="audit-user",
+            port=22,
+            max_actions=4,
+            records=(
+                record(
+                    "ssh.system_identity",
+                    False,
+                    "authentication_failed",
+                    1,
+                ),
+                record(
+                    "ssh.os_inventory",
+                    False,
+                    "authentication_failed",
+                    2,
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            successful.status,
+            "completed",
+        )
+        self.assertEqual(
+            partial.status,
+            "completed-with-errors",
+        )
+        self.assertEqual(
+            failed.status,
+            "failed",
+        )
+
     def test_smb_report_status_reflects_action_outcomes(self):
         session = ScanSession.create(
             target=parse_target(
