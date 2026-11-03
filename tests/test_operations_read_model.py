@@ -1,4 +1,5 @@
 """Operations snapshot must remain read-only and engagement-scoped."""
+from contextlib import closing
 import json
 import sqlite3
 import sys
@@ -24,12 +25,12 @@ class TestOperationsReadModel(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             authority = root / "authority.db"
-            with sqlite3.connect(authority) as db:
+            with closing(sqlite3.connect(authority)) as db, db:
                 db.execute("CREATE TABLE engagement_authority (engagement_id TEXT, policy_json TEXT, engagement_status TEXT, actions_used INTEGER)")
                 db.execute("INSERT INTO engagement_authority VALUES (?,?,?,?)",
                            ("lab", json.dumps({"max_actions": 3}), "active", 1))
             review = root / "review.db"
-            with sqlite3.connect(review) as db:
+            with closing(sqlite3.connect(review)) as db, db:
                 db.execute("CREATE TABLE review_findings (engagement TEXT, asset TEXT, rule_id TEXT, status TEXT, evidence_ref TEXT)")
                 db.execute("INSERT INTO review_findings VALUES (?,?,?,?,?)",
                            ("lab", "127.0.0.1", "rule1", "open", "ev-1"))
