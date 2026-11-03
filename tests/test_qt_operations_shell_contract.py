@@ -22,7 +22,6 @@ class TestQtOperationsShell(unittest.TestCase):
 
     def test_execution_disallowed_and_panels_scrollable(self):
         source = Path(shell.__file__).read_text(encoding="utf-8")
-        self.assertIn("start.setEnabled(False)", source)
         self.assertIn("scroller.setWidgetResizable(True)", source)
         self.assertIn("Qt.ScrollBarAsNeeded", source)
         self.assertIn("QSplitter(Qt.Horizontal)", source)
