@@ -565,5 +565,63 @@ class AssetInventoryTests(unittest.TestCase):
 
 
 
+    def test_filtered_or_error_scan_does_not_remove_known_service(self):
+        existing = AssetInventory(
+            assets=(
+                AssetRecord(
+                    address="192.0.2.10",
+                    first_seen="2026-10-08T10:00:00+00:00",
+                    last_seen="2026-10-08T10:00:00+00:00",
+                    last_checked_at="2026-10-08T10:00:00+00:00",
+                    services=(
+                        AssetServiceRecord(
+                            port=443,
+                            service="https",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        for state, error_code in (
+            ("filtered", 10060),
+            ("error", 10051),
+        ):
+            with self.subTest(state=state):
+                report = TcpScanReport(
+                    session_id=f"scan-{state}",
+                    created_at="2026-10-08T11:00:00+00:00",
+                    target="192.0.2.10",
+                    target_type="ipv4",
+                    scope=("192.0.2.0/24",),
+                    status="completed",
+                    resolved_addresses=("192.0.2.10",),
+                    ports_requested=(443,),
+                    results=(
+                        TcpPortResult(
+                            address="192.0.2.10",
+                            port=443,
+                            is_open=False,
+                            error_code=error_code,
+                            state=state,
+                        ),
+                    ),
+                )
+
+                update = apply_scan_report(existing, report)
+
+                self.assertEqual(
+                    tuple(
+                        service.port
+                        for service in update.inventory.assets[0].services
+                    ),
+                    (443,),
+                )
+                self.assertFalse(any(
+                    change.change_type == "port-closed"
+                    for change in update.changes
+                ))
+
+
 if __name__ == "__main__":
     unittest.main()

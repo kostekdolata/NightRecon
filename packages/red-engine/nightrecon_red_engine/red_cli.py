@@ -145,13 +145,14 @@ from nightrecon_red_engine.pentest_orchestrator import (
 )
 from nightrecon_red_engine.report import TcpScanReport
 from nightrecon_red_engine.resolver import resolve_target
+from nightrecon_red_engine.scan_profiles import get_scan_timing_profile
 from nightrecon_shared_core.authorization import Scope
 from nightrecon_red_engine.service_detection import detect_services
 from nightrecon_red_engine.session import ScanSession
 from nightrecon_red_engine.storage import ResultStore
 from nightrecon_shared_core.authorization import TargetType, parse_target
 from nightrecon_shared_core.workspace import LocalWorkspace
-from nightrecon_red_engine.tcp_scanner import scan_tcp_ports
+from nightrecon_red_engine.tcp_scanner import MAX_TCP_RETRIES, scan_tcp_ports
 from nightrecon_red_engine.threat_context import (
     enrich_threat_context,
     summarize_threat_context,
@@ -1567,6 +1568,26 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=50,
         help="Maximum concurrent workers. Default: 50",
+    )
+
+    scan_parser.add_argument(
+        "--tcp-retries",
+        type=int,
+        choices=range(0, MAX_TCP_RETRIES + 1),
+        default=0,
+        help=(
+            "Retry filtered TCP connection attempts up to this many times. "
+            f"Maximum: {MAX_TCP_RETRIES}. Default: 0"
+        ),
+    )
+
+    scan_parser.add_argument(
+        "--timing-profile",
+        choices=("polite", "normal", "fast"),
+        help=(
+            "Optional bounded scan timing/rate profile. When supplied it "
+            "controls timeout, worker count, retries, and connect-probe pacing."
+        ),
     )
 
     scan_parser.add_argument(
@@ -3895,11 +3916,34 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
             scope = Scope.from_values(args.scope)
             ports = parse_ports(args.ports)
 
+            timing_profile = (
+                get_scan_timing_profile(args.timing_profile)
+                if args.timing_profile
+                else None
+            )
             config = NightReconConfig(
-                connect_timeout=args.timeout,
-                max_workers=args.workers,
+                connect_timeout=(
+                    timing_profile.timeout_seconds
+                    if timing_profile is not None
+                    else args.timeout
+                ),
+                max_workers=(
+                    timing_profile.max_workers
+                    if timing_profile is not None
+                    else args.workers
+                ),
                 results_dir=args.results_dir,
                 logs_dir=args.logs_dir,
+            )
+            tcp_retries = (
+                timing_profile.retries
+                if timing_profile is not None
+                else args.tcp_retries
+            )
+            tcp_rate = (
+                timing_profile.max_probes_per_second
+                if timing_profile is not None
+                else None
             )
         except ValueError as exc:
             parser.error(str(exc))
@@ -5190,12 +5234,23 @@ def _command_main(argv: tuple[str, ...] | None = None) -> object | None:
         all_results = []
 
         for address in resolution.addresses:
-            results = scan_tcp_ports(
-                address=address,
-                ports=ports,
-                timeout=config.connect_timeout,
-                max_workers=config.max_workers,
-            )
+            if tcp_rate is None:
+                results = scan_tcp_ports(
+                    address=address,
+                    ports=ports,
+                    timeout=config.connect_timeout,
+                    max_workers=config.max_workers,
+                    retries=tcp_retries,
+                )
+            else:
+                results = scan_tcp_ports(
+                    address=address,
+                    ports=ports,
+                    timeout=config.connect_timeout,
+                    max_workers=config.max_workers,
+                    retries=tcp_retries,
+                    max_probes_per_second=tcp_rate,
+                )
 
             all_results.extend(results)
 
@@ -5883,6 +5938,18 @@ def _guard_subject(arguments: tuple[str, ...]) -> tuple[str, str, str] | None:
         if host is None:
             return None
         return "web.crawl", host, "standard"
+    if command == "syn-scan" and len(arguments) >= 2:
+        return "scan.syn", arguments[1], "standard"
+    if command == "web-replay" and len(arguments) >= 3:
+        host = urlsplit(arguments[2]).hostname
+        if host is None:
+            return None
+        return "web.replay", host, "standard"
+    if command == "web-proxy":
+        scope_target = _flag_value(arguments, "--scope")
+        if scope_target:
+            return "web.proxy", scope_target, "standard"
+        return None
     if command == "infra" and len(arguments) >= 3:
         return f"infrastructure.{arguments[1]}", arguments[2], "standard"
     if command == "api" and len(arguments) >= 2:
@@ -5974,6 +6041,23 @@ def main(argv: tuple[str, ...] | None = None) -> None:
     if arguments[0] == "workspace":
         from nightrecon_red_engine.red_workspace_cli import main as workspace_main
         workspace_main(arguments[1:])
+        return
+
+    if arguments[0] in {
+        "network-env",
+        "syn-scan",
+        "packet",
+        "web-replay",
+        "web-proxy",
+    }:
+        _authorize_guarded_execution(
+            arguments,
+            workspace_root=workspace_root,
+            engagement_id=engagement_id,
+            approved=approved,
+        )
+        from nightrecon_red_engine.advanced_cli import main as advanced_main
+        advanced_main(arguments)
         return
 
     if arguments[0] in {"pentest", "run-all"}:

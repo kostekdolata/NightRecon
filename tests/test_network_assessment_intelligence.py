@@ -150,5 +150,42 @@ class NetworkAssessmentIntelligenceTests(unittest.TestCase):
         self.assertNotIn("exploitability", payload["headline"].lower())
 
 
+    def test_filtered_and_error_tcp_are_coverage_gaps_not_closed_ports(self):
+        intelligence = build_network_assessment_intelligence(
+            tcp_results=(
+                TcpPortResult(
+                    "192.0.2.10",
+                    443,
+                    False,
+                    10060,
+                    state="filtered",
+                    confidence="medium",
+                ),
+                TcpPortResult(
+                    "192.0.2.10",
+                    445,
+                    False,
+                    10051,
+                    state="error",
+                    confidence="low",
+                ),
+            ),
+        )
+
+        self.assertEqual(intelligence.confidence, "limited")
+        self.assertTrue(any(
+            "remain filtered" in item
+            for item in intelligence.coverage_gaps
+        ))
+        self.assertTrue(any(
+            "could not be classified" in item
+            for item in intelligence.coverage_gaps
+        ))
+        self.assertTrue(any(
+            "before treating affected ports as closed" in item
+            for item in intelligence.recommended_next_actions
+        ))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -42,3 +42,6 @@ postgres = [
 mysql = [
     "mysql-connector-python>=9.0,<10",
 ]
+packet = [
+    "scapy>=2.6,<3",
+]

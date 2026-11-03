@@ -35,13 +35,20 @@ class RedOwnershipTests(unittest.TestCase):
     def test_optional_runtime_dependencies_are_red_extras(self) -> None:
         self.assertEqual(
             set(RED_OPTIONAL_EXTRAS),
-            {"browser", "api", "ad", "ssh", "smb", "winrm", "postgres", "mysql"},
+            {
+                "browser", "api", "ad", "ssh", "smb", "winrm",
+                "postgres", "mysql", "packet",
+            },
         )
 
     def test_red_commands_cover_existing_assessment_surfaces(self) -> None:
         self.assertEqual(
             set(RED_COMMANDS),
-            {"api", "assets", "checks", "crawl", "discover", "editions", "identity", "infra", "pentest", "run-all", "scan", "workspace"},
+            {
+                "api", "assets", "checks", "crawl", "discover", "editions",
+                "identity", "infra", "pentest", "run-all", "scan", "workspace",
+                "network-env", "syn-scan", "packet", "web-replay", "web-proxy",
+            },
         )
 
     def test_pentest_command_declares_every_orchestrated_capability_family(self) -> None:
