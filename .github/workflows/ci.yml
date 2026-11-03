@@ -1,10 +1,12 @@
 name: NightRecon CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
       - "v*-dev"
+      - "codex/task-*"
   pull_request:
     branches:
       - master

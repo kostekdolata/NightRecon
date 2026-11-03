@@ -1,0 +1,485 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "branch",
+    "base_sha",
+    "policy_digest",
+    "state",
+    "repair_attempts",
+    "candidate_digest",
+    "changed_files",
+    "scope_violations",
+    "tests",
+    "ci_results",
+    "reason",
+    "commit_sha",
+    "publishable",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^issue-[1-9][0-9]*:r[1-9][0-9]*:[0-9a-f]{64}$"
+    },
+    "branch": {
+      "type": "string",
+      "pattern": "^codex/task-[1-9][0-9]*-r[1-9][0-9]*-[0-9a-f]{12}$"
+    },
+    "base_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "policy_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "state": {
+      "enum": [
+        "pending",
+        "admitted",
+        "running",
+        "validating",
+        "repairing",
+        "blocked",
+        "failed",
+        "completed"
+      ]
+    },
+    "repair_attempts": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "candidate_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "operation",
+          "old_mode",
+          "new_mode"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "operation": {
+            "enum": [
+              "add",
+              "modify",
+              "delete"
+            ]
+          },
+          "old_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "100644",
+                  "100755",
+                  "120000",
+                  "160000"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "new_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "100644",
+                  "100755",
+                  "120000",
+                  "160000"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "minItems": 0,
+      "maxItems": 20000
+    },
+    "scope_violations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "minItems": 0,
+      "maxItems": 100000
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status",
+          "exit_code",
+          "candidate_digest",
+          "tests_run",
+          "passed",
+          "failed",
+          "errors",
+          "skipped",
+          "skip_ids"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,63}$"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "not_run"
+            ]
+          },
+          "exit_code": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidate_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "tests_run": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "passed": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failed": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skipped": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skip_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "uniqueItems": true
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "exit_code": {
+                  "const": 0
+                },
+                "failed": {
+                  "enum": [
+                    0,
+                    null
+                  ]
+                },
+                "errors": {
+                  "enum": [
+                    0,
+                    null
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "exit_code": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 255
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "blocked",
+                    "not_run"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "exit_code": {
+                  "type": "null"
+                },
+                "tests_run": {
+                  "type": "null"
+                },
+                "passed": {
+                  "type": "null"
+                },
+                "failed": {
+                  "type": "null"
+                },
+                "errors": {
+                  "type": "null"
+                },
+                "skipped": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 128
+    },
+    "ci_results": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "commit_sha": {
+      "type": "null"
+    },
+    "publishable": {
+      "const": false
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "minItems": 1,
+      "maxItems": 64
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Batch 1 evaluation only. No serialized record grants authority. validate_result additionally checks policy, evidence binding, counts and state invariants.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "blocked",
+              "failed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "reason": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "validating",
+              "repairing",
+              "completed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "candidate_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "pending",
+              "admitted",
+              "running"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "candidate_digest": {
+            "type": "null"
+          },
+          "changed_files": {
+            "maxItems": 0
+          },
+          "tests": {
+            "maxItems": 0
+          },
+          "scope_violations": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "changed_files": {
+            "minItems": 1,
+            "maxItems": 100
+          },
+          "scope_violations": {
+            "maxItems": 0
+          },
+          "tests": {
+            "minItems": 1,
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
