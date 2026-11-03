@@ -1,10 +1,12 @@
 name: NightRecon CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
       - "v*-dev"
+      - "codex/task-*"
   pull_request:
     branches:
       - master
@@ -65,6 +67,798 @@ jobs:
       - name: Run NightRecon tests
         run: python tests/run_tests.py
 
+
+  red-night-distribution:
+    name: Red Night distribution on ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install packaging tools and shared runtime dependency
+        run: python -m pip install --upgrade pip setuptools wheel "cryptography>=50.0.1,<51"
+
+      - name: Verify separate Red Night installations
+        run: python tests/red_night_distribution_smoke.py
+
+
+  red-night-lifecycle:
+    name: Red Night lifecycle on ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install packaging tools and shared runtime dependency
+        run: python -m pip install --upgrade pip setuptools wheel "cryptography>=50.0.1,<51"
+
+      - name: Verify Red packaged lifecycle
+        run: python tests/red_night_lifecycle_smoke.py
+
+
+  white-night-distribution:
+    name: White Night distribution on ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Verify isolated White Night installation
+        run: python tests/white_night_distribution_smoke.py
+
+
+  red-white-composition:
+    name: Red + White composition isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Verify Red + White composed installation and isolation
+        run: python tests/red_white_composition_smoke.py
+
+
+  api-schema-integration:
+    name: API YAML schema integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Install NightRecon API extra
+        run: python -m pip install -e ".[api]"
+
+      - name: Run YAML API schema integration tests
+        run: python tests/api_schema_runtime.py
+
+
+  ssh-runtime-integration:
+    name: Paramiko SSH runtime compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Install NightRecon SSH extra
+        run: python -m pip install -e ".[ssh]"
+
+      - name: Run Paramiko SSH runtime compatibility
+        run: python tests/ssh_paramiko_runtime.py
+
+
+  smb-runtime-integration:
+    name: Impacket SMB runtime compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Install NightRecon SMB extra
+        run: python -m pip install -e ".[smb]"
+
+      - name: Run Impacket SMB runtime compatibility
+        run: python tests/smb_impacket_runtime.py
+
+
+  winrm-runtime-integration:
+    name: pywinrm runtime compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Install NightRecon WinRM extra
+        run: python -m pip install -e ".[winrm]"
+
+      - name: Run pywinrm runtime compatibility
+        run: python tests/winrm_pywinrm_runtime.py
+
+
+  postgres-runtime-integration:
+    name: psycopg PostgreSQL runtime compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Install NightRecon PostgreSQL extra
+        run: python -m pip install -e ".[postgres]"
+
+      - name: Run psycopg PostgreSQL runtime compatibility
+        run: python tests/postgres_psycopg_runtime.py
+
+
+  mysql-runtime-integration:
+    name: MySQL connector runtime compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Install NightRecon MySQL extra
+        run: python -m pip install -e ".[mysql]"
+
+      - name: Run MySQL connector runtime compatibility
+        run: python tests/mysql_connector_runtime.py
+
+
+  browser-integration:
+    name: Playwright Chromium loopback integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Install NightRecon browser extra
+        run: python -m pip install -e ".[browser]"
+
+      - name: Install Chromium runtime
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run browser loopback integration tests
+        run: python tests/browser_playwright_runtime.py
+
+  ad-runtime-integration:
+    name: ldap3 Active Directory runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine with AD extra
+        run: python -m pip install -e "./packages/red-engine[ad]"
+
+      - name: Run ldap3 Active Directory runtime compatibility
+        run: python tests/ad_ldap3_runtime.py
+
+      - name: Run deterministic Active Directory benchmark lab
+        run: python tests/ad_identity_benchmark_runtime.py
+
+  entra-runtime-integration:
+    name: Entra benchmark runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Run deterministic Entra benchmark lab
+        run: python tests/entra_identity_benchmark_runtime.py
+
+  attack-path-atlas-integration:
+    name: Cross-domain atlas runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Run deterministic cross-domain attack path atlas benchmark
+        run: python tests/attack_path_atlas_runtime.py
+
+  cross-surface-correlation-integration:
+    name: Cross-surface correlation runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Run deterministic cross-surface correlation benchmark
+        run: python tests/cross_surface_correlation_runtime.py
+
+
+  v042-exposure-intelligence-integration:
+    name: v0.42 exposure intelligence runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Run v0.42 exposure intelligence comparison/runtime gate
+        run: python tests/v042_exposure_intelligence_runtime.py
+
+  v043-validation-eligibility-integration:
+    name: v0.43 validation eligibility runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Run v0.43 candidate-to-technique eligibility gate
+        run: python tests/v043_validation_eligibility_runtime.py
+
+  v043-adapter-contracts-integration:
+    name: v0.43 adapter contracts runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Run v0.43 adapter contract gate
+        run: python tests/v043_validation_adapter_contracts_runtime.py
+
+  v043-revocable-worker-integration:
+    name: v0.43 revocable worker runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Run v0.43 isolated revocable worker gate
+        run: python tests/v043_validation_worker_runtime.py
+
+  v043-validation-lifecycle-integration:
+    name: v0.43 validation lifecycle runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Run v0.43 validation evidence/retest lifecycle gate
+        run: python tests/v043_validation_evidence_lifecycle_runtime.py
+
+  v043-attack-comparison-integration:
+    name: v0.43 ATT&CK comparison runtime / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools
+
+      - name: Install NightRecon shared core
+        run: python -m pip install -e ./packages/shared-core
+
+      - name: Install NightRecon Red engine
+        run: python -m pip install -e ./packages/red-engine
+
+      - name: Run v0.43 ATT&CK review/comparison gate
+        run: python tests/v043_validation_attack_comparison_runtime.py
+
+
+  red-live-luks2-integration:
+    name: Red Night disposable LUKS2 executor
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Verify Red persistence contracts and executor
+        run: |
+          python -m unittest \
+            tests.test_red_live_persistence_contract \
+            tests.test_red_live_persistence_executor -v
+
+      - name: Install encrypted workspace test dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            cryptsetup \
+            e2fsprogs
+
+      - name: Run disposable Red LUKS2 reboot and Ephemeral fixture
+        run: |
+          sudo python tests/red_live_luks_executor_runtime.py
+
+
+  red-live-build-integration:
+    name: Red Night Live UEFI boot smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Upgrade wheel build tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Build Red package wheels
+        shell: bash
+        run: |
+          mkdir -p live/red-night/.wheelhouse
+          python -m pip wheel --no-deps \
+            --wheel-dir live/red-night/.wheelhouse \
+            ./packages/shared-core ./packages/red-engine ./packages/red-night
+
+      - name: Verify Red Live deployment, appliance, and persistence contracts
+        run: |
+          python -m unittest \
+            tests.test_red_live_build_skeleton \
+            tests.test_red_live_appliance \
+            tests.test_red_live_persistence_contract \
+            tests.test_red_live_persistence_executor \
+            tests.test_night_privilege_model -v
+
+      - name: Install Debian 13 Live build and UEFI VM tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates curl cpio debootstrap debian-archive-keyring apt-utils bzip2 file rsync wget xz-utils \
+            qemu-system-x86 ovmf xorriso squashfs-tools
+
+          LIVE_BUILD_VERSION="20250505+deb13u1"
+          LIVE_BUILD_DEB="$RUNNER_TEMP/live-build_${LIVE_BUILD_VERSION}_all.deb"
+          LIVE_BUILD_SHA256="58e09779881cbcc631c49ceb703413e0247a87db01823e597b2a1c40a2afd8f4"
+
+          curl -fsSL \
+            "https://deb.debian.org/debian/pool/main/l/live-build/live-build_${LIVE_BUILD_VERSION}_all.deb" \
+            -o "$LIVE_BUILD_DEB"
+          echo "$LIVE_BUILD_SHA256  $LIVE_BUILD_DEB" | sha256sum -c -
+          sudo dpkg -i "$LIVE_BUILD_DEB"
+
+          test "$(dpkg-query -W -f='${Version}' live-build)" = "1:${LIVE_BUILD_VERSION}"
+          lb --version
+
+      - name: Build Red Night Live image
+        shell: bash
+        run: |
+          sudo --preserve-env=GITHUB_SHA env \
+            NIGHTRECON_SOURCE_REVISION="$GITHUB_SHA" \
+            ./live/red-night/build-image.sh \
+            --wheel-dir "$PWD/live/red-night/.wheelhouse" \
+            --output "$RUNNER_TEMP/RedNight-Live-v0.44.0-dev-amd64.iso"
+
+      - name: Verify Red Night Live release metadata
+        shell: bash
+        run: |
+          export PYTHONPATH="$PWD/packages/red-night"
+          export RED_LIVE_IMAGE="$RUNNER_TEMP/RedNight-Live-v0.44.0-dev-amd64.iso"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from red_night_app.live_release import (
+              RedLiveImageManifest,
+              verify_live_image_manifest,
+          )
+
+          image = Path(os.environ["RED_LIVE_IMAGE"])
+          manifest_path = Path(str(image) + ".manifest.json")
+          package_manifest = Path(str(image) + ".package-manifest.json")
+          sbom = Path(str(image) + ".SBOM.json")
+          manifest = RedLiveImageManifest.from_json(
+              manifest_path.read_text(encoding="utf-8")
+          )
+          assert manifest.source_revision == os.environ["GITHUB_SHA"]
+          assert manifest.secure_boot_status == "not-verified"
+          verify_live_image_manifest(
+              manifest,
+              image_path=image,
+              package_manifest_path=package_manifest,
+              sbom_path=sbom,
+          )
+          PY
+
+      - name: Boot Red Night Live in UEFI VM
+        shell: bash
+        run: |
+          ./live/red-night/ci/uefi_boot_smoke.sh \
+            "$RUNNER_TEMP/RedNight-Live-v0.44.0-dev-amd64.iso"
 
   packet-runtime:
     name: Scapy packet runtime on ${{ matrix.os }}
