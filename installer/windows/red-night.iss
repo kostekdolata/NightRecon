@@ -5,6 +5,9 @@
 #ifndef SourceDir
   #error SourceDir must point at the prepared Red Night bundle.
 #endif
+// Managed Nmap is optional and intentionally omitted by default.
+// Only supply ManagedNmapDir for a separately verified, redistribution-cleared
+// release payload. Npcap and other licensing/dependency work is independent.
 #ifndef SourceCommit
   #define SourceCommit "unknown"
 #endif
@@ -44,6 +47,12 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+#ifdef ManagedNmapDir
+// Build coordinator must preflight this directory, its components.json,
+// trusted SHA-256 source, licensing notices and platform dependencies.
+Source: "{#ManagedNmapDir}\\*"; DestDir: "{app}\\managed-tools\\nmap"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
+
 [Dirs]
 Name: "{localappdata}\NightRecon\RedNight"; Flags: uninsneveruninstall
 Name: "{localappdata}\NightRecon\RedNight\workspaces"; Flags: uninsneveruninstall
@@ -51,8 +60,10 @@ Name: "{localappdata}\NightRecon\RedNight\backups"; Flags: uninsneveruninstall
 Name: "{localappdata}\NightRecon\RedNight\logs"; Flags: uninsneveruninstall
 
 [Icons]
-Name: "{autoprograms}\Red Night"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -File ""{app}\launch-red-night.ps1"""; WorkingDir: "{localappdata}\NightRecon\RedNight"
-Name: "{autodesktop}\Red Night"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -File ""{app}\launch-red-night.ps1"""; WorkingDir: "{localappdata}\NightRecon\RedNight"; Tasks: desktopicon
+Name: "{autoprograms}\Red Night"; Filename: "{app}\RedNight.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"
+Name: "{autodesktop}\Red Night"; Filename: "{app}\RedNight.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"; Tasks: desktopicon
+
+Name: "{autoprograms}\Red Night Qt Preview"; Filename: "{app}\RedNightQtPreview.exe"; WorkingDir: "{localappdata}\NightRecon\RedNight"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
