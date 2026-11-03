@@ -93,6 +93,15 @@ def main() -> None:
         return
     if os.name != "nt":
         raise RuntimeError("red_night_app.windows_launcher is Windows-only")
+    if not sys.argv[1:]:
+        # Display-only workspace: no privilege escalation or scanning.
+        from .assessment_desktop import main as launch_workspace
+        launch_workspace()
+        return
+    if sys.argv[1:] == ["--assessment-workspace"]:
+        from .assessment_desktop import main as launch_workspace
+        launch_workspace()
+        return
     if not _is_windows_admin():
         raise SystemExit(_request_elevation())
     from . import main as run_red_night

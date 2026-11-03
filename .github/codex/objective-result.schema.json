@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Current objective service report. Operational remains false until live acceptance is proven. Signed approval and authenticated history are required in addition to this structural schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "objective_id",
+    "approval_digest",
+    "owner",
+    "permitted_paths",
+    "acceptance_criteria",
+    "resource_limits",
+    "release_permissions",
+    "branch",
+    "base_sha",
+    "parent_sha",
+    "state",
+    "version",
+    "batch",
+    "repairs",
+    "attempts",
+    "reserved_tokens",
+    "reserved_cost_microusd",
+    "started_at",
+    "deadline",
+    "lease_owner",
+    "lease_generation",
+    "lease_until",
+    "intent",
+    "commits",
+    "reason",
+    "plan",
+    "merge_sha",
+    "release_result",
+    "changed_files",
+    "tests",
+    "ci_results",
+    "operational",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "objective_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approval_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "permitted_paths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "resource_limits": {
+      "type": "object"
+    },
+    "release_permissions": {
+      "type": "object"
+    },
+    "branch": {
+      "type": "string",
+      "pattern": "^codex/task-[1-9][0-9]*-r[1-9][0-9]*-[0-9a-f]{12}$"
+    },
+    "base_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "parent_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "state": {
+      "enum": [
+        "pending",
+        "admitted",
+        "running",
+        "validating",
+        "repairing",
+        "blocked",
+        "failed",
+        "completed"
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "batch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "repairs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reserved_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reserved_cost_microusd": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "started_at": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "deadline": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "lease_owner": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lease_generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "lease_until": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "intent": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "commits": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "plan": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "merge_sha": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "release_result": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "ci_results": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "operational": {
+      "const": false
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "merge_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "commits": {
+            "minItems": 1
+          },
+          "reason": {
+            "type": "null"
+          },
+          "intent": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "blocked",
+              "failed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+name: NightRecon Autonomous Development Scheduler
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: nightrecon-autonomous-development
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Report previous integration checkpoint
+        shell: bash
+        run: |
+          echo 'PR #160 has been merged. This read-only scheduler does not track a live development PR.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No coding-agent work is enabled or scheduled by this workflow.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Report coding-agent prerequisite
+        shell: bash
+        run: |
+          echo 'Autonomous implementation is disabled until a verified coding-agent runtime and precommit test gate are configured.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No code writes, scans, merges, releases or deployments were attempted.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Report objective controller deployment gates
+        shell: bash
+        run: |
+          echo 'Objective controller remains disabled: owner-signing trust, private durable queue, independent cross-platform validation, isolated credential brokers and a harmless protected-merge rehearsal are required.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Issue text is a proposal, not approval. No objective is admitted or executed by this readiness workflow.' >> "$GITHUB_STEP_SUMMARY"

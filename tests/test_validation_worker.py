@@ -136,7 +136,7 @@ def service_fixture(port, *, tls=False):
     return graph, option, binding
 
 
-def start_listener(*, hold_seconds=0.0):
+def start_listener(*, hold_seconds=0.0, release_event=None):
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     listener.bind(("127.0.0.1", 0))
@@ -149,7 +149,9 @@ def start_listener(*, hold_seconds=0.0):
             connection, _address = listener.accept()
             accepted.set()
             with connection:
-                if hold_seconds:
+                if release_event is not None:
+                    release_event.wait(timeout=8)
+                elif hold_seconds:
                     time.sleep(hold_seconds)
         finally:
             listener.close()
@@ -240,7 +242,8 @@ class ValidationWorkerTests(unittest.TestCase):
         thread.join(timeout=2)
 
     def test_mid_execution_revocation_terminates_worker(self):
-        port, accepted, thread = start_listener(hold_seconds=2.5)
+        release_listener = threading.Event()
+        port, accepted, thread = start_listener(release_event=release_listener)
         graph, option, binding = service_fixture(port, tls=True)
 
         with tempfile.TemporaryDirectory() as root:
@@ -266,6 +269,7 @@ class ValidationWorkerTests(unittest.TestCase):
                 now=NOW,
             )
             revoker.join(timeout=2)
+            release_listener.set()
 
         self.assertEqual(result.state, ValidationWorkerState.REVOKED)
         self.assertEqual(result.reason_code, "authorization_revoked")
