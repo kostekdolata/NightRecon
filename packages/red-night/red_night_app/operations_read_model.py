@@ -9,6 +9,8 @@ from pathlib import Path
 import sqlite3
 from contextlib import closing
 
+from .execution_trace import read_execution_trace
+
 
 @dataclass(frozen=True)
 class OperationsSnapshot:
@@ -72,12 +74,19 @@ def read_operations_snapshot(*, engagement_id: str, authority_db: str | Path,
                 for line in audit.read_text(encoding="utf-8").splitlines()[-30:]:
                     try:
                         item = json.loads(line)
-                        if item.get("engagement_id") == engagement_id:
+                        if item.get("engagement_id") == engagement_id and not item.get("action_id"):
                             events.append(f"{item.get('recorded_at', '?')}  {item.get('command', '?')}  {item.get('status', '?')}")
                     except (ValueError, TypeError, AttributeError):
                         warnings.append("Malformed audit line skipped")
         except OSError:
             warnings.append("Audit unavailable")
+    # Show structured action/exit-code history when present; keep legacy
+    # actionless audit records visible for existing installations.
+    traces, trace_warnings = read_execution_trace(
+        audit_path=audit_path, engagement_id=engagement_id,
+    )
+    events.extend(trace.describe() for trace in traces)
+    warnings.extend(trace_warnings)
     findings = []
     reviews = Path(review_db)
     if reviews.is_file():
