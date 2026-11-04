@@ -1,0 +1,109 @@
+name: Red Night Governed Nmap Cloud Acceptance
+# Manual end-of-integration-stage acceptance. Never scans external targets.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governed-nmap-disposable-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install real Nmap and Red Night engine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends nmap
+          python -m pip install -e ./packages/shared-core -e ./packages/red-engine
+      - name: Start temporary internally isolated HTTP target
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull python:3.11-alpine
+          docker network create --internal rednight-acceptance
+          docker run -d --name rednight-acceptance-target --network rednight-acceptance \
+            python:3.11-alpine python -m http.server 80 --bind 0.0.0.0
+          ip="$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' rednight-acceptance-target)"
+          test -n "$ip"
+          export TARGET_IP="$ip"
+          echo "TARGET_IP=$ip" >> "$GITHUB_ENV"
+          for attempt in $(seq 1 30); do
+            if python -c 'import os,socket; socket.create_connection((os.environ["TARGET_IP"],80),1).close()'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Isolated target did not start" >&2
+          exit 1
+      - name: Execute governed scan against exclusively owned container target
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rednight-acceptance"
+          export LAB_DIR="$RUNNER_TEMP/rednight-acceptance"
+          export NMAP_PATH="$(command -v nmap)"
+          export NMAP_SHA="$(sha256sum "$NMAP_PATH" | cut -d' ' -f1)"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from datetime import datetime, timedelta, timezone
+          from nightrecon_shared_core.engagement_policy import EngagementExecutionPolicy
+          from nightrecon_red_engine.transactional_policy_authority import TransactionalPolicyAuthority
+          root = Path(os.environ["LAB_DIR"])
+          now = datetime.now(timezone.utc)
+          authority = TransactionalPolicyAuthority(root / "authority.db")
+          authority.register(EngagementExecutionPolicy(
+              engagement_id="disposable-cloud-lab",
+              scope=(os.environ["TARGET_IP"],),
+              valid_from=(now-timedelta(minutes=2)).isoformat(),
+              valid_until=(now+timedelta(minutes=10)).isoformat(),
+              max_actions=1,
+              permitted_capabilities=("external.nmap.discovery",),
+              max_impact="low",
+          ), status="active")
+          PY
+          python -c 'import sys; from nightrecon_red_engine.red_cli import main; main(tuple(sys.argv[1:]))' \
+            nmap-governed "$TARGET_IP" \
+            --authority-db "$LAB_DIR/authority.db" \
+            --engagement-id disposable-cloud-lab --action-id real-cloud-nmap \
+            --audit-path "$LAB_DIR/auth.jsonl" \
+            --result-audit-path "$LAB_DIR/results.jsonl" \
+            --nmap-executable "$NMAP_PATH" --trusted-sha256 "$NMAP_SHA" \
+            --execute > "$LAB_DIR/report.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["LAB_DIR"])
+          report = json.loads((root / "report.json").read_text())
+          assert report["action_id"] == "real-cloud-nmap"
+          assert report["target"] == os.environ["TARGET_IP"]
+          assert report["execution_status"] == "succeeded"
+          assert report["command_exit_code"] == 0
+          assert report["evidence_status"] == "unverified-observation"
+          assert any(s["port"] == 80 and s["state"] == "open" for s in report["services"])
+          records = [json.loads(s) for s in (root / "results.jsonl").read_text().splitlines()]
+          assert [record["status"] for record in records] == ["started", "completed"]
+          assert records[1]["returncode"] == 0
+          assert all("stdout" not in r and "stderr" not in r for r in records)
+          print("Real governed Nmap CLI -> isolated HTTP container -> report: PASS")
+          PY
+      - name: Upload bounded report and execution evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-nmap-disposable-lab-evidence
+          path: |
+            ${{ runner.temp }}/rednight-acceptance/report.json
+            ${{ runner.temp }}/rednight-acceptance/results.jsonl
+          retention-days: 7
+      - name: Always remove disposable target and lab artifacts
+        if: always()
+        shell: bash
+        run: |
+          docker rm -f rednight-acceptance-target || true
+          docker network rm rednight-acceptance || true

@@ -39,6 +39,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="red-night advanced")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    nmap = sub.add_parser(
+        "nmap-governed",
+        help="Run an explicitly authorised Nmap TCP-connect assessment.",
+    )
+    nmap.add_argument("target", help="Single exact IPv4/IPv6 address in engagement scope.")
+    nmap.add_argument("--authority-db", required=True)
+    nmap.add_argument("--engagement-id", required=True)
+    nmap.add_argument("--action-id", required=True)
+    nmap.add_argument("--audit-path", required=True)
+    nmap.add_argument("--result-audit-path", required=True)
+    nmap.add_argument("--nmap-executable", required=True)
+    nmap.add_argument("--trusted-sha256", required=True)
+    nmap.add_argument(
+        "--execute", action="store_true",
+        help="Opt in to the bounded scan after existing policy/approval checks.",
+    )
+
     tshark = sub.add_parser(
         "tshark-inspect",
         help="Read a bounded local packet capture with a verified TShark binary.",
@@ -220,6 +237,35 @@ def _packet_payload(report) -> dict[str, object]:
 
 def main(argv: tuple[str, ...]) -> object | None:
     args = build_parser().parse_args(argv)
+
+    if args.command == "nmap-governed":
+        from pathlib import Path
+        from nightrecon_red_engine.governed_nmap_coordinator import (
+            execute_governed_nmap_discovery,
+        )
+        from nightrecon_red_engine.transactional_policy_authority import (
+            TransactionalPolicyAuthority,
+        )
+        if not args.execute:
+            raise PermissionError(
+                "Nmap execution disabled; explicitly supply --execute after operator approval"
+            )
+        if not Path(args.authority_db).is_file():
+            raise FileNotFoundError("Registered engagement authority database required")
+        authority = TransactionalPolicyAuthority(args.authority_db)
+        result = execute_governed_nmap_discovery(
+            authority=authority,
+            engagement_id=args.engagement_id,
+            action_id=args.action_id,
+            target=args.target,
+            executable=args.nmap_executable,
+            trusted_sha256=args.trusted_sha256,
+            audit_path=args.audit_path,
+            result_audit_path=args.result_audit_path,
+            enabled=True,
+        )
+        print(json.dumps(result.operator_report(), indent=2))
+        return result
 
     if args.command == "tshark-inspect":
         from pathlib import Path
