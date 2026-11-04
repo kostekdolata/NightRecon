@@ -98,6 +98,7 @@ RED_OPTIONAL_EXTRAS: dict[str, tuple[str, ...]] = {
     "mysql": ("mysql-connector-python>=9.0,<10",),
     "packet": ("scapy>=2.6,<3",),
     "http2": ("httpx[http2]>=0.28,<1",),
+    "metasploit": ("msgpack>=1.1,<2",),
 }
 
 RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
@@ -134,6 +135,7 @@ RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
     "nmap-governed": ("red_cli",),
     "tshark-inspect": ("red_cli",),
     "zap-local-status": ("red_cli",),
+    "metasploit-status": ("red_cli",),
     "nuclei-fingerprint": ("red_cli",),
     "network-env": ("red_cli",),
     "syn-scan": ("red_cli",),
@@ -163,6 +165,7 @@ RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
     "governed_nmap_coordinator",
     "governed_tshark_coordinator",
     "zap_local_observer",
+    "metasploit_local_rpc",
     "governed_nuclei_fingerprint",
     "transactional_policy_authority",
     "cyber_range_simulation",

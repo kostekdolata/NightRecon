@@ -37,7 +37,7 @@ class RedOwnershipTests(unittest.TestCase):
             set(RED_OPTIONAL_EXTRAS),
             {
                 "browser", "api", "ad", "ssh", "smb", "winrm",
-                "postgres", "mysql", "packet", "http2",
+                "postgres", "mysql", "packet", "http2", "metasploit",
             },
         )
 
@@ -48,7 +48,7 @@ class RedOwnershipTests(unittest.TestCase):
                 "api", "assets", "checks", "crawl", "discover", "editions",
                 "identity", "infra", "pentest", "run-all", "scan", "workspace",
                 "network-env", "syn-scan", "packet", "web-replay", "web-proxy",
-                "validation-modules", "range-sim", "nmap-governed", "tshark-inspect", "zap-local-status", "nuclei-fingerprint",
+                "validation-modules", "range-sim", "nmap-governed", "tshark-inspect", "zap-local-status", "metasploit-status", "nuclei-fingerprint",
             },
         )
 

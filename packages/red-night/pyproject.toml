@@ -26,6 +26,7 @@ postgres = ["psycopg[binary]>=3.2,<4"]
 mysql = ["mysql-connector-python>=9.0,<10"]
 packet = ["scapy>=2.6,<3"]
 http2 = ["httpx[http2]>=0.28,<1"]
+metasploit = ["msgpack>=1.1,<2"]
 all = [
     "playwright>=1.63,<2",
     "PyYAML>=6.0,<7",
@@ -37,6 +38,7 @@ all = [
     "mysql-connector-python>=9.0,<10",
     "scapy>=2.6,<3",
     "httpx[http2]>=0.28,<1",
+    "msgpack>=1.1,<2",
 ]
 
 [project.scripts]

@@ -48,3 +48,6 @@ packet = [
 http2 = [
     "httpx[http2]>=0.28,<1",
 ]
+metasploit = [
+    "msgpack>=1.1,<2",
+]
