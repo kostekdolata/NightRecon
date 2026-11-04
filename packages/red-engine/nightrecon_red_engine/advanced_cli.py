@@ -78,6 +78,14 @@ def build_parser() -> argparse.ArgumentParser:
     zap.add_argument("--port", type=int, default=8080)
     zap.add_argument("--connect", action="store_true", help="Explicit opt-in to local API connection.")
 
+    msf = sub.add_parser(
+        "metasploit-status",
+        help="Read-only, TLS-verified status of local Metasploit RPC.",
+    )
+    msf.add_argument("--port", type=int, default=55553)
+    msf.add_argument("--ca-file", help="CA certificate for verified local msfrpcd TLS.")
+    msf.add_argument("--connect", action="store_true", help="Explicit RPC connection opt-in.")
+
     env = sub.add_parser("network-env")
     env.add_argument("--json", action="store_true")
 
@@ -310,6 +318,20 @@ def main(argv: tuple[str, ...]) -> object | None:
         if not key:
             raise PermissionError("RED_NIGHT_ZAP_API_KEY is required")
         result = inspect_local_zap(port=args.port, api_key=key)
+        print(json.dumps(result.operator_report(), indent=2))
+        return result
+
+    if args.command == "metasploit-status":
+        import os
+        from nightrecon_red_engine.metasploit_local_rpc import inspect_local_metasploit
+        if not args.connect:
+            raise PermissionError("Metasploit RPC requires explicit --connect opt-in")
+        token = os.environ.get("RED_NIGHT_METASPLOIT_RPC_TOKEN", "")
+        if not token:
+            raise PermissionError("RED_NIGHT_METASPLOIT_RPC_TOKEN is required")
+        result = inspect_local_metasploit(
+            port=args.port, token=token, ca_file=args.ca_file,
+        )
         print(json.dumps(result.operator_report(), indent=2))
         return result
 
