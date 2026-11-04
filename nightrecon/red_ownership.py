@@ -158,6 +158,7 @@ SHARED_CORE_COMPATIBILITY_MODULES: tuple[str, ...] = (
 
 RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
     "advanced_cli",
+    "zap_local_observer",
     "governed_nmap_coordinator",
     "transactional_policy_authority",
     "cyber_range_simulation",
