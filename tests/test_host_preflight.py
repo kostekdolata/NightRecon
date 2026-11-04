@@ -5,6 +5,8 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+import socket
 from unittest.mock import patch
 
 from nightrecon_red_engine.host_preflight import (
@@ -29,6 +31,32 @@ class HostPreflightTests(unittest.TestCase):
             ),
             default_routes=(), collection_errors=(),
         )
+
+    def test_ipv4_ipv6_are_discovered_locally_and_routed_without_authority(self):
+        addresses = {
+            "eth0": [
+                SimpleNamespace(family=socket.AF_INET, address="192.0.2.10"),
+                SimpleNamespace(family=socket.AF_INET6, address="2001:db8::10%eth0"),
+            ],
+            "vpn0": [SimpleNamespace(family=socket.AF_INET, address="198.51.100.10")],
+        }
+        psutil = SimpleNamespace(net_if_addrs=lambda: addresses)
+        with patch(
+            "nightrecon_red_engine.host_preflight.collect_network_environment",
+            return_value=self._snapshot(),
+        ), patch(
+            "nightrecon_red_engine.host_preflight.importlib.import_module",
+            return_value=psutil,
+        ), patch("nightrecon_red_engine.host_preflight.shutil.which", return_value=None):
+            snapshot = collect_host_preflight()
+        self.assertEqual(len(snapshot.addresses), 3)
+        report = route_host_context(snapshot, "nmap")
+        self.assertEqual(
+            {a["address"] for a in report["addresses"]},
+            {"192.0.2.10", "2001:db8::10", "198.51.100.10"},
+        )
+        self.assertEqual(report["authorised_targets"], [])
+        self.assertFalse(report["execution_approval"])
 
     def test_passive_inventory_and_no_implicit_scan_scope(self):
         with tempfile.TemporaryDirectory() as folder:
