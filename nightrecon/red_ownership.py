@@ -133,6 +133,7 @@ RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
     "workspace": ("red_workspace_cli",),
     "nmap-governed": ("red_cli",),
     "tshark-inspect": ("red_cli",),
+    "nuclei-fingerprint": ("red_cli",),
     "network-env": ("red_cli",),
     "syn-scan": ("red_cli",),
     "packet": ("red_cli",),
