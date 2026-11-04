@@ -112,6 +112,10 @@ jobs:
           report=rows[-1]
           assert report["type"]=="batch-report"
           assert report["summary"]["succeeded"]==2, report
+          assert report["execution_audit"]["status"]=="available", report["execution_audit"]
+          audit_actions={a["action_id"]:a for a in report["execution_audit"]["actions"]}
+          assert set(audit_actions)=={"nmap-lab","tshark-lab"}
+          assert all(a["execution_status"]=="succeeded" for a in audit_actions.values())
           assert len(report["tasks"])==2
           by_tool={t["tool"]:t for t in report["tasks"]}
           assert by_tool["nmap"]["report"]["target"]==os.environ["LAB_TARGET_IP"]
