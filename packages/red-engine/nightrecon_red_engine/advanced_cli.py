@@ -86,6 +86,20 @@ def build_parser() -> argparse.ArgumentParser:
     msf.add_argument("--ca-file", help="CA certificate for verified local msfrpcd TLS.")
     msf.add_argument("--connect", action="store_true", help="Explicit RPC connection opt-in.")
 
+    nuclei = sub.add_parser(
+        "nuclei-fingerprint",
+        help="Run a single approved low-impact Nuclei HTTP fingerprint.",
+    )
+    nuclei.add_argument("target_url", help="Exact HTTP(S) IPv4 origin in engagement scope.")
+    nuclei.add_argument("--authority-db", required=True)
+    nuclei.add_argument("--engagement-id", required=True)
+    nuclei.add_argument("--action-id", required=True)
+    nuclei.add_argument("--audit-path", required=True)
+    nuclei.add_argument("--result-audit-path", required=True)
+    nuclei.add_argument("--nuclei-executable", required=True)
+    nuclei.add_argument("--trusted-sha256", required=True)
+    nuclei.add_argument("--execute", action="store_true")
+
     env = sub.add_parser("network-env")
     env.add_argument("--json", action="store_true")
 
@@ -331,6 +345,32 @@ def main(argv: tuple[str, ...]) -> object | None:
             raise PermissionError("RED_NIGHT_METASPLOIT_RPC_TOKEN is required")
         result = inspect_local_metasploit(
             port=args.port, token=token, ca_file=args.ca_file,
+        )
+        print(json.dumps(result.operator_report(), indent=2))
+        return result
+
+    if args.command == "nuclei-fingerprint":
+        from pathlib import Path
+        from nightrecon_red_engine.governed_nuclei_fingerprint import (
+            execute_governed_nuclei_fingerprint,
+        )
+        from nightrecon_red_engine.transactional_policy_authority import (
+            TransactionalPolicyAuthority,
+        )
+        if not args.execute:
+            raise PermissionError("Nuclei fingerprint requires explicit --execute opt-in")
+        if not Path(args.authority_db).is_file():
+            raise FileNotFoundError("Registered engagement authority database required")
+        result = execute_governed_nuclei_fingerprint(
+            authority=TransactionalPolicyAuthority(args.authority_db),
+            engagement_id=args.engagement_id,
+            action_id=args.action_id,
+            target_url=args.target_url,
+            executable=args.nuclei_executable,
+            trusted_sha256=args.trusted_sha256,
+            audit_path=args.audit_path,
+            result_audit_path=args.result_audit_path,
+            enabled=True,
         )
         print(json.dumps(result.operator_report(), indent=2))
         return result
