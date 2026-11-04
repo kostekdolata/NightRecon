@@ -1,4 +1,4 @@
-"""Bounded concurrent execution of known governed Nmap/TShark tasks.
+"""Bounded concurrent execution of known governed Nmap/TShark/Nuclei tasks.
 
 This is an in-process coordinator, not an arbitrary command/job engine.
 Actual actions are performed solely by existing transactional executors;
@@ -10,18 +10,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+import ipaddress
+from urllib.parse import urlsplit
 import subprocess
 import threading
 from typing import Callable
 
 from .governed_nmap_coordinator import execute_governed_nmap_discovery
+from .governed_nuclei_fingerprint import execute_governed_nuclei_fingerprint
 from .governed_tshark_coordinator import execute_governed_tshark_inspection
 from .transactional_policy_authority import TransactionalPolicyAuthority
 
 
 @dataclass(frozen=True)
 class GovernedAssessmentTask:
-    kind: str  # Precisely "nmap" or "tshark"; never a program name from user input.
+    kind: str  # Fixed allowlist only: nmap, tshark, nuclei.
     engagement_id: str
     action_id: str
     target: str
@@ -92,19 +95,30 @@ def run_governed_assessment_batch(
     if len(set(keys)) != len(keys):
         raise ValueError("Duplicate action identifiers in batch")
     for task in tasks:
-        if (task.kind not in ("nmap", "tshark") or not task.engagement_id
+        if (task.kind not in ("nmap", "tshark", "nuclei") or not task.engagement_id
             or not task.action_id or len(task.action_id) > 128 or not task.target):
             raise ValueError("Unsupported or incomplete governed task")
         if task.kind == "tshark" and (task.capture_path is None or task.capture_root is None):
             raise ValueError("Offline TShark requires capture path and approved root")
-        if task.kind == "nmap" and (task.capture_path is not None or task.capture_root is not None):
-            raise ValueError("Nmap cannot accept capture parameters")
+        if task.kind in ("nmap", "nuclei") and (task.capture_path is not None or task.capture_root is not None):
+            raise ValueError("Network tools cannot accept capture parameters")
     stop = cancel_event if cancel_event is not None else threading.Event()
     guard = threading.Lock()
     events: list[GovernedTaskEvent] = []
-    locks = {
-        (t.engagement_id, t.target): threading.Lock() for t in tasks
-    }
+    def target_lock_key(task: GovernedAssessmentTask) -> tuple[str, str]:
+        # Serialise Nmap and Nuclei on the same IPv4 host even though one
+        # task uses a literal IP and the other an HTTP origin. Scope checks
+        # remain independently authoritative at each governed tool adapter.
+        if task.kind == "nuclei":
+            parsed = urlsplit(task.target)
+            try:
+                ip = str(ipaddress.IPv4Address(parsed.hostname or ""))
+                return task.engagement_id, ip
+            except ValueError:
+                pass  # The governed Nuclei adapter will reject invalid origins.
+        return task.engagement_id, task.target
+
+    locks = {target_lock_key(t): threading.Lock() for t in tasks}
 
     def emit(task: GovernedAssessmentTask, status: str) -> None:
         item = GovernedTaskEvent(
@@ -122,7 +136,7 @@ def run_governed_assessment_batch(
                 pass
 
     def execute(task: GovernedAssessmentTask) -> GovernedTaskResult:
-        with locks[task.engagement_id, task.target]:
+        with locks[target_lock_key(task)]:
             if stop.is_set():
                 emit(task, "cancelled")
                 return GovernedTaskResult(task.action_id, task.kind, "cancelled", None, "cancel_requested")
@@ -138,6 +152,9 @@ def run_governed_assessment_batch(
                 )
                 if task.kind == "nmap":
                     outcome = execute_governed_nmap_discovery(**common)
+                elif task.kind == "nuclei":
+                    common["target_url"] = common.pop("target")
+                    outcome = execute_governed_nuclei_fingerprint(**common)
                 else:
                     common.update(
                         capture_path=task.capture_path, capture_root=task.capture_root,
