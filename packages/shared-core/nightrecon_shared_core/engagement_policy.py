@@ -10,6 +10,7 @@ import json
 import os
 import re
 import tempfile
+import time
 
 from nightrecon_shared_core.authorization import Scope, parse_target
 
@@ -266,7 +267,19 @@ class FileEngagementPolicyStore:
                 handle.write(serialized)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(tmp_name, self.path)
+            # Windows may briefly refuse an atomic replacement while another
+            # process has the policy JSON open. Retry only the known sharing/
+            # access-denied cases and only for a short bounded interval.
+            # Any persistent denial still raises: revocation must not be
+            # reported as persisted unless the replace succeeds.
+            for attempt in range(6):
+                try:
+                    os.replace(tmp_name, self.path)
+                    break
+                except PermissionError as exc:
+                    if os.name != "nt" or getattr(exc, "winerror", None) not in (5, 32) or attempt == 5:
+                        raise
+                    time.sleep(0.025 * (attempt + 1))
         except BaseException:
             try:
                 os.unlink(tmp_name)
@@ -284,13 +297,22 @@ class FileEngagementPolicyStore:
             raise ValueError(f"engagement authorization policy already exists: {policy.engagement_id}")
         if existing is None:
             self._policies[policy.engagement_id] = policy
-            self._persist()
+            try:
+                self._persist()
+            except BaseException:
+                del self._policies[policy.engagement_id]
+                raise
 
     def replace_policy(self, policy: EngagementExecutionPolicy) -> None:
         if policy.engagement_id not in self._policies:
             raise ValueError(f"engagement authorization policy not found: {policy.engagement_id}")
+        previous = self._policies[policy.engagement_id]
         self._policies[policy.engagement_id] = policy
-        self._persist()
+        try:
+            self._persist()
+        except BaseException:
+            self._policies[policy.engagement_id] = previous
+            raise
 
     def revoke(self, engagement_id: str) -> EngagementExecutionPolicy:
         policy = self.policy(engagement_id)
