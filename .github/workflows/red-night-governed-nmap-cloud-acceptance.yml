@@ -30,6 +30,7 @@ jobs:
             python:3.11-alpine python -m http.server 80 --bind 0.0.0.0
           ip="$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' rednight-acceptance-target)"
           test -n "$ip"
+          export TARGET_IP="$ip"
           echo "TARGET_IP=$ip" >> "$GITHUB_ENV"
           for attempt in $(seq 1 30); do
             if python -c 'import os,socket; socket.create_connection((os.environ["TARGET_IP"],80),1).close()'; then
