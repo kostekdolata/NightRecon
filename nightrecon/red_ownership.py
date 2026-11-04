@@ -98,6 +98,7 @@ RED_OPTIONAL_EXTRAS: dict[str, tuple[str, ...]] = {
     "mysql": ("mysql-connector-python>=9.0,<10",),
     "packet": ("scapy>=2.6,<3",),
     "http2": ("httpx[http2]>=0.28,<1",),
+    "metasploit": ("msgpack>=1.1,<2",),
 }
 
 RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
