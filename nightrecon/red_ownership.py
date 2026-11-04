@@ -157,6 +157,8 @@ SHARED_CORE_COMPATIBILITY_MODULES: tuple[str, ...] = (
 
 RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
     "advanced_cli",
+    "governed_tshark_coordinator",
+    "transactional_policy_authority",
     "cyber_range_simulation",
     "deep_packet_analysis",
     "http2_repeater",
