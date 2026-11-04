@@ -110,6 +110,14 @@ def build_parser() -> argparse.ArgumentParser:
     batch.add_argument("--max-workers", type=int, default=2)
     batch.add_argument("--execute", action="store_true")
 
+    host = sub.add_parser(
+        "host-preflight", help="Discover passive local system/tool capabilities.",
+    )
+    host.add_argument(
+        "--consumer", choices=("nmap", "tshark", "nuclei", "zap", "metasploit"),
+        help="Show only the explicitly filtered context for one integrated tool.",
+    )
+
     env = sub.add_parser("network-env")
     env.add_argument("--json", action="store_true")
 
@@ -446,6 +454,18 @@ def main(argv: tuple[str, ...]) -> object | None:
         print(json.dumps({
             "type": "batch-report", **report.operator_report(),
         }), flush=True)
+        return report
+
+    if args.command == "host-preflight":
+        from nightrecon_red_engine.host_preflight import (
+            collect_host_preflight, route_host_context,
+        )
+        snapshot = collect_host_preflight()
+        report = (
+            route_host_context(snapshot, args.consumer)
+            if args.consumer else snapshot.as_dict()
+        )
+        print(json.dumps(report, indent=2))
         return report
 
     if args.command == "network-env":
