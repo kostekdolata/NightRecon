@@ -45,7 +45,7 @@ class GovernedTsharkTests(unittest.TestCase):
             result = execute_governed_tshark_inspection(**self.kwargs)
             command = runner.call_args.kwargs["command"]
             self.assertEqual(command.arguments, (
-                "-r", str(self.capture), "-n", "-c", "5", "-T", "json",
+                "-r", str(self.capture.resolve()), "-n", "-c", "5", "-T", "json",
             ))
             self.assertEqual(command.capability, "external.tshark.inspect")
             self.assertEqual(command.executable_sha256, self.digest)
