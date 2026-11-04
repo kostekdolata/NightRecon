@@ -49,6 +49,15 @@ class GovernedExecutionReportTests(unittest.TestCase):
         self.assertNotIn("SECRET-DO-NOT-LEAK", json.dumps(report))
         self.assertNotIn("DO-NOT-LEAK", json.dumps(report))
 
+    def test_real_nuclei_executor_is_identified_in_unified_report(self):
+        self.write([
+            self.event("fingerprint", "nuclei-bounded-http-fingerprint", "started"),
+            self.event("fingerprint", "nuclei-bounded-http-fingerprint", "completed", 0),
+        ])
+        report = summarize_governed_execution_ledger(self.path)
+        self.assertEqual(report["actions"][0]["tool"], "nuclei")
+        self.assertEqual(report["successful_actions"], 1)
+
     def test_repeated_action_or_inconsistent_command_never_success(self):
         self.write([
             self.event("same", "nmap-bounded-connect", "started"),
