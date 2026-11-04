@@ -72,6 +72,16 @@ def build_parser() -> argparse.ArgumentParser:
     tshark.add_argument("--capture", required=True)
     tshark.add_argument("--execute", action="store_true")
 
+    batch = sub.add_parser(
+        "governed-batch",
+        help="Run a bounded plan of approved Nmap/TShark tasks with per-task progress.",
+    )
+    batch.add_argument("--authority-db", required=True)
+    batch.add_argument("--plan", required=True, help="Trusted local JSON task plan.")
+    batch.add_argument("--audit-dir", required=True, help="Existing protected audit directory.")
+    batch.add_argument("--max-workers", type=int, default=2)
+    batch.add_argument("--execute", action="store_true")
+
     env = sub.add_parser("network-env")
     env.add_argument("--json", action="store_true")
 
@@ -294,6 +304,69 @@ def main(argv: tuple[str, ...]) -> object | None:
         )
         print(json.dumps(result.operator_report(), indent=2))
         return result
+
+    if args.command == "governed-batch":
+        from pathlib import Path
+        from nightrecon_red_engine.governed_assessment_batch import (
+            GovernedAssessmentTask, run_governed_assessment_batch,
+        )
+        from nightrecon_red_engine.transactional_policy_authority import (
+            TransactionalPolicyAuthority,
+        )
+        if not args.execute:
+            raise PermissionError("Governed batch requires explicit --execute opt-in")
+        if not Path(args.authority_db).is_file():
+            raise FileNotFoundError("Registered engagement authority database required")
+        root = Path(args.audit_dir).resolve(strict=True)
+        if not root.is_dir():
+            raise ValueError("Audit directory must exist")
+        plan_path = Path(args.plan)
+        if not plan_path.is_file() or plan_path.stat().st_size > 65536:
+            raise ValueError("Plan is unavailable or too large")
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        if (not isinstance(plan, dict) or set(plan) != {"schema", "tasks"}
+            or plan["schema"] != 1 or not isinstance(plan["tasks"], list)
+            or not 1 <= len(plan["tasks"]) <= 8):
+            raise ValueError("Invalid bounded assessment plan")
+        tasks = []
+        common_keys = {
+            "kind", "engagement_id", "action_id", "target",
+            "executable", "trusted_sha256",
+        }
+        for entry in plan["tasks"]:
+            if not isinstance(entry, dict):
+                raise ValueError("Invalid batch task")
+            kind = entry.get("kind")
+            required = common_keys | ({"capture_path", "capture_root"} if kind == "tshark" else set())
+            if kind not in ("nmap", "tshark") or set(entry) != required:
+                raise ValueError("Unapproved batch task fields or kind")
+            if not all(isinstance(entry[key], str) for key in required):
+                raise ValueError("Batch task fields must be strings")
+            tasks.append(GovernedAssessmentTask(
+                kind=kind, engagement_id=entry["engagement_id"],
+                action_id=entry["action_id"], target=entry["target"],
+                executable=entry["executable"],
+                trusted_sha256=entry["trusted_sha256"],
+                audit_path=root / "authorization.jsonl",
+                result_audit_path=root / "execution.jsonl",
+                capture_path=entry.get("capture_path"),
+                capture_root=entry.get("capture_root"),
+            ))
+        def progress(event):
+            print(json.dumps({
+                "type": "task-event", "action_id": event.action_id,
+                "tool": event.kind, "status": event.status,
+                "recorded_at": event.recorded_at,
+            }), flush=True)
+        report = run_governed_assessment_batch(
+            authority=TransactionalPolicyAuthority(args.authority_db),
+            tasks=tuple(tasks), enabled=True, max_workers=args.max_workers,
+            on_event=progress,
+        )
+        print(json.dumps({
+            "type": "batch-report", **report.operator_report(),
+        }), flush=True)
+        return report
 
     if args.command == "network-env":
         snapshot = collect_network_environment()
