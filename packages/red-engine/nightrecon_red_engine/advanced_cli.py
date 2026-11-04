@@ -102,7 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     batch = sub.add_parser(
         "governed-batch",
-        help="Run a bounded plan of approved Nmap/TShark tasks with per-task progress.",
+        help="Run a bounded plan of approved Nmap/TShark/Nuclei tasks with per-task progress.",
     )
     batch.add_argument("--authority-db", required=True)
     batch.add_argument("--plan", required=True, help="Trusted local JSON task plan.")
@@ -418,7 +418,7 @@ def main(argv: tuple[str, ...]) -> object | None:
                 raise ValueError("Invalid batch task")
             kind = entry.get("kind")
             required = common_keys | ({"capture_path", "capture_root"} if kind == "tshark" else set())
-            if kind not in ("nmap", "tshark") or set(entry) != required:
+            if kind not in ("nmap", "tshark", "nuclei") or set(entry) != required:
                 raise ValueError("Unapproved batch task fields or kind")
             if not all(isinstance(entry[key], str) for key in required):
                 raise ValueError("Batch task fields must be strings")
