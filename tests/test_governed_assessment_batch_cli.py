@@ -64,6 +64,35 @@ class GovernedBatchCliTests(unittest.TestCase):
             {"queued", "running", "succeeded"},
         )
 
+    def test_operator_batch_accepts_only_fixed_nuclei_fingerprint(self):
+        (self.root / "authority.db").touch()
+        plan = json.loads(self.plan.read_text(encoding="utf-8"))
+        plan["tasks"].append({
+            "kind": "nuclei", "engagement_id": "lab",
+            "action_id": "fingerprint-three",
+            "target": "http://192.0.2.3:8080",
+            "executable": "/trusted/nuclei", "trusted_sha256": "c" * 64,
+        })
+        self.plan.write_text(json.dumps(plan), encoding="utf-8")
+        with patch(
+            "nightrecon_red_engine.governed_assessment_batch.execute_governed_nmap_discovery",
+            return_value=FakeOutcome("nmap"),
+        ), patch(
+            "nightrecon_red_engine.governed_assessment_batch.execute_governed_tshark_inspection",
+            return_value=FakeOutcome("tshark"),
+        ), patch(
+            "nightrecon_red_engine.governed_assessment_batch.execute_governed_nuclei_fingerprint",
+            return_value=FakeOutcome("nuclei"),
+        ) as nuclei, contextlib.redirect_stdout(io.StringIO()) as output:
+            public_red_main((*self.args, "--execute"))
+        report = json.loads(output.getvalue().splitlines()[-1])
+        self.assertEqual(report["summary"]["succeeded"], 3)
+        self.assertIn("nuclei", {item["tool"] for item in report["tasks"]})
+        self.assertEqual(
+            nuclei.call_args.kwargs["target_url"], "http://192.0.2.3:8080"
+        )
+        self.assertEqual(nuclei.call_args.kwargs["action_id"], "fingerprint-three")
+
     def test_operator_opt_in_and_registered_database_required(self):
         with self.assertRaisesRegex(PermissionError, "--execute"):
             public_red_main(self.args)
