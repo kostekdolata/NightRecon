@@ -169,6 +169,7 @@ RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
     "zap_local_observer",
     "metasploit_local_rpc",
     "governed_nuclei_fingerprint",
+    "host_preflight",
     "governed_assessment_batch",
     "transactional_policy_authority",
     "cyber_range_simulation",
