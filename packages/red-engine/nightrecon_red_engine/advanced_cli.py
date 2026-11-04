@@ -72,6 +72,12 @@ def build_parser() -> argparse.ArgumentParser:
     tshark.add_argument("--capture", required=True)
     tshark.add_argument("--execute", action="store_true")
 
+    zap = sub.add_parser(
+        "zap-local-status", help="Read-only status from an operator-running local OWASP ZAP."
+    )
+    zap.add_argument("--port", type=int, default=8080)
+    zap.add_argument("--connect", action="store_true", help="Explicit opt-in to local API connection.")
+
     nuclei = sub.add_parser(
         "nuclei-fingerprint",
         help="Run a single approved low-impact Nuclei HTTP fingerprint.",
@@ -306,6 +312,18 @@ def main(argv: tuple[str, ...]) -> object | None:
             result_audit_path=args.result_audit_path,
             enabled=True,
         )
+        print(json.dumps(result.operator_report(), indent=2))
+        return result
+
+    if args.command == "zap-local-status":
+        import os
+        from nightrecon_red_engine.zap_local_observer import inspect_local_zap
+        if not args.connect:
+            raise PermissionError("Local ZAP connection requires explicit --connect opt-in")
+        key = os.environ.get("RED_NIGHT_ZAP_API_KEY", "")
+        if not key:
+            raise PermissionError("RED_NIGHT_ZAP_API_KEY is required")
+        result = inspect_local_zap(port=args.port, api_key=key)
         print(json.dumps(result.operator_report(), indent=2))
         return result
 
