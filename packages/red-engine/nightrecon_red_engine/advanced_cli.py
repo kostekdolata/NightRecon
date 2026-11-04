@@ -39,6 +39,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="red-night advanced")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    tshark = sub.add_parser(
+        "tshark-inspect",
+        help="Read a bounded local packet capture with a verified TShark binary.",
+    )
+    tshark.add_argument("target", help="Exact authorised engagement target for attribution.")
+    tshark.add_argument("--authority-db", required=True)
+    tshark.add_argument("--engagement-id", required=True)
+    tshark.add_argument("--action-id", required=True)
+    tshark.add_argument("--audit-path", required=True)
+    tshark.add_argument("--result-audit-path", required=True)
+    tshark.add_argument("--tshark-executable", required=True)
+    tshark.add_argument("--trusted-sha256", required=True)
+    tshark.add_argument("--capture-root", required=True)
+    tshark.add_argument("--capture", required=True)
+    tshark.add_argument("--execute", action="store_true")
+
     env = sub.add_parser("network-env")
     env.add_argument("--json", action="store_true")
 
@@ -204,6 +220,34 @@ def _packet_payload(report) -> dict[str, object]:
 
 def main(argv: tuple[str, ...]) -> object | None:
     args = build_parser().parse_args(argv)
+
+    if args.command == "tshark-inspect":
+        from pathlib import Path
+        from nightrecon_red_engine.governed_tshark_coordinator import (
+            execute_governed_tshark_inspection,
+        )
+        from nightrecon_red_engine.transactional_policy_authority import (
+            TransactionalPolicyAuthority,
+        )
+        if not args.execute:
+            raise PermissionError("Offline TShark requires explicit --execute opt-in")
+        if not Path(args.authority_db).is_file():
+            raise FileNotFoundError("Registered engagement authority database required")
+        result = execute_governed_tshark_inspection(
+            authority=TransactionalPolicyAuthority(args.authority_db),
+            engagement_id=args.engagement_id,
+            action_id=args.action_id,
+            target=args.target,
+            executable=args.tshark_executable,
+            trusted_sha256=args.trusted_sha256,
+            capture_path=args.capture,
+            capture_root=args.capture_root,
+            audit_path=args.audit_path,
+            result_audit_path=args.result_audit_path,
+            enabled=True,
+        )
+        print(json.dumps(result.operator_report(), indent=2))
+        return result
 
     if args.command == "network-env":
         snapshot = collect_network_environment()
