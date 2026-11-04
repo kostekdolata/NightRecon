@@ -86,6 +86,12 @@ def build_parser() -> argparse.ArgumentParser:
     msf.add_argument("--ca-file", help="CA certificate for verified local msfrpcd TLS.")
     msf.add_argument("--connect", action="store_true", help="Explicit RPC connection opt-in.")
 
+    report = sub.add_parser(
+        "tool-report", help="Summarize actual governed execution events across tools.",
+    )
+    report.add_argument("--result-audit-path", required=True)
+    report.add_argument("--engagement-id")
+
     env = sub.add_parser("network-env")
     env.add_argument("--json", action="store_true")
 
@@ -333,6 +339,16 @@ def main(argv: tuple[str, ...]) -> object | None:
             port=args.port, token=token, ca_file=args.ca_file,
         )
         print(json.dumps(result.operator_report(), indent=2))
+        return result
+
+    if args.command == "tool-report":
+        from nightrecon_red_engine.governed_execution_report import (
+            summarize_governed_execution_ledger,
+        )
+        result = summarize_governed_execution_ledger(
+            args.result_audit_path, engagement_id=args.engagement_id,
+        )
+        print(json.dumps(result, indent=2))
         return result
 
     if args.command == "network-env":
