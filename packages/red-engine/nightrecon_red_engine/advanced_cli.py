@@ -449,9 +449,42 @@ def main(argv: tuple[str, ...]) -> object | None:
             tasks=tuple(tasks), enabled=True, max_workers=args.max_workers,
             on_event=progress,
         )
-        print(json.dumps({
-            "type": "batch-report", **report.operator_report(),
-        }), flush=True)
+        from nightrecon_red_engine.governed_execution_report import (
+            summarize_governed_execution_ledger,
+        )
+        final = {"type": "batch-report", **report.operator_report()}
+        # Match only actions from the current operator plan. Never expose
+        # unrelated actions, even if they share the same engagement ledger.
+        expected = {(t.engagement_id, t.action_id) for t in tasks}
+        ledger_path = root / "execution.jsonl"
+        if ledger_path.is_file():
+            try:
+                recorded = summarize_governed_execution_ledger(ledger_path)
+                observed = [
+                    item for item in recorded["actions"]
+                    if (item["engagement_id"], item["action_id"]) in expected
+                ]
+                final["execution_audit"] = {
+                    "status": "available" if len(observed) == len(expected)
+                    else "incomplete",
+                    "actions": observed,
+                    "missing_actions": [
+                        {"engagement_id": engagement, "action_id": action}
+                        for engagement, action in sorted(expected - {
+                            (item["engagement_id"], item["action_id"]) for item in observed
+                        })
+                    ],
+                }
+            except (OSError, ValueError):
+                final["execution_audit"] = {
+                    "status": "unavailable-or-invalid",
+                    "actions": [],
+                }
+        else:
+            final["execution_audit"] = {
+                "status": "not-recorded", "actions": [],
+            }
+        print(json.dumps(final), flush=True)
         return report
 
     if args.command == "tool-report":
