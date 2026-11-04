@@ -6060,6 +6060,13 @@ def main(argv: tuple[str, ...] | None = None) -> None:
         advanced_main(arguments)
         return
 
+    # Governed Nmap has its own transactional engagement/approval authority.
+    # Do not route through the unrelated workspace-based command guard.
+    if arguments[0] == "nmap-governed":
+        from nightrecon_red_engine.advanced_cli import main as advanced_main
+        advanced_main(arguments)
+        return
+
     if arguments[0] in {
         "validation-modules",
         "range-sim",
