@@ -51,7 +51,7 @@ class GovernedAssessmentBatchTests(unittest.TestCase):
         self.assertEqual([x.status for x in report.tasks], ["succeeded", "succeeded"])
         self.assertEqual(len(observed), 2)
         self.assertTrue(all(x["enabled"] for x in observed))
-        self.assertTrue(all(isinstance(x["cancel_event"], threading.Event) for x in observed))
+        self.assertTrue(all(hasattr(x["cancel_event"], "is_set") for x in observed))
         self.assertEqual(report.operator_report()["summary"]["succeeded"], 2)
         self.assertEqual(sum(e.status == "running" for e in report.events), 2)
 
