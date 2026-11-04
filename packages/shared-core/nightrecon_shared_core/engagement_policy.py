@@ -22,6 +22,19 @@ _IMPACT_RANK = {"low": 0, "standard": 1, "high": 2}
 _CAPABILITY_PATTERN = re.compile(r"^[a-z][a-z0-9_.-]{0,63}$")
 
 
+def _replace_policy_file(source: str, destination: Path, *, platform: str | None = None) -> None:
+    """Retry only transient Windows policy-file sharing failures, then fail closed."""
+    system = os.name if platform is None else platform
+    for attempt in range(6):
+        try:
+            os.replace(source, destination)
+            return
+        except PermissionError as exc:
+            if system != "nt" or getattr(exc, "winerror", None) not in (5, 32) or attempt == 5:
+                raise
+            time.sleep(0.025 * (attempt + 1))
+
+
 def _required_text(value: str, field: str) -> str:
     if not isinstance(value, str) or not value or value != value.strip():
         raise ValueError(f"{field} must be a nonblank, trimmed string")
@@ -272,14 +285,7 @@ class FileEngagementPolicyStore:
             # access-denied cases and only for a short bounded interval.
             # Any persistent denial still raises: revocation must not be
             # reported as persisted unless the replace succeeds.
-            for attempt in range(6):
-                try:
-                    os.replace(tmp_name, self.path)
-                    break
-                except PermissionError as exc:
-                    if os.name != "nt" or getattr(exc, "winerror", None) not in (5, 32) or attempt == 5:
-                        raise
-                    time.sleep(0.025 * (attempt + 1))
+            _replace_policy_file(tmp_name, self.path)
         except BaseException:
             try:
                 os.unlink(tmp_name)
