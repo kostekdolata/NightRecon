@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import ipaddress
+import importlib
+import socket
 import platform
 import shutil
 
@@ -21,9 +23,9 @@ TOOL_COMMANDS = {
     "nuclei": ("nuclei.exe", "nuclei"),
 }
 TOOL_REQUIREMENTS = {
-    "nmap": ("os", "architecture", "interfaces", "routes", "tool_candidate"),
-    "tshark": ("os", "architecture", "interfaces", "tool_candidate"),
-    "nuclei": ("os", "architecture", "routes", "tool_candidate"),
+    "nmap": ("os", "architecture", "interfaces", "addresses", "routes", "tool_candidate"),
+    "tshark": ("os", "architecture", "interfaces", "addresses", "tool_candidate"),
+    "nuclei": ("os", "architecture", "addresses", "routes", "tool_candidate"),
     "zap": ("os", "architecture", "local_service_configuration"),
     "metasploit": ("os", "architecture", "local_service_configuration"),
 }
@@ -55,6 +57,7 @@ class HostPreflightSnapshot:
     os: str
     architecture: str
     interfaces: tuple[dict, ...]
+    addresses: tuple[dict, ...]
     routes: tuple[dict, ...]
     candidates: tuple[HostToolCandidate, ...]
     errors: tuple[str, ...]
@@ -63,7 +66,8 @@ class HostPreflightSnapshot:
         return {
             "schema": self.schema, "collected_at": self.collected_at,
             "os": self.os, "architecture": self.architecture,
-            "interfaces": list(self.interfaces), "routes": list(self.routes),
+            "interfaces": list(self.interfaces), "addresses": list(self.addresses),
+            "routes": list(self.routes),
             "tools": [c.as_dict() for c in self.candidates],
             "errors": list(self.errors),
             "scope_authorisation_inferred": False,
@@ -71,7 +75,7 @@ class HostPreflightSnapshot:
             "limitations": [
                 "Discovered addresses, routes and binaries are not approved scan targets or trusted executables.",
                 "No process, privileged service, tool version command or network probe was started.",
-                "Interface IP addresses may be unavailable until a platform-specific collector is integrated.",
+                "Interface IP addresses require a locally available collector and may be incomplete.",
             ],
         }
 
@@ -90,7 +94,10 @@ def collect_host_preflight() -> HostPreflightSnapshot:
         for item in network.routes[:MAX_ITEMS]:
             try:
                 destination = str(ipaddress.ip_network(item.destination, strict=False))
-                gateway = str(ipaddress.ip_address(item.gateway)) if item.gateway else None
+                try:
+                    gateway = str(ipaddress.ip_address(item.gateway)) if item.gateway else None
+                except ValueError:
+                    gateway = None  # Windows on-link routes have no gateway address.
             except ValueError:
                 errors.append("Invalid local route metadata omitted")
                 continue
@@ -103,6 +110,31 @@ def collect_host_preflight() -> HostPreflightSnapshot:
         interfaces = ()
         routes = []
         errors.append("Local network inventory unavailable: " + type(exc).__name__)
+    addresses: list[dict] = []
+    try:
+        psutil = importlib.import_module("psutil")
+        for name, values in sorted(psutil.net_if_addrs().items())[:MAX_ITEMS]:
+            for item in values[:MAX_ITEMS]:
+                if item.family not in (socket.AF_INET, socket.AF_INET6):
+                    continue
+                try:
+                    addr = str(ipaddress.ip_address(item.address.split("%", 1)[0]))
+                except ValueError:
+                    errors.append("Invalid interface address omitted")
+                    continue
+                addresses.append({
+                    "interface": name[:128], "address": addr,
+                    "family": "ipv4" if item.family == socket.AF_INET else "ipv6",
+                    "source": "local-interface-api",
+                })
+                if len(addresses) >= MAX_ITEMS:
+                    break
+            if len(addresses) >= MAX_ITEMS:
+                break
+    except (ImportError, AttributeError):
+        errors.append("Interface IP address collector unavailable: optional psutil not installed")
+    except (OSError, RuntimeError, ValueError) as exc:
+        errors.append("Interface IP address collector failed: " + type(exc).__name__)
     candidates = []
     for tool, commands in TOOL_COMMANDS.items():
         found = None
@@ -126,7 +158,7 @@ def collect_host_preflight() -> HostPreflightSnapshot:
     return HostPreflightSnapshot(
         schema=SCHEMA, collected_at=datetime.now(timezone.utc).isoformat(),
         os=platform.system()[:64], architecture=platform.machine()[:64],
-        interfaces=interfaces, routes=tuple(routes),
+        interfaces=interfaces, addresses=tuple(addresses), routes=tuple(routes),
         candidates=tuple(candidates), errors=tuple(errors[:MAX_ITEMS]),
     )
 
