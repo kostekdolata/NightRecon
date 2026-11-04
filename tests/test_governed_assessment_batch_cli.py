@@ -59,39 +59,47 @@ class GovernedBatchCliTests(unittest.TestCase):
         self.assertEqual(records[-1]["type"], "batch-report")
         self.assertEqual(records[-1]["summary"]["succeeded"], 2)
         self.assertEqual(len(records[-1]["tasks"]), 2)
+        self.assertEqual(records[-1]["execution_audit"]["status"], "not-recorded")
         self.assertEqual(
             {r["status"] for r in records if r["type"] == "task-event"},
             {"queued", "running", "succeeded"},
         )
 
-    def test_operator_batch_accepts_only_fixed_nuclei_fingerprint(self):
+    def test_batch_reports_only_matching_persisted_audit_actions(self):
         (self.root / "authority.db").touch()
-        plan = json.loads(self.plan.read_text(encoding="utf-8"))
-        plan["tasks"].append({
-            "kind": "nuclei", "engagement_id": "lab",
-            "action_id": "fingerprint-three",
-            "target": "http://192.0.2.3:8080",
-            "executable": "/trusted/nuclei", "trusted_sha256": "c" * 64,
-        })
-        self.plan.write_text(json.dumps(plan), encoding="utf-8")
+        audit = self.root / "execution.jsonl"
+        def event(action_id, status, command, returncode=None):
+            return {
+                "engagement_id": "lab", "action_id": action_id,
+                "command": command, "status": status,
+                "returncode": returncode,
+                "recorded_at": "2026-11-04T03:00:00+00:00",
+            }
+        audit.write_text("\n".join(json.dumps(e) for e in [
+            event("nmap-one", "started", "nmap-bounded-connect"),
+            event("nmap-one", "completed", "nmap-bounded-connect", 0),
+            event("other-action", "started", "tshark-bounded-offline"),
+            event("other-action", "completed", "tshark-bounded-offline", 0),
+        ]) + "\n", encoding="utf-8")
         with patch(
             "nightrecon_red_engine.governed_assessment_batch.execute_governed_nmap_discovery",
             return_value=FakeOutcome("nmap"),
         ), patch(
             "nightrecon_red_engine.governed_assessment_batch.execute_governed_tshark_inspection",
             return_value=FakeOutcome("tshark"),
-        ), patch(
-            "nightrecon_red_engine.governed_assessment_batch.execute_governed_nuclei_fingerprint",
-            return_value=FakeOutcome("nuclei"),
-        ) as nuclei, contextlib.redirect_stdout(io.StringIO()) as output:
+        ), contextlib.redirect_stdout(io.StringIO()) as output:
             public_red_main((*self.args, "--execute"))
         report = json.loads(output.getvalue().splitlines()[-1])
-        self.assertEqual(report["summary"]["succeeded"], 3)
-        self.assertIn("nuclei", {item["tool"] for item in report["tasks"]})
+        self.assertEqual(report["execution_audit"]["status"], "incomplete")
         self.assertEqual(
-            nuclei.call_args.kwargs["target_url"], "http://192.0.2.3:8080"
+            [a["action_id"] for a in report["execution_audit"]["actions"]],
+            ["nmap-one"],
         )
-        self.assertEqual(nuclei.call_args.kwargs["action_id"], "fingerprint-three")
+        self.assertEqual(
+            report["execution_audit"]["missing_actions"][0]["action_id"],
+            "tshark-two",
+        )
+        self.assertNotIn("other-action", json.dumps(report))
 
     def test_operator_opt_in_and_registered_database_required(self):
         with self.assertRaisesRegex(PermissionError, "--execute"):
