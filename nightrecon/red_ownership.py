@@ -132,6 +132,7 @@ RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
     ))),
     "workspace": ("red_workspace_cli",),
     "nmap-governed": ("red_cli",),
+    "tshark-inspect": ("red_cli",),
     "zap-local-status": ("red_cli",),
     "network-env": ("red_cli",),
     "syn-scan": ("red_cli",),
@@ -158,8 +159,9 @@ SHARED_CORE_COMPATIBILITY_MODULES: tuple[str, ...] = (
 
 RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
     "advanced_cli",
-    "zap_local_observer",
     "governed_nmap_coordinator",
+    "governed_tshark_coordinator",
+    "zap_local_observer",
     "transactional_policy_authority",
     "cyber_range_simulation",
     "deep_packet_analysis",
