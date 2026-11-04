@@ -6067,6 +6067,11 @@ def main(argv: tuple[str, ...] | None = None) -> None:
         advanced_main(arguments)
         return
 
+    if arguments[0] == "zap-local-status":
+        from nightrecon_red_engine.advanced_cli import main as advanced_main
+        advanced_main(arguments)
+        return
+
     if arguments[0] in {
         "validation-modules",
         "range-sim",
