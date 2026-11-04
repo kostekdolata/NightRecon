@@ -38,6 +38,7 @@ all = [
     "mysql-connector-python>=9.0,<10",
     "scapy>=2.6,<3",
     "httpx[http2]>=0.28,<1",
+    "msgpack>=1.1,<2",
 ]
 
 [project.scripts]
