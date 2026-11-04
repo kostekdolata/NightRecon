@@ -1,0 +1,102 @@
+name: Red Night Governed TShark Cloud Acceptance
+# Manual acceptance against generated offline capture, no live target.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governed-tshark-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install real offline TShark and Red Night engine
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt-get update
+          sudo -E apt-get install -y --no-install-recommends tshark
+          python -m pip install -e ./packages/shared-core -e ./packages/red-engine
+          tshark --version | head -n 1
+      - name: Generate synthetic PCAP and register local assessment
+        shell: bash
+        run: |
+          set -euo pipefail
+          export LAB_DIR="$RUNNER_TEMP/tshark-lab"
+          mkdir -p "$LAB_DIR/captures"
+          python - <<'PY'
+          import os, struct, socket
+          from pathlib import Path
+          from datetime import datetime, timedelta, timezone
+          from nightrecon_shared_core.engagement_policy import EngagementExecutionPolicy
+          from nightrecon_red_engine.transactional_policy_authority import TransactionalPolicyAuthority
+          root = Path(os.environ["LAB_DIR"])
+          # Single synthetic Ethernet / IPv4 / TCP SYN, never captured from a real host.
+          eth = bytes.fromhex("aabbccddeeff1122334455660800")
+          ipv4 = (b"\x45\x00" + struct.pack("!H", 40) + b"\x00\x00\x40\x00\x40\x06\x00\x00"
+                  + socket.inet_aton("192.0.2.1") + socket.inet_aton("192.0.2.2"))
+          tcp = struct.pack("!HHIIHHHH", 12345, 443, 0, 0, 0x5002, 4096, 0, 0)
+          packet = eth + ipv4 + tcp
+          pcap = struct.pack("<IHHIIII", 0xa1b2c3d4, 2, 4, 0, 0, 65535, 1)
+          pcap += struct.pack("<IIII", 0, 0, len(packet), len(packet)) + packet
+          (root / "captures" / "synthetic.pcap").write_bytes(pcap)
+          now = datetime.now(timezone.utc)
+          TransactionalPolicyAuthority(root / "authority.db").register(
+              EngagementExecutionPolicy(
+                  engagement_id="offline-cloud-lab", scope=("192.0.2.1",),
+                  valid_from=(now-timedelta(minutes=2)).isoformat(),
+                  valid_until=(now+timedelta(minutes=10)).isoformat(),
+                  max_actions=1,
+                  permitted_capabilities=("external.tshark.inspect",),
+                  max_impact="low",
+              ), status="active")
+          PY
+      - name: Run real governed TShark and verify result evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          export LAB_DIR="$RUNNER_TEMP/tshark-lab"
+          executable="$(command -v tshark)"
+          digest="$(sha256sum "$executable" | cut -d' ' -f1)"
+          python -c 'import sys; from nightrecon_red_engine.red_cli import main; main(tuple(sys.argv[1:]))' \
+            tshark-inspect 192.0.2.1 \
+            --authority-db "$LAB_DIR/authority.db" \
+            --engagement-id offline-cloud-lab --action-id real-tshark-cloud \
+            --audit-path "$LAB_DIR/auth.jsonl" \
+            --result-audit-path "$LAB_DIR/results.jsonl" \
+            --tshark-executable "$executable" --trusted-sha256 "$digest" \
+            --capture-root "$LAB_DIR/captures" \
+            --capture "$LAB_DIR/captures/synthetic.pcap" \
+            --execute > "$LAB_DIR/report.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["LAB_DIR"])
+          result = json.loads((root / "report.json").read_text())
+          assert result["tool"] == "tshark"
+          assert result["execution_status"] == "succeeded"
+          assert result["packets_observed"] == 1
+          assert result["protocol_counts"].get("tcp") == 1
+          assert result["evidence_status"] == "unverified-observation"
+          audit = [json.loads(line) for line in (root / "results.jsonl").read_text().splitlines()]
+          assert [a["status"] for a in audit] == ["started", "completed"]
+          assert audit[-1]["returncode"] == 0
+          print("Real governed TShark -> synthetic offline PCAP -> report: PASS")
+          PY
+      - name: Upload bounded synthetic assessment evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-tshark-offline-evidence
+          path: |
+            ${{ runner.temp }}/tshark-lab/report.json
+            ${{ runner.temp }}/tshark-lab/results.jsonl
+          retention-days: 7
+      - name: Clean up generated local artifacts
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/tshark-lab"
