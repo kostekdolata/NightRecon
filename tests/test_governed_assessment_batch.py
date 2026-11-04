@@ -78,6 +78,71 @@ class GovernedAssessmentBatchTests(unittest.TestCase):
         self.assertEqual(peak[0], 1)
         self.assertEqual(report.operator_report()["summary"]["succeeded"], 2)
 
+    def test_nuclei_and_nmap_run_independently_with_approved_adapters(self):
+        barrier = threading.Barrier(2, timeout=3)
+        seen = []
+        def nmap(**kwargs):
+            seen.append(("nmap", kwargs))
+            barrier.wait()
+            return FakeOutcome("nmap")
+        def nuclei(**kwargs):
+            seen.append(("nuclei", kwargs))
+            barrier.wait()
+            return FakeOutcome("nuclei")
+        with patch(
+            "nightrecon_red_engine.governed_assessment_batch.execute_governed_nmap_discovery",
+            side_effect=nmap,
+        ), patch(
+            "nightrecon_red_engine.governed_assessment_batch.execute_governed_nuclei_fingerprint",
+            side_effect=nuclei,
+        ):
+            result = run_governed_assessment_batch(
+                authority=None, enabled=True, max_workers=2,
+                tasks=(self.task("nmap", "192.0.2.1", "scan-one"),
+                       self.task("nuclei", "http://192.0.2.2:8080", "fingerprint-two")),
+            )
+        self.assertEqual([item.status for item in result.tasks], ["succeeded", "succeeded"])
+        params = dict(seen)
+        self.assertEqual(params["nuclei"]["target_url"], "http://192.0.2.2:8080")
+        self.assertNotIn("target", params["nuclei"])
+        self.assertIs(params["nmap"]["cancel_event"], params["nuclei"]["cancel_event"])
+        self.assertTrue(params["nuclei"]["enabled"])
+
+    def test_nuclei_url_and_nmap_same_host_are_serialised(self):
+        guard = threading.Lock()
+        active, peak = [0], [0]
+        def run_tool(**kwargs):
+            with guard:
+                active[0] += 1
+                peak[0] = max(peak[0], active[0])
+            time.sleep(0.025)
+            with guard:
+                active[0] -= 1
+            return FakeOutcome("tool")
+        with patch(
+            "nightrecon_red_engine.governed_assessment_batch.execute_governed_nmap_discovery",
+            side_effect=run_tool,
+        ), patch(
+            "nightrecon_red_engine.governed_assessment_batch.execute_governed_nuclei_fingerprint",
+            side_effect=run_tool,
+        ):
+            result = run_governed_assessment_batch(
+                authority=None, enabled=True, max_workers=2,
+                tasks=(self.task("nmap", "192.0.2.1", "scan-one"),
+                       self.task("nuclei", "http://192.0.2.1:8080", "fingerprint-two")),
+            )
+        self.assertEqual(peak[0], 1)
+        self.assertEqual(result.operator_report()["summary"]["succeeded"], 2)
+
+    def test_nuclei_cannot_receive_capture_parameters(self):
+        nuclei = self.task("nuclei", "http://192.0.2.1", "one")
+        from dataclasses import replace
+        with self.assertRaisesRegex(ValueError, "capture"):
+            run_governed_assessment_batch(
+                authority=None, enabled=True,
+                tasks=(replace(nuclei, capture_path="/tmp/capture.pcap"),),
+            )
+
     def test_permission_denial_keeps_independent_success(self):
         def run_nmap(**kwargs):
             raise PermissionError("sensitive-details-must-not-appear")
