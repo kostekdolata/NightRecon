@@ -48,6 +48,7 @@ _COMMANDS = MappingProxyType({
         "editions", "infra", "api", "assets", "checks", "discover",
         "crawl", "scan", "pentest", "run-all", "identity", "workspace",
         "network-env", "syn-scan", "packet", "web-replay", "web-proxy",
+        "zap-local-status",
         "nmap-governed",
         "validation-modules", "range-sim",
     }),
