@@ -47,3 +47,29 @@ class TestOperationsReadModel(unittest.TestCase):
             self.assertEqual(len(result.events), 1)
             self.assertNotIn("private", result.describe())
             self.assertEqual(len(result.findings), 1)
+
+    def test_structured_audit_shows_real_exit_status_and_action_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            audit = root / "audit.jsonl"
+            audit.write_text("\n".join(json.dumps(item) for item in (
+                {"engagement_id": "lab", "action_id": "job-1",
+                 "command": "tool-a", "status": "started", "recorded_at": "t1"},
+                {"engagement_id": "lab", "action_id": "job-2",
+                 "command": "tool-b", "status": "started", "recorded_at": "t2"},
+                {"engagement_id": "lab", "action_id": "job-2",
+                 "command": "tool-b", "status": "completed", "returncode": 3,
+                 "recorded_at": "t3"},
+                {"engagement_id": "lab", "action_id": "job-1",
+                 "command": "tool-a", "status": "completed", "returncode": 0,
+                 "recorded_at": "t4"},
+            )), encoding="utf-8")
+            snapshot = read_operations_snapshot(
+                engagement_id="lab", authority_db=root / "authority.db",
+                audit_path=audit, review_db=root / "review.db",
+            )
+            self.assertEqual(len(snapshot.events), 2)
+            self.assertTrue(any("job-1" in line and "succeeded" in line
+                                for line in snapshot.events))
+            self.assertTrue(any("job-2" in line and "failed" in line and
+                                "exit=3" in line for line in snapshot.events))
