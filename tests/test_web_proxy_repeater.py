@@ -3,6 +3,7 @@
 import unittest
 
 from nightrecon_red_engine.web_proxy_repeater import (
+    BoundedInterceptProxy,
     RepeaterResponse,
     analyze_set_cookie,
     build_exchange_record,
@@ -47,6 +48,18 @@ class WebProxyRepeaterTests(unittest.TestCase):
         self.assertIn("missing Secure", cookies[0].issue)
         self.assertNotIn("secret", str(cookies[0]))
 
+    def test_https_intercept_proxy_exposes_local_ca_without_auto_trust(self):
+        scope = Scope.from_values(["example.test"])
+        proxy = BoundedInterceptProxy(
+            scope=scope,
+            https_intercept=True,
+        )
+        try:
+            self.assertTrue(proxy.ca_certificate_path)
+            self.assertEqual(len(proxy.ca_fingerprint_sha256), 64)
+        finally:
+            proxy.close()
+
     def test_exchange_record_excludes_secret_header_names(self):
         response = RepeaterResponse(
             status=200,
@@ -68,6 +81,23 @@ class WebProxyRepeaterTests(unittest.TestCase):
         self.assertNotIn("authorization", record.request_header_names)
         self.assertNotIn("set-cookie", record.response_header_names)
         self.assertTrue(record.parameters)
+        self.assertEqual(record.url, "http://example.test/login")
+        self.assertNotIn("next=", record.url)
+
+        credentialed = build_exchange_record(
+            method="GET",
+            url="http://user:password@example.test/path?token=secret",
+            request_headers=(),
+            request_body=b"",
+            response=response,
+        )
+        self.assertEqual(
+            credentialed.url,
+            "http://example.test/path",
+        )
+        self.assertNotIn("user", credentialed.url)
+        self.assertNotIn("password", credentialed.url)
+        self.assertNotIn("secret", credentialed.url)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ import ipaddress
 import time
 from typing import Iterable
 
+from nightrecon_red_engine.protocol_dissectors import dissect_payload
+
 
 MAX_CAPTURE_PACKETS = 5000
 MAX_CAPTURE_SECONDS = 60.0
@@ -41,6 +43,7 @@ class PacketObservation:
     http_method: str = ""
     http_path: str = ""
     tls_sni: str = ""
+    protocol_fields: tuple[tuple[str, str], ...] = ()
     note: str = ""
 
 
@@ -218,6 +221,14 @@ def observation_from_scapy(packet: object) -> PacketObservation | None:
         dst_port,
         payload,
     )
+    dissected = dissect_payload(
+        payload,
+        src_port=src_port,
+        dst_port=dst_port,
+    ) if payload else None
+    if dissected is not None:
+        protocol = dissected.protocol
+        metadata.update(dict(dissected.fields))
     dns_name = ""
     if packet.haslayer(DNS) and packet.haslayer(DNSQR):
         try:
@@ -246,8 +257,20 @@ def observation_from_scapy(packet: object) -> PacketObservation | None:
         tcp_flags=flags,
         tcp_sequence=sequence,
         dns_name=dns_name,
-        http_method=metadata.get("http_method", ""),
-        http_path=metadata.get("http_path", ""),
+        http_method=(
+            metadata.get("http_method", "")
+            or metadata.get("method", "")
+        ),
+        http_path=(
+            metadata.get("http_path", "")
+            or metadata.get("path", "")
+        ),
+        tls_sni=metadata.get("sni", ""),
+        protocol_fields=(
+            dissected.fields
+            if dissected is not None
+            else ()
+        ),
     )
 
 

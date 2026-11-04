@@ -9,6 +9,7 @@ from scapy.layers.inet import IP, TCP
 from scapy.packet import Raw
 from scapy.utils import wrpcap
 
+from nightrecon_red_engine.deep_packet_analysis import analyze_pcap_deep
 from nightrecon_red_engine.packet_intelligence import (
     import_pcap,
     observation_from_scapy,
@@ -55,7 +56,13 @@ def main() -> int:
         assert len(imported) == 1
         assert imported[0].protocol == "http"
 
-    print("Scapy packet/SYN runtime compatibility: passed")
+        deep = analyze_pcap_deep(str(pcap_path))
+        assert len(deep.packet_report.packets) == 1
+        assert len(deep.reassembled_tcp_streams) == 1
+        assert deep.reassembled_tcp_streams[0].protocol is not None
+        assert deep.reassembled_tcp_streams[0].protocol.protocol == "http"
+
+    print("Scapy packet/SYN/deep-stream runtime compatibility: passed")
     return 0
 
 

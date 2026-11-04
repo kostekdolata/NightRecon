@@ -45,3 +45,6 @@ mysql = [
 packet = [
     "scapy>=2.6,<3",
 ]
+http2 = [
+    "httpx[http2]>=0.28,<1",
+]
