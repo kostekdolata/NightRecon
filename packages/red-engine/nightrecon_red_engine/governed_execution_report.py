@@ -17,6 +17,7 @@ KNOWN_TOOLS = {
     "nmap-bounded-connect": "nmap",
     "nmap-tcp-connect": "nmap",
     "tshark-bounded-offline": "tshark",
+    "nuclei-bounded-http-fingerprint": "nuclei",
 }
 SAFE_STATES = frozenset({
     "started", "completed", "failed", "error", "cancelled", "revoked",
