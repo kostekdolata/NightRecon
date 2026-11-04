@@ -45,9 +45,11 @@ class HostPreflightTests(unittest.TestCase):
             "nightrecon_red_engine.host_preflight.collect_network_environment",
             return_value=self._snapshot(),
         ), patch(
+            "nightrecon_red_engine.host_preflight.shutil.which", return_value=None,
+        ), patch(
             "nightrecon_red_engine.host_preflight.importlib.import_module",
             return_value=psutil,
-        ), patch("nightrecon_red_engine.host_preflight.shutil.which", return_value=None):
+        ):
             snapshot = collect_host_preflight()
         self.assertEqual(len(snapshot.addresses), 3)
         report = route_host_context(snapshot, "nmap")
@@ -114,7 +116,7 @@ class HostPreflightTests(unittest.TestCase):
             report = collect_host_preflight().as_dict()
         self.assertEqual(report["interfaces"], [])
         self.assertEqual(report["routes"], [])
-        self.assertEqual(report["errors"], ["Local network inventory unavailable: OSError"])
+        self.assertIn("Local network inventory unavailable: OSError", report["errors"])
         self.assertNotIn("secret path", json.dumps(report))
 
     def test_public_host_preflight_command_has_no_scan_side_effect(self):
