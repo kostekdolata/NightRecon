@@ -164,6 +164,7 @@ RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
     "advanced_cli",
     "governed_nmap_coordinator",
     "governed_tshark_coordinator",
+    "governed_execution_report",
     "zap_local_observer",
     "metasploit_local_rpc",
     "transactional_policy_authority",
