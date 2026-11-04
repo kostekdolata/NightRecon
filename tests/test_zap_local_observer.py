@@ -60,7 +60,7 @@ class ZapLocalObserverTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 inspect_local_zap(port=port, api_key="secret")
         with self.assertRaises(PermissionError):
-            inspect_local_zap(api_key="bad\\r\\nInjected: 1")
+            inspect_local_zap(api_key="bad\r\nInjected: 1")
 
     def test_public_cli_requires_opt_in_and_secret_environment(self):
         self.assertIn("zap-local-status", available_commands("red"))
