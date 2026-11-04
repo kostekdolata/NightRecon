@@ -131,7 +131,8 @@ RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
         + RED_MODULE_GROUPS["checks"]
     ))),
     "workspace": ("red_workspace_cli",),
-    "network-env": ("red_cli",),
+    "nmap-governed": ("red_cli",),
+    "network-env": ("red_cli",)
     "syn-scan": ("red_cli",),
     "packet": ("red_cli",),
     "web-replay": ("red_cli",),
