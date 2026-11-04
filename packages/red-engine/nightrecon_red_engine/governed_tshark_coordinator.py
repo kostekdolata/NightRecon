@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 from pathlib import Path
+import threading
 
 from .atomic_command_executor import execute_atomically_governed
 from .governed_command_runner import FixedCommand
@@ -58,6 +59,7 @@ def execute_governed_tshark_inspection(
     audit_path: str | Path,
     result_audit_path: str | Path,
     enabled: bool = False,
+    cancel_event: threading.Event | None = None,
 ) -> GovernedTsharkResult:
     """Inspect an existing bounded capture under a registered engagement.
 
@@ -102,6 +104,7 @@ def execute_governed_tshark_inspection(
         authority=authority,
         audit_path=audit_path,
         result_audit_path=result_audit_path,
+        cancel_event=cancel_event,
     )
     if outcome.returncode != 0:
         raise RuntimeError(f"Governed TShark failed with exit code {outcome.returncode}")
