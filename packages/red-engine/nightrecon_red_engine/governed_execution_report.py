@@ -14,7 +14,7 @@ import json
 MAX_LEDGER_BYTES = 8 * 1024 * 1024
 MAX_EVENTS = 20000
 KNOWN_TOOLS = {
-    "nmap-bounded-tcp-connect": "nmap",
+    "nmap-bounded-connect": "nmap",
     "nmap-tcp-connect": "nmap",
     "tshark-bounded-offline": "tshark",
 }
