@@ -126,8 +126,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     host_plan = sub.add_parser(
         "host-plan-preview",
-        help="Prepare one inert Nmap self-host plan with independent authority and binary checks.",
+        help="Prepare one inert Nmap or Nuclei local-host plan with independent authority and binary checks.",
     )
+    host_plan.add_argument("--tool", choices=("nmap", "nuclei"), default="nmap")
+    host_plan.add_argument("--origin", help="Required exact HTTP(S) IPv4 origin for Nuclei.")
     host_plan.add_argument("--target", required=True)
     host_plan.add_argument("--engagement-id", required=True)
     host_plan.add_argument("--action-id", required=True)
@@ -530,13 +532,26 @@ def main(argv: tuple[str, ...]) -> object | None:
 
     if args.command == "host-plan-preview":
         from nightrecon_red_engine.host_preflight import collect_host_preflight
-        from nightrecon_red_engine.host_plan_preview import prepare_local_nmap_plan
-        report = prepare_local_nmap_plan(
-            snapshot=collect_host_preflight(),
-            target=args.target, engagement_id=args.engagement_id,
-            action_id=args.action_id, authority_db=args.authority_db,
-            components_root=args.components_root, manifest_path=args.manifest,
-        )
+        if args.tool == "nuclei":
+            if args.origin is None:
+                raise ValueError("Nuclei host-plan-preview requires --origin")
+            from nightrecon_red_engine.host_nuclei_plan_preview import prepare_local_nuclei_plan
+            report = prepare_local_nuclei_plan(
+                snapshot=collect_host_preflight(), target=args.target, origin=args.origin,
+                engagement_id=args.engagement_id, action_id=args.action_id,
+                authority_db=args.authority_db, components_root=args.components_root,
+                manifest_path=args.manifest,
+            )
+        else:
+            if args.origin is not None:
+                raise ValueError("--origin is only supported for Nuclei host-plan-preview")
+            from nightrecon_red_engine.host_plan_preview import prepare_local_nmap_plan
+            report = prepare_local_nmap_plan(
+                snapshot=collect_host_preflight(),
+                target=args.target, engagement_id=args.engagement_id,
+                action_id=args.action_id, authority_db=args.authority_db,
+                components_root=args.components_root, manifest_path=args.manifest,
+            )
         print(json.dumps(report, indent=2))
         return report
 
