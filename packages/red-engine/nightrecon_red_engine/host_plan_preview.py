@@ -9,7 +9,7 @@ an action, or writes an engagement/plan file.
 from __future__ import annotations
 
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import ipaddress
 import json
 from pathlib import Path
@@ -43,6 +43,17 @@ def prepare_local_nmap_plan(
     """
     if not isinstance(snapshot, HostPreflightSnapshot) or snapshot.schema != 1:
         raise ValueError("Host snapshot is unavailable or incompatible")
+    # A preview must not rely on an old or future-dated passive inventory.
+    # This is a freshness check, NOT a source of engagement authorisation.
+    try:
+        observed_at = datetime.fromisoformat(snapshot.collected_at)
+        if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+            raise ValueError("Snapshot timestamp must be timezone-aware")
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Host snapshot has an invalid collection timestamp") from exc
+    now = datetime.now(timezone.utc)
+    if not (now - timedelta(minutes=5) <= observed_at <= now + timedelta(seconds=30)):
+        raise ValueError("Host snapshot is stale or future-dated; refresh preflight")
     if not isinstance(target, str):
         raise ValueError("Operator must select an exact host IPv4 address")
     try:
