@@ -141,6 +141,7 @@ RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
     "tool-report": ("red_cli",),
     "host-preflight": ("red_cli",),
     "host-plan-preview": ("red_cli",),
+    "host-capture-preview": ("red_cli",),
     "network-env": ("red_cli",),
     "syn-scan": ("red_cli",),
     "packet": ("red_cli",),
