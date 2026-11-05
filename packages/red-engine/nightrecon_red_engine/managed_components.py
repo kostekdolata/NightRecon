@@ -55,7 +55,11 @@ def resolve_managed_component(
     candidate = (root / Path(*normalized.parts)).resolve(strict=True)
     if not candidate.is_relative_to(root):
         raise PermissionError("Managed executable resolves outside root")
-    if candidate.name.lower() not in ("nmap", "nmap.exe") or component_name != "nmap":
+    approved_names = {
+        "nmap": frozenset(("nmap", "nmap.exe")),
+        "nuclei": frozenset(("nuclei", "nuclei.exe")),
+    }
+    if component_name not in approved_names or candidate.name.lower() not in approved_names[component_name]:
         raise PermissionError("Unsupported managed component")
     if not candidate.is_file() or _SHA256.fullmatch(digest) is None:
         raise ValueError("Managed executable or checksum is invalid")
