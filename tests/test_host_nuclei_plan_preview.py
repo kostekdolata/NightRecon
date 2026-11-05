@@ -124,6 +124,32 @@ class NucleiHostPreviewTests(unittest.TestCase):
         with self.assertRaises((PermissionError, FileNotFoundError)):
             self.preview(snapshot=other)
 
+    def test_missing_authority_and_missing_binary_fail_closed(self):
+        with self.assertRaises(FileNotFoundError):
+            self.preview(authority_db=self.root / "missing.db")
+        with self.assertRaisesRegex(PermissionError, "not registered"):
+            self.preview(engagement_id="unknown-engagement")
+        missing = HostPreflightSnapshot(**{**self.snapshot.__dict__, "candidates": (
+            HostToolCandidate("nuclei", None, "missing", "local-path-lookup-only"),
+        )})
+        with self.assertRaises(FileNotFoundError):
+            self.preview(snapshot=missing)
+
+    def test_approval_required_capability_cannot_be_preapproved_by_preview(self):
+        with self.authority._db() as db:
+            policy = json.loads(db.execute(
+                "SELECT policy_json FROM engagement_authority WHERE engagement_id=?",
+                (self.engagement,),
+            ).fetchone()[0])
+            policy["approval_required_capabilities"] = ["external.nuclei.http-fingerprint"]
+            db.execute("UPDATE engagement_authority SET policy_json=? WHERE engagement_id=?",
+                       (json.dumps(policy), self.engagement))
+        with self.assertRaisesRegex(PermissionError, "approval_required"):
+            self.preview()
+        with self.authority._db() as db:
+            self.assertEqual(db.execute(
+                "SELECT actions_used FROM engagement_authority").fetchone()[0], 0)
+
     def test_stale_and_invalid_snapshot_rejected(self):
         for stamp in ((datetime.now(timezone.utc) - timedelta(minutes=6)).isoformat(),
                       (datetime.now(timezone.utc) + timedelta(minutes=2)).isoformat(),
