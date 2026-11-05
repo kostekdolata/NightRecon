@@ -105,8 +105,11 @@ def record_network_benchmark_provenance(
     truth = _sha(ground_truth_sha256, "ground_truth_sha256")
     configuration = _sha(configuration_sha256, "configuration_sha256")
     benchmark = _sha(result.comparison_sha256, "benchmark_sha256")
-    if isinstance(result.scope_violation_count, bool) or result.scope_violation_count < 0:
+    if type(result.scope_violation_count) is not int or result.scope_violation_count < 0:
         raise ValueError("Invalid scope violation count")
+    if (not isinstance(result.scope_violations, tuple)
+            or len(result.scope_violations) != result.scope_violation_count):
+        raise ValueError("Scope violation count does not match evidence")
     fingerprint_input = {
         "schema": 1,
         "authorization_reference": authorization_reference,
