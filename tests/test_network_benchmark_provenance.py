@@ -55,6 +55,28 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         changed = self.record(configuration_sha256="d" * 64)
         self.assertNotEqual(baseline.evidence_fingerprint, changed.evidence_fingerprint)
 
+    def test_fingerprint_binds_scope_violation_labels(self):
+        from dataclasses import replace
+
+        baseline = self.record()
+        other = record_network_benchmark_provenance(
+            replace(self.result, scope_violations=("udp:198.51.100.20",)),
+            **self.options,
+        )
+        self.assertEqual(baseline.benchmark_sha256, other.benchmark_sha256)
+        self.assertEqual(baseline.scope_violation_count, other.scope_violation_count)
+        self.assertNotEqual(baseline.evidence_fingerprint, other.evidence_fingerprint)
+        self.assertEqual(baseline.to_dict()["schema"], 2)
+
+    def test_scope_evidence_fingerprint_is_repeatable(self):
+        from dataclasses import replace
+
+        repeated = record_network_benchmark_provenance(
+            replace(self.result, scope_violations=tuple(self.result.scope_violations)),
+            **{**self.options, "lab_run_id": "lab-other"},
+        )
+        self.assertEqual(self.record().evidence_fingerprint, repeated.evidence_fingerprint)
+
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
             self.record(ground_truth_sha256="")
