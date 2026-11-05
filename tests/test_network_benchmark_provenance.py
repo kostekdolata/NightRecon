@@ -65,6 +65,33 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "reference"):
             self.record(authorization_reference="")
 
+    def test_malformed_scope_count_fails_closed(self):
+        from dataclasses import replace
+
+        for invalid_count in (True, 1.0, "1", -1, None):
+            with self.subTest(count=invalid_count), self.assertRaisesRegex(
+                ValueError, "Invalid scope violation count"
+            ):
+                record_network_benchmark_provenance(
+                    replace(self.result, scope_violation_count=invalid_count),
+                    **self.options,
+                )
+
+    def test_scope_count_must_match_observed_evidence(self):
+        from dataclasses import replace
+
+        for invalid_result in (
+            replace(self.result, scope_violation_count=0),
+            replace(self.result, scope_violations=()),
+            replace(self.result, scope_violations=["tcp:198.51.100.20"]),
+        ):
+            with self.subTest(result=invalid_result), self.assertRaisesRegex(
+                ValueError, "does not match evidence"
+            ):
+                record_network_benchmark_provenance(
+                    invalid_result, **self.options,
+                )
+
     def test_invalid_timestamp_fails_closed(self):
         for stamp in ("2026-11-05T19:00:00", "invalid", None):
             with self.subTest(stamp=stamp), self.assertRaises(ValueError):
