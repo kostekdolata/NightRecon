@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import ipaddress
 import hashlib
 import json
 import re
@@ -101,15 +102,32 @@ def record_network_benchmark_provenance(
         for x in (comparator_name, comparator_version)
     ):
         raise ValueError("Comparator metadata must be short, non-secret labels")
-    environment = _sha(environment_sha256, "environment_sha256")
-    truth = _sha(ground_truth_sha256, "ground_truth_sha256")
-    configuration = _sha(configuration_sha256, "configuration_sha256")
-    benchmark = _sha(result.comparison_sha256, "benchmark_sha256")
     if type(result.scope_violation_count) is not int or result.scope_violation_count < 0:
         raise ValueError("Invalid scope violation count")
     if (not isinstance(result.scope_violations, tuple)
             or len(result.scope_violations) != result.scope_violation_count):
         raise ValueError("Scope violation count does not match evidence")
+    violations = result.scope_violations
+    if not isinstance(violations, tuple) or len(violations) != len(set(
+        item for item in violations if isinstance(item, str)
+    )):
+        raise ValueError("Scope violations must be unique evidence labels")
+    for item in violations:
+        if not isinstance(item, str):
+            raise ValueError("Scope violations must be valid evidence labels")
+        kind, separator, address = item.partition(":")
+        if not separator or kind not in {"tcp", "udp", "service", "os"}:
+            raise ValueError("Scope violations must be valid evidence labels")
+        try:
+            canonical_address = str(ipaddress.ip_address(address))
+        except ValueError as exc:
+            raise ValueError("Scope violations must be valid evidence labels") from exc
+        if address != canonical_address:
+            raise ValueError("Scope violations must be canonical evidence labels")
+    environment = _sha(environment_sha256, "environment_sha256")
+    truth = _sha(ground_truth_sha256, "ground_truth_sha256")
+    configuration = _sha(configuration_sha256, "configuration_sha256")
+    benchmark = _sha(result.comparison_sha256, "benchmark_sha256")
     fingerprint_input = {
         "schema": 1,
         "authorization_reference": authorization_reference,
