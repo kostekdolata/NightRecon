@@ -156,3 +156,33 @@ def record_network_benchmark_provenance(
         evidence_fingerprint=fingerprint,
         scope_violation_count=result.scope_violation_count,
     )
+
+
+def verify_network_benchmark_provenance(
+    provenance: NetworkBenchmarkProvenance,
+    result: NetworkBenchmarkResult,
+) -> bool:
+    """Recompute a provenance record against the supplied benchmark observations.
+
+    This is an offline consistency check, not cryptographic authentication,
+    independent ground-truth verification, or an authorization decision.
+    """
+    if not isinstance(provenance, NetworkBenchmarkProvenance):
+        raise TypeError("Expected a network benchmark provenance record")
+    if not isinstance(result, NetworkBenchmarkResult):
+        raise TypeError("Expected an existing network benchmark result")
+    try:
+        expected = record_network_benchmark_provenance(
+            result,
+            lab_run_id=provenance.lab_run_id,
+            authorization_reference=provenance.authorization_reference,
+            environment_sha256=provenance.environment_sha256,
+            ground_truth_sha256=provenance.ground_truth_sha256,
+            configuration_sha256=provenance.configuration_sha256,
+            observed_at=provenance.observed_at,
+            comparator_name=provenance.comparator_name,
+            comparator_version=provenance.comparator_version,
+        )
+    except (TypeError, ValueError):
+        return False
+    return provenance == expected
