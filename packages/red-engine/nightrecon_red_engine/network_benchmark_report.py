@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from nightrecon_red_engine.network_benchmark import NetworkBenchmarkResult
 
@@ -15,7 +15,7 @@ class NetworkBenchmarkReport:
     safety_notes: tuple[str, ...]
     comparison_sha256: str
     duration_ms: float
-    quality_metrics: dict[str, dict[str, float | int | None]]
+    quality_metrics: dict[str, dict[str, float | int | None]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         return {
