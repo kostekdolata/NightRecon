@@ -102,6 +102,11 @@ def record_network_benchmark_provenance(
         for x in (comparator_name, comparator_version)
     ):
         raise ValueError("Comparator metadata must be short, non-secret labels")
+    if type(result.scope_violation_count) is not int or result.scope_violation_count < 0:
+        raise ValueError("Invalid scope violation count")
+    if (not isinstance(result.scope_violations, tuple)
+            or len(result.scope_violations) != result.scope_violation_count):
+        raise ValueError("Scope violation count does not match evidence")
     violations = result.scope_violations
     if not isinstance(violations, tuple) or len(violations) != len(set(
         item for item in violations if isinstance(item, str)
@@ -123,11 +128,6 @@ def record_network_benchmark_provenance(
     truth = _sha(ground_truth_sha256, "ground_truth_sha256")
     configuration = _sha(configuration_sha256, "configuration_sha256")
     benchmark = _sha(result.comparison_sha256, "benchmark_sha256")
-    if type(result.scope_violation_count) is not int or result.scope_violation_count < 0:
-        raise ValueError("Invalid scope violation count")
-    if (not isinstance(result.scope_violations, tuple)
-            or len(result.scope_violations) != result.scope_violation_count):
-        raise ValueError("Scope violation count does not match evidence")
     fingerprint_input = {
         "schema": 1,
         "authorization_reference": authorization_reference,
