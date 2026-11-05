@@ -15,6 +15,7 @@ class NetworkBenchmarkReport:
     safety_notes: tuple[str, ...]
     comparison_sha256: str
     duration_ms: float
+    quality_metrics: dict[str, dict[str, float | int | None]]
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -24,7 +25,27 @@ class NetworkBenchmarkReport:
             "safety_notes": list(self.safety_notes),
             "comparison_sha256": self.comparison_sha256,
             "duration_ms": self.duration_ms,
+            "quality_metrics": self.quality_metrics,
         }
+
+
+def _classification_quality(
+    *, matched: int, unexpected: int, missed: int,
+) -> dict[str, float | int | None]:
+    """Report exact positive-observation quality without inventing denominators.
+
+    A metric is undefined (None) if there were no relevant predictions or
+    expectations. These are lab-fixture scores, not specialist-tool parity.
+    """
+    observed_positive = matched + unexpected
+    expected_positive = matched + missed
+    return {
+        "true_positives": matched,
+        "false_positives": unexpected,
+        "false_negatives": missed,
+        "precision": matched / observed_positive if observed_positive else None,
+        "recall": matched / expected_positive if expected_positive else None,
+    }
 
 
 def build_network_benchmark_report(
@@ -84,4 +105,16 @@ def build_network_benchmark_report(
         safety_notes=safety_notes,
         comparison_sha256=result.comparison_sha256,
         duration_ms=result.duration_ms,
+        quality_metrics={
+            "tcp_open": _classification_quality(
+                matched=result.matched_tcp_open,
+                unexpected=result.invented_tcp_open,
+                missed=result.missed_tcp_open,
+            ),
+            "services": _classification_quality(
+                matched=result.matched_services,
+                unexpected=result.invented_services,
+                missed=result.missed_services,
+            ),
+        },
     )
