@@ -507,11 +507,11 @@ def main(argv: tuple[str, ...]) -> object | None:
 
     if args.command == "host-preflight":
         from nightrecon_red_engine.host_preflight import (
-            collect_host_preflight, route_host_context,
+            collect_host_preflight, assess_tool_readiness,
         )
         snapshot = collect_host_preflight()
         report = (
-            route_host_context(snapshot, args.consumer)
+            assess_tool_readiness(snapshot, args.consumer)
             if args.consumer else snapshot.as_dict()
         )
         print(json.dumps(report, indent=2))
