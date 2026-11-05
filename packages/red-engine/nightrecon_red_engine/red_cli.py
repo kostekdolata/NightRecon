@@ -6098,6 +6098,11 @@ def main(argv: tuple[str, ...] | None = None) -> None:
         advanced_main(arguments)
         return
 
+    if arguments[0] == "host-capture-preview":
+        from nightrecon_red_engine.advanced_cli import main as advanced_main
+        advanced_main(arguments)
+        return
+
     if arguments[0] == "host-plan-preview":
         from nightrecon_red_engine.advanced_cli import main as advanced_main
         advanced_main(arguments)
