@@ -6,6 +6,7 @@ from nightrecon_red_engine.network_benchmark import (
 )
 from nightrecon_red_engine.network_benchmark_provenance import (
     record_network_benchmark_provenance,
+    verify_network_benchmark_provenance,
 )
 from nightrecon_red_engine.tcp_scanner import TcpPortResult
 
@@ -76,6 +77,40 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
             **{**self.options, "lab_run_id": "lab-other"},
         )
         self.assertEqual(self.record().evidence_fingerprint, repeated.evidence_fingerprint)
+
+    def test_offline_verifier_accepts_matching_record(self):
+        self.assertTrue(verify_network_benchmark_provenance(
+            self.record(), self.result,
+        ))
+
+    def test_offline_verifier_rejects_tampered_metadata_and_evidence(self):
+        from dataclasses import replace
+
+        record = self.record()
+        for changed in (
+            replace(record, evidence_fingerprint="0" * 64),
+            replace(record, benchmark_sha256="0" * 64),
+            replace(record, scope_violation_count=0),
+            replace(record, comparator_version="7.94"),
+            replace(record, authorization_reference="different-engagement"),
+            replace(record, observed_at="not-a-timestamp"),
+        ):
+            with self.subTest(changed=changed):
+                self.assertFalse(verify_network_benchmark_provenance(
+                    changed, self.result,
+                ))
+        altered_result = replace(
+            self.result, scope_violations=("udp:198.51.100.20",),
+        )
+        self.assertFalse(verify_network_benchmark_provenance(
+            record, altered_result,
+        ))
+
+    def test_offline_verifier_rejects_wrong_input_types(self):
+        with self.assertRaises(TypeError):
+            verify_network_benchmark_provenance({}, self.result)
+        with self.assertRaises(TypeError):
+            verify_network_benchmark_provenance(self.record(), {})
 
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
