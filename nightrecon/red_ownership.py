@@ -175,6 +175,7 @@ RED_ENGINE_INTERNAL_SUPPORT_MODULES: tuple[str, ...] = (
     "governed_execution_report",
     "host_preflight",
     "host_plan_preview",
+    "host_nuclei_plan_preview",
     "transactional_policy_authority",
     "cyber_range_simulation",
     "deep_packet_analysis",
