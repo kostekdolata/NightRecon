@@ -140,6 +140,7 @@ RED_COMMAND_MODULES: dict[str, tuple[str, ...]] = {
     "governed-batch": ("red_cli",),
     "tool-report": ("red_cli",),
     "host-preflight": ("red_cli",),
+    "host-plan-preview": ("red_cli",),
     "network-env": ("red_cli",),
     "syn-scan": ("red_cli",),
     "packet": ("red_cli",),
