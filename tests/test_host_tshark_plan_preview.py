@@ -109,6 +109,27 @@ class OfflineTsharkPreviewTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             self.preview(authority_db=self.root / "missing.db")
 
+    def test_preview_does_not_bypass_required_approval_or_budget(self):
+        with self.authority._db() as db:
+            policy = json.loads(db.execute(
+                "SELECT policy_json FROM engagement_authority WHERE engagement_id=?",
+                (self.engagement,),
+            ).fetchone()[0])
+            policy["approval_required_capabilities"] = ["external.tshark.inspect"]
+            db.execute("UPDATE engagement_authority SET policy_json=? WHERE engagement_id=?",
+                       (json.dumps(policy), self.engagement))
+        with self.assertRaisesRegex(PermissionError, "approval_required"):
+            self.preview()
+        with self.authority._db() as db:
+            policy["approval_required_capabilities"] = []
+            db.execute("UPDATE engagement_authority SET policy_json=?, actions_used=1 WHERE engagement_id=?",
+                       (json.dumps(policy), self.engagement))
+        with self.assertRaisesRegex(PermissionError, "action_budget_exhausted"):
+            self.preview()
+        with self.authority._db() as db:
+            self.assertEqual(db.execute(
+                "SELECT COUNT(*) FROM authority_reservations").fetchone()[0], 0)
+
     def test_tshark_tampering_and_candidate_mismatch_fail_closed(self):
         self.binary.write_bytes(b"tampered")
         with self.assertRaisesRegex(PermissionError, "digest mismatch"):
