@@ -94,10 +94,21 @@ class NucleiHostPreviewTests(unittest.TestCase):
     def test_scope_and_capability_are_independent_of_host_inventory(self):
         with self.assertRaisesRegex(PermissionError, "target_out_of_scope"):
             self.preview(target="198.51.100.20", origin="http://198.51.100.20")
-        self.register(("198.51.100.20",), ("external.nuclei.http-fingerprint",))
+        with self.authority._db() as db:
+            policy = json.loads(db.execute(
+                "SELECT policy_json FROM engagement_authority WHERE engagement_id=?",
+                (self.engagement,),
+            ).fetchone()[0])
+            policy["scope"] = ["198.51.100.20"]
+            db.execute("UPDATE engagement_authority SET policy_json=? WHERE engagement_id=?",
+                       (json.dumps(policy), self.engagement))
         with self.assertRaisesRegex(PermissionError, "target_out_of_scope"):
             self.preview()
-        self.register(("192.0.2.10",), ("external.nmap.discovery",))
+        with self.authority._db() as db:
+            policy["scope"] = ["192.0.2.10"]
+            policy["permitted_capabilities"] = ["external.nmap.discovery"]
+            db.execute("UPDATE engagement_authority SET policy_json=? WHERE engagement_id=?",
+                       (json.dumps(policy), self.engagement))
         with self.assertRaises(PermissionError):
             self.preview()
 
@@ -137,7 +148,7 @@ class NucleiHostPreviewTests(unittest.TestCase):
         self.assertFalse(report["action_reserved"])
         with self.assertRaisesRegex(ValueError, "requires --origin"):
             red_main(tuple(item for index, item in enumerate(args)
-                           if index not in (4, 5)))
+                           if index not in (5, 6)))
 
 
 if __name__ == "__main__":
