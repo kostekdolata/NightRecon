@@ -92,6 +92,43 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                     invalid_result, **self.options,
                 )
 
+    def test_scope_evidence_labels_must_be_unique_and_canonical(self):
+        from dataclasses import replace
+
+        invalid_labels = (
+            ("tcp:198.51.100.20", "tcp:198.51.100.20"),
+            ("unknown:198.51.100.20",),
+            ("tcp:not-an-ip",),
+            ("tcp:",),
+            ("tcp:198.051.100.20",),
+            ("tcp:198.51.100.20", None),
+        )
+        for labels in invalid_labels:
+            with self.subTest(labels=labels), self.assertRaisesRegex(
+                ValueError, "Scope violations"
+            ):
+                record_network_benchmark_provenance(
+                    replace(
+                        self.result,
+                        scope_violations=labels,
+                        scope_violation_count=len(labels),
+                    ),
+                    **self.options,
+                )
+
+    def test_canonical_ipv6_scope_evidence_is_supported(self):
+        from dataclasses import replace
+
+        provenance = record_network_benchmark_provenance(
+            replace(
+                self.result,
+                scope_violations=("udp:2001:db8::10",),
+                scope_violation_count=1,
+            ),
+            **self.options,
+        )
+        self.assertEqual(provenance.scope_violation_count, 1)
+
     def test_invalid_timestamp_fails_closed(self):
         for stamp in ("2026-11-05T19:00:00", "invalid", None):
             with self.subTest(stamp=stamp), self.assertRaises(ValueError):
