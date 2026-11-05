@@ -116,6 +116,14 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("--result-audit-path", required=True)
     report.add_argument("--engagement-id")
 
+    host = sub.add_parser(
+        "host-preflight", help="Discover passive local system/tool capabilities.",
+    )
+    host.add_argument(
+        "--consumer", choices=("nmap", "tshark", "nuclei", "zap", "metasploit"),
+        help="Show only the explicitly filtered context for one integrated tool.",
+    )
+
     env = sub.add_parser("network-env")
     env.add_argument("--json", action="store_true")
 
@@ -496,6 +504,18 @@ def main(argv: tuple[str, ...]) -> object | None:
         )
         print(json.dumps(result, indent=2))
         return result
+
+    if args.command == "host-preflight":
+        from nightrecon_red_engine.host_preflight import (
+            collect_host_preflight, route_host_context,
+        )
+        snapshot = collect_host_preflight()
+        report = (
+            route_host_context(snapshot, args.consumer)
+            if args.consumer else snapshot.as_dict()
+        )
+        print(json.dumps(report, indent=2))
+        return report
 
     if args.command == "network-env":
         snapshot = collect_network_environment()
