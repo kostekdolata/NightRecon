@@ -36,7 +36,7 @@ class HostPreflightViewTests(unittest.TestCase):
         summary = describe_host_preflight(self.fixture())
         self.assertNotIn("C:/Users/private", summary)
         self.assertNotIn("secret-auth-token", summary)
-        self.assertNotIn("execution-approved", summary)
+        self.assertIn("not execution-approved", summary)
 
     def test_missing_metadata_is_honest_and_does_not_infer_scope(self):
         report = {"schema": 1, "os": "Linux", "architecture": "x86_64",
