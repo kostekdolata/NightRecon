@@ -7,7 +7,7 @@ authorise network scanning, elevate privileges or modify existing installation
 behaviour.
 
 ## Existing foundation
-- `managed_components.py` reads a local manifest and verifies an Nmap binary's SHA-256.
+- `managed_components.py` reads an administrator-supplied manifest and verifies the SHA-256 of an exact allowlisted Nmap, Nuclei, or TShark executable (depending on the release branch).
 - The bounded Nmap coordinator is disabled by default.
 - External scanning still requires a transactional engagement, scoped target
   and approved `external.nmap.discovery` capability.
@@ -55,3 +55,18 @@ of applicable exact versions and distributions is required before enabling
 The current bounded TCP-connect preset uses `-sT` and does not require
 the raw-packet scan options that typically depend on Npcap, but Windows
 distribution and optional advanced modes still require independent review.
+
+## Current managed executable provenance (beta8)
+
+The resolver's tool allowlist is limited to `nmap[/ .exe]`, `nuclei[/ .exe]`,
+and `tshark[/ .exe]` filenames (without the spaces in executable names).
+Each tool must have its own manifest entry with a confined relative path and
+SHA-256 of its exact installed binary. A discovered PATH executable cannot
+replace the independently selected managed component. This only validates
+file identity; it **never** authorizes network activity or capture inspection.
+
+**Unresolved production gate:** The manifest is currently read from inside the
+managed component directory. It must not be represented as a cryptographically
+independent trust anchor until an independently signed/pinned release record
+and protected installation ACLs are verified. Do not bundle third-party
+executables without the applicable license and redistributability review.
