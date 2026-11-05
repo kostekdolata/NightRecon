@@ -10,7 +10,7 @@ import socket
 from unittest.mock import patch
 
 from nightrecon_red_engine.host_preflight import (
-    collect_host_preflight, route_host_context,
+    collect_host_preflight, route_host_context, assess_tool_readiness,
 )
 from nightrecon_red_engine.network_environment import (
     NetworkEnvironmentSnapshot, NetworkInterface, RouteEntry,
@@ -119,6 +119,36 @@ class HostPreflightTests(unittest.TestCase):
         self.assertIn("Local network inventory unavailable: OSError", report["errors"])
         self.assertNotIn("secret path", json.dumps(report))
 
+    def test_readiness_does_not_authorise_discovered_networks_or_binaries(self):
+        with tempfile.TemporaryDirectory() as folder:
+            local_tool = Path(folder) / "nmap"
+            local_tool.write_bytes(b"discovered-not-approved")
+            with patch(
+                "nightrecon_red_engine.host_preflight.collect_network_environment",
+                return_value=self._snapshot(),
+            ), patch(
+                "nightrecon_red_engine.host_preflight.shutil.which",
+                side_effect=lambda name: str(local_tool) if name == "nmap" else None,
+            ):
+                snapshot = collect_host_preflight()
+        nmap = assess_tool_readiness(snapshot, "nmap")
+        self.assertEqual(nmap["readiness"]["state"], "unverified")
+        self.assertFalse(nmap["readiness"]["executable_trust_confirmed"])
+        self.assertFalse(nmap["readiness"]["engagement_scope_confirmed"])
+        self.assertEqual(nmap["authorised_targets"], [])
+        self.assertIn("approved-tool-digest", nmap["readiness"]["required_before_execution"])
+        tshark = assess_tool_readiness(snapshot, "tshark")
+        self.assertEqual(tshark["readiness"]["state"], "missing-dependency")
+        self.assertIn("tool-executable-not-discovered", tshark["readiness"]["missing_dependencies"])
+        zap = assess_tool_readiness(snapshot, "zap")
+        self.assertEqual(zap["readiness"]["state"], "not-probed")
+        self.assertIn("protected-api-secret", zap["readiness"]["required_before_execution"])
+        self.assertNotIn("tool_candidate", zap)
+        msf = assess_tool_readiness(snapshot, "metasploit")
+        self.assertIn("trusted-local-rpc-tls", msf["readiness"]["required_before_execution"])
+        with self.assertRaisesRegex(ValueError, "Unsupported"):
+            assess_tool_readiness(snapshot, "external-shell")
+
     def test_public_host_preflight_command_has_no_scan_side_effect(self):
         self.assertIn("host-preflight", available_commands("red"))
         with patch(
@@ -131,6 +161,8 @@ class HostPreflightTests(unittest.TestCase):
         self.assertEqual(result["consumer"], "nuclei")
         self.assertEqual(result["authorised_targets"], [])
         self.assertFalse(result["execution_approval"])
+        self.assertIn("readiness", result)
+        self.assertFalse(result["readiness"]["engagement_scope_confirmed"])
         self.assertNotIn("interfaces", result)
 
 
