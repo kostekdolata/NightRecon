@@ -55,3 +55,29 @@ of applicable exact versions and distributions is required before enabling
 The current bounded TCP-connect preset uses `-sT` and does not require
 the raw-packet scan options that typically depend on Npcap, but Windows
 distribution and optional advanced modes still require independent review.
+
+## Operator-selected offline TShark preview (beta9 candidate)
+
+The `host-capture-preview` command is a preparation-only interface. It requires
+an explicit attribution target, an existing capture file and its approved root,
+a registered engagement/action ID, the read-only authority database, and a
+managed-components manifest. Example argument structure (replace placeholders
+with existing, operator-controlled paths and registered identifiers):
+
+```text
+red-night-app host-capture-preview \\
+  --target 192.0.2.10 --capture /approved/captures/example.pcap \\
+  --capture-root /approved/captures --engagement-id lab-01 --action-id capture-01 \\
+  --authority-db /protected/authority.db --components-root /protected/components \\
+  --manifest /protected/components/manifest.json
+```
+
+No command is executed and no capture is opened for TShark analysis. The preview
+reads capture bytes solely to calculate a point-in-time SHA-256 fingerprint,
+checks that the file is regular, nonempty, <= 8 MiB, non-symlink, and inside
+the approved root, and checks engagement policy without reserving a budget
+unit. It does not prove that a PCAP is authentic or that a later execution will
+be authorized. Existing `governed-batch --execute` is separate and must redo
+all scope, authorization, executable and capture-file checks. The preview is
+not a substitute for protective filesystem ACLs, manifest authenticity or a
+signed chain of custody. Never infer authorization from packet contents.
