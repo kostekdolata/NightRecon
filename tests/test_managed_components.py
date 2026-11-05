@@ -31,6 +31,46 @@ class TestManagedComponents(unittest.TestCase):
     def test_unknown_component_denied(self):
         with self.assertRaises(PermissionError):
             resolve_managed_component(components_root=self.root,manifest_path=self.manifest,component_name="shell")
+    def test_nuclei_requires_own_approved_manifest_and_digest(self):
+        nuclei = self.root / "nuclei"
+        nuclei.write_bytes(b"synthetic nuclei binary; never executed")
+        digest = hashlib.sha256(nuclei.read_bytes()).hexdigest()
+        self.manifest.write_text(json.dumps({"schema": 1, "components": {
+            "nmap": {"path": "nmap", "sha256": hashlib.sha256(self.program.read_bytes()).hexdigest()},
+            "nuclei": {"path": "nuclei", "sha256": digest},
+        }}))
+        result = resolve_managed_component(
+            components_root=self.root, manifest_path=self.manifest,
+            component_name="nuclei",
+        )
+        self.assertEqual(result.executable, nuclei.resolve())
+        self.assertEqual(result.sha256, digest)
+        nuclei.write_bytes(b"tampered")
+        with self.assertRaisesRegex(PermissionError, "digest mismatch"):
+            resolve_managed_component(
+                components_root=self.root, manifest_path=self.manifest,
+                component_name="nuclei",
+            )
+
+    def test_nuclei_cannot_reuse_nmap_binary_or_escaped_path(self):
+        digest = hashlib.sha256(self.program.read_bytes()).hexdigest()
+        self.manifest.write_text(json.dumps({"schema": 1, "components": {
+            "nuclei": {"path": "nmap", "sha256": digest},
+        }}))
+        with self.assertRaisesRegex(PermissionError, "Unsupported managed component"):
+            resolve_managed_component(
+                components_root=self.root, manifest_path=self.manifest,
+                component_name="nuclei",
+            )
+        self.manifest.write_text(json.dumps({"schema": 1, "components": {
+            "nuclei": {"path": "../nuclei", "sha256": digest},
+        }}))
+        with self.assertRaises(ValueError):
+            resolve_managed_component(
+                components_root=self.root, manifest_path=self.manifest,
+                component_name="nuclei",
+            )
+
     def test_missing_manifest_denied(self):
         self.manifest.unlink()
         with self.assertRaises(FileNotFoundError):
