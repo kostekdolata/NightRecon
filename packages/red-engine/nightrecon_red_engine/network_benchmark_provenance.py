@@ -42,7 +42,7 @@ class NetworkBenchmarkProvenance:
 
     def to_dict(self) -> dict[str, object]:
         return {
-            "schema": 1,
+            "schema": 2,
             "type": "network-benchmark-provenance",
             "lab_run_id": self.lab_run_id,
             "authorization_reference": self.authorization_reference,
@@ -129,7 +129,7 @@ def record_network_benchmark_provenance(
     configuration = _sha(configuration_sha256, "configuration_sha256")
     benchmark = _sha(result.comparison_sha256, "benchmark_sha256")
     fingerprint_input = {
-        "schema": 1,
+        "schema": 2,
         "authorization_reference": authorization_reference,
         "environment_sha256": environment,
         "ground_truth_sha256": truth,
@@ -138,6 +138,7 @@ def record_network_benchmark_provenance(
         "comparator_name": comparator_name,
         "comparator_version": comparator_version,
         "scope_violation_count": result.scope_violation_count,
+        "scope_violations": list(violations),
     }
     fingerprint = hashlib.sha256(json.dumps(
         fingerprint_input, sort_keys=True, separators=(",", ":"),
