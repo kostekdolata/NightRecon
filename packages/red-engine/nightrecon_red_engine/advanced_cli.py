@@ -137,6 +137,19 @@ def build_parser() -> argparse.ArgumentParser:
     host_plan.add_argument("--components-root", required=True)
     host_plan.add_argument("--manifest", required=True)
 
+    offline_preview = sub.add_parser(
+        "host-capture-preview",
+        help="Prepare one inert offline TShark capture-inspection plan.",
+    )
+    offline_preview.add_argument("--target", required=True)
+    offline_preview.add_argument("--capture", required=True)
+    offline_preview.add_argument("--capture-root", required=True)
+    offline_preview.add_argument("--engagement-id", required=True)
+    offline_preview.add_argument("--action-id", required=True)
+    offline_preview.add_argument("--authority-db", required=True)
+    offline_preview.add_argument("--components-root", required=True)
+    offline_preview.add_argument("--manifest", required=True)
+
     env = sub.add_parser("network-env")
     env.add_argument("--json", action="store_true")
 
@@ -552,6 +565,19 @@ def main(argv: tuple[str, ...]) -> object | None:
                 action_id=args.action_id, authority_db=args.authority_db,
                 components_root=args.components_root, manifest_path=args.manifest,
             )
+        print(json.dumps(report, indent=2))
+        return report
+
+    if args.command == "host-capture-preview":
+        from nightrecon_red_engine.host_preflight import collect_host_preflight
+        from nightrecon_red_engine.host_tshark_plan_preview import prepare_offline_tshark_plan
+        report = prepare_offline_tshark_plan(
+            snapshot=collect_host_preflight(), target=args.target,
+            capture_path=args.capture, capture_root=args.capture_root,
+            engagement_id=args.engagement_id, action_id=args.action_id,
+            authority_db=args.authority_db, components_root=args.components_root,
+            manifest_path=args.manifest,
+        )
         print(json.dumps(report, indent=2))
         return report
 
