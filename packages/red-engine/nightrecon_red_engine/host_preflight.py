@@ -183,3 +183,63 @@ def route_host_context(snapshot: HostPreflightSnapshot, tool: str) -> dict:
         else:
             result[field] = context[field]
     return result
+
+
+def assess_tool_readiness(snapshot: HostPreflightSnapshot, tool: str) -> dict:
+    """Bounded per-tool readiness from passive facts, never execution authority.
+
+    This result can be consumed by desktop UI and plan preparation. It cannot
+    satisfy transactional authorisation, executable provenance, or approvals.
+    """
+    context = route_host_context(snapshot, tool)
+    candidate = context.get("tool_candidate")
+    interfaces = context.get("interfaces", [])
+    addresses = context.get("addresses", [])
+    routes = context.get("routes", [])
+    facts = {
+        "interface_count": len(interfaces),
+        "address_count": len(addresses),
+        "route_count": len(routes),
+        "observed_address_families": sorted({
+            record.get("family") for record in addresses
+            if isinstance(record, dict)
+            and record.get("family") in ("ipv4", "ipv6")
+        }),
+    }
+    missing = []
+    required = []
+    if tool in TOOL_COMMANDS:
+        required.extend(("approved-tool-digest", "registered-engagement"))
+        if candidate is None or candidate["state"] != "unverified-present":
+            missing.append("tool-executable-not-discovered")
+        if tool == "tshark":
+            required.extend(("operator-selected-offline-capture", "capture-root"))
+        else:
+            required.append("operator-approved-exact-target")
+            if tool == "nuclei":
+                required.append("operator-approved-http-origin")
+        status = "missing-dependency" if missing else "unverified"
+    else:
+        required.extend(("operator-configured-loopback-endpoint", "protected-api-secret"))
+        if tool == "metasploit":
+            required.append("trusted-local-rpc-tls")
+        status = "not-probed"
+    return {
+        **context,
+        "readiness": {
+            "state": status,
+            "tool": tool,
+            "observed_facts": facts,
+            "required_before_execution": required,
+            "missing_dependencies": missing,
+            "executable_trust_confirmed": False,
+            "engagement_scope_confirmed": False,
+            "approval_confirmed": False,
+            "network_scan_performed": False,
+            "limitations": [
+                "Passive host discovery is not an executable provenance check.",
+                "Discovered local or VPN addresses are not automatically eligible scan targets.",
+                "All actions still require independent live policy checks.",
+            ],
+        },
+    }
