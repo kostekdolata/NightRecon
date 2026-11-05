@@ -91,6 +91,32 @@ class HostPlanPreviewTests(unittest.TestCase):
                 db.execute("SELECT COUNT(*) FROM authority_reservations").fetchone()[0], 0,
             )
 
+    def test_stale_and_future_dated_host_inventory_fail_closed(self):
+        now = datetime.now(timezone.utc)
+        for stamp in (
+            now - timedelta(minutes=6),
+            now + timedelta(minutes=2),
+        ):
+            with self.subTest(timestamp=stamp.isoformat()):
+                snapshot = HostPreflightSnapshot(
+                    **{**self.snapshot.__dict__, "collected_at": stamp.isoformat()}
+                )
+                with self.assertRaisesRegex(ValueError, "stale or future-dated"):
+                    self.preview(snapshot=snapshot)
+        with self.authority._db() as db:
+            self.assertEqual(
+                db.execute("SELECT actions_used FROM engagement_authority").fetchone()[0], 0,
+            )
+
+    def test_missing_or_naive_host_inventory_timestamp_fails_closed(self):
+        for stamp in ("invalid", "", "2026-11-05T10:00:00", None):
+            with self.subTest(timestamp=stamp):
+                snapshot = HostPreflightSnapshot(
+                    **{**self.snapshot.__dict__, "collected_at": stamp}
+                )
+                with self.assertRaisesRegex(ValueError, "invalid collection timestamp"):
+                    self.preview(snapshot=snapshot)
+
     def test_vpn_address_discovered_but_not_authorised_is_denied(self):
         with self.assertRaisesRegex(PermissionError, "target_out_of_scope"):
             self.preview(target="198.51.100.20")
