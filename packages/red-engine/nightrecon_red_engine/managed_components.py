@@ -58,6 +58,7 @@ def resolve_managed_component(
     approved_names = {
         "nmap": frozenset(("nmap", "nmap.exe")),
         "nuclei": frozenset(("nuclei", "nuclei.exe")),
+        "tshark": frozenset(("tshark", "tshark.exe")),
     }
     if component_name not in approved_names or candidate.name.lower() not in approved_names[component_name]:
         raise PermissionError("Unsupported managed component")
