@@ -46,6 +46,17 @@ class HostPreflightViewTests(unittest.TestCase):
         self.assertIn("No usable route data", summary)
         self.assertIn("Detected addresses do not grant scope", summary)
 
+    def test_malformed_address_and_route_are_not_rendered(self):
+        report = self.fixture()
+        report["addresses"].append({
+            "interface": "private-device", "address": "token=secret-DO-NOT-RENDER",
+        })
+        report["routes"].append({"destination": "dangerous route text"})
+        text = describe_host_preflight(report)
+        self.assertNotIn("secret-DO-NOT-RENDER", text)
+        self.assertNotIn("dangerous route text", text)
+        self.assertIn("192.0.2.12", text)
+
     def test_invalid_snapshot_fails_without_evidence(self):
         self.assertIn("unavailable", describe_host_preflight({"schema": 900}))
 
