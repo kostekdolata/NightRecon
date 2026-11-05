@@ -71,6 +71,46 @@ class TestManagedComponents(unittest.TestCase):
                 component_name="nuclei",
             )
 
+    def test_tshark_requires_independently_pinned_manifest_digest(self):
+        tshark = self.root / "tshark.exe"
+        tshark.write_bytes(b"synthetic TShark test fixture; not executed")
+        digest = hashlib.sha256(tshark.read_bytes()).hexdigest()
+        self.manifest.write_text(json.dumps({"schema": 1, "components": {
+            "tshark": {"path": "tshark.exe", "sha256": digest},
+        }}))
+        result = resolve_managed_component(
+            components_root=self.root, manifest_path=self.manifest,
+            component_name="tshark",
+        )
+        self.assertEqual(result.executable, tshark.resolve())
+        self.assertEqual(result.sha256, digest)
+        tshark.write_bytes(b"modified TShark")
+        with self.assertRaisesRegex(PermissionError, "digest mismatch"):
+            resolve_managed_component(
+                components_root=self.root, manifest_path=self.manifest,
+                component_name="tshark",
+            )
+
+    def test_tshark_refuses_other_tool_binary_and_path_escape(self):
+        digest = hashlib.sha256(self.program.read_bytes()).hexdigest()
+        for invalid_path, error in (("nmap", PermissionError), ("../tshark.exe", ValueError)):
+            with self.subTest(path=invalid_path):
+                self.manifest.write_text(json.dumps({"schema": 1, "components": {
+                    "tshark": {"path": invalid_path, "sha256": digest},
+                }}))
+                with self.assertRaises(error):
+                    resolve_managed_component(
+                        components_root=self.root, manifest_path=self.manifest,
+                        component_name="tshark",
+                    )
+
+    def test_tshark_requires_its_own_manifest_entry(self):
+        with self.assertRaisesRegex(PermissionError, "no approved manifest entry"):
+            resolve_managed_component(
+                components_root=self.root, manifest_path=self.manifest,
+                component_name="tshark",
+            )
+
     def test_missing_manifest_denied(self):
         self.manifest.unlink()
         with self.assertRaises(FileNotFoundError):
