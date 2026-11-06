@@ -733,6 +733,22 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                     [index for index, item in enumerate(batch["entries"])
                      if item["status"] != "consistent_unverified"],
                 )
+                grouped = batch["evidence_review_indices_by_reason"]
+                self.assertEqual(
+                    list(grouped),
+                    ["scope_violations_observed", "inconsistent", "rejected"],
+                )
+                for label, indices in grouped.items():
+                    self.assertEqual(
+                        indices,
+                        [index for index, item in enumerate(batch["entries"])
+                         if item["status"] == label],
+                    )
+                    self.assertEqual(len(indices), batch["status_counts"][label])
+                self.assertEqual(
+                    sorted(index for indices in grouped.values() for index in indices),
+                    batch["evidence_review_entry_indices"],
+                )
                 self.assertEqual(
                     len(batch["evidence_review_entry_indices"]),
                     batch["evidence_review_count"],
