@@ -221,3 +221,50 @@ def report_network_benchmark_provenance_status(
             "target scope, ground truth, specialist-tool parity, or safe execution."
         ),
     }
+
+
+def report_network_benchmark_evidence_summary(
+    provenance: NetworkBenchmarkProvenance,
+    result: NetworkBenchmarkResult,
+) -> dict[str, object]:
+    """Build a metadata-only export for a downstream reporting integration.
+
+    Fail closed: inconsistent provenance cannot be linked to benchmark metrics.
+    This export is not an authorization, exploitability, or parity verdict.
+    """
+    status = report_network_benchmark_provenance_status(provenance, result)
+    if not status["consistent"]:
+        metrics = None
+    else:
+        metrics = {
+            "expected_tcp_open": result.expected_tcp_open,
+            "matched_tcp_open": result.matched_tcp_open,
+            "missed_tcp_open": result.missed_tcp_open,
+            "invented_tcp_open": result.invented_tcp_open,
+            "expected_udp_open": result.expected_udp_open,
+            "matched_udp_open": result.matched_udp_open,
+            "missed_udp_open": result.missed_udp_open,
+            "invented_udp_open": result.invented_udp_open,
+            "ambiguous_udp_expected_open": result.ambiguous_udp_expected_open,
+            "expected_services": result.expected_services,
+            "matched_services": result.matched_services,
+            "missed_services": result.missed_services,
+            "invented_services": result.invented_services,
+            "expected_operating_systems": result.expected_operating_systems,
+            "matched_operating_systems": result.matched_operating_systems,
+            "missed_operating_systems": result.missed_operating_systems,
+            "conflicting_operating_systems": result.conflicting_operating_systems,
+            "scope_violation_count": result.scope_violation_count,
+        }
+    return {
+        "schema": 1,
+        "type": "network-benchmark-evidence-summary",
+        "provenance_status": status,
+        "metrics": metrics,
+        "authorization_effect": "none",
+        "interpretation": (
+            "Counts are descriptive observations from an operator-supplied lab "
+            "comparison, not independent verification, specialist-tool parity, "
+            "exploitability, or permission to scan."
+        ),
+    }
