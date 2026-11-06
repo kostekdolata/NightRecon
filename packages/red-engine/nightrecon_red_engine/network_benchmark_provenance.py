@@ -456,6 +456,10 @@ def inspect_network_benchmark_evidence_batch(
         "accepted_count": accepted_count,
         "rejected_count": len(entries) - accepted_count,
         "status_counts": status_counts,
+        "evidence_review_entry_indices": [
+            index for index, entry in enumerate(entries)
+            if entry["status"] != "consistent_unverified"
+        ],
         "evidence_review_count": (
             status_counts["scope_violations_observed"]
             + status_counts["inconsistent"]
