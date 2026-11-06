@@ -387,7 +387,10 @@ def inspect_network_benchmark_evidence_export(
                     or (count == 0) != (label == "consistent_unverified")
                     or not isinstance(metrics, dict)
                     or type(metrics.get("scope_violation_count")) is not int
-                    or metrics["scope_violation_count"] != count):
+                    or metrics["scope_violation_count"] != count
+                    or set(metrics) != {"expected_tcp_open", "matched_tcp_open", "missed_tcp_open", "invented_tcp_open", "expected_udp_open", "matched_udp_open", "missed_udp_open", "invented_udp_open", "ambiguous_udp_expected_open", "expected_services", "matched_services", "missed_services", "invented_services", "expected_operating_systems", "matched_operating_systems", "missed_operating_systems", "conflicting_operating_systems", "scope_violation_count"}
+                    or any(type(value) is not int or value < 0
+                           for value in metrics.values())):
                 return rejected
         else:
             return rejected
