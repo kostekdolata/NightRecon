@@ -364,12 +364,27 @@ def inspect_network_benchmark_evidence_export(
         report = json.loads(payload)
         status = report["provenance_status"]
         metrics = report["metrics"]
-        if (report.get("schema") != 1
+        if (type(report) is not dict
+                or set(report) != {
+                    "schema", "type", "provenance_status", "metrics",
+                    "authorization_effect", "interpretation",
+                }
+                or type(report.get("schema")) is not int
+                or report["schema"] != 1
+                or report.get("type") != "network-benchmark-evidence-summary"
                 or report.get("authorization_effect") != "none"
-                or not isinstance(status, dict)
-                or status.get("schema") != 1
+                or not isinstance(report.get("interpretation"), str)
+                or type(status) is not dict
+                or set(status) != {
+                    "schema", "type", "status", "consistent",
+                    "evidence_fingerprint", "scope_violation_count",
+                    "authorization_effect", "interpretation",
+                }
+                or type(status.get("schema")) is not int
+                or status["schema"] != 1
                 or status.get("type") != "network-benchmark-provenance-status"
-                or status.get("authorization_effect") != "none"):
+                or status.get("authorization_effect") != "none"
+                or not isinstance(status.get("interpretation"), str)):
             return rejected
         label = status.get("status")
         consistent = status.get("consistent")
