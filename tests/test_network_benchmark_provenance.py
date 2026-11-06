@@ -575,6 +575,52 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertEqual(intake["status"], "consistent_unverified")
         self.assertEqual(intake["authorization_effect"], "none")
 
+    def test_offline_batch_intake_preserves_order_and_isolates_rejections(self):
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+            inspect_network_benchmark_evidence_batch,
+        )
+
+        record = self.record()
+        payload = export_network_benchmark_evidence_json(record, self.result)
+        digest = fingerprint_network_benchmark_evidence_export(record, self.result)
+        altered = replace(record, evidence_fingerprint="0" * 64)
+        redacted = export_network_benchmark_evidence_json(altered, self.result)
+        redacted_digest = fingerprint_network_benchmark_evidence_export(
+            altered, self.result,
+        )
+        batch = inspect_network_benchmark_evidence_batch([
+            (payload, digest),
+            (payload, "0" * 64),
+            (redacted, redacted_digest),
+        ])
+        self.assertFalse(batch["accepted"])
+        self.assertEqual(batch["accepted_count"], 2)
+        self.assertEqual(batch["rejected_count"], 1)
+        self.assertEqual(
+            [item["status"] for item in batch["entries"]],
+            ["scope_violations_observed", "rejected", "inconsistent"],
+        )
+        self.assertIsNone(batch["entries"][1]["metrics"])
+        self.assertIsNone(batch["entries"][2]["metrics"])
+        self.assertEqual(batch["authorization_effect"], "none")
+
+    def test_offline_batch_intake_rejects_malformed_or_unbounded_inputs(self):
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            inspect_network_benchmark_evidence_batch,
+        )
+
+        empty = inspect_network_benchmark_evidence_batch([])
+        self.assertTrue(empty["accepted"])
+        self.assertEqual(empty["entries"], [])
+        for bad in (None, (), [{}], [["json", "a" * 64]],
+                    [("json",)], [(None, "a" * 64)],
+                    [("json", None)], [("json", "a" * 64)] * 33):
+            with self.subTest(bad=str(bad)[:50]), self.assertRaises(ValueError):
+                inspect_network_benchmark_evidence_batch(bad)
+
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
             self.record(ground_truth_sha256="")
