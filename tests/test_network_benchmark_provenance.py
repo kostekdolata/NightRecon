@@ -478,6 +478,43 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
             payload, "0" * 64,
         )["accepted"])
 
+    def test_offline_export_intake_rejects_invalid_metric_schema(self):
+        import hashlib
+        import json
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            inspect_network_benchmark_evidence_export,
+        )
+
+        baseline = json.loads(export_network_benchmark_evidence_json(
+            self.record(), self.result,
+        ))
+        for value in (True, -1, 1.5, "1", None):
+            altered = json.loads(json.dumps(baseline))
+            altered["metrics"]["expected_tcp_open"] = value
+            encoded = json.dumps(
+                altered, sort_keys=True, separators=(",", ":"), allow_nan=False,
+            )
+            digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+            with self.subTest(value=value):
+                self.assertFalse(inspect_network_benchmark_evidence_export(
+                    encoded, digest,
+                )["accepted"])
+        for mutation in ("missing", "extra"):
+            altered = json.loads(json.dumps(baseline))
+            if mutation == "missing":
+                del altered["metrics"]["matched_tcp_open"]
+            else:
+                altered["metrics"]["unverified_authorization"] = 1
+            encoded = json.dumps(
+                altered, sort_keys=True, separators=(",", ":"), allow_nan=False,
+            )
+            digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+            with self.subTest(mutation=mutation):
+                self.assertFalse(inspect_network_benchmark_evidence_export(
+                    encoded, digest,
+                )["accepted"])
+
     def test_offline_export_intake_clean_is_not_verified_authorization(self):
         from nightrecon_red_engine.network_benchmark_provenance import (
             export_network_benchmark_evidence_json,
