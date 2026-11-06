@@ -742,6 +742,23 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                     [index for index, item in enumerate(batch["entries"])
                      if item["status"] != "consistent_unverified"],
                 )
+                reason_ratios = batch["evidence_review_ratios_by_reason"]
+                self.assertEqual(
+                    list(reason_ratios),
+                    ["scope_violations_observed", "inconsistent", "rejected"],
+                )
+                for label, ratio in reason_ratios.items():
+                    self.assertEqual(
+                        ratio,
+                        batch["status_counts"][label] / len(exports) if exports else None,
+                    )
+                    if exports:
+                        self.assertGreaterEqual(ratio, 0.0)
+                        self.assertLessEqual(ratio, 1.0)
+                self.assertEqual(
+                    sum(value for value in reason_ratios.values() if value is not None),
+                    batch["evidence_review_ratio"] if exports else 0,
+                )
                 grouped = batch["evidence_review_indices_by_reason"]
                 self.assertEqual(
                     list(grouped),
