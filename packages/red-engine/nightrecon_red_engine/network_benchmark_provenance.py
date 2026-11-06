@@ -441,12 +441,21 @@ def inspect_network_benchmark_evidence_batch(
             raise ValueError("Each export requires a JSON string and SHA-256 string")
         entries.append(inspect_network_benchmark_evidence_export(payload, digest))
     accepted_count = sum(entry["accepted"] for entry in entries)
+    status_counts = {
+        "consistent_unverified": 0,
+        "scope_violations_observed": 0,
+        "inconsistent": 0,
+        "rejected": 0,
+    }
+    for entry in entries:
+        status_counts[entry["status"]] += 1
     return {
         "schema": 1,
         "type": "network-benchmark-evidence-batch-intake",
         "accepted": bool(entries) and accepted_count == len(entries),
         "accepted_count": accepted_count,
         "rejected_count": len(entries) - accepted_count,
+        "status_counts": status_counts,
         "entries": entries,
         "authorization_effect": "none",
     }
