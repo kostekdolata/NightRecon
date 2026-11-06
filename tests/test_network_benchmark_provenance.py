@@ -729,6 +729,15 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                 )
                 self.assertEqual(batch["evidence_review_count"], expected_review_count)
                 self.assertEqual(
+                    batch["evidence_review_entry_indices"],
+                    [index for index, item in enumerate(batch["entries"])
+                     if item["status"] != "consistent_unverified"],
+                )
+                self.assertEqual(
+                    len(batch["evidence_review_entry_indices"]),
+                    batch["evidence_review_count"],
+                )
+                self.assertEqual(
                     batch["evidence_review_count"],
                     len(exports) - batch["status_counts"]["consistent_unverified"],
                 )
