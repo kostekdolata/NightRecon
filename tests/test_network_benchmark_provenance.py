@@ -316,6 +316,93 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
             ),
         )
 
+    def test_canonical_export_digest_verifier_round_trip_and_tampering(self):
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+            verify_network_benchmark_evidence_export_digest,
+        )
+
+        payload = export_network_benchmark_evidence_json(
+            self.record(), self.result,
+        )
+        digest = fingerprint_network_benchmark_evidence_export(
+            self.record(), self.result,
+        )
+        self.assertTrue(verify_network_benchmark_evidence_export_digest(
+            payload, digest,
+        ))
+        self.assertTrue(verify_network_benchmark_evidence_export_digest(
+            payload, digest.upper(),
+        ))
+        self.assertFalse(verify_network_benchmark_evidence_export_digest(
+            payload, "0" * 64,
+        ))
+        self.assertFalse(verify_network_benchmark_evidence_export_digest(
+            payload + " ", digest,
+        ))
+        self.assertFalse(verify_network_benchmark_evidence_export_digest(
+            payload, "invalid",
+        ))
+
+    def test_export_verifier_rejects_noncanonical_and_untrusted_payloads(self):
+        import hashlib
+        import json
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            verify_network_benchmark_evidence_export_digest,
+        )
+
+        valid = export_network_benchmark_evidence_json(
+            self.record(), self.result,
+        )
+        payloads = (
+            '{"type":"unrelated"}',
+            '{"type":"network-benchmark-evidence-summary","extra":NaN}',
+            '{"type":"network-benchmark-evidence-summary","type":"network-benchmark-evidence-summary"}',
+            json.dumps(json.loads(valid), indent=2, sort_keys=True),
+            "not json",
+            "a" * (1_048_576 + 1),
+            "\\ud800",
+        )
+        for payload in payloads:
+            with self.subTest(payload=payload[:30]):
+                # Even a digest matching invalid input must not validate it.
+                digest = hashlib.sha256(
+                    payload.encode("utf-8", errors="surrogatepass")
+                ).hexdigest()
+                self.assertFalse(verify_network_benchmark_evidence_export_digest(
+                    payload, digest,
+                ))
+        self.assertFalse(verify_network_benchmark_evidence_export_digest(
+            valid, None,
+        ))
+        with self.assertRaises(TypeError):
+            verify_network_benchmark_evidence_export_digest({}, "a" * 64)
+
+    def test_digest_verifier_does_not_unredact_inconsistent_evidence(self):
+        import json
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+            verify_network_benchmark_evidence_export_digest,
+        )
+
+        tampered = replace(self.record(), evidence_fingerprint="0" * 64)
+        payload = export_network_benchmark_evidence_json(
+            tampered, self.result,
+        )
+        digest = fingerprint_network_benchmark_evidence_export(
+            tampered, self.result,
+        )
+        self.assertTrue(verify_network_benchmark_evidence_export_digest(
+            payload, digest,
+        ))
+        parsed = json.loads(payload)
+        self.assertIsNone(parsed["metrics"])
+        self.assertEqual(parsed["provenance_status"]["status"], "inconsistent")
+
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
             self.record(ground_truth_sha256="")
