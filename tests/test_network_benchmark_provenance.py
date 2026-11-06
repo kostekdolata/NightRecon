@@ -223,6 +223,42 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertEqual(report["metrics"]["scope_violation_count"], 0)
         self.assertIn("not independent verification", report["interpretation"])
 
+    def test_json_export_is_deterministic_and_offline(self):
+        import json
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+        )
+
+        first = export_network_benchmark_evidence_json(
+            self.record(), self.result,
+        )
+        repeated = export_network_benchmark_evidence_json(
+            self.record(lab_run_id="another-run"), self.result,
+        )
+        self.assertEqual(first, repeated)
+        payload = json.loads(first)
+        self.assertEqual(payload["type"], "network-benchmark-evidence-summary")
+        self.assertEqual(payload["metrics"]["scope_violation_count"], 1)
+        self.assertEqual(payload["authorization_effect"], "none")
+        self.assertEqual(first, json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), allow_nan=False,
+        ))
+
+    def test_json_export_withholds_metrics_on_tampering(self):
+        import json
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+        )
+
+        payload = json.loads(export_network_benchmark_evidence_json(
+            replace(self.record(), evidence_fingerprint="0" * 64),
+            self.result,
+        ))
+        self.assertEqual(payload["provenance_status"]["status"], "inconsistent")
+        self.assertIsNone(payload["metrics"])
+        self.assertIsNone(payload["provenance_status"]["evidence_fingerprint"])
+
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
             self.record(ground_truth_sha256="")
