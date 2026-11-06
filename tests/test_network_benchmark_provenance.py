@@ -722,6 +722,16 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
             with self.subTest(reasons=reasons):
                 batch = inspect_network_benchmark_evidence_batch(exports)
                 self.assertEqual(batch["evidence_review_reasons"], reasons)
+                expected_review_count = sum(
+                    entry["status"] in {
+                        "scope_violations_observed", "inconsistent", "rejected"
+                    } for entry in batch["entries"]
+                )
+                self.assertEqual(batch["evidence_review_count"], expected_review_count)
+                self.assertEqual(
+                    batch["evidence_review_count"],
+                    len(exports) - batch["status_counts"]["consistent_unverified"],
+                )
                 self.assertEqual(batch["requires_evidence_review"], bool(reasons))
                 self.assertEqual(batch["authorization_effect"], "none")
                 self.assertEqual(
