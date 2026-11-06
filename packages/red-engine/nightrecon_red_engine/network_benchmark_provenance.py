@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import ipaddress
 import hashlib
+import hmac
 import json
 import re
 
@@ -297,3 +298,42 @@ def fingerprint_network_benchmark_evidence_export(
     """
     payload = export_network_benchmark_evidence_json(provenance, result)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def verify_network_benchmark_evidence_export_digest(
+    payload: str,
+    expected_sha256: str,
+) -> bool:
+    """Check the exact canonical offline report JSON against an expected digest.
+
+    The digest detects accidental changes only: it is not a signature,
+    provenance authentication, independent validation, or scan authorization.
+    Reject noncanonical, malformed, and oversized exports fail-closed.
+    """
+    if not isinstance(payload, str):
+        raise TypeError("Expected a JSON export string")
+    if not isinstance(expected_sha256, str):
+        return False
+    if not _SHA.fullmatch(expected_sha256):
+        return False
+    try:
+        encoded = payload.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    if len(encoded) > 1_048_576:
+        return False
+    try:
+        parsed = json.loads(payload)
+        if not isinstance(parsed, dict):
+            return False
+        if parsed.get("type") != "network-benchmark-evidence-summary":
+            return False
+        canonical = json.dumps(
+            parsed, sort_keys=True, separators=(",", ":"), allow_nan=False,
+        )
+    except (TypeError, ValueError, OverflowError, RecursionError):
+        return False
+    if canonical != payload:
+        return False
+    actual_sha256 = hashlib.sha256(encoded).hexdigest()
+    return hmac.compare_digest(actual_sha256, expected_sha256.lower())
