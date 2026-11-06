@@ -480,6 +480,13 @@ def inspect_network_benchmark_evidence_batch(
             + status_counts["inconsistent"]
             + status_counts["rejected"]
         ),
+        "evidence_review_state": (
+            "no_evidence" if not entries else
+            "review_required" if any(
+                status_counts[label] > 0
+                for label in ("scope_violations_observed", "inconsistent", "rejected")
+            ) else "no_review_required"
+        ),
         "requires_evidence_review": bool(entries) and (
             status_counts["scope_violations_observed"] > 0
             or status_counts["inconsistent"] > 0
