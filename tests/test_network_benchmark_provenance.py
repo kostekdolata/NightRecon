@@ -599,12 +599,47 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertFalse(batch["accepted"])
         self.assertEqual(batch["accepted_count"], 2)
         self.assertEqual(batch["rejected_count"], 1)
+        self.assertEqual(batch["status_counts"], {
+            "consistent_unverified": 0,
+            "scope_violations_observed": 1,
+            "inconsistent": 1,
+            "rejected": 1,
+        })
+        self.assertEqual(sum(batch["status_counts"].values()), len(batch["entries"]))
         self.assertEqual(
             [item["status"] for item in batch["entries"]],
             ["scope_violations_observed", "rejected", "inconsistent"],
         )
         self.assertIsNone(batch["entries"][1]["metrics"])
         self.assertIsNone(batch["entries"][2]["metrics"])
+        self.assertEqual(batch["authorization_effect"], "none")
+
+    def test_offline_batch_status_counts_clean_and_rejected_entries(self):
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+            inspect_network_benchmark_evidence_batch,
+        )
+
+        clean = benchmark_network_observations(
+            NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
+        )
+        record = record_network_benchmark_provenance(clean, **self.options)
+        payload = export_network_benchmark_evidence_json(record, clean)
+        digest = fingerprint_network_benchmark_evidence_export(record, clean)
+        batch = inspect_network_benchmark_evidence_batch([
+            (payload, digest), (payload, "0" * 64),
+        ])
+        self.assertEqual(batch["status_counts"], {
+            "consistent_unverified": 1,
+            "scope_violations_observed": 0,
+            "inconsistent": 0,
+            "rejected": 1,
+        })
+        self.assertEqual(batch["accepted_count"], 1)
+        self.assertEqual(batch["rejected_count"], 1)
+        self.assertFalse(batch["accepted"])
+        self.assertIsNone(batch["entries"][1]["metrics"])
         self.assertEqual(batch["authorization_effect"], "none")
 
     def test_offline_batch_intake_rejects_malformed_or_unbounded_inputs(self):
@@ -616,6 +651,12 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertFalse(empty["accepted"])
         self.assertEqual(empty["accepted_count"], 0)
         self.assertEqual(empty["rejected_count"], 0)
+        self.assertEqual(empty["status_counts"], {
+            "consistent_unverified": 0,
+            "scope_violations_observed": 0,
+            "inconsistent": 0,
+            "rejected": 0,
+        })
         self.assertEqual(empty["authorization_effect"], "none")
         self.assertEqual(empty["entries"], [])
         for bad in (None, (), [{}], [["json", "a" * 64]],
