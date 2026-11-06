@@ -419,3 +419,34 @@ def inspect_network_benchmark_evidence_export(
         "metrics": metrics,
         "authorization_effect": "none",
     }
+
+
+def inspect_network_benchmark_evidence_batch(
+    exports: list[tuple[str, str]],
+) -> dict[str, object]:
+    """Bounded, offline intake of independent report exports in input order.
+
+    Every entry is checked by the existing fail-closed single-export intake.
+    A rejected entry cannot expose metrics, and one accepted entry never
+    authorizes another. This does not execute scans or grant permissions.
+    """
+    if type(exports) is not list or len(exports) > 32:
+        raise ValueError("Expected a list of at most 32 evidence exports")
+    entries = []
+    for item in exports:
+        if type(item) is not tuple or len(item) != 2:
+            raise ValueError("Each export must be a (payload, sha256) tuple")
+        payload, digest = item
+        if not isinstance(payload, str) or not isinstance(digest, str):
+            raise ValueError("Each export requires a JSON string and SHA-256 string")
+        entries.append(inspect_network_benchmark_evidence_export(payload, digest))
+    accepted_count = sum(entry["accepted"] for entry in entries)
+    return {
+        "schema": 1,
+        "type": "network-benchmark-evidence-batch-intake",
+        "accepted": accepted_count == len(entries),
+        "accepted_count": accepted_count,
+        "rejected_count": len(entries) - accepted_count,
+        "entries": entries,
+        "authorization_effect": "none",
+    }
