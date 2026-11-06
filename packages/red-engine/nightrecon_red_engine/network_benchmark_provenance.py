@@ -460,6 +460,11 @@ def inspect_network_benchmark_evidence_batch(
             index for index, entry in enumerate(entries)
             if entry["status"] != "consistent_unverified"
         ],
+        "evidence_review_indices_by_reason": {
+            label: [index for index, entry in enumerate(entries)
+                    if entry["status"] == label]
+            for label in ("scope_violations_observed", "inconsistent", "rejected")
+        },
         "evidence_review_count": (
             status_counts["scope_violations_observed"]
             + status_counts["inconsistent"]
