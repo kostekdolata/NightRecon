@@ -750,6 +750,11 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                     batch["evidence_review_entry_indices"],
                 )
                 self.assertEqual(
+                    batch["first_evidence_review_index"],
+                    batch["evidence_review_entry_indices"][0]
+                    if batch["evidence_review_entry_indices"] else None,
+                )
+                self.assertEqual(
                     len(batch["evidence_review_entry_indices"]),
                     batch["evidence_review_count"],
                 )
