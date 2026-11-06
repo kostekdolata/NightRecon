@@ -171,6 +171,58 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertEqual(changed_observations["status"], "inconsistent")
         self.assertIsNone(changed_observations["evidence_fingerprint"])
 
+    def test_evidence_summary_exports_only_consistent_metrics(self):
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            report_network_benchmark_evidence_summary,
+        )
+
+        report = report_network_benchmark_evidence_summary(
+            self.record(), self.result,
+        )
+        self.assertEqual(report["type"], "network-benchmark-evidence-summary")
+        self.assertEqual(report["metrics"]["scope_violation_count"], 1)
+        self.assertEqual(
+            report["provenance_status"]["status"],
+            "scope_violations_observed",
+        )
+        self.assertEqual(report["authorization_effect"], "none")
+        self.assertNotIn("scope_violations", report["metrics"])
+
+    def test_evidence_summary_fails_closed_on_mismatch(self):
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            report_network_benchmark_evidence_summary,
+        )
+
+        report = report_network_benchmark_evidence_summary(
+            replace(self.record(), evidence_fingerprint="0" * 64),
+            self.result,
+        )
+        self.assertEqual(report["provenance_status"]["status"], "inconsistent")
+        self.assertIsNone(report["provenance_status"]["evidence_fingerprint"])
+        self.assertIsNone(report["metrics"])
+        other = report_network_benchmark_evidence_summary(
+            self.record(),
+            replace(self.result, scope_violations=("udp:198.51.100.20",)),
+        )
+        self.assertIsNone(other["metrics"])
+
+    def test_clean_evidence_summary_remains_unverified(self):
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            report_network_benchmark_evidence_summary,
+        )
+
+        clean = benchmark_network_observations(
+            NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
+        )
+        record = record_network_benchmark_provenance(clean, **self.options)
+        report = report_network_benchmark_evidence_summary(record, clean)
+        self.assertEqual(
+            report["provenance_status"]["status"], "consistent_unverified",
+        )
+        self.assertEqual(report["metrics"]["scope_violation_count"], 0)
+        self.assertIn("not independent verification", report["interpretation"])
+
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
             self.record(ground_truth_sha256="")
