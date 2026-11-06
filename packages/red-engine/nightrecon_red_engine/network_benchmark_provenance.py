@@ -337,3 +337,67 @@ def verify_network_benchmark_evidence_export_digest(
         return False
     actual_sha256 = hashlib.sha256(encoded).hexdigest()
     return hmac.compare_digest(actual_sha256, expected_sha256.lower())
+
+
+def inspect_network_benchmark_evidence_export(
+    payload: str,
+    expected_sha256: str,
+) -> dict[str, object]:
+    """Fail-closed offline intake for a canonical report export.
+
+    Checks a caller-supplied checksum and the report's safety-critical shape.
+    This cannot establish source authenticity, authorization, or lab truth.
+    """
+    rejected = {
+        "schema": 1,
+        "type": "network-benchmark-evidence-intake",
+        "accepted": False,
+        "status": "rejected",
+        "metrics": None,
+        "authorization_effect": "none",
+    }
+    if not verify_network_benchmark_evidence_export_digest(
+        payload, expected_sha256,
+    ):
+        return rejected
+    try:
+        report = json.loads(payload)
+        status = report["provenance_status"]
+        metrics = report["metrics"]
+        if (report.get("schema") != 1
+                or report.get("authorization_effect") != "none"
+                or not isinstance(status, dict)
+                or status.get("schema") != 1
+                or status.get("type") != "network-benchmark-provenance-status"
+                or status.get("authorization_effect") != "none"):
+            return rejected
+        label = status.get("status")
+        consistent = status.get("consistent")
+        fingerprint = status.get("evidence_fingerprint")
+        count = status.get("scope_violation_count")
+        if label == "inconsistent":
+            if consistent is not False or fingerprint is not None or count is not None or metrics is not None:
+                return rejected
+        elif label in {"consistent_unverified", "scope_violations_observed"}:
+            if (consistent is not True
+                    or not isinstance(fingerprint, str)
+                    or not _SHA.fullmatch(fingerprint)
+                    or type(count) is not int
+                    or count < 0
+                    or (count == 0) != (label == "consistent_unverified")
+                    or not isinstance(metrics, dict)
+                    or type(metrics.get("scope_violation_count")) is not int
+                    or metrics["scope_violation_count"] != count):
+                return rejected
+        else:
+            return rejected
+    except (KeyError, TypeError, ValueError):
+        return rejected
+    return {
+        "schema": 1,
+        "type": "network-benchmark-evidence-intake",
+        "accepted": True,
+        "status": label,
+        "metrics": metrics,
+        "authorization_effect": "none",
+    }

@@ -403,6 +403,100 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertIsNone(parsed["metrics"])
         self.assertEqual(parsed["provenance_status"]["status"], "inconsistent")
 
+    def test_offline_export_intake_accepts_matching_and_redacted_reports(self):
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+            inspect_network_benchmark_evidence_export,
+        )
+
+        for provenance, expected in (
+            (self.record(), "scope_violations_observed"),
+            (replace(self.record(), evidence_fingerprint="0" * 64), "inconsistent"),
+        ):
+            with self.subTest(expected=expected):
+                payload = export_network_benchmark_evidence_json(
+                    provenance, self.result,
+                )
+                digest = fingerprint_network_benchmark_evidence_export(
+                    provenance, self.result,
+                )
+                intake = inspect_network_benchmark_evidence_export(
+                    payload, digest,
+                )
+                self.assertTrue(intake["accepted"])
+                self.assertEqual(intake["status"], expected)
+                self.assertEqual(intake["authorization_effect"], "none")
+                if expected == "inconsistent":
+                    self.assertIsNone(intake["metrics"])
+                else:
+                    self.assertEqual(intake["metrics"]["scope_violation_count"], 1)
+
+    def test_offline_export_intake_rejects_forged_safety_states(self):
+        import hashlib
+        import json
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            inspect_network_benchmark_evidence_export,
+        )
+
+        payload = export_network_benchmark_evidence_json(
+            self.record(), self.result,
+        )
+        valid = json.loads(payload)
+        forged = []
+        for changes in (
+            {"status": "consistent_unverified"},
+            {"status": "inconsistent"},
+            {"scope_violation_count": 0},
+            {"authorization_effect": "approved"},
+            {"evidence_fingerprint": None},
+        ):
+            altered = json.loads(payload)
+            altered["provenance_status"].update(changes)
+            forged.append(altered)
+        altered = json.loads(payload)
+        altered["authorization_effect"] = "approved"
+        forged.append(altered)
+        altered = json.loads(payload)
+        altered["metrics"] = None
+        forged.append(altered)
+        altered = json.loads(payload)
+        altered["schema"] = 999
+        forged.append(altered)
+        for report in forged:
+            encoded = json.dumps(
+                report, sort_keys=True, separators=(",", ":"), allow_nan=False,
+            )
+            digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+            with self.subTest(report=report):
+                self.assertFalse(inspect_network_benchmark_evidence_export(
+                    encoded, digest,
+                )["accepted"])
+        self.assertFalse(inspect_network_benchmark_evidence_export(
+            payload, "0" * 64,
+        )["accepted"])
+
+    def test_offline_export_intake_clean_is_not_verified_authorization(self):
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+            inspect_network_benchmark_evidence_export,
+        )
+
+        clean = benchmark_network_observations(
+            NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
+        )
+        record = record_network_benchmark_provenance(clean, **self.options)
+        intake = inspect_network_benchmark_evidence_export(
+            export_network_benchmark_evidence_json(record, clean),
+            fingerprint_network_benchmark_evidence_export(record, clean),
+        )
+        self.assertTrue(intake["accepted"])
+        self.assertEqual(intake["status"], "consistent_unverified")
+        self.assertEqual(intake["authorization_effect"], "none")
+
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
             self.record(ground_truth_sha256="")
