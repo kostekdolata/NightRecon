@@ -470,6 +470,11 @@ def inspect_network_benchmark_evidence_batch(
              if entry["status"] != "consistent_unverified"),
             None,
         ),
+        "last_evidence_review_index": next(
+            (index for index in range(len(entries) - 1, -1, -1)
+             if entries[index]["status"] != "consistent_unverified"),
+            None,
+        ),
         "evidence_review_count": (
             status_counts["scope_violations_observed"]
             + status_counts["inconsistent"]
