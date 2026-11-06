@@ -642,6 +642,47 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertIsNone(batch["entries"][1]["metrics"])
         self.assertEqual(batch["authorization_effect"], "none")
 
+    def test_batch_review_flag_identifies_scope_and_rejected_evidence(self):
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+            inspect_network_benchmark_evidence_batch,
+        )
+
+        clean = benchmark_network_observations(
+            NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
+        )
+        clean_record = record_network_benchmark_provenance(clean, **self.options)
+        clean_entry = (
+            export_network_benchmark_evidence_json(clean_record, clean),
+            fingerprint_network_benchmark_evidence_export(clean_record, clean),
+        )
+        scope_record = self.record()
+        scope_entry = (
+            export_network_benchmark_evidence_json(scope_record, self.result),
+            fingerprint_network_benchmark_evidence_export(scope_record, self.result),
+        )
+        tampered = replace(scope_record, evidence_fingerprint="0" * 64)
+        inconsistent_entry = (
+            export_network_benchmark_evidence_json(tampered, self.result),
+            fingerprint_network_benchmark_evidence_export(tampered, self.result),
+        )
+        for entries, expected in (
+            ([clean_entry], False),
+            ([scope_entry], True),
+            ([inconsistent_entry], True),
+            ([clean_entry, (clean_entry[0], "0" * 64)], True),
+            ([], False),
+        ):
+            with self.subTest(entries=len(entries), expected=expected):
+                batch = inspect_network_benchmark_evidence_batch(entries)
+                self.assertIs(batch["requires_evidence_review"], expected)
+                self.assertEqual(batch["authorization_effect"], "none")
+        self.assertTrue(
+            inspect_network_benchmark_evidence_batch([scope_entry])["accepted"]
+        )
+
     def test_offline_batch_intake_rejects_malformed_or_unbounded_inputs(self):
         from nightrecon_red_engine.network_benchmark_provenance import (
             inspect_network_benchmark_evidence_batch,
