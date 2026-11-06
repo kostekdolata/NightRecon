@@ -461,6 +461,11 @@ def inspect_network_benchmark_evidence_batch(
             or status_counts["inconsistent"] > 0
             or status_counts["rejected"] > 0
         ),
+        "evidence_review_reasons": [
+            label for label in (
+                "scope_violations_observed", "inconsistent", "rejected"
+            ) if status_counts[label] > 0
+        ],
         "entries": entries,
         "authorization_effect": "none",
     }

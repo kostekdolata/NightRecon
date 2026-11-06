@@ -683,6 +683,50 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
             inspect_network_benchmark_evidence_batch([scope_entry])["accepted"]
         )
 
+    def test_batch_review_reasons_are_deterministic_and_non_authorizing(self):
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+            inspect_network_benchmark_evidence_batch,
+        )
+
+        clean = benchmark_network_observations(
+            NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
+        )
+        clean_record = record_network_benchmark_provenance(clean, **self.options)
+        def entry(record, result):
+            return (
+                export_network_benchmark_evidence_json(record, result),
+                fingerprint_network_benchmark_evidence_export(record, result),
+            )
+
+        clean_entry = entry(clean_record, clean)
+        scope_entry = entry(self.record(), self.result)
+        inconsistent_entry = entry(
+            replace(self.record(), evidence_fingerprint="0" * 64),
+            self.result,
+        )
+        rejected_entry = (clean_entry[0], "0" * 64)
+        cases = (
+            ([], []),
+            ([clean_entry], []),
+            ([scope_entry], ["scope_violations_observed"]),
+            ([inconsistent_entry], ["inconsistent"]),
+            ([rejected_entry], ["rejected"]),
+            ([rejected_entry, inconsistent_entry, scope_entry, clean_entry],
+             ["scope_violations_observed", "inconsistent", "rejected"]),
+            ([scope_entry, scope_entry], ["scope_violations_observed"]),
+        )
+        for exports, reasons in cases:
+            with self.subTest(reasons=reasons):
+                batch = inspect_network_benchmark_evidence_batch(exports)
+                self.assertEqual(batch["evidence_review_reasons"], reasons)
+                self.assertEqual(batch["requires_evidence_review"], bool(reasons))
+                self.assertEqual(batch["authorization_effect"], "none")
+                self.assertEqual(
+                    sum(batch["status_counts"].values()), len(exports),
+                )
     def test_offline_batch_intake_rejects_malformed_or_unbounded_inputs(self):
         from nightrecon_red_engine.network_benchmark_provenance import (
             inspect_network_benchmark_evidence_batch,
