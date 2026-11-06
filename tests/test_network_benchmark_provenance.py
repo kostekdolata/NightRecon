@@ -7,6 +7,7 @@ from nightrecon_red_engine.network_benchmark import (
 from nightrecon_red_engine.network_benchmark_provenance import (
     record_network_benchmark_provenance,
     verify_network_benchmark_provenance,
+    report_network_benchmark_provenance_status,
 )
 from nightrecon_red_engine.tcp_scanner import TcpPortResult
 
@@ -111,6 +112,44 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
             verify_network_benchmark_provenance({}, self.result)
         with self.assertRaises(TypeError):
             verify_network_benchmark_provenance(self.record(), {})
+
+    def test_offline_report_status_preserves_scope_warning(self):
+        report = report_network_benchmark_provenance_status(
+            self.record(), self.result,
+        )
+        self.assertEqual(report["status"], "scope_violations_observed")
+        self.assertTrue(report["consistent"])
+        self.assertEqual(report["scope_violation_count"], 1)
+        self.assertEqual(report["authorization_effect"], "none")
+        self.assertIn("not independent proof", report["interpretation"])
+
+    def test_offline_report_status_rejects_tampering(self):
+        from dataclasses import replace
+
+        report = report_network_benchmark_provenance_status(
+            replace(self.record(), evidence_fingerprint="0" * 64),
+            self.result,
+        )
+        self.assertEqual(report["status"], "inconsistent")
+        self.assertFalse(report["consistent"])
+        self.assertIsNone(report["scope_violation_count"])
+
+    def test_offline_report_status_clean_does_not_claim_authorization(self):
+        clean_result = benchmark_network_observations(
+            NetworkBenchmarkExpectation(
+                authorized_addresses=("192.0.2.10",),
+            ),
+            tcp_results=(TcpPortResult("192.0.2.10", 443, False, 111),),
+        )
+        record = record_network_benchmark_provenance(
+            clean_result, **self.options,
+        )
+        report = report_network_benchmark_provenance_status(
+            record, clean_result,
+        )
+        self.assertEqual(report["status"], "consistent_unverified")
+        self.assertEqual(report["scope_violation_count"], 0)
+        self.assertEqual(report["authorization_effect"], "none")
 
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
