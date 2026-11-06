@@ -485,6 +485,10 @@ def inspect_network_benchmark_evidence_batch(
             (len(entries) - status_counts["consistent_unverified"]) / len(entries)
             if entries else None
         ),
+        "evidence_review_ratios_by_reason": {
+            label: status_counts[label] / len(entries) if entries else None
+            for label in ("scope_violations_observed", "inconsistent", "rejected")
+        },
         "evidence_review_state": (
             "no_evidence" if not entries else
             "review_required" if any(
