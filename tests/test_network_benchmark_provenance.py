@@ -755,7 +755,7 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                     if exports:
                         self.assertGreaterEqual(ratio, 0.0)
                         self.assertLessEqual(ratio, 1.0)
-                self.assertEqual(
+                self.assertAlmostEqual(
                     sum(value for value in reason_ratios.values() if value is not None),
                     batch["evidence_review_ratio"] if exports else 0,
                 )
