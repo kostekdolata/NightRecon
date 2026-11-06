@@ -268,3 +268,18 @@ def report_network_benchmark_evidence_summary(
             "exploitability, or permission to scan."
         ),
     }
+
+
+def export_network_benchmark_evidence_json(
+    provenance: NetworkBenchmarkProvenance,
+    result: NetworkBenchmarkResult,
+) -> str:
+    """Serialize the offline evidence summary deterministically for report ingestion.
+
+    This is not a signed attestation. Inconsistent evidence remains redacted by
+    the underlying summary and non-finite numbers cannot enter JSON output.
+    """
+    summary = report_network_benchmark_evidence_summary(provenance, result)
+    return json.dumps(
+        summary, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    )
