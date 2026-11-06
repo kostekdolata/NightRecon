@@ -151,6 +151,26 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertEqual(report["scope_violation_count"], 0)
         self.assertEqual(report["authorization_effect"], "none")
 
+    def test_status_links_only_matching_evidence_fingerprint(self):
+        from dataclasses import replace
+
+        record = self.record()
+        valid = report_network_benchmark_provenance_status(record, self.result)
+        self.assertEqual(valid["evidence_fingerprint"], record.evidence_fingerprint)
+        self.assertEqual(valid["status"], "scope_violations_observed")
+
+        tampered = report_network_benchmark_provenance_status(
+            replace(record, evidence_fingerprint="0" * 64), self.result,
+        )
+        self.assertEqual(tampered["status"], "inconsistent")
+        self.assertIsNone(tampered["evidence_fingerprint"])
+
+        changed_observations = report_network_benchmark_provenance_status(
+            record, replace(self.result, scope_violations=("udp:198.51.100.20",)),
+        )
+        self.assertEqual(changed_observations["status"], "inconsistent")
+        self.assertIsNone(changed_observations["evidence_fingerprint"])
+
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
             self.record(ground_truth_sha256="")

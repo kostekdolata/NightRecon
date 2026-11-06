@@ -209,6 +209,9 @@ def report_network_benchmark_provenance_status(
         "type": "network-benchmark-provenance-status",
         "status": status,
         "consistent": consistent,
+        "evidence_fingerprint": (
+            provenance.evidence_fingerprint if consistent else None
+        ),
         "scope_violation_count": (
             provenance.scope_violation_count if consistent else None
         ),
