@@ -727,6 +727,8 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                         "scope_violations_observed", "inconsistent", "rejected"
                     } for entry in batch["entries"]
                 )
+                self.assertEqual(batch["evidence_total_count"], len(exports))
+                self.assertEqual(batch["evidence_total_count"], batch["accepted_count"] + batch["rejected_count"])
                 self.assertEqual(batch["evidence_review_count"], expected_review_count)
                 self.assertEqual(
                     batch["evidence_review_entry_indices"],
@@ -789,6 +791,7 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         empty = inspect_network_benchmark_evidence_batch([])
         self.assertFalse(empty["accepted"])
         self.assertEqual(empty["accepted_count"], 0)
+        self.assertEqual(empty["evidence_total_count"], 0)
         self.assertEqual(empty["rejected_count"], 0)
         self.assertEqual(empty["status_counts"], {
             "consistent_unverified": 0,
