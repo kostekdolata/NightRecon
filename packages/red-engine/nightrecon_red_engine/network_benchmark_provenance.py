@@ -283,3 +283,17 @@ def export_network_benchmark_evidence_json(
     return json.dumps(
         summary, sort_keys=True, separators=(",", ":"), allow_nan=False,
     )
+
+
+def fingerprint_network_benchmark_evidence_export(
+    provenance: NetworkBenchmarkProvenance,
+    result: NetworkBenchmarkResult,
+) -> str:
+    """SHA-256 digest of the exact canonical JSON report export bytes.
+
+    Useful for detecting accidental report changes across offline integrations.
+    This is not a signature, trusted attestation, or authorization proof. Any
+    inconsistent evidence remains redacted before its export is hashed.
+    """
+    payload = export_network_benchmark_evidence_json(provenance, result)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
