@@ -456,6 +456,11 @@ def inspect_network_benchmark_evidence_batch(
         "accepted_count": accepted_count,
         "rejected_count": len(entries) - accepted_count,
         "status_counts": status_counts,
+        "requires_evidence_review": bool(entries) and (
+            status_counts["scope_violations_observed"] > 0
+            or status_counts["inconsistent"] > 0
+            or status_counts["rejected"] > 0
+        ),
         "entries": entries,
         "authorization_effect": "none",
     }
