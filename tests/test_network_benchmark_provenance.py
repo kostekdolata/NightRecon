@@ -259,6 +259,63 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertIsNone(payload["metrics"])
         self.assertIsNone(payload["provenance_status"]["evidence_fingerprint"])
 
+    def test_canonical_report_export_digest_matches_exact_json_bytes(self):
+        import hashlib
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+        )
+
+        payload = export_network_benchmark_evidence_json(
+            self.record(), self.result,
+        )
+        digest = fingerprint_network_benchmark_evidence_export(
+            self.record(), self.result,
+        )
+        self.assertEqual(
+            digest, hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+        )
+        self.assertEqual(len(digest), 64)
+        self.assertEqual(
+            digest,
+            fingerprint_network_benchmark_evidence_export(
+                self.record(lab_run_id="another-run"), self.result,
+            ),
+        )
+
+    def test_export_digest_changes_with_evidence_and_preserves_redaction(self):
+        import json
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            fingerprint_network_benchmark_evidence_export,
+        )
+
+        record = self.record()
+        baseline = fingerprint_network_benchmark_evidence_export(
+            record, self.result,
+        )
+        altered = fingerprint_network_benchmark_evidence_export(
+            record, replace(
+                self.result, scope_violations=("udp:198.51.100.20",),
+            ),
+        )
+        self.assertNotEqual(baseline, altered)
+        tampered = replace(record, evidence_fingerprint="0" * 64)
+        payload = json.loads(export_network_benchmark_evidence_json(
+            tampered, self.result,
+        ))
+        self.assertIsNone(payload["metrics"])
+        self.assertIsNone(payload["provenance_status"]["evidence_fingerprint"])
+        self.assertEqual(
+            fingerprint_network_benchmark_evidence_export(
+                tampered, self.result,
+            ),
+            fingerprint_network_benchmark_evidence_export(
+                replace(record, evidence_fingerprint="1" * 64), self.result,
+            ),
+        )
+
     def test_missing_ground_truth_digest_and_unmatched_comparator_fail(self):
         with self.assertRaisesRegex(ValueError, "ground_truth_sha256"):
             self.record(ground_truth_sha256="")
