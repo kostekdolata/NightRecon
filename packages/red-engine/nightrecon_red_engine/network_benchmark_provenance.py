@@ -186,3 +186,35 @@ def verify_network_benchmark_provenance(
     except (TypeError, ValueError):
         return False
     return provenance == expected
+
+
+def report_network_benchmark_provenance_status(
+    provenance: NetworkBenchmarkProvenance,
+    result: NetworkBenchmarkResult,
+) -> dict[str, object]:
+    """Produce a safe, non-authoritative status for offline report consumers.
+
+    Consistency never implies authorization or independent evidence validation.
+    A scope violation always prevents a clean status even when provenance matches.
+    """
+    consistent = verify_network_benchmark_provenance(provenance, result)
+    if not consistent:
+        status = "inconsistent"
+    elif provenance.scope_violation_count:
+        status = "scope_violations_observed"
+    else:
+        status = "consistent_unverified"
+    return {
+        "schema": 1,
+        "type": "network-benchmark-provenance-status",
+        "status": status,
+        "consistent": consistent,
+        "scope_violation_count": (
+            provenance.scope_violation_count if consistent else None
+        ),
+        "authorization_effect": "none",
+        "interpretation": (
+            "Offline consistency is not independent proof of authorization, "
+            "target scope, ground truth, specialist-tool parity, or safe execution."
+        ),
+    }
