@@ -515,6 +515,47 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                     encoded, digest,
                 )["accepted"])
 
+    def test_offline_export_intake_rejects_unknown_envelope_fields(self):
+        import hashlib
+        import json
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            export_network_benchmark_evidence_json,
+            inspect_network_benchmark_evidence_export,
+        )
+
+        original = json.loads(export_network_benchmark_evidence_json(
+            self.record(), self.result,
+        ))
+        for mutation in ("extra_top", "missing_top", "extra_status",
+                         "missing_status", "wrong_type", "bool_schema",
+                         "bool_status_schema", "bad_interpretation"):
+            altered = json.loads(json.dumps(original))
+            status = altered["provenance_status"]
+            if mutation == "extra_top":
+                altered["authorized"] = True
+            elif mutation == "missing_top":
+                del altered["interpretation"]
+            elif mutation == "extra_status":
+                status["approved"] = True
+            elif mutation == "missing_status":
+                del status["interpretation"]
+            elif mutation == "wrong_type":
+                altered["type"] = "network-benchmark-authorization"
+            elif mutation == "bool_schema":
+                altered["schema"] = True
+            elif mutation == "bool_status_schema":
+                status["schema"] = True
+            else:
+                altered["interpretation"] = None
+            encoded = json.dumps(
+                altered, sort_keys=True, separators=(",", ":"), allow_nan=False,
+            )
+            digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+            with self.subTest(mutation=mutation):
+                self.assertFalse(inspect_network_benchmark_evidence_export(
+                    encoded, digest,
+                )["accepted"])
+
     def test_offline_export_intake_clean_is_not_verified_authorization(self):
         from nightrecon_red_engine.network_benchmark_provenance import (
             export_network_benchmark_evidence_json,
