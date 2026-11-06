@@ -444,7 +444,7 @@ def inspect_network_benchmark_evidence_batch(
     return {
         "schema": 1,
         "type": "network-benchmark-evidence-batch-intake",
-        "accepted": accepted_count == len(entries),
+        "accepted": bool(entries) and accepted_count == len(entries),
         "accepted_count": accepted_count,
         "rejected_count": len(entries) - accepted_count,
         "entries": entries,

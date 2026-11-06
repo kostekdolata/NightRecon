@@ -613,7 +613,10 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         )
 
         empty = inspect_network_benchmark_evidence_batch([])
-        self.assertTrue(empty["accepted"])
+        self.assertFalse(empty["accepted"])
+        self.assertEqual(empty["accepted_count"], 0)
+        self.assertEqual(empty["rejected_count"], 0)
+        self.assertEqual(empty["authorization_effect"], "none")
         self.assertEqual(empty["entries"], [])
         for bad in (None, (), [{}], [["json", "a" * 64]],
                     [("json",)], [(None, "a" * 64)],
