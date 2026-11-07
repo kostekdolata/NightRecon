@@ -815,6 +815,20 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                 self.assertEqual(
                     batch["first_evidence_review_index_by_reason"], expected_first_by_reason
                 )
+                expected_contiguity = {}
+                for reason in ("scope_violations_observed", "inconsistent", "rejected"):
+                    positions = [index for index, item in enumerate(batch["entries"])
+                                 if item["status"] == reason]
+                    expected_contiguity[reason] = (
+                        positions[-1] - positions[0] + 1 == len(positions)
+                        if positions else None
+                    )
+                self.assertEqual(
+                    batch["evidence_review_contiguous_by_reason"], expected_contiguity
+                )
+                self.assertEqual(list(expected_contiguity), list(expected_first_by_reason))
+                self.assertEqual(batch["authorization_effect"], "none")
+
                 self.assertEqual(
                     list(expected_first_by_reason),
                     ["scope_violations_observed", "inconsistent", "rejected"],
@@ -890,6 +904,17 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                 self.assertEqual(
                     sum(batch["status_counts"].values()), len(exports),
                 )
+    def test_review_reason_contiguity_detects_interleaved_evidence(self):
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            inspect_network_benchmark_evidence_batch,
+        )
+        # Invalid digests are rejected without inspecting or authorizing payloads.
+        rejected = ("{}", "0" * 64)
+        batch = inspect_network_benchmark_evidence_batch([rejected] * 3)
+        self.assertIs(batch["evidence_review_contiguous_by_reason"]["rejected"], True)
+        self.assertIsNone(batch["evidence_review_contiguous_by_reason"]["inconsistent"])
+        self.assertEqual(batch["authorization_effect"], "none")
+
     def test_offline_batch_intake_rejects_malformed_or_unbounded_inputs(self):
         from nightrecon_red_engine.network_benchmark_provenance import (
             inspect_network_benchmark_evidence_batch,
