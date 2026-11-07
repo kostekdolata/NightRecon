@@ -768,6 +768,27 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                 self.assertEqual(
                     batch["evidence_review_reason_run_reasons"], expected_run_reasons
                 )
+                expected_start_indices = []
+                prior_review_status = None
+                for index, entry in enumerate(batch["entries"]):
+                    status = entry["status"]
+                    if status == "consistent_unverified":
+                        continue
+                    if status != prior_review_status:
+                        expected_start_indices.append(index)
+                    prior_review_status = status
+                self.assertEqual(
+                    batch["evidence_review_reason_run_start_indices"], expected_start_indices
+                )
+                self.assertEqual(len(expected_start_indices), expected_runs)
+                self.assertTrue(all(
+                    0 <= index < len(batch["entries"]) for index in expected_start_indices
+                ))
+                self.assertEqual(expected_start_indices, sorted(set(expected_start_indices)))
+                self.assertEqual(
+                    [batch["entries"][index]["status"] for index in expected_start_indices],
+                    expected_run_reasons,
+                )
                 self.assertEqual(len(expected_run_reasons), expected_runs)
                 self.assertEqual(
                     [reason for reason, length in zip(expected_run_reasons, expected_lengths)
