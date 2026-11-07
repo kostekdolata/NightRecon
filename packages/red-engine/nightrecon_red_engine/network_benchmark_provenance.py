@@ -561,6 +561,12 @@ def inspect_network_benchmark_evidence_batch(
             status_counts[label] > 0
             for label in ("scope_violations_observed", "inconsistent", "rejected")
         ),
+        "evidence_review_reason_switch_count": sum(
+            left != right for left, right in zip(
+                [entry["status"] for entry in entries if entry["status"] != "consistent_unverified"],
+                [entry["status"] for entry in entries if entry["status"] != "consistent_unverified"][1:],
+            )
+        ),
         "evidence_review_reasons_in_input_order": list(dict.fromkeys(
             entry["status"] for entry in entries
             if entry["status"] != "consistent_unverified"
