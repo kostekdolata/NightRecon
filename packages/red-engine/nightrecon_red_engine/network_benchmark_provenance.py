@@ -441,6 +441,15 @@ def inspect_network_benchmark_evidence_batch(
         if not isinstance(payload, str) or not isinstance(digest, str):
             raise ValueError("Each export requires a JSON string and SHA-256 string")
         entries.append(inspect_network_benchmark_evidence_export(payload, digest))
+    review_run_start_indices = []
+    previous_review_status = None
+    for index, entry in enumerate(entries):
+        status = entry["status"]
+        if status == "consistent_unverified":
+            continue
+        if status != previous_review_status:
+            review_run_start_indices.append(index)
+        previous_review_status = status
     accepted_count = sum(entry["accepted"] for entry in entries)
     status_counts = {
         "consistent_unverified": 0,
@@ -576,6 +585,7 @@ def inspect_network_benchmark_evidence_batch(
                 )
             ) if any(entry["status"] != "consistent_unverified" for entry in entries) else 0
         ),
+        "evidence_review_reason_run_start_indices": review_run_start_indices,
         "evidence_review_reason_run_reasons": [
             reason for reason, _ in groupby(
                 entry["status"] for entry in entries
