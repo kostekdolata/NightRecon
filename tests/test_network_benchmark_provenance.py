@@ -1236,7 +1236,7 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
 
         clean = benchmark_network_observations(
             NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
-            tcp_results=(TcpPortResult("192.0.2.10", 443, False, 111),),
+            tcp_results=(TcpPortResult("192.0.2.10", 443, True, 0),),
         )
         baseline = record_network_benchmark_provenance(clean, **self.options)
         repeat = record_network_benchmark_provenance(
@@ -1258,6 +1258,7 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         changed = benchmark_network_observations(
             NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
         )
+        self.assertNotEqual(clean.comparison_sha256, changed.comparison_sha256)
         changed_record = record_network_benchmark_provenance(changed, **self.options)
         changed_report = compare(baseline, clean, changed_record, changed)
         self.assertEqual(changed_report["status"], "observations_changed")
