@@ -807,6 +807,23 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                     sum(value for value in reason_ratios.values() if value is not None),
                     batch["evidence_review_ratio"] if exports else 0,
                 )
+                expected_first_by_reason = {
+                    reason: next((index for index, item in enumerate(batch["entries"])
+                                  if item["status"] == reason), None)
+                    for reason in ("scope_violations_observed", "inconsistent", "rejected")
+                }
+                self.assertEqual(
+                    batch["first_evidence_review_index_by_reason"], expected_first_by_reason
+                )
+                self.assertEqual(
+                    list(expected_first_by_reason),
+                    ["scope_violations_observed", "inconsistent", "rejected"],
+                )
+                self.assertEqual(
+                    [reason for reason, index in expected_first_by_reason.items()
+                     if index is not None], reasons,
+                )
+                self.assertEqual(batch["authorization_effect"], "none")
                 grouped = batch["evidence_review_indices_by_reason"]
                 self.assertEqual(
                     list(grouped),
