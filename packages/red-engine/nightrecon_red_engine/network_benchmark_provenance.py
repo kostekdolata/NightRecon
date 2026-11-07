@@ -515,6 +515,11 @@ def inspect_network_benchmark_evidence_batch(
              if entries[index]["status"] != "consistent_unverified"),
             None,
         ),
+        "first_evidence_review_reason": next(
+            (entry["status"] for entry in entries
+             if entry["status"] != "consistent_unverified"),
+            None,
+        ),
         "evidence_review_required": any(
             entry["status"] != "consistent_unverified" for entry in entries
         ),
