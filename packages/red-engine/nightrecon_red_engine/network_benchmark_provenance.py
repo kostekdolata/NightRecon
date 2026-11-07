@@ -461,6 +461,9 @@ def inspect_network_benchmark_evidence_batch(
             status_counts["consistent_unverified"] / len(entries) if entries else None
         ),
         "rejected_count": len(entries) - accepted_count,
+        "evidence_rejected_ratio": (
+            (len(entries) - accepted_count) / len(entries) if entries else None
+        ),
         "status_counts": status_counts,
         "evidence_review_entry_indices": [
             index for index, entry in enumerate(entries)
