@@ -736,6 +736,16 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                 if exports:
                     self.assertGreaterEqual(batch["evidence_accepted_ratio"], 0.0)
                     self.assertLessEqual(batch["evidence_accepted_ratio"], 1.0)
+                self.assertEqual(
+                    batch["evidence_rejected_ratio"],
+                    batch["rejected_count"] / len(exports) if exports else None,
+                )
+                if exports:
+                    self.assertGreaterEqual(batch["evidence_rejected_ratio"], 0.0)
+                    self.assertLessEqual(batch["evidence_rejected_ratio"], 1.0)
+                    self.assertAlmostEqual(
+                        batch["evidence_accepted_ratio"] + batch["evidence_rejected_ratio"], 1.0,
+                    )
                 self.assertEqual(batch["evidence_review_count"], expected_review_count)
                 self.assertEqual(batch["evidence_no_review_count"], len(exports) - expected_review_count)
                 self.assertEqual(batch["evidence_no_review_count"], batch["status_counts"]["consistent_unverified"])
@@ -836,6 +846,7 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertFalse(empty["accepted"])
         self.assertEqual(empty["accepted_count"], 0)
         self.assertIsNone(empty["evidence_accepted_ratio"])
+        self.assertIsNone(empty["evidence_rejected_ratio"])
         self.assertEqual(empty["evidence_total_count"], 0)
         self.assertEqual(empty["evidence_no_review_count"], 0)
         self.assertIsNone(empty["evidence_no_review_ratio"])
