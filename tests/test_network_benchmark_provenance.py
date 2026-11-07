@@ -761,6 +761,19 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                         expected_lengths[-1] += 1
                     previous_status = status
                 self.assertEqual(batch["evidence_review_reason_run_lengths"], expected_lengths)
+                expected_run_reasons = [
+                    status for index, status in enumerate(review_statuses)
+                    if index == 0 or status != review_statuses[index - 1]
+                ]
+                self.assertEqual(
+                    batch["evidence_review_reason_run_reasons"], expected_run_reasons
+                )
+                self.assertEqual(len(expected_run_reasons), expected_runs)
+                self.assertEqual(
+                    [reason for reason, length in zip(expected_run_reasons, expected_lengths)
+                     for _ in range(length)], review_statuses,
+                )
+                self.assertEqual(batch["authorization_effect"], "none")
                 self.assertEqual(
                     batch["evidence_review_min_reason_run_length"],
                     min(expected_lengths, default=0),
