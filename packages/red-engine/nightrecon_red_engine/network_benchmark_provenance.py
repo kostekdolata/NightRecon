@@ -450,6 +450,17 @@ def inspect_network_benchmark_evidence_batch(
         if status != previous_review_status:
             review_run_start_indices.append(index)
         previous_review_status = status
+    review_run_end_indices = []
+    previous_review_status = None
+    for index, entry in enumerate(entries):
+        status = entry["status"]
+        if status == "consistent_unverified":
+            continue
+        if status != previous_review_status:
+            review_run_end_indices.append(index)
+        else:
+            review_run_end_indices[-1] = index
+        previous_review_status = status
     accepted_count = sum(entry["accepted"] for entry in entries)
     status_counts = {
         "consistent_unverified": 0,
@@ -586,6 +597,7 @@ def inspect_network_benchmark_evidence_batch(
             ) if any(entry["status"] != "consistent_unverified" for entry in entries) else 0
         ),
         "evidence_review_reason_run_start_indices": review_run_start_indices,
+        "evidence_review_reason_run_end_indices": review_run_end_indices,
         "evidence_review_reason_run_reasons": [
             reason for reason, _ in groupby(
                 entry["status"] for entry in entries
