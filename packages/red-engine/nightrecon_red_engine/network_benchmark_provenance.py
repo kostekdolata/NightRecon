@@ -454,6 +454,7 @@ def inspect_network_benchmark_evidence_batch(
         "type": "network-benchmark-evidence-batch-intake",
         "accepted": bool(entries) and accepted_count == len(entries),
         "accepted_count": accepted_count,
+        "evidence_accepted_ratio": accepted_count / len(entries) if entries else None,
         "evidence_total_count": len(entries),
         "evidence_no_review_count": status_counts["consistent_unverified"],
         "evidence_no_review_ratio": (
