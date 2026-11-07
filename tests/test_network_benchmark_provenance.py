@@ -717,6 +717,10 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
             ([rejected_entry, inconsistent_entry, scope_entry, clean_entry],
              ["scope_violations_observed", "inconsistent", "rejected"]),
             ([scope_entry, scope_entry], ["scope_violations_observed"]),
+            ([scope_entry, clean_entry, rejected_entry, scope_entry],
+             ["scope_violations_observed", "rejected"]),
+            ([rejected_entry, rejected_entry, clean_entry, rejected_entry],
+             ["rejected"]),
         )
         for exports, reasons in cases:
             with self.subTest(reasons=reasons):
@@ -734,6 +738,20 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                     expected_input_order[0] if expected_input_order else None,
                     batch["first_evidence_review_reason"],
                 )
+                review_statuses = [
+                    entry["status"] for entry in batch["entries"]
+                    if entry["status"] != "consistent_unverified"
+                ]
+                expected_switches = sum(
+                    left != right for left, right in zip(
+                        review_statuses, review_statuses[1:]
+                    )
+                )
+                self.assertEqual(
+                    batch["evidence_review_reason_switch_count"], expected_switches
+                )
+                self.assertGreaterEqual(expected_switches, 0)
+                self.assertLessEqual(expected_switches, max(0, len(review_statuses) - 1))
                 self.assertEqual(batch["evidence_review_reasons"], reasons)
                 self.assertEqual(batch["evidence_review_reason_count"], len(reasons))
                 expected_counts = {
