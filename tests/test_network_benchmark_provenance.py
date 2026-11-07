@@ -721,6 +721,19 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         for exports, reasons in cases:
             with self.subTest(reasons=reasons):
                 batch = inspect_network_benchmark_evidence_batch(exports)
+                expected_input_order = list(dict.fromkeys(
+                    entry["status"] for entry in batch["entries"]
+                    if entry["status"] != "consistent_unverified"
+                ))
+                self.assertEqual(
+                    batch["evidence_review_reasons_in_input_order"], expected_input_order
+                )
+                self.assertEqual(set(expected_input_order), set(reasons))
+                self.assertEqual(len(expected_input_order), len(reasons))
+                self.assertEqual(
+                    expected_input_order[0] if expected_input_order else None,
+                    batch["first_evidence_review_reason"],
+                )
                 self.assertEqual(batch["evidence_review_reasons"], reasons)
                 self.assertEqual(batch["evidence_review_reason_count"], len(reasons))
                 expected_counts = {
