@@ -567,6 +567,14 @@ def inspect_network_benchmark_evidence_batch(
                 [entry["status"] for entry in entries if entry["status"] != "consistent_unverified"][1:],
             )
         ),
+        "evidence_review_reason_run_count": (
+            1 + sum(
+                left != right for left, right in zip(
+                    [entry["status"] for entry in entries if entry["status"] != "consistent_unverified"],
+                    [entry["status"] for entry in entries if entry["status"] != "consistent_unverified"][1:],
+                )
+            ) if any(entry["status"] != "consistent_unverified" for entry in entries) else 0
+        ),
         "evidence_review_reasons_in_input_order": list(dict.fromkeys(
             entry["status"] for entry in entries
             if entry["status"] != "consistent_unverified"
