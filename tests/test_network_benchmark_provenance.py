@@ -770,6 +770,21 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                      if entry["status"] != "consistent_unverified"), None
                 )
                 self.assertEqual(batch["first_evidence_review_reason"], expected_first_reason)
+                expected_last_reason = next(
+                    (entry["status"] for entry in reversed(batch["entries"])
+                     if entry["status"] != "consistent_unverified"), None
+                )
+                self.assertEqual(batch["last_evidence_review_reason"], expected_last_reason)
+                self.assertEqual(
+                    batch["last_evidence_review_reason"] is None,
+                    batch["last_evidence_review_index"] is None,
+                )
+                if expected_last_reason is not None:
+                    self.assertEqual(
+                        batch["entries"][batch["last_evidence_review_index"]]["status"],
+                        expected_last_reason,
+                    )
+                self.assertEqual(batch["authorization_effect"], "none")
                 self.assertEqual(
                     batch["first_evidence_review_reason"] is None,
                     batch["first_evidence_review_index"] is None,
