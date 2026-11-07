@@ -509,6 +509,10 @@ def inspect_network_benchmark_evidence_batch(
             or status_counts["inconsistent"] > 0
             or status_counts["rejected"] > 0
         ),
+        "evidence_review_reason_count": sum(
+            status_counts[label] > 0
+            for label in ("scope_violations_observed", "inconsistent", "rejected")
+        ),
         "evidence_review_reasons": [
             label for label in (
                 "scope_violations_observed", "inconsistent", "rejected"
