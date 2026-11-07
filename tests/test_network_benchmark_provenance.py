@@ -1228,5 +1228,75 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         self.assertIn("not independent proof", report["interpretation"])
 
 
+    def test_offline_repeatability_gate_requires_valid_comparable_clean_evidence(self):
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            compare_network_benchmark_repeatability,
+        )
+
+        clean = benchmark_network_observations(
+            NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
+            tcp_results=(TcpPortResult("192.0.2.10", 443, False, 111),),
+        )
+        baseline = record_network_benchmark_provenance(clean, **self.options)
+        repeat = record_network_benchmark_provenance(
+            clean, **{**self.options, "lab_run_id": "lab-repeat",
+                      "observed_at": "2026-11-06T20:00:00+00:00"},
+        )
+        def compare(left, left_result, right, right_result):
+            return compare_network_benchmark_repeatability(
+                left, left_result, right, right_result,
+            )
+
+        same = compare(baseline, clean, repeat, clean)
+        self.assertEqual(same["status"], "repeatable_observations")
+        self.assertTrue(same["comparable"])
+        self.assertTrue(same["repeatable"])
+        self.assertEqual(same["authorization_effect"], "none")
+        self.assertIn("does not", same["interpretation"])
+
+        changed = benchmark_network_observations(
+            NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
+        )
+        changed_record = record_network_benchmark_provenance(changed, **self.options)
+        changed_report = compare(baseline, clean, changed_record, changed)
+        self.assertEqual(changed_report["status"], "observations_changed")
+        self.assertTrue(changed_report["comparable"])
+        self.assertFalse(changed_report["repeatable"])
+
+        incompatible = compare(
+            baseline, clean,
+            record_network_benchmark_provenance(
+                clean, **{**self.options, "ground_truth_sha256": "d" * 64},
+            ), clean,
+        )
+        self.assertEqual(incompatible["status"], "incompatible_lab_setup")
+        self.assertFalse(incompatible["comparable"])
+
+        invalid = compare(
+            baseline, clean,
+            replace(repeat, evidence_fingerprint="0" * 64), clean,
+        )
+        self.assertEqual(invalid["status"], "invalid_evidence")
+        self.assertFalse(invalid["comparable"])
+
+        scope = compare(self.record(), self.result, self.record(), self.result)
+        self.assertEqual(scope["status"], "scope_review_required")
+        self.assertTrue(scope["comparable"])
+        self.assertFalse(scope["repeatable"])
+
+    def test_repeatability_gate_rejects_wrong_input_types(self):
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            compare_network_benchmark_repeatability,
+        )
+        with self.assertRaises(TypeError):
+            compare_network_benchmark_repeatability(
+                {}, self.result, self.record(), self.result,
+            )
+        with self.assertRaises(TypeError):
+            compare_network_benchmark_repeatability(
+                self.record(), {}, self.record(), self.result,
+            )
+
 if __name__ == "__main__":
     unittest.main()
