@@ -1299,5 +1299,65 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                 self.record(), {}, self.record(), self.result,
             )
 
+    def test_bounded_repeatability_series_is_non_authorizing_and_fail_closed(self):
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            review_network_benchmark_repeatability_series,
+        )
+
+        clean = benchmark_network_observations(
+            NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
+            tcp_results=(TcpPortResult("192.0.2.10", 443, True, 0),),
+        )
+        baseline = record_network_benchmark_provenance(clean, **self.options)
+        repeat = record_network_benchmark_provenance(
+            clean, **{**self.options, "lab_run_id": "repeat"},
+        )
+        changed = benchmark_network_observations(
+            NetworkBenchmarkExpectation(authorized_addresses=("192.0.2.10",)),
+        )
+        changed_record = record_network_benchmark_provenance(changed, **self.options)
+        series = review_network_benchmark_repeatability_series((
+            (baseline, clean), (repeat, clean), (changed_record, changed),
+        ))
+        self.assertEqual(series["observation_count"], 3)
+        self.assertEqual(series["comparison_count"], 2)
+        self.assertEqual(series["status_counts"]["repeatable_observations"], 1)
+        self.assertEqual(series["status_counts"]["observations_changed"], 1)
+        self.assertFalse(series["all_repeatable"])
+        self.assertTrue(series["requires_review"])
+        self.assertEqual(series["authorization_effect"], "none")
+        self.assertIn("does not establish", series["interpretation"])
+
+        consistent = review_network_benchmark_repeatability_series((
+            (baseline, clean), (repeat, clean),
+        ))
+        self.assertTrue(consistent["all_repeatable"])
+        self.assertFalse(consistent["requires_review"])
+        invalid = review_network_benchmark_repeatability_series((
+            (baseline, clean),
+            (replace(repeat, evidence_fingerprint="0" * 64), clean),
+        ))
+        self.assertEqual(invalid["status_counts"]["invalid_evidence"], 1)
+        self.assertFalse(invalid["all_repeatable"])
+        scope = review_network_benchmark_repeatability_series((
+            (self.record(), self.result), (self.record(), self.result),
+        ))
+        self.assertEqual(scope["status_counts"]["scope_review_required"], 1)
+        self.assertFalse(scope["all_repeatable"])
+
+        for bad in ((), ((baseline, clean),), tuple(
+            (baseline, clean) for _ in range(33)
+        )):
+            with self.subTest(size=len(bad)), self.assertRaises(ValueError):
+                review_network_benchmark_repeatability_series(bad)
+        for bad in ([(baseline, clean), (repeat, clean)], (
+            (baseline, clean), ("not-a-pair",),
+        )):
+            with self.assertRaises((ValueError, TypeError)):
+                review_network_benchmark_repeatability_series(bad)
+
+
+
 if __name__ == "__main__":
     unittest.main()
