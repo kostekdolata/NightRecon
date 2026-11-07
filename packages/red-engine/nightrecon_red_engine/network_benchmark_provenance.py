@@ -485,6 +485,16 @@ def inspect_network_benchmark_evidence_batch(
             )
             for label in ("scope_violations_observed", "inconsistent", "rejected")
         },
+        "evidence_review_span_by_reason": {
+            label: (
+                None if status_counts[label] == 0 else
+                next(index for index in range(len(entries) - 1, -1, -1)
+                     if entries[index]["status"] == label)
+                - next(index for index, entry in enumerate(entries)
+                       if entry["status"] == label) + 1
+            )
+            for label in ("scope_violations_observed", "inconsistent", "rejected")
+        },
         "first_evidence_review_index_by_reason": {
             label: next((index for index, entry in enumerate(entries)
                          if entry["status"] == label), None)

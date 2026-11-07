@@ -845,6 +845,23 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                 self.assertEqual(
                     batch["last_evidence_review_index_by_reason"], expected_last_by_reason
                 )
+                expected_spans = {
+                    reason: (
+                        expected_last_by_reason[reason] - expected_first_by_reason[reason] + 1
+                        if expected_first_by_reason[reason] is not None else None
+                    )
+                    for reason in ("scope_violations_observed", "inconsistent", "rejected")
+                }
+                self.assertEqual(batch["evidence_review_span_by_reason"], expected_spans)
+                for reason, span in expected_spans.items():
+                    if span is not None:
+                        self.assertGreaterEqual(span, batch["status_counts"][reason])
+                        self.assertLessEqual(span, len(exports))
+                        self.assertEqual(
+                            span == batch["status_counts"][reason],
+                            batch["evidence_review_contiguous_by_reason"][reason],
+                        )
+                self.assertEqual(batch["authorization_effect"], "none")
                 self.assertEqual(list(expected_last_by_reason), list(expected_first_by_reason))
                 self.assertEqual(
                     [reason for reason, index in expected_last_by_reason.items()
