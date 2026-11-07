@@ -795,6 +795,22 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                     batch["evidence_review_reason_run_end_indices"], expected_end_indices
                 )
                 self.assertEqual(len(expected_end_indices), expected_runs)
+                expected_span_widths = [
+                    end - start + 1
+                    for start, end in zip(expected_start_indices, expected_end_indices)
+                ]
+                self.assertEqual(
+                    batch["evidence_review_reason_run_span_widths"], expected_span_widths
+                )
+                self.assertEqual(len(expected_span_widths), expected_runs)
+                self.assertTrue(all(
+                    type(width) is int and width >= review_length
+                    for width, review_length in zip(expected_span_widths, expected_lengths)
+                ))
+                self.assertTrue(all(
+                    width <= len(batch["entries"]) for width in expected_span_widths
+                ))
+                self.assertEqual(batch["authorization_effect"], "none")
                 self.assertEqual(expected_end_indices, sorted(set(expected_end_indices)))
                 self.assertTrue(all(
                     0 <= start <= end < len(batch["entries"])

@@ -598,6 +598,11 @@ def inspect_network_benchmark_evidence_batch(
         ),
         "evidence_review_reason_run_start_indices": review_run_start_indices,
         "evidence_review_reason_run_end_indices": review_run_end_indices,
+        "evidence_review_reason_run_span_widths": [
+            end - start + 1 for start, end in zip(
+                review_run_start_indices, review_run_end_indices
+            )
+        ],
         "evidence_review_reason_run_reasons": [
             reason for reason, _ in groupby(
                 entry["status"] for entry in entries
