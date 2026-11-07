@@ -761,6 +761,15 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
                         expected_lengths[-1] += 1
                     previous_status = status
                 self.assertEqual(batch["evidence_review_reason_run_lengths"], expected_lengths)
+                self.assertEqual(
+                    batch["evidence_review_max_reason_run_length"],
+                    max(expected_lengths, default=0),
+                )
+                self.assertIsInstance(batch["evidence_review_max_reason_run_length"], int)
+                self.assertGreaterEqual(batch["evidence_review_max_reason_run_length"], 0)
+                self.assertLessEqual(
+                    batch["evidence_review_max_reason_run_length"], batch["evidence_review_count"]
+                )
                 self.assertEqual(sum(expected_lengths), batch["evidence_review_count"])
                 self.assertEqual(len(expected_lengths), expected_runs)
                 self.assertTrue(all(length > 0 for length in expected_lengths))
