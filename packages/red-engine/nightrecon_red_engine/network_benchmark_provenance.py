@@ -225,6 +225,56 @@ def report_network_benchmark_provenance_status(
     }
 
 
+def compare_network_benchmark_repeatability(
+    baseline: NetworkBenchmarkProvenance,
+    baseline_result: NetworkBenchmarkResult,
+    candidate: NetworkBenchmarkProvenance,
+    candidate_result: NetworkBenchmarkResult,
+) -> dict[str, object]:
+    """Offline repeatability gate for two operator-supplied lab observations.
+
+    Only identical lab setup metadata is comparable. A matching fingerprint
+    establishes reproducibility of supplied evidence, not external accuracy,
+    independent authorization, or specialist-tool parity.
+    """
+    valid = (
+        verify_network_benchmark_provenance(baseline, baseline_result)
+        and verify_network_benchmark_provenance(candidate, candidate_result)
+    )
+    fields = (
+        "authorization_reference", "environment_sha256",
+        "ground_truth_sha256", "configuration_sha256",
+        "comparator_name", "comparator_version",
+    )
+    comparable = valid and all(
+        getattr(baseline, field) == getattr(candidate, field)
+        for field in fields
+    )
+    if not valid:
+        status = "invalid_evidence"
+    elif not comparable:
+        status = "incompatible_lab_setup"
+    elif baseline.scope_violation_count or candidate.scope_violation_count:
+        status = "scope_review_required"
+    elif baseline.evidence_fingerprint == candidate.evidence_fingerprint:
+        status = "repeatable_observations"
+    else:
+        status = "observations_changed"
+    return {
+        "schema": 1,
+        "type": "network-benchmark-repeatability",
+        "status": status,
+        "comparable": comparable,
+        "repeatable": status == "repeatable_observations",
+        "authorization_effect": "none",
+        "interpretation": (
+            "Offline consistency of operator-supplied observations does not "
+            "verify authorization, independent ground truth, scanning safety, "
+            "detection accuracy, or specialist-tool parity."
+        ),
+    }
+
+
 def report_network_benchmark_evidence_summary(
     provenance: NetworkBenchmarkProvenance,
     result: NetworkBenchmarkResult,
