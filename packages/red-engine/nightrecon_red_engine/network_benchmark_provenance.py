@@ -582,6 +582,12 @@ def inspect_network_benchmark_evidence_batch(
                 if entry["status"] != "consistent_unverified"
             )
         ],
+        "evidence_review_min_reason_run_length": min(
+            (sum(1 for _ in group) for _, group in groupby(
+                entry["status"] for entry in entries
+                if entry["status"] != "consistent_unverified"
+            )), default=0
+        ),
         "evidence_review_max_reason_run_length": max(
             (sum(1 for _ in group) for _, group in groupby(
                 entry["status"] for entry in entries
