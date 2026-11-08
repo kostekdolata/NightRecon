@@ -742,3 +742,58 @@ def inspect_network_benchmark_evidence_batch(
         "entries": entries,
         "authorization_effect": "none",
     }
+
+
+def review_network_benchmark_quality_ranges(
+    observations: tuple[tuple[NetworkBenchmarkProvenance, NetworkBenchmarkResult], ...],
+) -> dict[str, object]:
+    """Summarize bounded, comparable offline network detection counts across runs.
+
+    Only integrity-consistent, distinct-ID, scope-clean, same-setup observations
+    contribute. Changed observations remain visible for operator review.
+    These are supplied benchmark counts, not independently verified accuracy.
+    """
+    series = review_network_benchmark_repeatability_series(observations)
+    counts = series["status_counts"]
+    eligible = (
+        series["independent_run_ids"]
+        and counts["invalid_evidence"] == 0
+        and counts["incompatible_lab_setup"] == 0
+        and counts["scope_review_required"] == 0
+    )
+    fields = (
+        "matched_tcp_open", "missed_tcp_open", "invented_tcp_open",
+        "matched_udp_open", "missed_udp_open", "invented_udp_open",
+        "matched_services", "missed_services", "invented_services",
+        "matched_operating_systems", "missed_operating_systems",
+        "conflicting_operating_systems",
+    )
+    ranges = None
+    if eligible:
+        # Integrity and scope are already verified by the pairwise gate.
+        # Do not publish partial aggregates if any run is untrustworthy.
+        ranges = {
+            field: {
+                "min": min(getattr(result, field) for _, result in observations),
+                "max": max(getattr(result, field) for _, result in observations),
+            }
+            for field in fields
+        }
+    return {
+        "schema": 1,
+        "type": "network-benchmark-quality-ranges",
+        "status": (
+            "blocked" if not eligible else
+            "review_required" if counts["observations_changed"] else
+            "consistent_unverified"
+        ),
+        "observation_count": series["observation_count"],
+        "quality_ranges": ranges,
+        "requires_review": not eligible or bool(counts["observations_changed"]),
+        "authorization_effect": "none",
+        "interpretation": (
+            "Ranges describe operator-supplied offline benchmark observations. "
+            "They do not establish independent ground truth, authorization, "
+            "specialist parity, or permission to execute scans."
+        ),
+    }
