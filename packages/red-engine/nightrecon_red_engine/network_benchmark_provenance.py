@@ -275,6 +275,54 @@ def compare_network_benchmark_repeatability(
     }
 
 
+
+
+def review_network_benchmark_repeatability_series(
+    observations: tuple[tuple[NetworkBenchmarkProvenance, NetworkBenchmarkResult], ...],
+) -> dict[str, object]:
+    """Review a bounded offline series against the first observation.
+
+    This is a comparison of supplied evidence, never a release-pass,
+    authorization, or external benchmark-accuracy determination.
+    """
+    if not isinstance(observations, tuple) or not 2 <= len(observations) <= 32:
+        raise ValueError("Repeatability review requires 2 to 32 observations")
+    for item in observations:
+        if not isinstance(item, tuple) or len(item) != 2:
+            raise TypeError("Each observation must be a provenance/result pair")
+    baseline, baseline_result = observations[0]
+    comparisons = [
+        compare_network_benchmark_repeatability(
+            baseline, baseline_result, candidate, candidate_result,
+        )
+        for candidate, candidate_result in observations[1:]
+    ]
+    statuses = [comparison["status"] for comparison in comparisons]
+    counts = {
+        status: statuses.count(status)
+        for status in (
+            "repeatable_observations", "observations_changed",
+            "incompatible_lab_setup", "invalid_evidence",
+            "scope_review_required",
+        )
+    }
+    return {
+        "schema": 1,
+        "type": "network-benchmark-repeatability-series",
+        "observation_count": len(observations),
+        "comparison_count": len(comparisons),
+        "status_counts": counts,
+        "all_repeatable": counts["repeatable_observations"] == len(comparisons),
+        "requires_review": counts["repeatable_observations"] != len(comparisons),
+        "authorization_effect": "none",
+        "interpretation": (
+            "Operator-supplied offline repeatability does not establish "
+            "independent ground truth, authorization, detection accuracy, "
+            "or specialist-tool parity."
+        ),
+    }
+
+
 def report_network_benchmark_evidence_summary(
     provenance: NetworkBenchmarkProvenance,
     result: NetworkBenchmarkResult,
