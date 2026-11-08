@@ -1376,5 +1376,78 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
 
 
 
+    def test_offline_quality_ranges_fail_closed_and_expose_observation_drift(self):
+        from dataclasses import replace
+        from nightrecon_red_engine.network_benchmark_provenance import (
+            review_network_benchmark_quality_ranges,
+        )
+
+        expected = NetworkBenchmarkExpectation(
+            authorized_addresses=("192.0.2.10",),
+        )
+        open_result = benchmark_network_observations(
+            expected,
+            tcp_results=(TcpPortResult("192.0.2.10", 443, True, 0),),
+        )
+        empty_result = benchmark_network_observations(expected)
+        baseline = record_network_benchmark_provenance(
+            open_result, **self.options,
+        )
+        second = record_network_benchmark_provenance(
+            open_result, **{**self.options, "lab_run_id": "second"},
+        )
+        changed = record_network_benchmark_provenance(
+            empty_result, **{**self.options, "lab_run_id": "third"},
+        )
+        stable = review_network_benchmark_quality_ranges((
+            (baseline, open_result), (second, open_result),
+        ))
+        self.assertEqual(stable["status"], "consistent_unverified")
+        self.assertFalse(stable["requires_review"])
+        self.assertEqual(stable["quality_ranges"]["matched_tcp_open"], {
+            "min": open_result.matched_tcp_open,
+            "max": open_result.matched_tcp_open,
+        })
+        self.assertEqual(stable["authorization_effect"], "none")
+
+        drift = review_network_benchmark_quality_ranges((
+            (baseline, open_result), (changed, empty_result),
+        ))
+        self.assertEqual(drift["status"], "review_required")
+        self.assertTrue(drift["requires_review"])
+        self.assertEqual(drift["quality_ranges"]["matched_tcp_open"], {
+            "min": min(open_result.matched_tcp_open, empty_result.matched_tcp_open),
+            "max": max(open_result.matched_tcp_open, empty_result.matched_tcp_open),
+        })
+
+        blocked_cases = (
+            ((baseline, open_result), (baseline, open_result)),
+            ((baseline, open_result), (
+                replace(second, evidence_fingerprint="0" * 64), open_result,
+            )),
+            ((baseline, open_result), (
+                record_network_benchmark_provenance(
+                    open_result,
+                    **{**self.options, "lab_run_id": "other",
+                       "ground_truth_sha256": "d" * 64},
+                ), open_result,
+            )),
+            ((self.record(), self.result), (
+                record_network_benchmark_provenance(
+                    self.result,
+                    **{**self.options, "lab_run_id": "scope2"},
+                ), self.result,
+            )),
+        )
+        for observations in blocked_cases:
+            with self.subTest(observations=observations):
+                rejected = review_network_benchmark_quality_ranges(observations)
+                self.assertEqual(rejected["status"], "blocked")
+                self.assertIsNone(rejected["quality_ranges"])
+                self.assertTrue(rejected["requires_review"])
+                self.assertEqual(rejected["authorization_effect"], "none")
+
+
+
 if __name__ == "__main__":
     unittest.main()
