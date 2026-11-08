@@ -1334,6 +1334,23 @@ class NetworkBenchmarkProvenanceTests(unittest.TestCase):
         ))
         self.assertTrue(consistent["all_repeatable"])
         self.assertFalse(consistent["requires_review"])
+        self.assertTrue(consistent["independent_run_ids"])
+        # Identical evidence with the same lab_run_id is not an independent repeat.
+        reused = review_network_benchmark_repeatability_series((
+            (baseline, clean), (baseline, clean),
+        ))
+        self.assertEqual(reused["status_counts"]["repeatable_observations"], 1)
+        self.assertFalse(reused["independent_run_ids"])
+        self.assertFalse(reused["all_repeatable"])
+        self.assertTrue(reused["requires_review"])
+        self.assertEqual(reused["authorization_effect"], "none")
+        # Reused identifiers anywhere in a longer series must also block success.
+        duplicate_later = review_network_benchmark_repeatability_series((
+            (baseline, clean), (repeat, clean), (baseline, clean),
+        ))
+        self.assertFalse(duplicate_later["independent_run_ids"])
+        self.assertFalse(duplicate_later["all_repeatable"])
+        self.assertTrue(duplicate_later["requires_review"])
         invalid = review_network_benchmark_repeatability_series((
             (baseline, clean),
             (replace(repeat, evidence_fingerprint="0" * 64), clean),
