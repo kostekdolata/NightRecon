@@ -31,6 +31,8 @@ def render_network_benchmark_quality_report(
     Blocked input never emits aggregate metrics. A clean result remains
     *unverified* rather than claiming external specialist parity.
     """
+    if not isinstance(observations, tuple):
+        raise TypeError("Offline benchmark report observations must be a tuple")
     review = review_network_benchmark_quality_ranges(observations)
     status = review["status"]
     lines = [
