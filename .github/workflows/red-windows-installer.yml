@@ -22,6 +22,7 @@ on:
       - "packages/shared-core/**"
       - "installer/windows/**"
       - "tests/test_red_windows_installer_contract.py"
+      - "tests/test_network_benchmark_report_cross_format_acceptance.py"
       - ".github/workflows/red-windows-installer.yml"
 
 permissions:
