@@ -297,6 +297,10 @@ def review_network_benchmark_repeatability_series(
         )
         for candidate, candidate_result in observations[1:]
     ]
+    # Reusing a run identifier cannot establish independent repeatability.
+    # Keep observation classifications intact, but fail closed on the series verdict.
+    run_ids = [provenance.lab_run_id for provenance, _ in observations]
+    independent_run_ids = len(set(run_ids)) == len(run_ids)
     statuses = [comparison["status"] for comparison in comparisons]
     counts = {
         status: statuses.count(status)
@@ -312,8 +316,9 @@ def review_network_benchmark_repeatability_series(
         "observation_count": len(observations),
         "comparison_count": len(comparisons),
         "status_counts": counts,
-        "all_repeatable": counts["repeatable_observations"] == len(comparisons),
-        "requires_review": counts["repeatable_observations"] != len(comparisons),
+        "independent_run_ids": independent_run_ids,
+        "all_repeatable": independent_run_ids and counts["repeatable_observations"] == len(comparisons),
+        "requires_review": not independent_run_ids or counts["repeatable_observations"] != len(comparisons),
         "authorization_effect": "none",
         "interpretation": (
             "Operator-supplied offline repeatability does not establish "
