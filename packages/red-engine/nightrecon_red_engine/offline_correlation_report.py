@@ -10,7 +10,7 @@ import re
 
 from .offline_tool_correlation import OfflineCorrelationError
 
-_SHA = re.compile(r"[0-9a-f]{64}\\Z")
+_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _TOOLS = {"Amass", "ProjectDiscovery httpx", "Greenbone/OpenVAS"}
 
 
