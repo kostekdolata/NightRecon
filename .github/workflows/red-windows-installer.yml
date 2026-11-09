@@ -12,6 +12,7 @@ on:
       - "packages/shared-core/**"
       - "installer/windows/**"
       - "tests/test_red_windows_installer_contract.py"
+      - "tests/red_night_historical_upgrade_smoke.py"
       - ".github/workflows/red-windows-installer.yml"
   pull_request:
     branches:
@@ -22,6 +23,7 @@ on:
       - "packages/shared-core/**"
       - "installer/windows/**"
       - "tests/test_red_windows_installer_contract.py"
+      - "tests/red_night_historical_upgrade_smoke.py"
       - "tests/test_network_benchmark_report_cross_format_acceptance.py"
       - ".github/workflows/red-windows-installer.yml"
 
