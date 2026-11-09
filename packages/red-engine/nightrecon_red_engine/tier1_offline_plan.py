@@ -45,7 +45,7 @@ def plan_tier1(*, objective: str, targets: tuple[str, ...],
     Scope is exact-match only; no CIDR, wildcard, suffix or DNS expansion.
     Caller-provided capability states are untrusted hints, never execution proof.
     """
-    if objective not in OBJECTIVES:
+    if not isinstance(objective, str) or objective not in OBJECTIVES:
         raise Tier1PlanError("Unsupported objective")
     if (type(engagement_authorized) is not bool or not engagement_authorized
             or type(intrusive_approval) is not bool):
