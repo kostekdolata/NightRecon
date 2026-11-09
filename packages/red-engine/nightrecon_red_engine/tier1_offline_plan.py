@@ -19,7 +19,7 @@ OBJECTIVES = {
 }
 _NETWORK = {"Nmap", "Amass", "ProjectDiscovery httpx", "Nuclei",
             "Greenbone/OpenVAS", "OWASP ZAP"}
-_HOST = re.compile(r"(?=.{1,253}\\Z)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\\Z")
+_HOST = re.compile(r"(?=.{1,253}\Z)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\Z")
 
 
 class Tier1PlanError(ValueError):
