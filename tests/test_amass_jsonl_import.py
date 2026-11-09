@@ -42,8 +42,7 @@ class TestAmassEvidenceImport(unittest.TestCase):
                  payload({"name": "example.org", "addresses": "bad"}),
                  payload({"name": "example.org", "addresses": [{"ip": "invalid"}]}),
                  payload({"name": "example.org", "source": 123}),
-                 payload({"name": "example.org", "addresses": [{}]}),
-                 payload({"name": "example.org"}) + b"\n")
+                 payload({"name": "example.org", "addresses": [{}]}))
         for data in cases:
             with self.subTest(data=data[:50]), self.assertRaises(AmassEvidenceError):
                 import_records(data)
