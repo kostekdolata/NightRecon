@@ -72,7 +72,7 @@ def main() -> None:
 
         install_stack(python, old_wheels, BASELINE_VERSION)
         assert installed_versions(python, root) == (BASELINE_VERSION,) * 3
-        assert_stack_compatible(python, BASELINE_VERSION, root)
+        # Historical v0.43.0 predates the composition API.
         create_workspace(python, workspace, root)
         assert_workspace_preserved(python, workspace, root)
 
@@ -82,7 +82,7 @@ def main() -> None:
         assert_workspace_preserved(python, workspace, root)
 
         install_stack(python, old_wheels, BASELINE_VERSION, force_reinstall=True)
-        assert_stack_compatible(python, BASELINE_VERSION, root)
+        assert installed_versions(python, root) == (BASELINE_VERSION,) * 3
         assert_workspace_preserved(python, workspace, root)
     print("Historical Red package upgrade and rollback: passed")
 
