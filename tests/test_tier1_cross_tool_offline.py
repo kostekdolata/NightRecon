@@ -14,7 +14,7 @@ class CrossToolOfflineTests(unittest.TestCase):
     def kwargs(self):
         scope = dict(targets=("example.org",), allowed_targets=("example.org",),
                      capabilities={}, engagement_authorized=True)
-        nuclei = (json.dumps({"template-id": "sample-template", "host": "https://example.org/a",
+        nuclei = (json.dumps({"template-id": "sample-template", "matched-at": "https://example.org/a",
                               "info": {"severity": "low"}}) + "\n").encode()
         zap = json.dumps({"site": [{"@name": "https://example.org",
             "alerts": [{"pluginid": "10021", "riskcode": "2",
