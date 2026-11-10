@@ -13,7 +13,7 @@ def record(url="https://example.org/login", severity="high"):
 
 class NucleiOfflineImportTests(unittest.TestCase):
     def test_offline_evidence_is_deterministic_and_not_a_verdict(self):
-        payload = record() + b"\\n" + record("https://example.org/other", "info")
+        payload = record() + b"\n" + record("https://example.org/other", "info")
         result = import_nuclei_jsonl(payload, allowed_hosts=("example.org",))
         self.assertEqual(result, import_nuclei_jsonl(payload, allowed_hosts=("example.org",)))
         self.assertEqual(result["record_count"], 2)
@@ -42,7 +42,7 @@ class NucleiOfflineImportTests(unittest.TestCase):
             with self.subTest(options=options), self.assertRaises(NucleiOfflineImportError):
                 import_nuclei_jsonl(record(), **options)
         with self.assertRaises(NucleiOfflineImportError):
-            import_nuclei_jsonl(record() + b"\\n" + record(),
+            import_nuclei_jsonl(record() + b"\n" + record(),
                                 allowed_hosts=("example.org",), max_records=1)
 
 
