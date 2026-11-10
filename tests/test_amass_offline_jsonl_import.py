@@ -30,7 +30,7 @@ class AmassOfflineImportTests(unittest.TestCase):
                 import_amass_jsonl(entry(name), allowed_hosts=("example.org",))
 
     def test_malformed_records_and_budgets_fail_closed(self):
-        for payload in (b"{}", b"{", b"[]", b"", entry("example.org") + b"\n",
+        for payload in (b"{}", b"{", b"[]", b"", entry("example.org") + b"\n\n" + entry("example.org"),
                         entry("127.0.0.1"), entry("localhost")):
             with self.subTest(payload=payload), self.assertRaises(AmassOfflineImportError):
                 import_amass_jsonl(payload, allowed_hosts=("example.org",))
