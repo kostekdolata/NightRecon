@@ -5,6 +5,11 @@ PySide6 is deliberately imported only when the shell is launched.
 """
 from __future__ import annotations
 
+from queue import Empty, Queue
+from threading import Thread
+
+from .host_preflight_view import describe_host_preflight
+
 NAVIGATION = (
     "Operations", "Target Intelligence", "Engine Console", "Validation Lab",
     "Findings", "Reporting", "Audit & Control",
@@ -45,7 +50,7 @@ QSplitter::handle { background: #2B303A; }
 
 
 def build_window():
-    from PySide6.QtCore import Qt, QPointF
+    from PySide6.QtCore import Qt, QPointF, QTimer
     from PySide6.QtGui import QColor, QPainter, QRadialGradient, QLinearGradient, QPen, QPainterPath
     from PySide6.QtWidgets import (
         QButtonGroup, QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton,
@@ -278,6 +283,25 @@ def build_window():
             lower.setSizes([480, 350, 270])
             layout.addWidget(lower)
 
+            host_card = QFrame()
+            host_card.setObjectName("card")
+            host_layout = QVBoxLayout(host_card)
+            host_layout.setContentsMargins(18, 17, 18, 17)
+            host_header = QHBoxLayout()
+            host_header.addWidget(QLabel("LOCAL HOST INTELLIGENCE — PASSIVE PREFLIGHT"))
+            host_header.addStretch()
+            self.host_refresh = QPushButton("Refresh inventory")
+            self.host_refresh.setToolTip("Read local host facts only; no scan is started")
+            self.host_refresh.clicked.connect(self._start_host_preflight)
+            host_header.addWidget(self.host_refresh)
+            host_layout.addLayout(host_header)
+            self.host_details = QTextEdit()
+            self.host_details.setReadOnly(True)
+            self.host_details.setMinimumHeight(180)
+            self.host_details.setPlainText("Local inventory has not started.")
+            host_layout.addWidget(self.host_details)
+            layout.addWidget(host_card)
+
             notice = QLabel(
                 "VISUAL PREVIEW  /  No live assessment data  /  "
                 "Engagement authority required for execution")
@@ -289,6 +313,45 @@ def build_window():
             self._workspace_label = heading
             self.navigation.idClicked.connect(self._navigate)
             self.statusBar().showMessage("VISUAL PREVIEW  •  No live engagement  •  Execution disabled")
+            self._host_queue = Queue(maxsize=1)
+            self._host_busy = False
+            self._host_poll = QTimer(self)
+            self._host_poll.setInterval(150)
+            self._host_poll.timeout.connect(self._poll_host_preflight)
+            QTimer.singleShot(0, self._start_host_preflight)
+
+        def _start_host_preflight(self):
+            if self._host_busy:
+                return
+            self._host_busy = True
+            self.host_refresh.setEnabled(False)
+            self.host_details.setPlainText("Collecting passive local host inventory...")
+
+            def collect():
+                try:
+                    from nightrecon_red_engine.host_preflight import collect_host_preflight
+                    result = ("ok", collect_host_preflight().as_dict())
+                except Exception as exc:
+                    result = ("error", type(exc).__name__)
+                self._host_queue.put(result)
+
+            Thread(target=collect, daemon=True, name="rednight-host-preflight").start()
+            self._host_poll.start()
+
+        def _poll_host_preflight(self):
+            try:
+                status, result = self._host_queue.get_nowait()
+            except Empty:
+                return
+            self._host_poll.stop()
+            self._host_busy = False
+            self.host_refresh.setEnabled(True)
+            if status == "ok":
+                self.host_details.setPlainText(describe_host_preflight(result))
+            else:
+                self.host_details.setPlainText(
+                    f"Local preflight unavailable ({result}). No scan performed."
+                )
 
         def _navigate(self, index):
             self._workspace_label.setText(NAVIGATION[index])
