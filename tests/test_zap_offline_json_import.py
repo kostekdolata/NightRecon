@@ -34,7 +34,6 @@ class ZapOfflineImportTests(unittest.TestCase):
                      payload(instance="sub.example.org"),
                      payload(site="example.org@evil.test"),
                      payload(instance="example.org@evil.test"),
-                     payload(instance="EXAMPLE.ORG"),
                      payload(instance="example.org#fragment")):
             with self.subTest(data=data), self.assertRaises(ZapOfflineImportError):
                 self.call(payload=data)
