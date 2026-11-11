@@ -9,7 +9,7 @@ from nightrecon_red_engine.nuclei_operator_triage import build_nuclei_triage, Nu
 def imported():
     row = {"template-id": "test-template", "matched-at": "https://example.test/path",
            "info": {"severity": "medium"}, "request": "SECRET"}
-    payload = ("\\n".join(json.dumps(row) for _ in range(2))).encode()
+    payload = ("\n".join(json.dumps(row) for _ in range(2))).encode()
     return import_nuclei_jsonl(payload, engagement_id="lab",
                                authorized_hosts=("example.test",))
 
