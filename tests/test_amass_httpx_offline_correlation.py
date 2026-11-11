@@ -46,7 +46,7 @@ class OfflineWebCorrelationTests(unittest.TestCase):
             )
 
     def test_deduplicates_and_fails_closed_on_budget(self):
-        payload = web("https://example.org/") + b"\\n" + web("https://example.org/")
+        payload = web("https://example.org/") + b"\n" + web("https://example.org/")
         kwargs = dict(allowed_hosts=("example.org",),
                       allowed_urls=("https://example.org/",))
         result = correlate_amass_httpx(dns("example.org"), payload, **kwargs)
@@ -54,7 +54,7 @@ class OfflineWebCorrelationTests(unittest.TestCase):
         with self.assertRaises(OfflineWebCorrelationError):
             correlate_amass_httpx(
                 dns("example.org"),
-                web("https://example.org/") + b"\\n" + web("https://example.org/", 404),
+                web("https://example.org/") + b"\n" + web("https://example.org/", 404),
                 **kwargs, max_links=1,
             )
         with self.assertRaises(OfflineWebCorrelationError):
