@@ -44,7 +44,10 @@ QSplitter::handle { background: #2B303A; }
 """
 
 
-def build_window():
+def build_window(operations_snapshot=None):
+    from .qt_operations_bridge import present_operations
+    view = present_operations(operations_snapshot)
+
     from PySide6.QtCore import Qt, QPointF
     from PySide6.QtGui import QColor, QPainter, QRadialGradient, QLinearGradient, QPen, QPainterPath
     from PySide6.QtWidgets import (
@@ -167,7 +170,7 @@ def build_window():
             search.setReadOnly(True)
             search.setMaximumWidth(290)
             top.addWidget(search)
-            badge = QLabel("●  PREVIEW MODE")
+            badge = QLabel("●  READ-ONLY MODE")
             badge.setStyleSheet("color: #FF576B; padding-left: 16px; font-weight: bold;")
             top.addWidget(badge)
             layout.addWidget(topbar)
@@ -196,8 +199,8 @@ def build_window():
             for col, (value, title, symbol) in enumerate((
                 ("—", "DISCOVERED ASSETS", "◎"),
                 ("—", "OPEN PORTS", "⌁"),
-                ("—", "REVIEWED FINDINGS", "◇"),
-                ("—", "ACTIVE ENGINES", "◈"),
+                (view.findings_label, "RECORDED FINDINGS", "◇"),
+                (view.events_label, "RECORDED EVENTS", "◈"),
             )):
                 card = QFrame()
                 card.setObjectName("card")
@@ -258,9 +261,11 @@ def build_window():
             self.activity = QTextEdit()
             self.activity.setReadOnly(True)
             self.activity.setPlainText(
+                f"Authority: {view.authority_label}\\n"
+                f"Remaining authorised actions: {view.actions_label}\\n\\n"
                 "●  Workspace ready for operator review\\n\\n"
-                "○  No engagement is connected\\n\\n"
-                "○  No scan evidence has been loaded\\n\\n"
+                f"○  {view.engagement_label}\\n\\n"
+                "○  Snapshot counts only; no live scan telemetry\\n\\n"
                 "○  All execution controls are disabled")
             self.activity.setMinimumHeight(190)
             activity_layout.addWidget(self.activity)
@@ -288,7 +293,7 @@ def build_window():
 
             self._workspace_label = heading
             self.navigation.idClicked.connect(self._navigate)
-            self.statusBar().showMessage("VISUAL PREVIEW  •  No live engagement  •  Execution disabled")
+            self.statusBar().showMessage(view.status_message)
 
         def _navigate(self, index):
             self._workspace_label.setText(NAVIGATION[index])
