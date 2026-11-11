@@ -44,7 +44,7 @@ def import_greenbone_report(
             raise ValueError("Noncanonical or duplicate host")
     except ValueError as exc:
         raise GreenboneOfflineImportError("Invalid exact host scope") from exc
-    if re.search(rb"<!\\s*(?:DOCTYPE|ENTITY)\\b", payload, re.IGNORECASE):
+    if re.search(rb"<!\s*(?:DOCTYPE|ENTITY)\b", payload, re.IGNORECASE):
         raise GreenboneOfflineImportError("XML declarations with entities are prohibited")
     try:
         root = ET.fromstring(payload)
@@ -76,7 +76,7 @@ def import_greenbone_report(
             raise GreenboneOfflineImportError("Invalid port/protocol")
         if int(port.split("/")[0]) > 65535:
             raise GreenboneOfflineImportError("Invalid port range")
-        if not isinstance(severity, str) or not re.fullmatch(r"(?:0|[1-9]|10)(?:\\.[0-9])?", severity):
+        if not isinstance(severity, str) or not re.fullmatch(r"(?:0|[1-9]|10)(?:\.[0-9])?", severity):
             raise GreenboneOfflineImportError("Invalid severity")
         if float(severity) > 10:
             raise GreenboneOfflineImportError("Invalid severity range")
