@@ -56,7 +56,15 @@ def _validate(report: dict, max_associations: int) -> tuple[str, set[tuple[str, 
                 or not 100 <= item["http_status"] <= 599):
             raise OfflineWebRetestError("Invalid association")
         from urllib.parse import urlsplit
-        if urlsplit(item["url"]).hostname != item["host"]:
+        try:
+            parsed = urlsplit(item["url"])
+            host_matches = (parsed.scheme in ("http", "https")
+                            and parsed.hostname == item["host"]
+                            and not parsed.username and not parsed.password
+                            and not parsed.fragment)
+        except ValueError as exc:
+            raise OfflineWebRetestError("Invalid association URL") from exc
+        if not host_matches:
             raise OfflineWebRetestError("Association host mismatch")
         associations.add((item["host"], item["url"], item["http_status"]))
     if len(associations) != len(report["associations"]):
