@@ -40,7 +40,8 @@ def plan_tier1_tools(*, engagement_id: str, authorized_targets: tuple[str, ...],
             or not isinstance(authorized_targets, tuple)
             or not 0 < len(authorized_targets) <= 256
             or not all(isinstance(t, str) and 0 < len(t) <= 2048
-                       and t == t.strip() and not any(ord(c) < 33 for c in t)
+                       and t == t.strip() and "\\" not in t
+                       and not any(ord(c) < 33 for c in t)
                        for t in authorized_targets)
             or len(set(authorized_targets)) != len(authorized_targets)
             or not isinstance(selected_tools, tuple)
