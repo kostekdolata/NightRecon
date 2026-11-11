@@ -42,6 +42,7 @@ class Tier1CapabilityPlanTests(unittest.TestCase):
             {"authorized_targets": ()},
             {"authorized_targets": ("127.0.0.1", "127.0.0.1")},
             {"authorized_targets": ("127.0.0.1\\nunsafe",)},
+            {"authorized_targets": ("127.0.0.1\nunsafe",)},
             {"selected_tools": ("nmap", "nmap")},
             {"selected_tools": ("metasploit",)},
             {"selected_tools": ()},
