@@ -60,7 +60,7 @@ class TrustedPrerequisiteTests(unittest.TestCase):
             {"nmap": ("relative", "0" * 64)},
             {"nmap": ("/tmp/tool", "bad")},
             {"unknown": ("/tmp/tool", "0" * 64)},
-            {"nmap": ("/tmp/tool\\n", "0" * 64)},
+            {"nmap": ("/tmp/tool\n", "0" * 64)},
         ):
             with self.subTest(registrations=registrations):
                 with self.assertRaises(TrustedPrerequisiteError):
