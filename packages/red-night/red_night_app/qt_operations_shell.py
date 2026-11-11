@@ -46,7 +46,9 @@ QSplitter::handle { background: #2B303A; }
 
 def build_window(operations_snapshot=None):
     from .qt_operations_bridge import present_operations
+    from .qt_workspace_views import workspace_summary
     view = present_operations(operations_snapshot)
+    snapshot_warnings = operations_snapshot.warnings if operations_snapshot is not None else ()
 
     from PySide6.QtCore import Qt, QPointF
     from PySide6.QtGui import QColor, QPainter, QRadialGradient, QLinearGradient, QPen, QPainterPath
@@ -260,13 +262,7 @@ def build_window(operations_snapshot=None):
             activity, activity_layout = make_panel("Recent Activity")
             self.activity = QTextEdit()
             self.activity.setReadOnly(True)
-            self.activity.setPlainText(
-                f"Authority: {view.authority_label}\\n"
-                f"Remaining authorised actions: {view.actions_label}\\n\\n"
-                "●  Workspace ready for operator review\\n\\n"
-                f"○  {view.engagement_label}\\n\\n"
-                "○  Snapshot counts only; no live scan telemetry\\n\\n"
-                "○  All execution controls are disabled")
+            self.activity.setPlainText(workspace_summary(0, view, warnings=snapshot_warnings))
             self.activity.setMinimumHeight(190)
             activity_layout.addWidget(self.activity)
             lower.addWidget(activity)
@@ -297,13 +293,7 @@ def build_window(operations_snapshot=None):
 
         def _navigate(self, index):
             self._workspace_label.setText(NAVIGATION[index])
-            if index != 0:
-                self.activity.setPlainText(
-                    f"{NAVIGATION[index]} workspace is not yet wired to Qt.\n"
-                    "No scan or modification has been performed.")
-            else:
-                self.activity.setPlainText(
-                    "No engagement connected.\nNo live evidence has been loaded.")
+            self.activity.setPlainText(workspace_summary(index, view, warnings=snapshot_warnings))
 
     return RedNightWindow()
 
