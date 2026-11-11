@@ -264,8 +264,8 @@ def build_window(operations_snapshot=None):
                 f"Authority: {view.authority_label}\\n"
                 f"Remaining authorised actions: {view.actions_label}\\n\\n"
                 "●  Workspace ready for operator review\\n\\n"
-                "○  No engagement is connected\\n\\n"
-                "○  No scan evidence has been loaded\\n\\n"
+                f"○  {view.engagement_label}\\n\\n"
+                "○  Snapshot counts only; no live scan telemetry\\n\\n"
                 "○  All execution controls are disabled")
             self.activity.setMinimumHeight(190)
             activity_layout.addWidget(self.activity)
