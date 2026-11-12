@@ -40,6 +40,18 @@ def plan_tools(requested: tuple[str, ...], target: str, engagement: Engagement,
     """Return explainable eligibility; never return executable instructions."""
     if not isinstance(engagement, Engagement) or type(engagement.max_actions) is not int:
         raise ValueError("Invalid engagement")
+    # Reject malformed authority records before planning any tool. In particular,
+    # truthy strings must never stand in for the emergency-stop boolean.
+    if type(engagement.stopped) is not bool:
+        raise ValueError("Invalid engagement stop state")
+    for values in (engagement.approved_targets, engagement.approved_tools,
+                   engagement.intrusive_approvals):
+        if (not isinstance(values, frozenset) or
+                any(not isinstance(value, str) or not value for value in values)):
+            raise ValueError("Invalid engagement authority set")
+    if (not engagement.approved_tools.issubset(TOOLS) or
+            not engagement.intrusive_approvals.issubset(INTRUSIVE)):
+        raise ValueError("Unknown tool in engagement authority")
     if not isinstance(target, str) or not target or target not in engagement.approved_targets:
         raise ValueError("Target outside exact engagement scope")
     if engagement.stopped or engagement.max_actions <= 0:
@@ -50,6 +62,8 @@ def plan_tools(requested: tuple[str, ...], target: str, engagement: Engagement,
         raise ValueError("Unknown or duplicate tool")
     if not isinstance(capabilities, tuple) or any(not isinstance(x, Capability) for x in capabilities):
         raise ValueError("Invalid capability evidence")
+    if any(not isinstance(x.name, str) or x.name not in TOOLS for x in capabilities):
+        raise ValueError("Unknown capability evidence")
     if len(set(x.name for x in capabilities)) != len(capabilities):
         raise ValueError("Duplicate capability evidence")
     by_name = {x.name: x for x in capabilities}
