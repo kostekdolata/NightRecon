@@ -6,6 +6,7 @@ Unavailable workspaces explicitly remain non-operational.
 from __future__ import annotations
 
 from .qt_operations_bridge import QtOperationsView
+from .qt_readonly_report import render_readonly_report
 
 WORKSPACES = (
     "Operations", "Target Intelligence", "Engine Console", "Validation Lab",
@@ -33,6 +34,8 @@ def workspace_summary(index: int, view: QtOperationsView, *, warnings: tuple[str
             "This is a count from the selected read-only evidence snapshot.\n"
             "Individual findings and evidence review are not available in Qt yet."
         )
+    elif index == 5:
+        body = render_readonly_report(view, warning_count=len(warnings))
     elif index == 6:
         body = (
             f"Authority: {view.authority_label}\n"
