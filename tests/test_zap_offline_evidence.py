@@ -24,9 +24,28 @@ class ZapOfflineEvidenceTests(unittest.TestCase):
         self.assertNotIn("example.test", str(result))
         self.assertEqual(result, import_zap_alerts(payload, approved_origins=("https://example.test",)))
 
+    def test_scoped_alert_paths_are_accepted_but_never_disclosed(self):
+        base = report()
+        nested = report(url="https://example.test/private/session/123")
+        root = import_zap_alerts(base, approved_origins=("https://example.test",))
+        scoped = import_zap_alerts(nested, approved_origins=("https://example.test",))
+        self.assertEqual(scoped["unique_observation_count"], 1)
+        self.assertEqual(scoped["observations"], root["observations"])
+        self.assertNotIn("private", str(scoped))
+        self.assertNotIn("session", str(scoped))
+        self.assertNotIn("example.test", str(scoped))
+        self.assertNotEqual(scoped["source_report_sha256"], root["source_report_sha256"])
+        for bad in ("https://example.test/path?token=secret",
+                    "https://example.test/path#fragment",
+                    "https://user@example.test/path",
+                    "https://example.test.evil/path",
+                    "https://example.test\\\\path"):
+            with self.subTest(url=bad), self.assertRaises(ZapEvidenceError):
+                import_zap_alerts(report(url=bad), approved_origins=("https://example.test",))
+
     def test_out_of_scope_and_malformed_fail_closed(self):
         invalid = [report(url="https://example.test.evil"), report(url="https://evil.test"),
-                   report(url="https://user@example.test"), report(url="https://example.test/path"),
+                   report(url="https://user@example.test"), report(url="https://example.test.evil/path"),
                    report(plugin="bad"), report(risk=4), report(risk=True),
                    b'{"alerts":{}}', b'{"alerts":[null]}', b'not-json']
         for payload in invalid:

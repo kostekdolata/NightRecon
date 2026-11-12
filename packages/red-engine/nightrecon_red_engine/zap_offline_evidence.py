@@ -10,7 +10,7 @@ class ZapEvidenceError(ValueError):
     """Untrusted, malformed or out-of-scope ZAP evidence."""
 
 
-def _origin(value: object) -> str:
+def _origin(value: object, *, allow_path: bool = False) -> str:
     if not isinstance(value, str) or not value or value != value.strip():
         raise ZapEvidenceError("Invalid URL")
     try:
@@ -21,7 +21,9 @@ def _origin(value: object) -> str:
         raise ZapEvidenceError("Invalid URL") from exc
     if (parsed.scheme not in ("http", "https") or not host or
             parsed.username is not None or parsed.password is not None or
-            parsed.query or parsed.fragment or parsed.path not in ("", "/") or
+            parsed.query or parsed.fragment or
+            (not allow_path and parsed.path not in ("", "/")) or
+            (allow_path and parsed.path and not parsed.path.startswith("/")) or
             "\\" in value or any(c.isspace() for c in value) or
             host.endswith(".") or "%" in host or
             any(ord(c) > 127 for c in host)):
@@ -60,7 +62,7 @@ def import_zap_alerts(payload: bytes, *, approved_origins: tuple[str, ...],
     for alert in alerts:
         if not isinstance(alert, dict):
             raise ZapEvidenceError("Invalid alert")
-        origin = _origin(alert.get("url"))
+        origin = _origin(alert.get("url"), allow_path=True)
         if origin not in scope:
             raise ZapEvidenceError("Alert outside exact approved origins")
         plugin = alert.get("pluginId")
