@@ -7,7 +7,7 @@ from nightrecon_red_engine.amass_offline_evidence import AmassEvidenceError, imp
 
 
 def rows(*names):
-    return b"\\n".join(json.dumps({"name": name, "sources": ["untrusted"]}).encode() for name in names)
+    return b"\n".join(json.dumps({"name": name, "sources": ["untrusted"]}).encode() for name in names)
 
 
 class AmassOfflineEvidenceTests(unittest.TestCase):
@@ -24,7 +24,7 @@ class AmassOfflineEvidenceTests(unittest.TestCase):
     def test_scope_and_malformed_records_fail_closed(self):
         for raw in (rows("example.test.evil.test"), rows("notexample.test"),
                     rows("evil.test"), rows("localhost"), rows("a..example.test"),
-                    b'{"name": "ok.example.test"}\\nnot json', b"[]", b"", b"\\xff"):
+                    b'{"name": "ok.example.test"}\nnot json', b"[]", b"", b"\xff"):
             with self.subTest(raw=raw), self.assertRaises(AmassEvidenceError):
                 import_amass_jsonl(raw, approved_domain="example.test")
         with self.assertRaises(AmassEvidenceError):
