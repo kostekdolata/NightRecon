@@ -9,7 +9,7 @@ import re
 class AmassEvidenceError(ValueError):
     """Untrusted evidence is outside exact engagement scope or malformed."""
 
-_LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\Z")
+_LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\Z")
 _MAX_BYTES = 2_000_000
 _MAX_RECORDS = 2000
 
