@@ -59,7 +59,7 @@ class TestTrivyOfflineImport(unittest.TestCase):
         with self.assertRaises(TrivyEvidenceError):
             import_trivy_json(payload, approved_targets=("fixture-image@sha256:abc",), max_findings=1.5)
         with self.assertRaises(TrivyEvidenceError):
-            import_trivy_json(payload, approved_targets=("fixture-image@sha256:abc",), max_findings=1)
+            import_trivy_json(fixture(vulnerabilities=[{"VulnerabilityID": "CVE-X", "PkgName": "p"}] * 2), approved_targets=("fixture-image@sha256:abc",), max_findings=1)
         with self.assertRaises(TrivyEvidenceError):
             import_trivy_json(payload, approved_targets=("fixture-image@sha256:abc", "fixture-image@sha256:abc"))
 
