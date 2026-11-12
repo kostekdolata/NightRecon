@@ -56,6 +56,30 @@ class GuardedToolSelectionTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 plan_tools(requested, target, engagement, caps)
 
+    def test_malformed_authority_records_fail_closed(self):
+        valid = frozenset({"synthetic-target"})
+        tools = frozenset({"Trivy"})
+        caps = (Capability("Trivy", True, True, True),)
+        malformed = (
+            Engagement(valid, tools, frozenset(), 1, "false"),
+            Engagement(valid, tools, frozenset(), 1, 0),
+            Engagement(["synthetic-target"], tools, frozenset(), 1),
+            Engagement(valid, ["Trivy"], frozenset(), 1),
+            Engagement(valid, tools, ["Metasploit Framework"], 1),
+            Engagement(frozenset({None}), tools, frozenset(), 1),
+            Engagement(valid, frozenset({"Unknown"}), frozenset(), 1),
+            Engagement(valid, tools, frozenset({"Trivy"}), 1),
+        )
+        for engagement in malformed:
+            with self.subTest(engagement=engagement), self.assertRaises(ValueError):
+                plan_tools(("Trivy",), "synthetic-target", engagement, caps)
+
+    def test_unknown_capability_cannot_be_silently_accepted(self):
+        with self.assertRaises(ValueError):
+            plan_tools(("Trivy",), "synthetic-target", self.engagement,
+                       (Capability("Trivy", True, True, True),
+                        Capability("Unregistered", True, True, True)))
+
     def test_tool_not_authorized_even_when_available(self):
         engagement = Engagement(frozenset({"synthetic-target"}), frozenset(), frozenset(), 1)
         result = plan_tools(("Trivy",), "synthetic-target", engagement,
