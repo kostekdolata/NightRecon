@@ -11,7 +11,7 @@ class GreenboneEvidenceError(ValueError):
     """Malformed, excessive or out-of-engagement third-party evidence."""
 
 
-_HOST = re.compile(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?\\Z")
+_HOST = re.compile(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?\Z")
 
 
 def _host(value: str) -> str:
@@ -39,7 +39,7 @@ def import_greenbone_xml(payload: bytes, *, approved_hosts: tuple[str, ...],
     if not isinstance(payload, bytes) or not payload or len(payload) > 2_000_000:
         raise GreenboneEvidenceError("Invalid report size")
     # Do not accept document types, entities or processing instructions in untrusted reports.
-    if re.search(br"<!|<\\?", payload, re.IGNORECASE):
+    if re.search(br"<!|<\?", payload, re.IGNORECASE):
         raise GreenboneEvidenceError("XML declarations, DTDs and entities forbidden")
     try:
         root = ET.fromstring(payload)
@@ -61,7 +61,7 @@ def import_greenbone_xml(payload: bytes, *, approved_hosts: tuple[str, ...],
         severity_node = item.find("severity")
         port_node = item.find("port")
         if (host_node is None or host_node.text is None or
-                not isinstance(oid, str) or not re.fullmatch(r"[0-9]+(?:\\.[0-9]+)+", oid) or
+                not isinstance(oid, str) or not re.fullmatch(r"[0-9]+(?:\.[0-9]+)+", oid) or
                 severity_node is None or severity_node.text is None or
                 port_node is None or port_node.text is None):
             raise GreenboneEvidenceError("Incomplete finding identity")
