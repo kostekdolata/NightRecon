@@ -53,9 +53,39 @@ def import_zap_alerts(payload: bytes, *, approved_origins: tuple[str, ...],
         report = json.loads(payload.decode("utf-8"))
     except (ValueError, UnicodeError) as exc:
         raise ZapEvidenceError("Invalid JSON report") from exc
-    if not isinstance(report, dict) or not isinstance(report.get("alerts"), list):
-        raise ZapEvidenceError("Expected alerts array")
-    alerts = report["alerts"]
+    if not isinstance(report, dict):
+        raise ZapEvidenceError("Expected JSON object")
+    if "alerts" in report and "site" in report:
+        raise ZapEvidenceError("Ambiguous ZAP report shape")
+    if "alerts" in report:
+        if not isinstance(report["alerts"], list):
+            raise ZapEvidenceError("Expected alerts array")
+        alerts = report["alerts"]
+    elif "site" in report:
+        sites = report["site"]
+        if not isinstance(sites, list) or len(sites) > max_alerts:
+            raise ZapEvidenceError("Invalid site budget")
+        alerts = []
+        for site in sites:
+            if not isinstance(site, dict) or not isinstance(site.get("alerts"), list):
+                raise ZapEvidenceError("Invalid site alerts")
+            site_origin = _origin(site.get("@name"))
+            if site_origin not in scope:
+                raise ZapEvidenceError("Site outside approved origins")
+            for entry in site["alerts"]:
+                if not isinstance(entry, dict) or not isinstance(entry.get("instances"), list) or not entry["instances"]:
+                    raise ZapEvidenceError("Invalid alert instances")
+                if len(entry["instances"]) > max_alerts:
+                    raise ZapEvidenceError("Instance budget exceeded")
+                for instance in entry["instances"]:
+                    if not isinstance(instance, dict):
+                        raise ZapEvidenceError("Invalid instance")
+                    alerts.append({"url": instance.get("uri"), "pluginId": entry.get("pluginid"),
+                                   "riskcode": entry.get("riskcode")})
+                    if len(alerts) > max_alerts:
+                        raise ZapEvidenceError("Alert budget exceeded")
+    else:
+        raise ZapEvidenceError("Expected alerts or site array")
     if len(alerts) > max_alerts:
         raise ZapEvidenceError("Alert budget exceeded")
     seen = set()
@@ -67,6 +97,8 @@ def import_zap_alerts(payload: bytes, *, approved_origins: tuple[str, ...],
             raise ZapEvidenceError("Alert outside exact approved origins")
         plugin = alert.get("pluginId")
         risk = alert.get("riskcode")
+        if isinstance(risk, str) and len(risk) == 1 and risk in "0123":
+            risk = int(risk)
         if (not isinstance(plugin, str) or not plugin.isascii() or
                 not plugin.isdigit() or not 1 <= len(plugin) <= 12 or
                 type(risk) is not int or risk not in (0, 1, 2, 3)):
