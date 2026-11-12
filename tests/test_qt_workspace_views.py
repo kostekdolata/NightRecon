@@ -41,9 +41,15 @@ class QtWorkspaceViewsTests(unittest.TestCase):
 
     def test_unimplemented_workspaces_are_not_misrepresented(self):
         view = present_operations(None)
-        for index in (1, 2, 3, 5):
+        for index in (1, 2, 3):
             self.assertIn("not connected", workspace_summary(index, view))
             self.assertIn("No live telemetry", workspace_summary(index, view))
+
+    def test_reporting_workspace_is_readonly_preview_not_unimplemented(self):
+        result = workspace_summary(5, present_operations(None))
+        self.assertIn("READ-ONLY REPORT PREVIEW", result)
+        self.assertIn("No export, scan, approval or modification", result)
+        self.assertNotIn("not connected", result)
 
     def test_invalid_index_and_raw_snapshot_are_rejected(self):
         view = present_operations(None)
